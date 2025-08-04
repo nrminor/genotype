@@ -1,0 +1,15 @@
+dist/
+*.d.ts
+node_modules/
+test/fixtures/
+**/*.fasta
+**/*.fastq
+**/*.fa
+**/*.fq
+**/*.sam
+**/*.bed
+**/*.bam
+src/zig/
+*.zig
+bun.lockb
+CHANGELOG.md

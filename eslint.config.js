@@ -1,0 +1,110 @@
+import js from '@eslint/js';
+import tseslint from '@typescript-eslint/eslint-plugin';
+import tsparser from '@typescript-eslint/parser';
+
+export default [
+  js.configs.recommended,
+  {
+    files: ['src/**/*.ts'],
+    languageOptions: {
+      parser: tsparser,
+      parserOptions: {
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+        project: './tsconfig.json',
+      },
+      globals: {
+        console: 'readonly',
+        ReadableStream: 'readonly',
+        AbortController: 'readonly',
+        AbortSignal: 'readonly',
+        TransformStream: 'readonly',
+        WritableStream: 'readonly',
+        CompressionStream: 'readonly',
+        DecompressionStream: 'readonly',
+        Uint8Array: 'readonly',
+        Uint16Array: 'readonly',
+        Uint32Array: 'readonly',
+        ArrayBuffer: 'readonly',
+        Buffer: 'readonly',
+        TextEncoder: 'readonly',
+        TextDecoder: 'readonly',
+        crypto: 'readonly',
+        __dirname: 'readonly',
+      },
+    },
+    plugins: {
+      '@typescript-eslint': tseslint,
+    },
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-unused-vars': 'error',
+      '@typescript-eslint/explicit-function-return-type': 'error',
+      '@typescript-eslint/strict-boolean-expressions': 'error',
+      '@typescript-eslint/switch-exhaustiveness-check': 'error',
+      '@typescript-eslint/prefer-readonly': 'error',
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/await-thenable': 'error',
+      '@typescript-eslint/no-misused-promises': 'error',
+      'max-depth': ['error', 3],
+      complexity: ['error', 10],
+      'max-nested-callbacks': ['error', 3],
+      'max-params': ['error', 4],
+      'max-lines-per-function': ['error', 70],
+      'no-console': 'off',
+      'prefer-const': 'error',
+      'no-var': 'error',
+      'no-implied-eval': 'error',
+      'no-new-wrappers': 'error',
+      'no-throw-literal': 'error',
+      'no-magic-numbers': [
+        'warn',
+        {
+          ignore: [0, 1, -1, 2, 4, 33, 64],
+          ignoreArrayIndexes: true,
+        },
+      ],
+    },
+  },
+  {
+    files: ['test/**/*.ts'],
+    languageOptions: {
+      parser: tsparser,
+      parserOptions: {
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+      },
+      globals: {
+        console: 'readonly',
+        Buffer: 'readonly',
+        Uint8Array: 'readonly',
+        ReadableStream: 'readonly',
+        process: 'readonly',
+        performance: 'readonly',
+        global: 'readonly',
+        setTimeout: 'readonly',
+        test: 'readonly',
+        expect: 'readonly',
+        describe: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+        it: 'readonly',
+      },
+    },
+    plugins: {
+      '@typescript-eslint': tseslint,
+    },
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-unused-vars': 'error',
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      'max-lines-per-function': 'off',
+      'no-magic-numbers': 'off',
+      'prefer-const': 'error',
+      'no-var': 'error',
+    },
+  },
+  {
+    ignores: ['dist/**/*', 'node_modules/**/*', 'src/zig/**/*', '*.js', '*.d.ts'],
+  },
+];

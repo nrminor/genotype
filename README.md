@@ -1,6 +1,7 @@
-# Genotype
+# GenoType
 
-TypeScript library for parsing genomic file formats with streaming support and comprehensive validation.
+TypeScript library for parsing genomic file formats with streaming support and
+comprehensive validation.
 
 ## Installation
 

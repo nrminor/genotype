@@ -1,0 +1,12 @@
+@read1 first read
+ATCGATCGATCGATCGATCGATC
++
+IIIIIIIIIIIIIIIIIIIIIII
+@read2 second read with lower quality
+GGGGGGGGGGGGGGGGGGGGGG
++
+####################
+@read3 mixed quality
+ATCGATCGATCGATCGATCGATC
++
+IIIIIIIIII##########

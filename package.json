@@ -1,0 +1,109 @@
+{
+  "name": "genotype",
+  "version": "0.1.0",
+  "description": "A feature-rich TypeScript library for working with genomic data formats (FASTA, FASTQ, SAM, BAM, BED)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc && node scripts/build.js",
+    "build:zig": "cd src/zig && zig build",
+    "build:zig:dev": "cd src/zig && zig build -Doptimize=Debug",
+    "build:zig:prod": "cd src/zig && zig build -Doptimize=ReleaseFast",
+    "build:with-native": "bun run build:zig:prod && bun run build",
+    "dev": "tsc --watch",
+    "test": "bun test",
+    "test:zig": "cd src/zig && zig build test",
+    "test:node": "node --test test/**/*.test.js",
+    "test:deno": "deno test test/**/*.test.ts",
+    "lint": "tsc --noEmit && eslint src test --ext .ts",
+    "lint:fix": "eslint src test --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.{ts,js,json}\" \"test/**/*.{ts,js,json}\" \"*.{ts,js,json,md}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,js,json}\" \"test/**/*.{ts,js,json}\" \"*.{ts,js,json,md}\"",
+    "clean": "rm -rf dist && cd src/zig && zig build clean",
+    "prepublishOnly": "bun run clean && bun run build:with-native",
+    "check": "bun run lint && bun run test && bun run build",
+    "check:with-native": "bun run lint && bun run test && bun run test:zig && bun run build:with-native",
+    "validate": "bun run check",
+    "validate:full": "bun run check:with-native"
+  },
+  "keywords": [
+    "bioinformatics",
+    "genomics",
+    "fasta",
+    "fastq",
+    "sam",
+    "bam",
+    "bed",
+    "typescript",
+    "streaming",
+    "performance"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "peerDependencies": {
+    "typescript": ">=5.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.32.0",
+    "@types/bun": "^1.1.0",
+    "@types/node": "^22.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.3.0",
+    "tsd": "^0.31.0",
+    "type-coverage": "^2.29.0",
+    "typescript": "^5.5.0",
+    "typescript-language-server": "^4.3.4"
+  },
+  "dependencies": {
+    "@biomejs/biome": "^2.1.3",
+    "arktype": "^2.0.0-rc.8"
+  },
+  "prettier": {
+    "semi": true,
+    "singleQuote": true,
+    "printWidth": 100,
+    "tabWidth": 2,
+    "trailingComma": "es5",
+    "bracketSpacing": true,
+    "arrowParens": "always",
+    "endOfLine": "lf",
+    "bracketSameLine": false,
+    "quoteProps": "as-needed",
+    "ignorePatterns": [
+      "dist/",
+      "*.d.ts",
+      "node_modules/",
+      "test/fixtures/",
+      "**/*.fasta",
+      "**/*.fastq",
+      "**/*.fa",
+      "**/*.fq",
+      "**/*.sam",
+      "**/*.bed",
+      "**/*.bam",
+      "src/zig/",
+      "*.zig",
+      "bun.lockb",
+      "CHANGELOG.md"
+    ]
+  }
+}

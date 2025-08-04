@@ -1,0 +1,782 @@
+/**
+ * FASTA format parser and writer
+ *
+ * Handles the messiness of real-world FASTA files:
+ * - Multiple sequence formats
+ * - Wrapped and unwrapped sequences
+ * - Missing or malformed headers
+ * - Mixed case sequences
+ * - IUPAC ambiguity codes
+ * - Comments and blank lines
+ */
+
+import { type } from 'arktype';
+import type { FastaSequence, ParserOptions, ParseResult } from '../types';
+import { FastaSequenceSchema, SequenceIdSchema, SequenceSchema } from '../types';
+import { ValidationError, ParseError, SequenceError, getErrorSuggestion } from '../errors';
+
+/**
+ * Streaming FASTA parser with comprehensive validation
+ *
+ * Designed for memory efficiency - processes sequences one at a time
+ * without loading entire files into memory. Handles real-world FASTA
+ * file messiness including wrapped sequences, comments, and malformed headers.
+ *
+ * @example Basic usage
+ * ```typescript
+ * const parser = new FastaParser();
+ * for await (const sequence of parser.parseString(fastaData)) {
+ *   console.log(`${sequence.id}: ${sequence.length} bp`);
+ * }
+ * ```
+ *
+ * @example With custom options
+ * ```typescript
+ * const parser = new FastaParser({
+ *   skipValidation: false,
+ *   maxLineLength: 1000000,
+ *   onError: (error, lineNumber) => console.error(`Line ${lineNumber}: ${error}`)
+ * });
+ * ```
+ */
+export class FastaParser {
+  private options: Required<ParserOptions>;
+
+  /**
+   * Create a new FASTA parser with specified options
+   * @param options Parser configuration options
+   */
+  constructor(options: ParserOptions = {}) {
+    // Tiger Style: Assert constructor arguments
+    console.assert(typeof options === 'object', 'options must be an object');
+    this.options = {
+      skipValidation: false,
+      maxLineLength: 1_000_000, // 1MB max line length
+      trackLineNumbers: true,
+      qualityEncoding: 'phred33', // Not used for FASTA
+      parseQualityScores: false, // Not used for FASTA
+      onError: (error: string, lineNumber?: number) => {
+        throw new ParseError(error, 'FASTA', lineNumber);
+      },
+      onWarning: (warning: string, lineNumber?: number) => {
+        console.warn(`FASTA Warning (line ${lineNumber}): ${warning}`);
+      },
+      ...options,
+    };
+  }
+
+  /**
+   * Parse FASTA sequences from a string
+   * @param data Raw FASTA format string data
+   * @yields FastaSequence objects as they are parsed from the input
+   * @throws {ParseError} When FASTA format is invalid
+   * @throws {SequenceError} When sequence data is malformed
+   * @example
+   * ```typescript
+   * const fastaData = '>seq1\nATCG\n>seq2\nGGGG';
+   * for await (const sequence of parser.parseString(fastaData)) {
+   *   console.log(`${sequence.id}: ${sequence.sequence}`);
+   * }
+   * ```
+   */
+  async *parseString(data: string): AsyncIterable<FastaSequence> {
+    // Tiger Style: Assert function arguments
+    console.assert(typeof data === 'string', 'data must be a string');
+    const lines = data.split(/\r?\n/);
+    yield* this.parseLines(lines);
+  }
+
+  /**
+   * Parse FASTA sequences from a file using streaming I/O
+   * @param filePath Path to FASTA file to parse
+   * @param options File reading options for performance tuning
+   * @yields FastaSequence objects as they are parsed from the file
+   * @throws {FileError} When file cannot be read
+   * @throws {ParseError} When FASTA format is invalid
+   * @throws {SequenceError} When sequence data is malformed
+   * @example
+   * ```typescript
+   * const parser = new FastaParser();
+   * for await (const sequence of parser.parseFile('/path/to/genome.fasta')) {
+   *   console.log(`${sequence.id}: ${sequence.length} bp`);
+   * }
+   * ```
+   */
+  async *parseFile(
+    filePath: string,
+    options?: import('../types').FileReaderOptions
+  ): AsyncIterable<FastaSequence> {
+    // Tiger Style: Assert function arguments
+    console.assert(typeof filePath === 'string', 'filePath must be a string');
+    console.assert(filePath.length > 0, 'filePath must not be empty');
+    console.assert(
+      !options || typeof options === 'object',
+      'options must be an object if provided'
+    );
+
+    // Import I/O modules dynamically to avoid circular dependencies
+    const { FileReader } = await import('../io/file-reader');
+    const { StreamUtils } = await import('../io/stream-utils');
+
+    try {
+      // Validate file path and create stream
+      const validatedPath = await this.validateFilePath(filePath);
+      const stream = await FileReader.createStream(validatedPath, options);
+
+      // Convert binary stream to lines and parse
+      const lines = StreamUtils.readLines(stream, options?.encoding || 'utf8');
+      yield* this.parseLinesFromAsyncIterable(lines);
+    } catch (error) {
+      // Re-throw with enhanced context
+      if (error instanceof Error) {
+        throw new ParseError(
+          `Failed to parse FASTA file '${filePath}': ${error.message}`,
+          'FASTA',
+          undefined,
+          error.stack
+        );
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Parse FASTA sequences from a ReadableStream
+   * @param stream Stream of binary data containing FASTA format text
+   * @yields FastaSequence objects as they are parsed from the stream
+   * @throws {ParseError} When FASTA format is invalid
+   * @throws {SequenceError} When sequence data is malformed
+   * @example
+   * ```typescript
+   * const response = await fetch('genome.fasta');
+   * for await (const sequence of parser.parse(response.body!)) {
+   *   console.log(`Processing ${sequence.id}...`);
+   * }
+   * ```
+   */
+  async *parse(stream: ReadableStream<Uint8Array>): AsyncIterable<FastaSequence> {
+    // Tiger Style: Assert function arguments
+    console.assert(stream instanceof ReadableStream, 'stream must be a ReadableStream');
+    const reader = stream.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let lineNumber = 0;
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          // Process any remaining data in buffer
+          if (buffer.trim()) {
+            const lines = buffer.split(/\r?\n/);
+            yield* this.parseLines(lines, lineNumber);
+          }
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Process complete lines
+        const lines = buffer.split(/\r?\n/);
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+        if (lines.length > 0) {
+          yield* this.parseLines(lines, lineNumber);
+          lineNumber += lines.length;
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  }
+
+  /**
+   * Parse FASTA sequences from an iterator of lines
+   * @param lines Array of text lines to parse
+   * @param startLineNumber Starting line number for error reporting
+   * @yields FastaSequence objects as they are parsed
+   */
+  private async *parseLines(lines: string[], startLineNumber = 1): AsyncIterable<FastaSequence> {
+    // Tiger Style: Assert function arguments
+    console.assert(Array.isArray(lines), 'lines must be an array');
+    console.assert(
+      Number.isInteger(startLineNumber) && startLineNumber >= 0,
+      'startLineNumber must be non-negative integer'
+    );
+
+    let currentSequence: Partial<FastaSequence> | null = null;
+    let sequenceBuffer: string[] = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const currentLineNumber = startLineNumber + i;
+      const processedLine = this.processLine(lines[i] ?? '', currentLineNumber);
+
+      if (!processedLine) continue; // Skip empty/comment lines
+
+      if (processedLine.isHeader) {
+        // Yield previous sequence if exists
+        if (currentSequence) {
+          yield this.finalizeSequence(currentSequence, sequenceBuffer, currentLineNumber - 1);
+        }
+
+        currentSequence = processedLine.headerData ?? null;
+        sequenceBuffer = [];
+      } else {
+        // Handle sequence data
+        this.processSequenceData(
+          processedLine.sequenceData!,
+          currentSequence,
+          sequenceBuffer,
+          currentLineNumber
+        );
+      }
+    }
+
+    // Yield final sequence
+    if (currentSequence && sequenceBuffer.length > 0) {
+      yield this.finalizeSequence(
+        currentSequence,
+        sequenceBuffer,
+        startLineNumber + lines.length - 1
+      );
+    }
+  }
+
+  /**
+   * Process a single line and determine its type and content
+   * @param line Raw line text
+   * @param lineNumber Line number for error reporting
+   * @returns Processed line data or null if line should be skipped
+   */
+  private processLine(
+    line: string,
+    lineNumber: number
+  ): {
+    isHeader: boolean;
+    headerData?: Partial<FastaSequence>;
+    sequenceData?: string;
+  } | null {
+    // Tiger Style: Assert function arguments
+    console.assert(typeof line === 'string', 'line must be a string');
+    console.assert(
+      Number.isInteger(lineNumber) && lineNumber > 0,
+      'lineNumber must be positive integer'
+    );
+
+    // Check line length bounds
+    if (line.length > this.options.maxLineLength) {
+      this.options.onError(
+        `Line too long (${line.length} > ${this.options.maxLineLength})`,
+        lineNumber
+      );
+      return null;
+    }
+
+    const trimmedLine = line.trim();
+
+    // Skip empty lines and comments
+    if (!trimmedLine || trimmedLine.startsWith(';')) {
+      return null;
+    }
+
+    // Header line
+    if (trimmedLine.startsWith('>')) {
+      return {
+        isHeader: true,
+        headerData: this.parseHeader(trimmedLine, lineNumber),
+      };
+    }
+
+    // Sequence line
+    const cleanedSequence = this.cleanSequence(trimmedLine, lineNumber);
+    return cleanedSequence
+      ? {
+          isHeader: false,
+          sequenceData: cleanedSequence,
+        }
+      : null;
+  }
+
+  /**
+   * Process sequence data line and update current sequence state
+   * @param sequenceData Cleaned sequence data
+   * @param currentSequence Current sequence being built
+   * @param sequenceBuffer Buffer of sequence parts
+   * @param lineNumber Line number for error reporting
+   */
+  private processSequenceData(
+    sequenceData: string,
+    currentSequence: Partial<FastaSequence> | null,
+    sequenceBuffer: string[],
+    lineNumber: number
+  ): void {
+    // Tiger Style: Assert function arguments and preconditions
+    console.assert(typeof sequenceData === 'string', 'sequenceData must be a string');
+    console.assert(Array.isArray(sequenceBuffer), 'sequenceBuffer must be an array');
+    console.assert(
+      Number.isInteger(lineNumber) && lineNumber > 0,
+      'lineNumber must be positive integer'
+    );
+
+    if (!currentSequence) {
+      this.options.onError('Sequence data found before header', lineNumber);
+      return;
+    }
+
+    sequenceBuffer.push(sequenceData);
+
+    // Tiger Style: Assert postcondition
+    console.assert(
+      sequenceBuffer.length > 0,
+      'sequenceBuffer should contain data after processing'
+    );
+  }
+
+  /**
+   * Parse FASTA header line into sequence metadata
+   * @param headerLine Raw header line starting with '>'
+   * @param lineNumber Line number for error reporting
+   * @returns Partial sequence object with ID and description
+   */
+  private parseHeader(headerLine: string, lineNumber: number): Partial<FastaSequence> {
+    // Tiger Style: Assert function arguments
+    console.assert(typeof headerLine === 'string', 'headerLine must be a string');
+    console.assert(headerLine.startsWith('>'), 'headerLine must start with ">"');
+    console.assert(
+      Number.isInteger(lineNumber) && lineNumber > 0,
+      'lineNumber must be positive integer'
+    );
+    const header = headerLine.slice(1); // Remove '>'
+
+    if (!header) {
+      this.options.onWarning('Empty FASTA header', lineNumber);
+    }
+
+    // Split on first whitespace to separate ID from description
+    const firstSpace = header.search(/\s/);
+    const id = firstSpace === -1 ? header : header.slice(0, firstSpace);
+    const description = firstSpace === -1 ? undefined : header.slice(firstSpace + 1).trim();
+
+    // Validate ID if not skipping validation
+    if (!this.options.skipValidation && id) {
+      try {
+        const idValidation = SequenceIdSchema(id);
+        if (idValidation instanceof type.errors) {
+          throw new SequenceError(
+            `Invalid sequence ID: ${idValidation.summary}`,
+            id,
+            lineNumber,
+            headerLine
+          );
+        }
+      } catch (error) {
+        // Handle ArkType validation errors gracefully
+        if (error instanceof SequenceError) {
+          throw error;
+        }
+        this.options.onWarning(
+          `Sequence ID validation warning: ${error instanceof Error ? error.message : String(error)}`,
+          lineNumber
+        );
+      }
+    }
+
+    const result = {
+      format: 'fasta' as const,
+      id,
+      description: description || undefined,
+      lineNumber: this.options.trackLineNumbers ? lineNumber : undefined,
+    };
+
+    // Tiger Style: Assert postconditions
+    console.assert(result.format === 'fasta', 'result format must be fasta');
+    console.assert(typeof result.id === 'string', 'result id must be a string');
+
+    return {
+      format: 'fasta',
+      id: result.id || '',
+      ...(result.description && { description: result.description }),
+      ...(result.lineNumber && { lineNumber: result.lineNumber }),
+    };
+  }
+
+  /**
+   * Clean and validate sequence data, removing whitespace and validating characters
+   * @param sequenceLine Raw sequence line from input
+   * @param lineNumber Line number for error reporting
+   * @returns Cleaned sequence string with whitespace removed
+   */
+  private cleanSequence(sequenceLine: string, lineNumber: number): string {
+    // Tiger Style: Assert function arguments
+    console.assert(typeof sequenceLine === 'string', 'sequenceLine must be a string');
+    console.assert(
+      Number.isInteger(lineNumber) && lineNumber > 0,
+      'lineNumber must be positive integer'
+    );
+    // Remove whitespace
+    const cleaned = sequenceLine.replace(/\s/g, '');
+
+    if (!cleaned) {
+      return '';
+    }
+
+    // Validate sequence if not skipping validation
+    if (!this.options.skipValidation) {
+      const validation = SequenceSchema(cleaned);
+      if (validation instanceof type.errors) {
+        const suggestion = getErrorSuggestion(
+          new ValidationError(`Invalid sequence characters: ${validation.summary}`)
+        );
+
+        throw new SequenceError(
+          `Invalid sequence characters found. ${suggestion}`,
+          'unknown',
+          lineNumber,
+          sequenceLine
+        );
+      }
+    }
+
+    // Tiger Style: Assert postconditions
+    console.assert(typeof cleaned === 'string', 'cleaned result must be a string');
+    console.assert(
+      !cleaned.includes(' ') && !cleaned.includes('\t'),
+      'cleaned result must not contain whitespace'
+    );
+
+    return cleaned;
+  }
+
+  /**
+   * Finalize sequence object with complete data and validation
+   * @param partialSequence Partial sequence data from header parsing
+   * @param sequenceBuffer Array of sequence parts to concatenate
+   * @param lineNumber Final line number for error reporting
+   * @returns Complete validated FastaSequence object
+   */
+  private finalizeSequence(
+    partialSequence: Partial<FastaSequence>,
+    sequenceBuffer: string[],
+    lineNumber: number
+  ): FastaSequence {
+    // Tiger Style: Assert function arguments
+    console.assert(partialSequence !== null, 'partialSequence must not be null');
+    console.assert(Array.isArray(sequenceBuffer), 'sequenceBuffer must be an array');
+    console.assert(sequenceBuffer.length > 0, 'sequenceBuffer must not be empty');
+    console.assert(
+      Number.isInteger(lineNumber) && lineNumber > 0,
+      'lineNumber must be positive integer'
+    );
+    const sequence = sequenceBuffer.join('');
+    const length = sequence.length;
+
+    if (length === 0) {
+      throw new SequenceError('Empty sequence found', partialSequence.id || 'unknown', lineNumber);
+    }
+
+    const fastaSequence: FastaSequence = {
+      format: 'fasta',
+      id: partialSequence.id || '',
+      ...(partialSequence.description && { description: partialSequence.description }),
+      sequence,
+      length,
+      ...(partialSequence.lineNumber && { lineNumber: partialSequence.lineNumber }),
+    };
+
+    // Final validation if not skipping
+    if (!this.options.skipValidation) {
+      try {
+        const validation = FastaSequenceSchema(fastaSequence);
+        if (validation instanceof type.errors) {
+          throw new SequenceError(
+            `Invalid FASTA sequence: ${validation.summary}`,
+            fastaSequence.id,
+            lineNumber
+          );
+        }
+      } catch (error) {
+        // Handle ArkType validation errors gracefully
+        if (error instanceof SequenceError) {
+          throw error;
+        }
+        // For other ArkType errors, provide a more user-friendly message
+        throw new SequenceError(
+          `Sequence validation failed: ${error instanceof Error ? error.message : String(error)}`,
+          fastaSequence.id,
+          lineNumber
+        );
+      }
+    }
+
+    // Tiger Style: Assert postconditions
+    console.assert(fastaSequence.format === 'fasta', 'result format must be fasta');
+    console.assert(typeof fastaSequence.id === 'string', 'result id must be a string');
+    console.assert(
+      fastaSequence.length === fastaSequence.sequence.length,
+      'length must match sequence length'
+    );
+    console.assert(fastaSequence.length > 0, 'sequence must not be empty');
+
+    return fastaSequence;
+  }
+
+  /**
+   * Validate file path and ensure it's accessible for reading
+   * @param filePath Raw file path from user input
+   * @returns Promise resolving to validated file path
+   * @throws {FileError} If file path is invalid or file is not accessible
+   */
+  private async validateFilePath(filePath: string): Promise<string> {
+    // Tiger Style: Assert function arguments
+    console.assert(typeof filePath === 'string', 'filePath must be a string');
+    console.assert(filePath.length > 0, 'filePath must not be empty');
+
+    // Import FileReader dynamically to avoid circular dependencies
+    const { FileReader } = await import('../io/file-reader');
+
+    // Check if file exists and is readable
+    if (!(await FileReader.exists(filePath))) {
+      throw new ParseError(
+        `FASTA file not found or not accessible: ${filePath}`,
+        'FASTA',
+        undefined,
+        `Please check that the file exists and you have read permissions`
+      );
+    }
+
+    // Get file metadata for additional validation
+    try {
+      const metadata = await FileReader.getMetadata(filePath);
+
+      if (!metadata.readable) {
+        throw new ParseError(
+          `FASTA file is not readable: ${filePath}`,
+          'FASTA',
+          undefined,
+          'Check file permissions'
+        );
+      }
+
+      // Warn about very large files
+      if (metadata.size > 1_073_741_824) {
+        // 1GB
+        this.options.onWarning(
+          `Large FASTA file detected: ${Math.round(metadata.size / 1_048_576)}MB. Consider using streaming with smaller buffer sizes.`,
+          1
+        );
+      }
+    } catch (error) {
+      if (error instanceof ParseError) throw error;
+      throw new ParseError(
+        `Failed to validate FASTA file: ${error instanceof Error ? error.message : String(error)}`,
+        'FASTA',
+        undefined,
+        filePath
+      );
+    }
+
+    return filePath;
+  }
+
+  /**
+   * Parse FASTA sequences from async iterable of lines
+   * @param lines Async iterable of text lines
+   * @yields FastaSequence objects as they are parsed
+   */
+  private async *parseLinesFromAsyncIterable(
+    lines: AsyncIterable<string>
+  ): AsyncIterable<FastaSequence> {
+    // Tiger Style: Assert function arguments
+    console.assert(
+      typeof lines === 'object' && Symbol.asyncIterator in lines,
+      'lines must be async iterable'
+    );
+
+    let currentSequence: Partial<FastaSequence> | null = null;
+    let sequenceBuffer: string[] = [];
+    let lineNumber = 0;
+
+    try {
+      for await (const rawLine of lines) {
+        lineNumber++;
+        const processedLine = this.processLine(rawLine, lineNumber);
+
+        if (!processedLine) continue; // Skip empty/comment lines
+
+        if (processedLine.isHeader) {
+          // Yield previous sequence if exists
+          if (currentSequence) {
+            yield this.finalizeSequence(currentSequence, sequenceBuffer, lineNumber - 1);
+          }
+
+          currentSequence = processedLine.headerData ?? null;
+          sequenceBuffer = [];
+        } else {
+          // Handle sequence data
+          this.processSequenceData(
+            processedLine.sequenceData!,
+            currentSequence,
+            sequenceBuffer,
+            lineNumber
+          );
+        }
+      }
+
+      // Yield final sequence
+      if (currentSequence && sequenceBuffer.length > 0) {
+        yield this.finalizeSequence(currentSequence, sequenceBuffer, lineNumber);
+      } else if (currentSequence) {
+        // Handle case where header exists but no sequence data
+        throw new SequenceError(
+          'Header found but no sequence data',
+          currentSequence.id || 'unknown',
+          lineNumber
+        );
+      }
+    } catch (error) {
+      // Enhance error with line number context
+      if (error instanceof ParseError || error instanceof SequenceError) {
+        throw error;
+      }
+
+      throw new ParseError(
+        `FASTA parsing failed at line ${lineNumber}: ${error instanceof Error ? error.message : String(error)}`,
+        'FASTA',
+        lineNumber,
+        'Check file format and content'
+      );
+    }
+
+    // Tiger Style: Assert postconditions
+    console.assert(lineNumber >= 0, 'line number must be non-negative');
+  }
+}
+
+/**
+ * FASTA writer for outputting sequences
+ */
+export class FastaWriter {
+  private lineWidth: number;
+  private includeDescription: boolean;
+
+  constructor(
+    options: {
+      lineWidth?: number;
+      includeDescription?: boolean;
+    } = {}
+  ) {
+    this.lineWidth = options.lineWidth || 80;
+    this.includeDescription = options.includeDescription ?? true;
+  }
+
+  /**
+   * Format a single FASTA sequence as string
+   */
+  formatSequence(sequence: FastaSequence): string {
+    let header = `>${sequence.id}`;
+
+    if (this.includeDescription && sequence.description) {
+      header += ` ${sequence.description}`;
+    }
+
+    // Wrap sequence to specified line width
+    const wrappedSequence = this.wrapText(sequence.sequence, this.lineWidth);
+
+    return `${header}\n${wrappedSequence}`;
+  }
+
+  /**
+   * Format multiple sequences as string
+   */
+  formatSequences(sequences: FastaSequence[]): string {
+    return sequences.map((seq) => this.formatSequence(seq)).join('\n');
+  }
+
+  /**
+   * Write sequences to a WritableStream
+   */
+  async writeToStream(
+    sequences: AsyncIterable<FastaSequence>,
+    stream: WritableStream<Uint8Array>
+  ): Promise<void> {
+    const writer = stream.getWriter();
+    const encoder = new TextEncoder();
+
+    try {
+      for await (const sequence of sequences) {
+        const formatted = this.formatSequence(sequence) + '\n';
+        await writer.write(encoder.encode(formatted));
+      }
+    } finally {
+      writer.releaseLock();
+    }
+  }
+
+  /**
+   * Wrap text to specified width
+   */
+  private wrapText(text: string, width: number): string {
+    if (width <= 0) return text;
+
+    const lines: string[] = [];
+    for (let i = 0; i < text.length; i += width) {
+      lines.push(text.slice(i, i + width));
+    }
+    return lines.join('\n');
+  }
+}
+
+/**
+ * Utility functions for FASTA format
+ */
+export const FastaUtils = {
+  /**
+   * Detect if string contains FASTA format data
+   */
+  detectFormat(data: string): boolean {
+    const trimmed = data.trim();
+    return trimmed.startsWith('>') && trimmed.includes('\n');
+  },
+
+  /**
+   * Count sequences in FASTA data without parsing
+   */
+  countSequences(data: string): number {
+    return (data.match(/^>/gm) || []).length;
+  },
+
+  /**
+   * Extract sequence IDs without full parsing
+   */
+  extractIds(data: string): string[] {
+    const matches = data.match(/^>([^\s\n\r]+)/gm);
+    return matches ? matches.map((m) => m.slice(1)) : [];
+  },
+
+  /**
+   * Calculate basic sequence statistics
+   */
+  calculateStats(sequence: string): {
+    length: number;
+    gcContent: number;
+    composition: Record<string, number>;
+  } {
+    const length = sequence.length;
+    const composition: Record<string, number> = {};
+    let gcCount = 0;
+
+    for (const char of sequence.toUpperCase()) {
+      composition[char] = (composition[char] || 0) + 1;
+      if (char === 'G' || char === 'C') {
+        gcCount++;
+      }
+    }
+
+    return {
+      length,
+      gcContent: length > 0 ? gcCount / length : 0,
+      composition,
+    };
+  },
+};

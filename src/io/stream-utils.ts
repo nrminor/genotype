@@ -94,7 +94,7 @@ export class StreamUtils {
         totalBytesProcessed += value.length;
 
         // Process complete lines
-        const result = this.processBuffer(buffer);
+        const result = StreamUtils.processBuffer(buffer);
         buffer = result.remainder;
 
         // Yield complete lines
@@ -103,15 +103,15 @@ export class StreamUtils {
           lineCount++;
 
           // Periodic memory check
-          if (lineCount % this.MEMORY_CHECK_INTERVAL === 0) {
-            this.checkMemoryUsage(buffer.length, totalBytesProcessed);
+          if (lineCount % StreamUtils.MEMORY_CHECK_INTERVAL === 0) {
+            StreamUtils.checkMemoryUsage(buffer.length, totalBytesProcessed);
           }
         }
 
         // Check buffer size to prevent memory exhaustion
-        if (buffer.length > this.MAX_BUFFER_SIZE) {
+        if (buffer.length > StreamUtils.MAX_BUFFER_SIZE) {
           throw new BufferError(
-            `Buffer overflow: ${buffer.length} bytes exceeds maximum ${this.MAX_BUFFER_SIZE}`,
+            `Buffer overflow: ${buffer.length} bytes exceeds maximum ${StreamUtils.MAX_BUFFER_SIZE}`,
             buffer.length,
             'overflow'
           );
@@ -180,9 +180,9 @@ export class StreamUtils {
         const line = buffer.slice(lineStart, lineEnd);
 
         // Check line length
-        if (line.length > this.MAX_LINE_LENGTH) {
+        if (line.length > StreamUtils.MAX_LINE_LENGTH) {
           throw new BufferError(
-            `Line too long: ${line.length} characters exceeds maximum ${this.MAX_LINE_LENGTH}`,
+            `Line too long: ${line.length} characters exceeds maximum ${StreamUtils.MAX_LINE_LENGTH}`,
             line.length,
             'overflow',
             `Line starts with: ${line.slice(0, 100)}...`
@@ -199,9 +199,9 @@ export class StreamUtils {
         // Mac classic line ending (\r not followed by \n)
         const line = buffer.slice(lineStart, currentPosition);
 
-        if (line.length > this.MAX_LINE_LENGTH) {
+        if (line.length > StreamUtils.MAX_LINE_LENGTH) {
           throw new BufferError(
-            `Line too long: ${line.length} characters exceeds maximum ${this.MAX_LINE_LENGTH}`,
+            `Line too long: ${line.length} characters exceeds maximum ${StreamUtils.MAX_LINE_LENGTH}`,
             line.length,
             'overflow'
           );
@@ -219,9 +219,9 @@ export class StreamUtils {
       remainder = buffer.slice(lineStart);
 
       // Check if remainder is getting too long (potential infinite line)
-      if (remainder.length > this.MAX_LINE_LENGTH) {
+      if (remainder.length > StreamUtils.MAX_LINE_LENGTH) {
         throw new BufferError(
-          `Incomplete line too long: ${remainder.length} characters exceeds maximum ${this.MAX_LINE_LENGTH}`,
+          `Incomplete line too long: ${remainder.length} characters exceeds maximum ${StreamUtils.MAX_LINE_LENGTH}`,
           remainder.length,
           'overflow',
           'This might indicate a file without proper line endings'
@@ -335,7 +335,7 @@ export class StreamUtils {
         chunkCount++;
 
         const processingRate = elapsedTime > 0 ? (totalBytes / elapsedTime) * 1000 : 0;
-        const memoryUsage = this.estimateMemoryUsage();
+        const memoryUsage = StreamUtils.estimateMemoryUsage();
 
         const chunk: StreamChunk = {
           data: value,
@@ -362,7 +362,7 @@ export class StreamUtils {
           chunksProcessed: chunkCount,
           startTime,
           processingRate: totalBytes / ((Date.now() - startTime) / 1000),
-          memoryUsage: this.estimateMemoryUsage(),
+          memoryUsage: StreamUtils.estimateMemoryUsage(),
         };
 
         yield {
@@ -455,7 +455,7 @@ export class StreamUtils {
       'totalProcessed must be non-negative integer'
     );
 
-    const estimatedMemory = this.estimateMemoryUsage();
+    const estimatedMemory = StreamUtils.estimateMemoryUsage();
     const runtime = detectRuntime();
 
     // Runtime-specific memory limits based on performance characteristics

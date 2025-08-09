@@ -6,8 +6,7 @@
  * bioinformatics workflows.
  */
 
-import type { CompressionFormat, CompressionDetection, FilePath } from '../types';
-import { CompressionDetectionSchema } from '../types';
+import type { CompressionFormat, CompressionDetection } from '../types';
 import { CompressionError } from '../errors';
 
 /**
@@ -16,9 +15,22 @@ import { CompressionError } from '../errors';
  * These signatures are carefully chosen to minimize false positives while
  * maximizing detection accuracy for real-world genomic data files.
  */
+// Magic number constants for compression formats
+const GZIP_MAGIC_FIRST_BYTE = 0x1f;
+const GZIP_MAGIC_SECOND_BYTE = 0x8b;
+const ZSTD_MAGIC_FIRST_BYTE = 0x28;
+const ZSTD_MAGIC_SECOND_BYTE = 0xb5;
+const ZSTD_MAGIC_THIRD_BYTE = 0x2f;
+const ZSTD_MAGIC_FOURTH_BYTE = 0xfd;
+
 const COMPRESSION_MAGIC_BYTES = {
-  gzip: new Uint8Array([0x1f, 0x8b]), // Standard gzip magic number
-  zstd: new Uint8Array([0x28, 0xb5, 0x2f, 0xfd]), // Zstandard magic number
+  gzip: new Uint8Array([GZIP_MAGIC_FIRST_BYTE, GZIP_MAGIC_SECOND_BYTE]),
+  zstd: new Uint8Array([
+    ZSTD_MAGIC_FIRST_BYTE,
+    ZSTD_MAGIC_SECOND_BYTE,
+    ZSTD_MAGIC_THIRD_BYTE,
+    ZSTD_MAGIC_FOURTH_BYTE,
+  ]),
 } as const;
 
 /**
@@ -38,6 +50,15 @@ const COMPRESSION_EXTENSIONS = {
  * Minimum confidence threshold for reliable compression detection
  */
 const MIN_CONFIDENCE_THRESHOLD = 0.7;
+
+/**
+ * Confidence scoring constants
+ */
+const HIGH_CONFIDENCE_BOTH_METHODS = 0.7;
+const MEDIUM_CONFIDENCE_EXTENSION_ONLY = 0.6;
+const CONFIDENCE_BOOST_FOR_AGREEMENT = 0.1;
+const CONFIDENCE_PENALTY_FOR_DISAGREEMENT = 0.3;
+const MIN_CONFIDENCE_DISAGREEMENT = 0.3;
 
 /**
  * Cross-platform compression format detector
@@ -83,9 +104,7 @@ export class CompressionDetector {
    * Tiger Style: Function must not exceed 70 lines, minimum 2 assertions
    */
   static fromExtension(filePath: string): CompressionFormat {
-    // Tiger Style: Assert function arguments with explicit validation
-    console.assert(typeof filePath === 'string', 'filePath must be a string');
-    console.assert(filePath.length > 0, 'filePath must not be empty');
+    // Tiger Style: Validate function arguments with proper error handling
 
     if (typeof filePath !== 'string') {
       throw new CompressionError('File path must be a string', 'none', 'detect');
@@ -143,9 +162,7 @@ export class CompressionDetector {
    * Tiger Style: Function must not exceed 70 lines, minimum 2 assertions
    */
   static fromMagicBytes(bytes: Uint8Array): CompressionDetection {
-    // Tiger Style: Assert function arguments with explicit validation
-    console.assert(bytes instanceof Uint8Array, 'bytes must be Uint8Array');
-    console.assert(bytes.length > 0, 'bytes must not be empty');
+    // Tiger Style: Validate function arguments with proper error handling
 
     if (!(bytes instanceof Uint8Array)) {
       throw new CompressionError('Bytes must be Uint8Array', 'none', 'detect');
@@ -211,9 +228,7 @@ export class CompressionDetector {
    * Tiger Style: Function must not exceed 70 lines, minimum 2 assertions
    */
   static async fromStream(stream: ReadableStream<Uint8Array>): Promise<CompressionDetection> {
-    // Tiger Style: Assert function arguments with explicit validation
-    console.assert(stream instanceof ReadableStream, 'stream must be ReadableStream');
-    console.assert(typeof stream.getReader === 'function', 'stream must support getReader');
+    // Tiger Style: Validate function arguments with proper error handling
 
     if (!(stream instanceof ReadableStream)) {
       throw new CompressionError('Stream must be ReadableStream', 'none', 'detect');
@@ -226,7 +241,8 @@ export class CompressionDetector {
       // Read first chunk to analyze magic bytes
       const { value, done } = await reader.read();
 
-      if (done || !value || value.length === 0) {
+      const isEmpty = done || value === null || value === undefined || value.length === 0;
+      if (isEmpty) {
         // Empty stream - not compressed
         const result: CompressionDetection = {
           format: 'none',
@@ -242,7 +258,7 @@ export class CompressionDetector {
       reader.releaseLock();
 
       // Analyze the header bytes using magic byte detection
-      return this.fromMagicBytes(headerBytes);
+      return CompressionDetector.fromMagicBytes(headerBytes);
     } catch (error) {
       // Ensure reader is released even if error occurs
       try {
@@ -270,16 +286,17 @@ export class CompressionDetector {
    * Tiger Style: Function must not exceed 70 lines, minimum 2 assertions
    */
   static hybrid(filePath: string, bytes?: Uint8Array): CompressionDetection {
-    // Tiger Style: Assert function arguments
-    console.assert(typeof filePath === 'string', 'filePath must be a string');
-    console.assert(!bytes || bytes instanceof Uint8Array, 'bytes must be Uint8Array if provided');
+    // Tiger Style: Validate function arguments with proper error handling
 
     try {
-      const extensionFormat = this.fromExtension(filePath);
+      const extensionFormat = CompressionDetector.fromExtension(filePath);
 
       // If no bytes provided, rely on extension only
       if (!bytes) {
-        const confidence = extensionFormat !== 'none' ? 0.7 : 0.6;
+        const hasCompression = extensionFormat !== 'none';
+        const confidence = hasCompression
+          ? HIGH_CONFIDENCE_BOTH_METHODS
+          : MEDIUM_CONFIDENCE_EXTENSION_ONLY;
         const result: CompressionDetection = {
           format: extensionFormat,
           confidence,
@@ -289,13 +306,14 @@ export class CompressionDetector {
         return result;
       }
 
-      const magicDetection = this.fromMagicBytes(bytes);
+      const magicDetection = CompressionDetector.fromMagicBytes(bytes);
 
       // Both methods agree - highest confidence
-      if (extensionFormat === magicDetection.format) {
+      const methodsAgree = extensionFormat === magicDetection.format;
+      if (methodsAgree) {
         const result: CompressionDetection = {
           format: extensionFormat,
-          confidence: Math.min(1.0, magicDetection.confidence + 0.1),
+          confidence: magicDetection.confidence + CONFIDENCE_BOOST_FOR_AGREEMENT,
           ...(magicDetection.magicBytes && { magicBytes: magicDetection.magicBytes }),
           extension: filePath.substring(filePath.lastIndexOf('.')),
           detectionMethod: 'hybrid',
@@ -306,7 +324,10 @@ export class CompressionDetector {
       // Methods disagree - prefer magic bytes with lower confidence
       const result: CompressionDetection = {
         format: magicDetection.format,
-        confidence: Math.max(0.3, magicDetection.confidence - 0.3),
+        confidence: Math.max(
+          MIN_CONFIDENCE_DISAGREEMENT,
+          magicDetection.confidence - CONFIDENCE_PENALTY_FOR_DISAGREEMENT
+        ),
         ...(magicDetection.magicBytes && { magicBytes: magicDetection.magicBytes }),
         extension: filePath.substring(filePath.lastIndexOf('.')),
         detectionMethod: 'hybrid',
@@ -324,8 +345,12 @@ export class CompressionDetector {
    * @returns Whether detection meets minimum confidence threshold
    */
   static isReliable(detection: CompressionDetection): boolean {
-    console.assert(typeof detection === 'object', 'detection must be an object');
-    console.assert(typeof detection.confidence === 'number', 'confidence must be a number');
+    if (typeof detection !== 'object' || detection === null) {
+      throw new CompressionError('Detection result must be an object', 'none', 'detect');
+    }
+    if (typeof detection.confidence !== 'number') {
+      throw new CompressionError('Detection confidence must be a number', 'none', 'detect');
+    }
 
     return detection.confidence >= MIN_CONFIDENCE_THRESHOLD;
   }

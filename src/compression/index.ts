@@ -36,9 +36,14 @@ export { ZstdDecompressor } from './zstd';
 
 // Import for internal use
 import { CompressionError } from '../errors';
-import { CompressionFormat } from '../types';
+import type { CompressionFormat } from '../types';
 import { GzipDecompressor } from './gzip';
 import { ZstdDecompressor } from './zstd';
+
+// Constants for file size thresholds
+const MIN_FILE_SIZE_FOR_COMPRESSION = 10_000;
+const LARGE_FILE_SIZE_THRESHOLD = 1_000_000;
+const DEFAULT_COMPRESSION_RATIO = 3.0;
 
 // Type exports for external use
 export type {
@@ -74,7 +79,9 @@ export { CompressionError } from '../errors';
  * const result = await decompressor.decompress(compressedData);
  * ```
  */
-export function createDecompressor(format: CompressionFormat) {
+export function createDecompressor(
+  format: CompressionFormat
+): typeof GzipDecompressor | typeof ZstdDecompressor {
   switch (format) {
     case 'gzip':
       return GzipDecompressor;
@@ -89,7 +96,7 @@ export function createDecompressor(format: CompressionFormat) {
     default:
       throw new CompressionError(
         `Unsupported compression format: ${format}`,
-        format as any,
+        format as CompressionFormat,
         'validate'
       );
   }
@@ -112,13 +119,11 @@ export function isCompressionSupported(format: string): format is CompressionFor
  * and performance requirements.
  *
  * @param fileSize Estimated file size in bytes
- * @param dataType Type of genomic data
  * @param priority Optimization priority
  * @returns Recommended compression format
  */
 export function getRecommendedCompression(
   fileSize: number,
-  dataType: 'sequence' | 'alignment' | 'variant' | 'annotation' = 'sequence',
   priority: 'speed' | 'size' | 'compatibility' = 'compatibility'
 ): CompressionFormat {
   // For compatibility, gzip is still the gold standard in genomics
@@ -127,12 +132,12 @@ export function getRecommendedCompression(
   }
 
   // For very small files, compression overhead may not be worth it
-  if (fileSize < 10_000) {
+  if (fileSize < MIN_FILE_SIZE_FOR_COMPRESSION) {
     return 'none';
   }
 
   // For speed-critical applications with modern runtimes
-  if (priority === 'speed' && fileSize > 1_000_000) {
+  if (priority === 'speed' && fileSize > LARGE_FILE_SIZE_THRESHOLD) {
     return 'zstd'; // Better decompression speed for large files
   }
 
@@ -169,5 +174,8 @@ export function estimateCompressionRatio(
     annotation: { gzip: 3.2, zstd: 3.8 }, // BED/GFF compress moderately well
   };
 
-  return baseRatios[dataType][format as keyof (typeof baseRatios)[typeof dataType]] || 3.0;
+  return (
+    baseRatios[dataType][format as keyof (typeof baseRatios)[typeof dataType]] ||
+    DEFAULT_COMPRESSION_RATIO
+  );
 }

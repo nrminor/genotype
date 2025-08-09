@@ -16,10 +16,14 @@
  * - Native support for BGZF compression
  */
 
-import type { SAMAlignment, SAMHeader, SAMTag } from '../../types';
+import type { SAMAlignment, SAMHeader } from '../../types';
 import { BamError, CompressionError } from '../../errors';
 import { BGZFCompressor } from './bgzf-compressor';
 import { BinarySerializer } from './binary-serializer';
+
+// Constants for BAM writer configuration
+const DEFAULT_BUFFER_SIZE = 256 * 1024; // 256KB
+const DEFAULT_MAX_ALIGNMENT_SIZE = 1024 * 1024; // 1MB
 
 /**
  * Options for configuring BAM writer behavior
@@ -73,9 +77,9 @@ export interface BAMWriterOptions {
  * ```
  */
 export class BAMWriter {
-  private options: Required<BAMWriterOptions>;
-  private compressor: BGZFCompressor;
-  private serializer: ReturnType<typeof BinarySerializer.createOptimizedSerializer>;
+  private readonly options: Required<BAMWriterOptions>;
+  private readonly compressor: BGZFCompressor;
+  private readonly serializer: ReturnType<typeof BinarySerializer.createOptimizedSerializer>;
 
   /**
    * Create a new BAM writer with specified options
@@ -88,18 +92,21 @@ export class BAMWriter {
     this.options = {
       compressionLevel: 6,
       blockSize: 65536, // 64KB
-      bufferSize: 256 * 1024, // 256KB
+      bufferSize: DEFAULT_BUFFER_SIZE,
       skipValidation: false,
       enableWarnings: true,
-      maxAlignmentSize: 1024 * 1024, // 1MB
+      maxAlignmentSize: DEFAULT_MAX_ALIGNMENT_SIZE,
       ...options,
     };
 
-    // Tiger Style: Validate configuration
-    console.assert(
-      this.options.compressionLevel >= 0 && this.options.compressionLevel <= 9,
-      'compression level must be between 0 and 9'
-    );
+    // Validate configuration
+    if (this.options.compressionLevel < 0 || this.options.compressionLevel > 9) {
+      throw new BamError(
+        `Invalid compression level: ${this.options.compressionLevel} (must be 0-9)`,
+        undefined,
+        'config'
+      );
+    }
     console.assert(
       this.options.blockSize >= 1024 && this.options.blockSize <= 65536,
       'block size must be between 1KB and 64KB'
@@ -302,9 +309,30 @@ export class BAMWriter {
 
     headerTextSize = new TextEncoder().encode(samHeaderText).length;
 
-    // For now, create a minimal BAM header with no reference sequences
-    // TODO: Extract reference sequences from @SQ headers
+    // Extract reference sequences from @SQ headers
     const references: Array<{ name: string; length: number }> = [];
+
+    // Parse SAM header for @SQ lines
+    const lines = samHeaderText.split('\n');
+    for (const line of lines) {
+      if (line.startsWith('@SQ')) {
+        const fields = line.split('\t');
+        let name = '';
+        let length = 0;
+
+        for (const field of fields) {
+          if (field.startsWith('SN:')) {
+            name = field.substring(3);
+          } else if (field.startsWith('LN:')) {
+            length = parseInt(field.substring(3), 10);
+          }
+        }
+
+        if (name && length > 0) {
+          references.push({ name, length });
+        }
+      }
+    }
 
     // Calculate total header size
     let totalSize = 4; // BAM magic
@@ -788,26 +816,57 @@ export class BAMWriter {
     // Tiger Style: Assert function arguments
     console.assert(typeof filePath === 'string', 'filePath must be a string');
 
-    // For generic implementation, write to memory then to file
-    // TODO: Implement proper streaming file writer for other runtimes
-    const bamData = await this.writeString(header, alignments);
+    // Implement streaming file writer for Node.js runtime
+    if (typeof process !== 'undefined' && process.versions?.node) {
+      // Node.js implementation
+      const fs = await import('fs');
+      const stream = fs.createWriteStream(filePath);
 
-    // Use FileSystem API if available, otherwise throw error
-    if (typeof globalThis !== 'undefined' && 'FileSystem' in globalThis) {
-      // Browser FileSystem API implementation
-      throw new BamError(
-        'Generic file writing not yet implemented - use Bun runtime or writeString() method',
-        undefined,
-        'file'
-      );
-    } else {
-      // Node.js implementation would go here
-      throw new BamError(
-        'Generic file writing requires Bun runtime or specific implementation for your platform',
-        undefined,
-        'file'
-      );
+      // Write header first and extract references
+      const headerData = await this.serializeHeader(header);
+      const references = this.extractReferencesFromHeader(header);
+      await new Promise((resolve, reject) => {
+        stream.write(headerData, (err) => (err ? reject(err) : resolve(undefined)));
+      });
+
+      // Write alignments one by one for streaming
+      for await (const alignment of alignments) {
+        const alignmentData = await this.serializeAlignment(alignment, references);
+        await new Promise((resolve, reject) => {
+          stream.write(alignmentData, (err) => (err ? reject(err) : resolve(undefined)));
+        });
+      }
+
+      await new Promise((resolve) => stream.end(resolve));
+      return;
     }
+
+    // For other runtimes, throw informative error
+    throw new BamError(
+      'File writing is currently only supported in Bun and Node.js runtimes',
+      undefined,
+      'file',
+      undefined,
+      'Use writeString() to get BAM data as Uint8Array, then write manually'
+    );
+  }
+
+  /**
+   * Extract reference names from header for alignment serialization
+   * @param header SAM header(s) to extract references from
+   * @returns Array of reference names
+   */
+  private extractReferencesFromHeader(header: SAMHeader | SAMHeader[]): string[] {
+    const headers = Array.isArray(header) ? header : [header];
+    const references: string[] = [];
+
+    for (const h of headers) {
+      if (h.type === 'SQ' && h.fields.SN) {
+        references.push(h.fields.SN);
+      }
+    }
+
+    return references;
   }
 
   /**

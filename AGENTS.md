@@ -905,16 +905,23 @@ Performance-critical operations will be implemented in Zig:
 
 ### Zig Implementation Philosophy
 
+**TypeScript First, Then Optimize.** The development workflow is:
+
+1. **Prototype in TypeScript** - Establish the API and validate the design
+2. **Identify bottlenecks** - Through actual usage, not premature optimization
+3. **Move to Zig strategically** - Only after the API is stable and bottlenecks are proven
+4. **No performance testing until Zig** - Performance tests are only added when we have native implementations to benchmark
+
 **One implementation per feature.** We do NOT maintain parallel TypeScript and
-Zig implementations. Each feature has exactly one implementation, choosing Zig
-where it provides clear performance benefits.
+Zig implementations. Each feature has exactly one implementation. During the
+TypeScript-only phase, we focus on correctness and API design, not performance.
 
 Reference: [OpenTUI](https://github.com/sst/opentui) demonstrates elegant
 TypeScript/Zig integration patterns.
 
-#### When to Use Zig
+#### When to Use Zig (Future)
 
-Use Zig for operations that benefit from:
+Once the API is stable, move to Zig for operations that benefit from:
 
 1. **SIMD acceleration** - Parallel sequence processing, quality score
    conversion
@@ -922,6 +929,16 @@ Use Zig for operations that benefit from:
 3. **Memory-intensive operations** - Binary parsing (BAM), compression
 4. **Tight loops** - Character validation, sequence cleaning
 5. **Bit manipulation** - SAM flags, binary formats
+
+#### Current Phase: TypeScript API Development
+
+**We are currently in the TypeScript API development phase.** This means:
+
+- **NO performance testing** - We're not optimizing yet
+- **NO benchmarks** - Premature optimization is the root of all evil
+- **NO parallel implementations** - One way to do things
+- **Focus on correctness** - Get the API right first
+- **Focus on usability** - Developer experience over speed (for now)
 
 #### When to Keep TypeScript
 

@@ -66,12 +66,13 @@
     "@types/node": "^22.0.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
-    "eslint": "^9.0.0",
+    "eslint": "^9.32.0",
     "prettier": "^3.3.0",
     "tsd": "^0.31.0",
     "type-coverage": "^2.29.0",
     "typescript": "^5.5.0",
-    "typescript-language-server": "^4.3.4"
+    "typescript-language-server": "^4.3.4",
+    "vscode-langservers-extracted": "4.8"
   },
   "dependencies": {
     "@biomejs/biome": "^2.1.3",

@@ -47,7 +47,7 @@
 !/src/zig/
 !/src/zig/build.zig
 !/src/zig/src/
-!/src/zig/src/main.zig
+!/src/zig/src/*.zig
 !/src/zig.ts
 !/test/
 !/test/formats/

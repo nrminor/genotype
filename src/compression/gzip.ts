@@ -6,7 +6,7 @@
  * runtime-specific optimizations for Bun, Node.js, and Deno.
  */
 
-import type { DecompressorOptions, CompressedStream } from '../types';
+import type { DecompressorOptions } from '../types';
 import { DecompressorOptionsSchema } from '../types';
 import { CompressionError } from '../errors';
 import {
@@ -79,79 +79,142 @@ export class GzipDecompressor {
     compressed: Uint8Array,
     options: DecompressorOptions = {}
   ): Promise<Uint8Array> {
-    // Tiger Style: Assert function arguments with explicit validation
-    console.assert(compressed instanceof Uint8Array, 'compressed must be Uint8Array');
-    console.assert(compressed.length > 0, 'compressed data must not be empty');
+    GzipDecompressor.validateCompressedData(compressed);
 
+    const runtime = detectRuntime();
+    const mergedOptions = GzipDecompressor.mergeOptions(options, runtime);
+
+    try {
+      GzipDecompressor.validateGzipFormat(compressed);
+      GzipDecompressor.checkSizeLimits(compressed, mergedOptions);
+
+      return await GzipDecompressor.performDecompression(compressed, mergedOptions, runtime);
+    } catch (err) {
+      throw CompressionError.fromSystemError('gzip', 'decompress', err, 0);
+    }
+  }
+
+  /**
+   * Validate compressed data input
+   */
+  private static validateCompressedData(compressed: Uint8Array): void {
     if (!(compressed instanceof Uint8Array)) {
       throw new CompressionError('Compressed data must be Uint8Array', 'gzip', 'decompress');
     }
     if (compressed.length === 0) {
       throw new CompressionError('Compressed data must not be empty', 'gzip', 'decompress');
     }
+  }
 
-    const runtime = detectRuntime();
-    const mergedOptions = this.mergeOptions(options, runtime);
-    let bytesProcessed = 0;
+  /**
+   * Validate gzip format magic bytes
+   */
+  private static validateGzipFormat(compressed: Uint8Array): void {
+    const GZIP_MAGIC_BYTE1 = 0x1f;
+    const GZIP_MAGIC_BYTE2 = 0x8b;
 
+    if (
+      compressed.length < 2 ||
+      compressed[0] !== GZIP_MAGIC_BYTE1 ||
+      compressed[1] !== GZIP_MAGIC_BYTE2
+    ) {
+      throw new CompressionError(
+        'Invalid gzip magic bytes - file may not be gzip compressed',
+        'gzip',
+        'decompress',
+        0
+      );
+    }
+  }
+
+  /**
+   * Check size limits before decompression
+   */
+  private static checkSizeLimits(
+    compressed: Uint8Array,
+    options: Required<DecompressorOptions>
+  ): void {
+    if (compressed.length > options.maxOutputSize) {
+      throw new CompressionError(
+        `Compressed size ${compressed.length} exceeds maximum ${options.maxOutputSize}`,
+        'gzip',
+        'decompress',
+        0
+      );
+    }
+  }
+
+  /**
+   * Perform runtime-optimized decompression
+   */
+  private static async performDecompression(
+    compressed: Uint8Array,
+    options: Required<DecompressorOptions>,
+    runtime: Runtime
+  ): Promise<Uint8Array> {
+    // Always call progress callback at start, even if decompression fails later
+    const bytesProcessed = compressed.length;
+    options.onProgress(bytesProcessed, compressed.length);
+
+    // Bun optimization: Use native gunzipSync for superior performance
+    if (runtime === 'bun') {
+      const bunResult = await GzipDecompressor.decompressWithBun(compressed, options);
+      if (bunResult) {
+        return bunResult;
+      }
+    }
+
+    // Node.js optimization: Use built-in zlib
+    if (runtime === 'node') {
+      const nodeResult = await GzipDecompressor.decompressWithNode(compressed, options);
+      if (nodeResult) {
+        return nodeResult;
+      }
+    }
+
+    // Fallback to streaming decompression for other runtimes
+    return await GzipDecompressor.decompressViaStream(compressed, options);
+  }
+
+  /**
+   * Decompress using Bun's native gunzipSync
+   */
+  private static async decompressWithBun(
+    compressed: Uint8Array,
+    options: Required<DecompressorOptions>
+  ): Promise<Uint8Array | null> {
+    const { Bun } = getRuntimeGlobals('bun');
+    const bunHasMethod =
+      Boolean(Bun) && 'gunzipSync' in Bun && typeof Bun.gunzipSync === 'function';
+    const hasGunzipSync = Boolean(bunHasMethod);
+    if (!hasGunzipSync) {
+      return null;
+    }
+
+    const result = Bun.gunzipSync(compressed);
+    // Progress callback already called in performDecompression
+
+    return new Uint8Array(result);
+  }
+
+  /**
+   * Decompress using Node.js built-in zlib
+   */
+  private static async decompressWithNode(
+    compressed: Uint8Array,
+    options: Required<DecompressorOptions>
+  ): Promise<Uint8Array | null> {
     try {
-      // Validate gzip magic bytes
-      if (compressed.length < 2 || compressed[0] !== 0x1f || compressed[1] !== 0x8b) {
-        throw new CompressionError(
-          'Invalid gzip magic bytes - file may not be gzip compressed',
-          'gzip',
-          'decompress',
-          0
-        );
-      }
+      const { gunzip } = await import('zlib');
+      const { promisify } = await import('util');
+      const gunzipAsync = promisify(gunzip);
 
-      // Check size limits before decompression
-      if (compressed.length > mergedOptions.maxOutputSize) {
-        throw new CompressionError(
-          `Compressed size ${compressed.length} exceeds maximum ${mergedOptions.maxOutputSize}`,
-          'gzip',
-          'decompress',
-          0
-        );
-      }
+      const result = await gunzipAsync(Buffer.from(compressed));
+      // Progress callback already called in performDecompression
 
-      // Bun optimization: Use native gunzipSync for superior performance
-      if (runtime === 'bun') {
-        const { Bun } = getRuntimeGlobals('bun');
-        if (Bun && typeof (Bun as any).gunzipSync === 'function') {
-          const result = (Bun as any).gunzipSync(compressed);
-          bytesProcessed = compressed.length;
-
-          // Progress callback
-          if (mergedOptions.onProgress) {
-            mergedOptions.onProgress(bytesProcessed, compressed.length);
-          }
-
-          return new Uint8Array(result);
-        }
-      }
-
-      // Node.js optimization: Use built-in zlib
-      if (runtime === 'node') {
-        const { gunzip } = await import('zlib');
-        const { promisify } = await import('util');
-        const gunzipAsync = promisify(gunzip);
-
-        const result = await gunzipAsync(Buffer.from(compressed));
-        bytesProcessed = compressed.length;
-
-        // Progress callback
-        if (mergedOptions.onProgress) {
-          mergedOptions.onProgress(bytesProcessed, compressed.length);
-        }
-
-        return new Uint8Array(result);
-      }
-
-      // Fallback to streaming decompression for other runtimes
-      return await this.decompressViaStream(compressed, mergedOptions);
-    } catch (error) {
-      throw CompressionError.fromSystemError('gzip', 'decompress', error, bytesProcessed);
+      return new Uint8Array(result);
+    } catch {
+      return null;
     }
   }
 
@@ -168,107 +231,225 @@ export class GzipDecompressor {
    * Tiger Style: Function must not exceed 70 lines, minimum 2 assertions
    */
   static createStream(options: DecompressorOptions = {}): TransformStream<Uint8Array, Uint8Array> {
-    // Tiger Style: Assert function arguments
-    console.assert(typeof options === 'object', 'options must be an object');
-    console.assert(
-      options.signal instanceof AbortSignal || !options.signal,
-      'signal must be AbortSignal if provided'
-    );
+    GzipDecompressor.validateStreamOptions(options);
 
     const runtime = detectRuntime();
-    const mergedOptions = this.mergeOptions(options, runtime);
-    let bytesProcessed = 0;
-    let decompressor: any = null;
-    let initialized = false;
+    const mergedOptions = GzipDecompressor.mergeOptions(options, runtime);
+    const state = { bytesProcessed: 0, decompressor: null as unknown, initialized: false };
 
     return new TransformStream({
-      start(controller) {
-        try {
-          // Initialize runtime-specific decompressor
-          if (runtime === 'node') {
-            const zlib = getRuntimeGlobals('node')?.stream || require('zlib');
-            decompressor = zlib.createGunzip({
-              chunkSize: mergedOptions.bufferSize,
-            });
-
-            decompressor.on('data', (chunk: Buffer) => {
-              controller.enqueue(new Uint8Array(chunk));
-            });
-
-            decompressor.on('error', (error: Error) => {
-              controller.error(
-                CompressionError.fromSystemError('gzip', 'stream', error, bytesProcessed)
-              );
-            });
-          } else {
-            // For Deno and fallback cases, use DecompressionStream if available
-            if (typeof DecompressionStream !== 'undefined') {
-              decompressor = new DecompressionStream('gzip');
-            } else {
-              throw new CompressionError(
-                'No gzip decompression support available in this runtime',
-                'gzip',
-                'stream'
-              );
-            }
-          }
-
-          initialized = true;
-        } catch (error) {
-          controller.error(CompressionError.fromSystemError('gzip', 'stream', error));
-        }
-      },
-
-      transform(chunk, controller) {
-        if (!initialized) {
-          controller.error(new CompressionError('Decompressor not initialized', 'gzip', 'stream'));
-          return;
-        }
-
-        try {
-          bytesProcessed += chunk.length;
-
-          // Check abort signal
-          if (mergedOptions.signal?.aborted) {
-            controller.error(
-              new CompressionError('Decompression aborted', 'gzip', 'stream', bytesProcessed)
-            );
-            return;
-          }
-
-          // Progress callback
-          if (mergedOptions.onProgress) {
-            mergedOptions.onProgress(bytesProcessed);
-          }
-
-          if (runtime === 'node' && decompressor) {
-            decompressor.write(chunk);
-          } else if (decompressor instanceof DecompressionStream) {
-            // For web-compatible runtimes
-            const writer = decompressor.writable.getWriter();
-            writer.write(chunk);
-            writer.releaseLock();
-          }
-        } catch (error) {
-          controller.error(
-            CompressionError.fromSystemError('gzip', 'stream', error, bytesProcessed)
-          );
-        }
-      },
-
-      flush(controller) {
-        try {
-          if (runtime === 'node' && decompressor) {
-            decompressor.end();
-          }
-          controller.terminate();
-        } catch (error) {
-          controller.error(
-            CompressionError.fromSystemError('gzip', 'stream', error, bytesProcessed)
-          );
-        }
-      },
+      start: (controller) =>
+        GzipDecompressor.initializeDecompressor(controller, runtime, mergedOptions, state),
+      transform: (chunk, controller) =>
+        GzipDecompressor.processChunk(chunk, controller, {
+          runtime,
+          options: mergedOptions,
+          state,
+        }),
+      flush: (controller) => GzipDecompressor.finalizeDecompression(controller, runtime, state),
     });
+  }
+
+  /**
+   * Validate stream options
+   */
+  private static validateStreamOptions(options: DecompressorOptions): void {
+    if (typeof options !== 'object' || options === null) {
+      throw new CompressionError('Options must be an object', 'gzip', 'stream');
+    }
+    if (options.signal && !(options.signal instanceof AbortSignal)) {
+      throw new CompressionError('Signal must be AbortSignal if provided', 'gzip', 'stream');
+    }
+
+    // Validate buffer size
+    if (
+      options.bufferSize !== undefined &&
+      (typeof options.bufferSize !== 'number' || options.bufferSize <= 0)
+    ) {
+      throw new CompressionError('Buffer size must be a positive number', 'gzip', 'stream');
+    }
+
+    // Validate max output size
+    if (
+      options.maxOutputSize !== undefined &&
+      (typeof options.maxOutputSize !== 'number' || options.maxOutputSize <= 0)
+    ) {
+      throw new CompressionError('Max output size must be a positive number', 'gzip', 'stream');
+    }
+  }
+
+  /**
+   * Initialize decompressor for transform stream
+   */
+  private static initializeDecompressor(
+    controller: { error: (error: Error) => void },
+    runtime: Runtime,
+    options: Required<DecompressorOptions>,
+    state: { bytesProcessed: number; decompressor: unknown; initialized: boolean }
+  ): void {
+    try {
+      if (runtime === 'node') {
+        void GzipDecompressor.initializeNodeDecompressor(
+          controller as { enqueue: (chunk: Uint8Array) => void; error: (error: Error) => void },
+          options,
+          state
+        );
+      } else {
+        // For non-Node runtimes, try to initialize web decompressor
+        // If it fails, we'll handle errors gracefully during processing
+        try {
+          GzipDecompressor.initializeWebDecompressor(state);
+        } catch {
+          // Mark as initialized anyway to allow processing and error handling
+          state.decompressor = null;
+        }
+      }
+      state.initialized = true;
+    } catch (err) {
+      controller.error(CompressionError.fromSystemError('gzip', 'stream', err));
+    }
+  }
+
+  /**
+   * Initialize Node.js specific decompressor
+   */
+  private static async initializeNodeDecompressor(
+    controller: { enqueue: (chunk: Uint8Array) => void; error: (error: Error) => void },
+    options: Required<DecompressorOptions>,
+    state: { bytesProcessed: number; decompressor: unknown; initialized: boolean }
+  ): Promise<void> {
+    const nodeGlobals = getRuntimeGlobals('node');
+    const zlib = nodeGlobals?.stream ?? (await import('zlib'));
+    state.decompressor = zlib.createGunzip({
+      chunkSize: options.bufferSize,
+    });
+
+    const gunzipStream = state.decompressor as {
+      on: (event: string, callback: (arg: unknown) => void) => void;
+    };
+
+    gunzipStream.on('data', (chunk: unknown) => {
+      controller.enqueue(new Uint8Array(chunk as Buffer));
+    });
+
+    gunzipStream.on('error', (error: unknown) => {
+      controller.error(
+        CompressionError.fromSystemError('gzip', 'stream', error, state.bytesProcessed)
+      );
+    });
+  }
+
+  /**
+   * Initialize web-compatible decompressor
+   */
+  private static initializeWebDecompressor(state: {
+    bytesProcessed: number;
+    decompressor: unknown;
+    initialized: boolean;
+  }): void {
+    if (typeof DecompressionStream !== 'undefined') {
+      state.decompressor = new DecompressionStream('gzip');
+    } else {
+      throw new CompressionError(
+        'No gzip decompression support available in this runtime',
+        'gzip',
+        'stream'
+      );
+    }
+  }
+
+  /**
+   * Process chunk in transform stream
+   */
+  private static processChunk(
+    chunk: Uint8Array,
+    controller: { error: (error: Error) => void },
+    context: {
+      runtime: Runtime;
+      options: Required<DecompressorOptions>;
+      state: { bytesProcessed: number; decompressor: unknown; initialized: boolean };
+    }
+  ): void {
+    const { runtime, options, state } = context;
+
+    if (!state.initialized) {
+      controller.error(new CompressionError('Decompressor not initialized', 'gzip', 'stream'));
+      return;
+    }
+
+    try {
+      state.bytesProcessed += chunk.length;
+
+      // Always call progress callback first, even if processing fails
+      options.onProgress(state.bytesProcessed);
+
+      // Check abort signal
+      const isAborted = options.signal?.aborted ?? false;
+      if (isAborted) {
+        controller.error(
+          new CompressionError('Decompression aborted', 'gzip', 'stream', state.bytesProcessed)
+        );
+        return;
+      }
+
+      // If no decompressor is available, throw error after progress callback
+      if (!state.decompressor) {
+        controller.error(
+          new CompressionError(
+            'No gzip decompression support available in this runtime',
+            'gzip',
+            'stream',
+            state.bytesProcessed
+          )
+        );
+        return;
+      }
+
+      GzipDecompressor.writeChunkToDecompressor(chunk, runtime, state);
+    } catch (err) {
+      controller.error(
+        CompressionError.fromSystemError('gzip', 'stream', err, state.bytesProcessed)
+      );
+    }
+  }
+
+  /**
+   * Write chunk to appropriate decompressor
+   */
+  private static writeChunkToDecompressor(
+    chunk: Uint8Array,
+    runtime: Runtime,
+    state: { decompressor: unknown }
+  ): void {
+    if (runtime === 'node') {
+      const nodeStream = state.decompressor as { write: (data: Uint8Array) => void };
+      nodeStream.write(chunk);
+    } else if (state.decompressor instanceof DecompressionStream) {
+      const writer = state.decompressor.writable.getWriter();
+      void writer.write(chunk);
+      writer.releaseLock();
+    }
+  }
+
+  /**
+   * Finalize decompression in transform stream
+   */
+  private static finalizeDecompression(
+    controller: { terminate: () => void; error: (error: Error) => void },
+    runtime: Runtime,
+    state: { bytesProcessed: number; decompressor: unknown }
+  ): void {
+    try {
+      if (runtime === 'node') {
+        const nodeStream = state.decompressor as { end: () => void };
+        nodeStream.end();
+      }
+      controller.terminate();
+    } catch (err) {
+      controller.error(
+        CompressionError.fromSystemError('gzip', 'stream', err, state.bytesProcessed)
+      );
+    }
   }
 
   /**
@@ -297,10 +478,10 @@ export class GzipDecompressor {
     }
 
     try {
-      const transform = this.createStream(options);
+      const transform = GzipDecompressor.createStream(options);
       return input.pipeThrough(transform);
-    } catch (error) {
-      throw CompressionError.fromSystemError('gzip', 'stream', error);
+    } catch (err) {
+      throw CompressionError.fromSystemError('gzip', 'stream', err);
     }
   }
 
@@ -325,9 +506,9 @@ export class GzipDecompressor {
     // Validate merged options
     try {
       DecompressorOptionsSchema(merged);
-    } catch (error) {
+    } catch (err) {
       throw new CompressionError(
-        `Invalid decompressor options: ${error instanceof Error ? error.message : String(error)}`,
+        `Invalid decompressor options: ${err instanceof Error ? err.message : String(err)}`,
         'gzip',
         'validate'
       );
@@ -348,14 +529,14 @@ export class GzipDecompressor {
 
     // Create a readable stream from the buffer
     const stream = new ReadableStream({
-      start(controller) {
+      start(controller): void {
         controller.enqueue(compressed);
         controller.close();
       },
     });
 
     // Use transform stream to decompress
-    const transform = this.createStream(options);
+    const transform = GzipDecompressor.createStream(options);
     const decompressedStream = stream.pipeThrough(transform);
 
     // Collect all chunks

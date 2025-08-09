@@ -8,8 +8,7 @@ import {
   FastqWriter,
   FastqUtils,
   QualityScores,
-  FastqSequence,
-  QualityError,
+  type FastqSequence,
   ValidationError,
 } from '../../src/index.ts';
 

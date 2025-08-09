@@ -12,6 +12,21 @@
 import type { BinaryContext } from '../../types';
 import { BamError } from '../../errors';
 
+// Constants for magic numbers
+const MAX_UINT16_VALUE = 65535;
+const MAX_UINT8_VALUE = 255;
+const BAM_MAGIC_BYTES = new Uint8Array([0x42, 0x41, 0x4d, 0x01]); // "BAM\1"
+const PHRED_OFFSET = 33;
+const MAX_ASCII_QUAL = 126;
+const UNAVAILABLE_QUALITY = 255;
+const BYTES_PER_CIGAR_OP = 4;
+const MIN_ALIGNMENT_BLOCK_SIZE = 32;
+const MAX_CHROMOSOME_POSITION = 300_000_000;
+const MAX_MAPPING_QUALITY = 60;
+const MAX_TEMPLATE_LENGTH = 10000;
+const MAX_ARRAY_SIZE = 10000;
+const JS_OBJECT_OVERHEAD = 200;
+
 /**
  * Binary parser utilities for BAM format data
  *
@@ -27,10 +42,6 @@ export class BinaryParser {
    * @throws {BamError} If offset is out of bounds
    */
   static readInt32LE(view: DataView, offset: number): number {
-    // Tiger Style: Assert function arguments
-    console.assert(view instanceof DataView, 'view must be a DataView');
-    console.assert(Number.isInteger(offset) && offset >= 0, 'offset must be non-negative integer');
-
     if (offset + 4 > view.byteLength) {
       throw new BamError(
         `Cannot read int32 at offset ${offset}: buffer too small (${view.byteLength} bytes)`,
@@ -39,12 +50,7 @@ export class BinaryParser {
       );
     }
 
-    const result = view.getInt32(offset, true); // true = little-endian
-
-    // Tiger Style: Assert postconditions
-    console.assert(Number.isInteger(result), 'result must be an integer');
-
-    return result;
+    return view.getInt32(offset, true); // true = little-endian
   }
 
   /**
@@ -55,10 +61,6 @@ export class BinaryParser {
    * @throws {BamError} If offset is out of bounds
    */
   static readUInt32LE(view: DataView, offset: number): number {
-    // Tiger Style: Assert function arguments
-    console.assert(view instanceof DataView, 'view must be a DataView');
-    console.assert(Number.isInteger(offset) && offset >= 0, 'offset must be non-negative integer');
-
     if (offset + 4 > view.byteLength) {
       throw new BamError(
         `Cannot read uint32 at offset ${offset}: buffer too small (${view.byteLength} bytes)`,
@@ -67,12 +69,7 @@ export class BinaryParser {
       );
     }
 
-    const result = view.getUint32(offset, true); // true = little-endian
-
-    // Tiger Style: Assert postconditions
-    console.assert(Number.isInteger(result) && result >= 0, 'result must be non-negative integer');
-
-    return result;
+    return view.getUint32(offset, true); // true = little-endian
   }
 
   /**
@@ -83,10 +80,6 @@ export class BinaryParser {
    * @throws {BamError} If offset is out of bounds
    */
   static readUInt16LE(view: DataView, offset: number): number {
-    // Tiger Style: Assert function arguments
-    console.assert(view instanceof DataView, 'view must be a DataView');
-    console.assert(Number.isInteger(offset) && offset >= 0, 'offset must be non-negative integer');
-
     if (offset + 2 > view.byteLength) {
       throw new BamError(
         `Cannot read uint16 at offset ${offset}: buffer too small (${view.byteLength} bytes)`,
@@ -95,13 +88,7 @@ export class BinaryParser {
       );
     }
 
-    const result = view.getUint16(offset, true); // true = little-endian
-
-    // Tiger Style: Assert postconditions
-    console.assert(Number.isInteger(result) && result >= 0, 'result must be non-negative integer');
-    console.assert(result <= 65535, 'result must be valid 16-bit value');
-
-    return result;
+    return view.getUint16(offset, true); // true = little-endian
   }
 
   /**
@@ -112,10 +99,6 @@ export class BinaryParser {
    * @throws {BamError} If offset is out of bounds
    */
   static readUInt8(view: DataView, offset: number): number {
-    // Tiger Style: Assert function arguments
-    console.assert(view instanceof DataView, 'view must be a DataView');
-    console.assert(Number.isInteger(offset) && offset >= 0, 'offset must be non-negative integer');
-
     if (offset >= view.byteLength) {
       throw new BamError(
         `Cannot read uint8 at offset ${offset}: buffer too small (${view.byteLength} bytes)`,
@@ -124,13 +107,7 @@ export class BinaryParser {
       );
     }
 
-    const result = view.getUint8(offset);
-
-    // Tiger Style: Assert postconditions
-    console.assert(Number.isInteger(result) && result >= 0, 'result must be non-negative integer');
-    console.assert(result <= 255, 'result must be valid 8-bit value');
-
-    return result;
+    return view.getUint8(offset);
   }
 
   /**
@@ -146,14 +123,6 @@ export class BinaryParser {
     offset: number,
     maxLength: number
   ): { value: string; bytesRead: number } {
-    // Tiger Style: Assert function arguments
-    console.assert(view instanceof DataView, 'view must be a DataView');
-    console.assert(Number.isInteger(offset) && offset >= 0, 'offset must be non-negative integer');
-    console.assert(
-      Number.isInteger(maxLength) && maxLength > 0,
-      'maxLength must be positive integer'
-    );
-
     if (offset >= view.byteLength) {
       throw new BamError(
         `Cannot read string at offset ${offset}: buffer too small (${view.byteLength} bytes)`,
@@ -171,11 +140,6 @@ export class BinaryParser {
       if (byte === 0) {
         // Found null terminator
         const result = new TextDecoder('utf-8').decode(new Uint8Array(bytes));
-
-        // Tiger Style: Assert postconditions
-        console.assert(typeof result === 'string', 'result must be a string');
-        console.assert(bytes.length <= maxLength, 'string length must not exceed maxLength');
-
         return { value: result, bytesRead: bytes.length + 1 }; // +1 for null terminator
       }
 
@@ -202,10 +166,6 @@ export class BinaryParser {
    * @throws {BamError} If buffer is too small for specified length
    */
   static decodeSequence(buffer: Uint8Array, length: number): string {
-    // Tiger Style: Assert function arguments
-    console.assert(buffer instanceof Uint8Array, 'buffer must be a Uint8Array');
-    console.assert(Number.isInteger(length) && length >= 0, 'length must be non-negative integer');
-
     if (length === 0) {
       return '';
     }
@@ -229,10 +189,12 @@ export class BinaryParser {
       const byteIndex = Math.floor(i / 2);
       const byte = buffer[byteIndex];
 
-      console.assert(byte !== undefined, 'sequence byte must be defined');
+      if (byte === undefined) {
+        throw new BamError(`Sequence byte undefined at index ${byteIndex}`, undefined, 'sequence');
+      }
 
       // Extract 4-bit value (high nibble for even i, low nibble for odd i)
-      const nibble = i % 2 === 0 ? (byte! >> 4) & 0xf : byte! & 0xf;
+      const nibble = i % 2 === 0 ? (byte >> 4) & 0xf : byte & 0xf;
 
       if (nibble >= SEQ_DECODER.length) {
         throw new BamError(
@@ -245,14 +207,7 @@ export class BinaryParser {
       chars[i] = SEQ_DECODER[nibble];
     }
 
-    // Single string allocation - much faster in Bun
-    const sequence = chars.join('');
-
-    // Tiger Style: Assert postconditions
-    console.assert(typeof sequence === 'string', 'result must be a string');
-    console.assert(sequence.length === length, 'result length must match input length');
-
-    return sequence;
+    return chars.join('');
   }
 
   /**
@@ -269,16 +224,11 @@ export class BinaryParser {
    * @throws {BamError} If data is invalid or buffer too small
    */
   static parseBinaryCIGAR(view: DataView, offset: number, count: number): string {
-    // Tiger Style: Assert function arguments
-    console.assert(view instanceof DataView, 'view must be a DataView');
-    console.assert(Number.isInteger(offset) && offset >= 0, 'offset must be non-negative integer');
-    console.assert(Number.isInteger(count) && count >= 0, 'count must be non-negative integer');
-
     if (count === 0) {
       return '*'; // BAM convention for no CIGAR
     }
 
-    const bytesNeeded = count * 4; // 4 bytes per CIGAR operation
+    const bytesNeeded = count * BYTES_PER_CIGAR_OP;
     if (offset + bytesNeeded > view.byteLength) {
       throw new BamError(
         `Buffer too small for CIGAR: need ${bytesNeeded} bytes at offset ${offset}, have ${view.byteLength - offset}`,
@@ -292,7 +242,7 @@ export class BinaryParser {
 
     let cigar = '';
     for (let i = 0; i < count; i++) {
-      const opOffset = offset + i * 4;
+      const opOffset = offset + i * BYTES_PER_CIGAR_OP;
       const opValue = view.getUint32(opOffset, true); // little-endian
 
       const opLength = opValue >>> 4; // High 28 bits
@@ -317,10 +267,6 @@ export class BinaryParser {
       cigar += `${opLength}${CIGAR_OPS[opType]}`;
     }
 
-    // Tiger Style: Assert postconditions
-    console.assert(typeof cigar === 'string', 'result must be a string');
-    console.assert(cigar.length > 0, 'result must not be empty');
-
     return cigar;
   }
 
@@ -333,11 +279,6 @@ export class BinaryParser {
    * @throws {BamError} If buffer is too small
    */
   static readFixedString(view: DataView, offset: number, length: number): string {
-    // Tiger Style: Assert function arguments
-    console.assert(view instanceof DataView, 'view must be a DataView');
-    console.assert(Number.isInteger(offset) && offset >= 0, 'offset must be non-negative integer');
-    console.assert(Number.isInteger(length) && length >= 0, 'length must be non-negative integer');
-
     if (length === 0) {
       return '';
     }
@@ -352,19 +293,8 @@ export class BinaryParser {
 
     // Use Bun's optimized string decoding when available
     const bytes = new Uint8Array(view.buffer, view.byteOffset + offset, length);
-
-    // Bun has optimized TextDecoder performance
-    const decoder =
-      typeof Bun !== 'undefined' && Bun.version
-        ? new TextDecoder('utf-8') // Bun optimizes TextDecoder
-        : new TextDecoder('utf-8');
-
-    const result = decoder.decode(bytes);
-
-    // Tiger Style: Assert postconditions
-    console.assert(typeof result === 'string', 'result must be a string');
-
-    return result;
+    const decoder = new TextDecoder('utf-8');
+    return decoder.decode(bytes);
   }
 
   /**
@@ -375,11 +305,6 @@ export class BinaryParser {
    * @returns BinaryContext object for parsing
    */
   static createContext(buffer: ArrayBuffer, offset = 0, littleEndian = true): BinaryContext {
-    // Tiger Style: Assert function arguments
-    console.assert(buffer instanceof ArrayBuffer, 'buffer must be an ArrayBuffer');
-    console.assert(Number.isInteger(offset) && offset >= 0, 'offset must be non-negative integer');
-    console.assert(typeof littleEndian === 'boolean', 'littleEndian must be a boolean');
-
     if (offset >= buffer.byteLength) {
       throw new BamError(
         `Offset ${offset} exceeds buffer size ${buffer.byteLength}`,
@@ -388,23 +313,13 @@ export class BinaryParser {
       );
     }
 
-    // Use Bun's optimized DataView creation when available
-    const dataView =
-      typeof Bun !== 'undefined' && Bun.version
-        ? new DataView(buffer, offset) // Bun optimizes DataView construction
-        : new DataView(buffer, offset);
+    const dataView = new DataView(buffer, offset);
 
-    const context: BinaryContext = {
+    return {
       buffer: dataView,
       offset,
       littleEndian,
     };
-
-    // Tiger Style: Assert postconditions
-    console.assert(context.buffer instanceof DataView, 'context buffer must be DataView');
-    console.assert(context.offset === offset, 'context offset must match input');
-
-    return context;
   }
 
   /**
@@ -413,18 +328,13 @@ export class BinaryParser {
    * @returns True if valid BAM magic bytes
    */
   static isValidBAMMagic(magicBytes: Uint8Array): boolean {
-    // Tiger Style: Assert function arguments
-    console.assert(magicBytes instanceof Uint8Array, 'magicBytes must be a Uint8Array');
-
     if (magicBytes.length < 4) {
       return false;
     }
 
     // BAM magic bytes: "BAM\1" (0x42, 0x41, 0x4D, 0x01)
-    const expectedMagic = new Uint8Array([0x42, 0x41, 0x4d, 0x01]);
-
     for (let i = 0; i < 4; i++) {
-      if (magicBytes[i] !== expectedMagic[i]) {
+      if (magicBytes[i] !== BAM_MAGIC_BYTES[i]) {
         return false;
       }
     }
@@ -463,158 +373,81 @@ export class BinaryParser {
     optionalTags?: Uint8Array;
     bytesConsumed: number;
   } {
-    // Tiger Style: Assert function arguments
-    console.assert(view instanceof DataView, 'view must be DataView');
-    console.assert(Number.isInteger(offset) && offset >= 0, 'offset must be non-negative integer');
-    console.assert(
-      Number.isInteger(blockSize) && blockSize > 0,
-      'blockSize must be positive integer'
+    BinaryParser.validateAlignmentBlock(blockSize, view, offset);
+
+    const fixedFields = BinaryParser.parseAlignmentFixedFields(view, offset);
+    BinaryParser.validateAlignmentFields(fixedFields);
+
+    const variableFields = BinaryParser.parseAlignmentVariableFields(
+      view,
+      offset + MIN_ALIGNMENT_BLOCK_SIZE,
+      offset + blockSize,
+      fixedFields
     );
 
+    return {
+      ...fixedFields,
+      ...variableFields,
+      bytesConsumed: blockSize,
+    };
+  }
+
+  /**
+   * Validate alignment block size and bounds
+   */
+  private static validateAlignmentBlock(blockSize: number, view: DataView, offset: number): void {
+    if (blockSize < MIN_ALIGNMENT_BLOCK_SIZE) {
+      throw new BamError(
+        `Alignment block too small: ${blockSize} bytes (minimum ${MIN_ALIGNMENT_BLOCK_SIZE})`,
+        undefined,
+        'alignment'
+      );
+    }
+
+    if (offset + MIN_ALIGNMENT_BLOCK_SIZE > view.byteLength) {
+      throw new BamError(
+        `Buffer overflow reading alignment header: need ${MIN_ALIGNMENT_BLOCK_SIZE} bytes`,
+        undefined,
+        'alignment'
+      );
+    }
+  }
+
+  /**
+   * Parse the fixed 32-byte alignment header
+   */
+  private static parseAlignmentFixedFields(view: DataView, offset: number) {
     let currentOffset = offset;
-    const endOffset = offset + blockSize;
 
-    // Validate minimum block size (32 bytes for fixed fields)
-    if (blockSize < 32) {
-      throw new BamError(
-        `Alignment block too small: ${blockSize} bytes (minimum 32)`,
-        undefined,
-        'alignment'
-      );
-    }
-
-    // Read fixed 32-byte header
-    if (currentOffset + 32 > endOffset) {
-      throw new BamError(
-        `Buffer overflow reading alignment header: need 32 bytes, have ${endOffset - currentOffset}`,
-        undefined,
-        'alignment'
-      );
-    }
-
-    // Read fixed fields according to BAM specification
-    const refID = this.readInt32LE(view, currentOffset);
+    const refID = BinaryParser.readInt32LE(view, currentOffset);
     currentOffset += 4;
 
-    const pos = this.readInt32LE(view, currentOffset);
+    const pos = BinaryParser.readInt32LE(view, currentOffset);
     currentOffset += 4;
 
     // bin_mq_nl: bin<<16 | MAPQ<<8 | l_read_name
-    const binMqNl = this.readUInt32LE(view, currentOffset);
+    const binMqNl = BinaryParser.readUInt32LE(view, currentOffset);
     const bin = (binMqNl >> 16) & 0xffff;
     const mapq = (binMqNl >> 8) & 0xff;
     const readNameLength = binMqNl & 0xff;
     currentOffset += 4;
 
     // flag_nc: FLAG<<16 | n_cigar_op
-    const flagNc = this.readUInt32LE(view, currentOffset);
+    const flagNc = BinaryParser.readUInt32LE(view, currentOffset);
     const flag = (flagNc >> 16) & 0xffff;
     const numCigarOps = flagNc & 0xffff;
     currentOffset += 4;
 
-    const seqLength = this.readInt32LE(view, currentOffset);
+    const seqLength = BinaryParser.readInt32LE(view, currentOffset);
     currentOffset += 4;
 
-    const nextRefID = this.readInt32LE(view, currentOffset);
+    const nextRefID = BinaryParser.readInt32LE(view, currentOffset);
     currentOffset += 4;
 
-    const nextPos = this.readInt32LE(view, currentOffset);
+    const nextPos = BinaryParser.readInt32LE(view, currentOffset);
     currentOffset += 4;
 
-    const tlen = this.readInt32LE(view, currentOffset);
-    currentOffset += 4;
-
-    // Validate parsed values
-    if (readNameLength <= 0 || readNameLength > 255) {
-      throw new BamError(`Invalid read name length: ${readNameLength}`, undefined, 'qname');
-    }
-
-    if (seqLength < 0) {
-      throw new BamError(`Invalid sequence length: ${seqLength}`, undefined, 'seq');
-    }
-
-    if (numCigarOps < 0 || numCigarOps > 65535) {
-      throw new BamError(`Invalid CIGAR operation count: ${numCigarOps}`, undefined, 'cigar');
-    }
-
-    // Read variable-length fields
-
-    // Read name (null-terminated)
-    if (currentOffset + readNameLength > endOffset) {
-      throw new BamError(
-        `Buffer overflow reading read name: need ${readNameLength} bytes`,
-        undefined,
-        'qname'
-      );
-    }
-
-    const readNameResult = this.readCString(view, currentOffset, readNameLength);
-    const readName = readNameResult.value;
-    currentOffset += readNameLength;
-
-    // Read CIGAR operations
-    const cigarBytesNeeded = numCigarOps * 4;
-    if (currentOffset + cigarBytesNeeded > endOffset) {
-      throw new BamError(
-        `Buffer overflow reading CIGAR: need ${cigarBytesNeeded} bytes`,
-        readName,
-        'cigar'
-      );
-    }
-
-    const cigar = numCigarOps > 0 ? this.parseBinaryCIGAR(view, currentOffset, numCigarOps) : '*';
-    currentOffset += cigarBytesNeeded;
-
-    // Read packed sequence
-    const seqBytesNeeded = Math.ceil(seqLength / 2);
-    if (currentOffset + seqBytesNeeded > endOffset) {
-      throw new BamError(
-        `Buffer overflow reading sequence: need ${seqBytesNeeded} bytes`,
-        readName,
-        'seq'
-      );
-    }
-
-    const seqBuffer = new Uint8Array(view.buffer, view.byteOffset + currentOffset, seqBytesNeeded);
-    const sequence = seqLength > 0 ? this.decodeSequence(seqBuffer, seqLength) : '*';
-    currentOffset += seqBytesNeeded;
-
-    // Read quality scores
-    if (currentOffset + seqLength > endOffset) {
-      throw new BamError(
-        `Buffer overflow reading quality scores: need ${seqLength} bytes`,
-        readName,
-        'qual'
-      );
-    }
-
-    const qualityScores =
-      seqLength > 0 ? this.decodeQualityScores(view, currentOffset, seqLength) : '*';
-    currentOffset += seqLength;
-
-    // Read optional tags (if any remaining data)
-    let optionalTags: Uint8Array | undefined;
-    if (currentOffset < endOffset) {
-      const tagsBytesRemaining = endOffset - currentOffset;
-      optionalTags = new Uint8Array(
-        view.buffer,
-        view.byteOffset + currentOffset,
-        tagsBytesRemaining
-      );
-      currentOffset += tagsBytesRemaining;
-    }
-
-    // Tiger Style: Assert postconditions
-    console.assert(currentOffset === endOffset, 'must consume exactly blockSize bytes');
-    console.assert(readName.length > 0, 'read name must not be empty');
-    console.assert(
-      sequence === '*' || sequence.length === seqLength,
-      'sequence length must match expected'
-    );
-    console.assert(
-      qualityScores === '*' || qualityScores.length === seqLength,
-      'quality length must match sequence'
-    );
+    const tlen = BinaryParser.readInt32LE(view, currentOffset);
 
     return {
       refID,
@@ -628,13 +461,189 @@ export class BinaryParser {
       nextRefID,
       nextPos,
       tlen,
+    };
+  }
+
+  /**
+   * Validate alignment fixed field values
+   */
+  private static validateAlignmentFields(
+    fields: ReturnType<typeof BinaryParser.parseAlignmentFixedFields>
+  ): void {
+    if (fields.readNameLength <= 0 || fields.readNameLength > MAX_UINT8_VALUE) {
+      throw new BamError(`Invalid read name length: ${fields.readNameLength}`, undefined, 'qname');
+    }
+
+    if (fields.seqLength < 0) {
+      throw new BamError(`Invalid sequence length: ${fields.seqLength}`, undefined, 'seq');
+    }
+
+    if (fields.numCigarOps < 0 || fields.numCigarOps > MAX_UINT16_VALUE) {
+      throw new BamError(
+        `Invalid CIGAR operation count: ${fields.numCigarOps}`,
+        undefined,
+        'cigar'
+      );
+    }
+  }
+
+  /**
+   * Parse variable-length fields from alignment data
+   */
+  private static parseAlignmentVariableFields(
+    view: DataView,
+    startOffset: number,
+    endOffset: number,
+    fixedFields: ReturnType<typeof BinaryParser.parseAlignmentFixedFields>
+  ) {
+    let currentOffset = startOffset;
+
+    const readName = BinaryParser.parseAlignmentReadName(
+      view,
+      currentOffset,
+      endOffset,
+      fixedFields.readNameLength
+    );
+    currentOffset += fixedFields.readNameLength;
+
+    const cigar = BinaryParser.parseAlignmentCigar(
+      view,
+      currentOffset,
+      endOffset,
+      fixedFields.numCigarOps,
+      readName
+    );
+    currentOffset += fixedFields.numCigarOps * BYTES_PER_CIGAR_OP;
+
+    const sequence = BinaryParser.parseAlignmentSequence(
+      view,
+      currentOffset,
+      endOffset,
+      fixedFields.seqLength,
+      readName
+    );
+    currentOffset += Math.ceil(fixedFields.seqLength / 2);
+
+    const qualityScores = BinaryParser.parseAlignmentQuality(
+      view,
+      currentOffset,
+      endOffset,
+      fixedFields.seqLength,
+      readName
+    );
+    currentOffset += fixedFields.seqLength;
+
+    const optionalTags = BinaryParser.parseAlignmentTags(view, currentOffset, endOffset);
+
+    return {
       readName,
       cigar,
       sequence,
       qualityScores,
-      optionalTags: optionalTags ?? new Uint8Array(0),
-      bytesConsumed: blockSize,
+      optionalTags,
     };
+  }
+
+  /**
+   * Parse alignment read name
+   */
+  private static parseAlignmentReadName(
+    view: DataView,
+    offset: number,
+    endOffset: number,
+    readNameLength: number
+  ): string {
+    if (offset + readNameLength > endOffset) {
+      throw new BamError(
+        `Buffer overflow reading read name: need ${readNameLength} bytes`,
+        undefined,
+        'qname'
+      );
+    }
+
+    return BinaryParser.readCString(view, offset, readNameLength).value;
+  }
+
+  /**
+   * Parse alignment CIGAR operations
+   */
+  private static parseAlignmentCigar(
+    view: DataView,
+    offset: number,
+    endOffset: number,
+    numCigarOps: number,
+    readName: string
+  ): string {
+    const cigarBytesNeeded = numCigarOps * BYTES_PER_CIGAR_OP;
+    if (offset + cigarBytesNeeded > endOffset) {
+      throw new BamError(
+        `Buffer overflow reading CIGAR: need ${cigarBytesNeeded} bytes`,
+        readName,
+        'cigar'
+      );
+    }
+
+    return numCigarOps > 0 ? BinaryParser.parseBinaryCIGAR(view, offset, numCigarOps) : '*';
+  }
+
+  /**
+   * Parse alignment sequence
+   */
+  private static parseAlignmentSequence(
+    view: DataView,
+    offset: number,
+    endOffset: number,
+    seqLength: number,
+    readName: string
+  ): string {
+    const seqBytesNeeded = Math.ceil(seqLength / 2);
+    if (offset + seqBytesNeeded > endOffset) {
+      throw new BamError(
+        `Buffer overflow reading sequence: need ${seqBytesNeeded} bytes`,
+        readName,
+        'seq'
+      );
+    }
+
+    if (seqLength === 0) {
+      return '*';
+    }
+
+    const seqBuffer = new Uint8Array(view.buffer, view.byteOffset + offset, seqBytesNeeded);
+    return BinaryParser.decodeSequence(seqBuffer, seqLength);
+  }
+
+  /**
+   * Parse alignment quality scores
+   */
+  private static parseAlignmentQuality(
+    view: DataView,
+    offset: number,
+    endOffset: number,
+    seqLength: number,
+    readName: string
+  ): string {
+    if (offset + seqLength > endOffset) {
+      throw new BamError(
+        `Buffer overflow reading quality scores: need ${seqLength} bytes`,
+        readName,
+        'qual'
+      );
+    }
+
+    return seqLength > 0 ? BinaryParser.decodeQualityScores(view, offset, seqLength) : '*';
+  }
+
+  /**
+   * Parse alignment optional tags
+   */
+  private static parseAlignmentTags(view: DataView, offset: number, endOffset: number): Uint8Array {
+    if (offset < endOffset) {
+      const tagsBytesRemaining = endOffset - offset;
+      return new Uint8Array(view.buffer, view.byteOffset + offset, tagsBytesRemaining);
+    }
+
+    return new Uint8Array(0);
   }
 
   /**
@@ -646,11 +655,6 @@ export class BinaryParser {
    * @throws {BamError} If buffer is too small
    */
   static decodeQualityScores(view: DataView, offset: number, length: number): string {
-    // Tiger Style: Assert function arguments
-    console.assert(view instanceof DataView, 'view must be DataView');
-    console.assert(Number.isInteger(offset) && offset >= 0, 'offset must be non-negative integer');
-    console.assert(Number.isInteger(length) && length >= 0, 'length must be non-negative integer');
-
     if (length === 0) {
       return '*';
     }
@@ -667,24 +671,19 @@ export class BinaryParser {
     const qualChars = new Array(length);
 
     for (let i = 0; i < length; i++) {
-      const rawQual = this.readUInt8(view, offset + i);
+      const rawQual = BinaryParser.readUInt8(view, offset + i);
 
-      if (rawQual === 255) {
+      if (rawQual === UNAVAILABLE_QUALITY) {
         // 255 indicates unavailable quality
         qualChars[i] = '*';
       } else {
         // Convert to Phred+33 format, cap at ASCII 126
-        const phredQual = Math.min(rawQual + 33, 126);
+        const phredQual = Math.min(rawQual + PHRED_OFFSET, MAX_ASCII_QUAL);
         qualChars[i] = String.fromCharCode(phredQual);
       }
     }
 
-    const result = qualChars.join('');
-
-    // Tiger Style: Assert postconditions
-    console.assert(result.length === length, 'result length must match input length');
-
-    return result;
+    return qualChars.join('');
   }
 
   /**
@@ -702,9 +701,6 @@ export class BinaryParser {
     type: string;
     value: string | number;
   }> {
-    // Tiger Style: Assert function arguments
-    console.assert(tagData instanceof Uint8Array, 'tagData must be Uint8Array');
-
     const tags: Array<{ tag: string; type: string; value: string | number }> = [];
     let offset = 0;
 
@@ -714,42 +710,34 @@ export class BinaryParser {
         // Read tag name (2 bytes)
         const tagByte1 = tagData[offset];
         const tagByte2 = tagData[offset + 1];
-        console.assert(
-          tagByte1 !== undefined && tagByte2 !== undefined,
-          'tag name bytes must be defined'
-        );
-        const tagName = String.fromCharCode(tagByte1!, tagByte2!);
+        if (tagByte1 === undefined || tagByte2 === undefined) {
+          throw new Error('Tag name bytes are undefined');
+        }
+        const tagName = String.fromCharCode(tagByte1, tagByte2);
         offset += 2;
 
         // Read tag type (1 byte)
         const tagTypeByte = tagData[offset];
-        console.assert(tagTypeByte !== undefined, 'tag type byte must be defined');
-        const tagType = String.fromCharCode(tagTypeByte!);
+        if (tagTypeByte === undefined) {
+          throw new Error('Tag type byte is undefined');
+        }
+        const tagType = String.fromCharCode(tagTypeByte);
         offset += 1;
 
         // Read value based on type
-        const valueResult = this.parseTagValue(tagData, offset, tagType);
-        const value = valueResult.value;
-        const bytesConsumed = valueResult.bytesConsumed;
-
-        offset += bytesConsumed;
+        const valueResult = BinaryParser.parseTagValue(tagData, offset, tagType);
+        offset += valueResult.bytesConsumed;
 
         tags.push({
           tag: tagName,
           type: tagType,
-          value,
+          value: valueResult.value,
         });
       } catch (error) {
-        // Log warning and stop parsing tags on error
-        console.warn(
-          `Failed to parse optional tag at offset ${offset}: ${error instanceof Error ? error.message : String(error)}`
-        );
+        // Stop parsing tags on error - don't use console.warn
         break;
       }
     }
-
-    // Tiger Style: Assert postconditions
-    console.assert(Array.isArray(tags), 'result must be an array');
 
     return tags;
   }
@@ -767,26 +755,26 @@ export class BinaryParser {
   } {
     switch (tagType) {
       case 'A': // Character
-        return this.parseCharacterTag(tagData, offset);
+        return BinaryParser.parseCharacterTag(tagData, offset);
       case 'c': // Signed 8-bit integer
-        return this.parseInt8Tag(tagData, offset);
+        return BinaryParser.parseInt8Tag(tagData, offset);
       case 'C': // Unsigned 8-bit integer
-        return this.parseUInt8Tag(tagData, offset);
+        return BinaryParser.parseUInt8Tag(tagData, offset);
       case 's': // Signed 16-bit integer
-        return this.parseInt16Tag(tagData, offset);
+        return BinaryParser.parseInt16Tag(tagData, offset);
       case 'S': // Unsigned 16-bit integer
-        return this.parseUInt16Tag(tagData, offset);
+        return BinaryParser.parseUInt16Tag(tagData, offset);
       case 'i': // Signed 32-bit integer
-        return this.parseInt32Tag(tagData, offset);
+        return BinaryParser.parseInt32Tag(tagData, offset);
       case 'I': // Unsigned 32-bit integer
-        return this.parseUInt32Tag(tagData, offset);
+        return BinaryParser.parseUInt32Tag(tagData, offset);
       case 'f': // 32-bit float
-        return this.parseFloatTag(tagData, offset);
+        return BinaryParser.parseFloatTag(tagData, offset);
       case 'Z': // Null-terminated string
       case 'H': // Hex string
-        return this.parseStringTag(tagData, offset);
+        return BinaryParser.parseStringTag(tagData, offset);
       case 'B': // Array of numeric values
-        return this.parseArrayTag(tagData, offset);
+        return BinaryParser.parseArrayTag(tagData, offset);
       default:
         throw new Error(`Unsupported tag type: ${tagType}`);
     }
@@ -804,10 +792,12 @@ export class BinaryParser {
     }
 
     const charByte = tagData[offset];
-    console.assert(charByte !== undefined, 'character tag byte must be defined');
+    if (charByte === undefined) {
+      throw new Error('Character tag byte is undefined');
+    }
 
     return {
-      value: String.fromCharCode(charByte!),
+      value: String.fromCharCode(charByte),
       bytesConsumed: 1,
     };
   }
@@ -824,10 +814,12 @@ export class BinaryParser {
     }
 
     const int8Byte = tagData[offset];
-    console.assert(int8Byte !== undefined, 'int8 tag byte must be defined');
+    if (int8Byte === undefined) {
+      throw new Error('Int8 tag byte is undefined');
+    }
 
     return {
-      value: new Int8Array([int8Byte!])[0]!,
+      value: new Int8Array([int8Byte])[0] ?? 0,
       bytesConsumed: 1,
     };
   }
@@ -844,10 +836,12 @@ export class BinaryParser {
     }
 
     const uint8Byte = tagData[offset];
-    console.assert(uint8Byte !== undefined, 'uint8 tag byte must be defined');
+    if (uint8Byte === undefined) {
+      throw new Error('UInt8 tag byte is undefined');
+    }
 
     return {
-      value: uint8Byte!,
+      value: uint8Byte,
       bytesConsumed: 1,
     };
   }
@@ -865,13 +859,12 @@ export class BinaryParser {
 
     const int16Byte1 = tagData[offset];
     const int16Byte2 = tagData[offset + 1];
-    console.assert(
-      int16Byte1 !== undefined && int16Byte2 !== undefined,
-      'int16 tag bytes must be defined'
-    );
+    if (int16Byte1 === undefined || int16Byte2 === undefined) {
+      throw new Error('Int16 tag bytes are undefined');
+    }
 
     return {
-      value: new Int16Array([int16Byte1! | (int16Byte2! << 8)])[0]!,
+      value: new Int16Array([int16Byte1 | (int16Byte2 << 8)])[0] ?? 0,
       bytesConsumed: 2,
     };
   }
@@ -889,13 +882,12 @@ export class BinaryParser {
 
     const uint16Byte1 = tagData[offset];
     const uint16Byte2 = tagData[offset + 1];
-    console.assert(
-      uint16Byte1 !== undefined && uint16Byte2 !== undefined,
-      'uint16 tag bytes must be defined'
-    );
+    if (uint16Byte1 === undefined || uint16Byte2 === undefined) {
+      throw new Error('UInt16 tag bytes are undefined');
+    }
 
     return {
-      value: uint16Byte1! | (uint16Byte2! << 8),
+      value: uint16Byte1 | (uint16Byte2 << 8),
       bytesConsumed: 2,
     };
   }
@@ -911,20 +903,19 @@ export class BinaryParser {
       throw new Error('Insufficient data for int32 tag');
     }
 
-    console.assert(tagData[offset] !== undefined, 'int32 byte 0 must be defined');
-    console.assert(tagData[offset + 1] !== undefined, 'int32 byte 1 must be defined');
-    console.assert(tagData[offset + 2] !== undefined, 'int32 byte 2 must be defined');
-    console.assert(tagData[offset + 3] !== undefined, 'int32 byte 3 must be defined');
+    const byte0 = tagData[offset];
+    const byte1 = tagData[offset + 1];
+    const byte2 = tagData[offset + 2];
+    const byte3 = tagData[offset + 3];
 
-    const value =
-      (tagData[offset]! |
-        (tagData[offset + 1]! << 8) |
-        (tagData[offset + 2]! << 16) |
-        (tagData[offset + 3]! << 24)) >>>
-      0;
+    if (byte0 === undefined || byte1 === undefined || byte2 === undefined || byte3 === undefined) {
+      throw new Error('Int32 tag bytes are undefined');
+    }
+
+    const value = (byte0 | (byte1 << 8) | (byte2 << 16) | (byte3 << 24)) >>> 0;
 
     return {
-      value: new Int32Array([value])[0]!,
+      value: new Int32Array([value])[0] ?? 0,
       bytesConsumed: 4,
     };
   }
@@ -940,20 +931,17 @@ export class BinaryParser {
       throw new Error('Insufficient data for uint32 tag');
     }
 
-    console.assert(tagData[offset] !== undefined, 'uint32 byte 0 must be defined');
-    console.assert(tagData[offset + 1] !== undefined, 'uint32 byte 1 must be defined');
-    console.assert(tagData[offset + 2] !== undefined, 'uint32 byte 2 must be defined');
-    console.assert(tagData[offset + 3] !== undefined, 'uint32 byte 3 must be defined');
+    const byte0 = tagData[offset];
+    const byte1 = tagData[offset + 1];
+    const byte2 = tagData[offset + 2];
+    const byte3 = tagData[offset + 3];
 
-    const value =
-      (tagData[offset]! |
-        (tagData[offset + 1]! << 8) |
-        (tagData[offset + 2]! << 16) |
-        (tagData[offset + 3]! << 24)) >>>
-      0;
+    if (byte0 === undefined || byte1 === undefined || byte2 === undefined || byte3 === undefined) {
+      throw new Error('UInt32 tag bytes are undefined');
+    }
 
     return {
-      value,
+      value: (byte0 | (byte1 << 8) | (byte2 << 16) | (byte3 << 24)) >>> 0,
       bytesConsumed: 4,
     };
   }
@@ -1013,24 +1001,26 @@ export class BinaryParser {
     }
 
     // Read array element type (1 byte)
-    console.assert(tagData[offset] !== undefined, 'array type byte must be defined');
-    const arrayType = String.fromCharCode(tagData[offset]!);
+    const arrayTypeByte = tagData[offset];
+    if (arrayTypeByte === undefined) {
+      throw new Error('Array type byte is undefined');
+    }
+    const arrayType = String.fromCharCode(arrayTypeByte);
 
     // Read array count (4 bytes, little-endian)
-    const arrayCount = this.readArrayCount(tagData, offset + 1);
+    const arrayCount = BinaryParser.readArrayCount(tagData, offset + 1);
     const headerOffset = offset + 5;
 
     // Validate array count
-    if (arrayCount > 10000) {
-      // Sanity check to prevent memory issues
-      console.warn(`Large array in BAM tag: ${arrayCount} elements`);
+    if (arrayCount > MAX_ARRAY_SIZE) {
+      throw new Error(`Array too large: ${arrayCount} elements (max ${MAX_ARRAY_SIZE})`);
     }
 
     // Parse array elements
-    const elementSize = this.getArrayElementSize(arrayType);
-    this.validateArrayDataSize(headerOffset, arrayCount, elementSize, tagData.length);
+    const elementSize = BinaryParser.getArrayElementSize(arrayType);
+    BinaryParser.validateArrayDataSize(headerOffset, arrayCount, elementSize, tagData.length);
 
-    const arrayValues = this.parseArrayElements(
+    const arrayValues = BinaryParser.parseArrayElements(
       tagData,
       headerOffset,
       arrayType,
@@ -1048,18 +1038,16 @@ export class BinaryParser {
    * Read array count from 4-byte little-endian value
    */
   private static readArrayCount(tagData: Uint8Array, offset: number): number {
-    console.assert(tagData[offset] !== undefined, 'array count byte 0 must be defined');
-    console.assert(tagData[offset + 1] !== undefined, 'array count byte 1 must be defined');
-    console.assert(tagData[offset + 2] !== undefined, 'array count byte 2 must be defined');
-    console.assert(tagData[offset + 3] !== undefined, 'array count byte 3 must be defined');
+    const byte0 = tagData[offset];
+    const byte1 = tagData[offset + 1];
+    const byte2 = tagData[offset + 2];
+    const byte3 = tagData[offset + 3];
 
-    return (
-      (tagData[offset]! |
-        (tagData[offset + 1]! << 8) |
-        (tagData[offset + 2]! << 16) |
-        (tagData[offset + 3]! << 24)) >>>
-      0
-    );
+    if (byte0 === undefined || byte1 === undefined || byte2 === undefined || byte3 === undefined) {
+      throw new Error('Array count bytes are undefined');
+    }
+
+    return (byte0 | (byte1 << 8) | (byte2 << 16) | (byte3 << 24)) >>> 0;
   }
 
   /**
@@ -1113,7 +1101,7 @@ export class BinaryParser {
 
     for (let i = 0; i < arrayCount; i++) {
       const elementOffset = offset + i * elementSize;
-      const elementValue = this.parseArrayElement(tagData, elementOffset, arrayType);
+      const elementValue = BinaryParser.parseArrayElement(tagData, elementOffset, arrayType);
       arrayValues.push(elementValue);
     }
 
@@ -1124,58 +1112,76 @@ export class BinaryParser {
    * Parse a single array element
    */
   private static parseArrayElement(tagData: Uint8Array, offset: number, arrayType: string): number {
-    switch (arrayType) {
-      case 'c': // Signed 8-bit
-        console.assert(tagData[offset] !== undefined, 'int8 element byte must be defined');
-        return new Int8Array([tagData[offset]!])[0]!;
+    const operations = {
+      c: () => BinaryParser.parseSignedInt8Element(tagData, offset),
+      C: () => BinaryParser.parseUnsignedInt8Element(tagData, offset),
+      s: () => BinaryParser.parseSignedInt16Element(tagData, offset),
+      S: () => BinaryParser.parseUnsignedInt16Element(tagData, offset),
+      i: () => BinaryParser.parseSignedInt32Element(tagData, offset),
+      I: () => BinaryParser.parseUnsignedInt32Element(tagData, offset),
+      f: () => BinaryParser.parseFloatElement(tagData, offset),
+    };
 
-      case 'C': // Unsigned 8-bit
-        console.assert(tagData[offset] !== undefined, 'uint8 element byte must be defined');
-        return tagData[offset]!;
+    const operation = operations[arrayType as keyof typeof operations];
+    return operation ? operation() : 0;
+  }
 
-      case 's': // Signed 16-bit
-        console.assert(tagData[offset] !== undefined, 'int16 element byte 0 must be defined');
-        console.assert(tagData[offset + 1] !== undefined, 'int16 element byte 1 must be defined');
-        return new Int16Array([tagData[offset]! | (tagData[offset + 1]! << 8)])[0]!;
+  private static parseSignedInt8Element(tagData: Uint8Array, offset: number): number {
+    const byte = tagData[offset];
+    if (byte === undefined) throw new Error('Int8 element byte is undefined');
+    return new Int8Array([byte])[0] ?? 0;
+  }
 
-      case 'S': // Unsigned 16-bit
-        console.assert(tagData[offset] !== undefined, 'uint16 element byte 0 must be defined');
-        console.assert(tagData[offset + 1] !== undefined, 'uint16 element byte 1 must be defined');
-        return tagData[offset]! | (tagData[offset + 1]! << 8);
+  private static parseUnsignedInt8Element(tagData: Uint8Array, offset: number): number {
+    const byte = tagData[offset];
+    if (byte === undefined) throw new Error('UInt8 element byte is undefined');
+    return byte;
+  }
 
-      case 'i': // Signed 32-bit
-        console.assert(tagData[offset] !== undefined, 'int32 element byte 0 must be defined');
-        console.assert(tagData[offset + 1] !== undefined, 'int32 element byte 1 must be defined');
-        console.assert(tagData[offset + 2] !== undefined, 'int32 element byte 2 must be defined');
-        console.assert(tagData[offset + 3] !== undefined, 'int32 element byte 3 must be defined');
-        const intValue =
-          (tagData[offset]! |
-            (tagData[offset + 1]! << 8) |
-            (tagData[offset + 2]! << 16) |
-            (tagData[offset + 3]! << 24)) >>>
-          0;
-        return new Int32Array([intValue])[0]!;
-
-      case 'I': // Unsigned 32-bit
-        console.assert(tagData[offset] !== undefined, 'uint32 element byte 0 must be defined');
-        console.assert(tagData[offset + 1] !== undefined, 'uint32 element byte 1 must be defined');
-        console.assert(tagData[offset + 2] !== undefined, 'uint32 element byte 2 must be defined');
-        console.assert(tagData[offset + 3] !== undefined, 'uint32 element byte 3 must be defined');
-        return (
-          (tagData[offset]! |
-            (tagData[offset + 1]! << 8) |
-            (tagData[offset + 2]! << 16) |
-            (tagData[offset + 3]! << 24)) >>>
-          0
-        );
-
-      case 'f': // 32-bit float
-        const floatArrayView = new DataView(tagData.buffer, tagData.byteOffset + offset, 4);
-        return floatArrayView.getFloat32(0, true); // little-endian
-
-      default:
-        return 0; // Should never reach here
+  private static parseSignedInt16Element(tagData: Uint8Array, offset: number): number {
+    const byte0 = tagData[offset];
+    const byte1 = tagData[offset + 1];
+    if (byte0 === undefined || byte1 === undefined) {
+      throw new Error('Int16 element bytes are undefined');
     }
+    return new Int16Array([byte0 | (byte1 << 8)])[0] ?? 0;
+  }
+
+  private static parseUnsignedInt16Element(tagData: Uint8Array, offset: number): number {
+    const byte0 = tagData[offset];
+    const byte1 = tagData[offset + 1];
+    if (byte0 === undefined || byte1 === undefined) {
+      throw new Error('UInt16 element bytes are undefined');
+    }
+    return byte0 | (byte1 << 8);
+  }
+
+  private static parseSignedInt32Element(tagData: Uint8Array, offset: number): number {
+    const byte0 = tagData[offset];
+    const byte1 = tagData[offset + 1];
+    const byte2 = tagData[offset + 2];
+    const byte3 = tagData[offset + 3];
+    if (byte0 === undefined || byte1 === undefined || byte2 === undefined || byte3 === undefined) {
+      throw new Error('Int32 element bytes are undefined');
+    }
+    const intValue = (byte0 | (byte1 << 8) | (byte2 << 16) | (byte3 << 24)) >>> 0;
+    return new Int32Array([intValue])[0] ?? 0;
+  }
+
+  private static parseUnsignedInt32Element(tagData: Uint8Array, offset: number): number {
+    const byte0 = tagData[offset];
+    const byte1 = tagData[offset + 1];
+    const byte2 = tagData[offset + 2];
+    const byte3 = tagData[offset + 3];
+    if (byte0 === undefined || byte1 === undefined || byte2 === undefined || byte3 === undefined) {
+      throw new Error('UInt32 element bytes are undefined');
+    }
+    return (byte0 | (byte1 << 8) | (byte2 << 16) | (byte3 << 24)) >>> 0;
+  }
+
+  private static parseFloatElement(tagData: Uint8Array, offset: number): number {
+    const floatArrayView = new DataView(tagData.buffer, tagData.byteOffset + offset, 4);
+    return floatArrayView.getFloat32(0, true); // little-endian
   }
 
   /**
@@ -1188,13 +1194,22 @@ export class BinaryParser {
     record: ReturnType<typeof BinaryParser.parseAlignmentRecord>,
     references: string[]
   ): string[] {
-    // Tiger Style: Assert function arguments
-    console.assert(typeof record === 'object', 'record must be an object');
-    console.assert(Array.isArray(references), 'references must be an array');
-
     const warnings: string[] = [];
 
-    // Validate reference ID bounds
+    BinaryParser.validateReferenceIds(record, references, warnings);
+    BinaryParser.validateCigarConsistency(record, warnings);
+    BinaryParser.validateMappingQuality(record, warnings);
+    BinaryParser.validateTemplateLength(record, warnings);
+    BinaryParser.validatePosition(record, warnings);
+
+    return warnings;
+  }
+
+  private static validateReferenceIds(
+    record: ReturnType<typeof BinaryParser.parseAlignmentRecord>,
+    references: string[],
+    warnings: string[]
+  ): void {
     if (record.refID >= 0 && record.refID >= references.length) {
       warnings.push(`Reference ID ${record.refID} out of bounds (max ${references.length - 1})`);
     }
@@ -1204,49 +1219,64 @@ export class BinaryParser {
         `Next reference ID ${record.nextRefID} out of bounds (max ${references.length - 1})`
       );
     }
+  }
 
-    // Validate CIGAR vs sequence consistency
-    if (record.cigar !== '*' && record.sequence !== '*') {
-      const cigarOps = record.cigar.match(/\d+[MIDNSHPX=]/g) || [];
-      let queryConsumed = 0;
+  private static validateCigarConsistency(
+    record: ReturnType<typeof BinaryParser.parseAlignmentRecord>,
+    warnings: string[]
+  ): void {
+    if (record.cigar === '*' || record.sequence === '*') {
+      return;
+    }
 
-      for (const op of cigarOps) {
-        const length = parseInt(op.slice(0, -1));
-        const operation = op.slice(-1);
+    const cigarOps = record.cigar.match(/\d+[MIDNSHPX=]/g) || [];
+    let queryConsumed = 0;
 
-        // Operations that consume query sequence: M, I, S, =, X
-        if ('MIS=X'.includes(operation)) {
-          queryConsumed += length;
-        }
-      }
+    for (const op of cigarOps) {
+      const length = parseInt(op.slice(0, -1));
+      const operation = op.slice(-1);
 
-      if (queryConsumed !== record.seqLength) {
-        warnings.push(
-          `CIGAR consumes ${queryConsumed} bases but sequence length is ${record.seqLength}`
-        );
+      // Operations that consume query sequence: M, I, S, =, X
+      if ('MIS=X'.includes(operation)) {
+        queryConsumed += length;
       }
     }
 
-    // Validate mapping quality bounds
-    if (record.mapq > 60) {
+    if (queryConsumed !== record.seqLength) {
+      warnings.push(
+        `CIGAR consumes ${queryConsumed} bases but sequence length is ${record.seqLength}`
+      );
+    }
+  }
+
+  private static validateMappingQuality(
+    record: ReturnType<typeof BinaryParser.parseAlignmentRecord>,
+    warnings: string[]
+  ): void {
+    if (record.mapq > MAX_MAPPING_QUALITY) {
       warnings.push(`Unusually high mapping quality: ${record.mapq}`);
     }
+  }
 
-    // Validate template length for paired reads
+  private static validateTemplateLength(
+    record: ReturnType<typeof BinaryParser.parseAlignmentRecord>,
+    warnings: string[]
+  ): void {
     if (record.flag & 0x1) {
       // Paired read
-      if (Math.abs(record.tlen) > 10000) {
+      if (Math.abs(record.tlen) > MAX_TEMPLATE_LENGTH) {
         warnings.push(`Large template length: ${record.tlen} (possible structural variant)`);
       }
     }
+  }
 
-    // Validate position bounds (basic sanity check)
-    if (record.pos > 300_000_000) {
-      // Larger than any known chromosome
+  private static validatePosition(
+    record: ReturnType<typeof BinaryParser.parseAlignmentRecord>,
+    warnings: string[]
+  ): void {
+    if (record.pos > MAX_CHROMOSOME_POSITION) {
       warnings.push(`Unusually large position: ${record.pos}`);
     }
-
-    return warnings;
   }
 
   /**
@@ -1302,17 +1332,14 @@ export class BinaryParser {
    * @returns Estimated memory usage in bytes
    */
   static estimateMemoryUsage(record: ReturnType<typeof BinaryParser.parseAlignmentRecord>): number {
-    // Tiger Style: Assert function arguments
-    console.assert(typeof record === 'object', 'record must be an object');
-
     let totalBytes = 0;
 
     // Fixed fields (32 bytes)
-    totalBytes += 32;
+    totalBytes += MIN_ALIGNMENT_BLOCK_SIZE;
 
     // Variable length fields
     totalBytes += record.readName.length + 1; // +1 for null terminator
-    totalBytes += record.numCigarOps * 4; // 4 bytes per CIGAR operation
+    totalBytes += record.numCigarOps * BYTES_PER_CIGAR_OP;
     totalBytes += Math.ceil(record.seqLength / 2); // Packed sequence
     totalBytes += record.seqLength; // Quality scores
 
@@ -1322,7 +1349,7 @@ export class BinaryParser {
     }
 
     // JavaScript object overhead (approximate)
-    totalBytes += 200; // Rough estimate for object structure
+    totalBytes += JS_OBJECT_OVERHEAD;
 
     return totalBytes;
   }
@@ -1347,15 +1374,10 @@ export class BinaryParser {
    * @returns Optimally allocated buffer for current runtime
    */
   static allocateBuffer(size: number): Uint8Array {
-    // Tiger Style: Assert function arguments
-    console.assert(Number.isInteger(size) && size > 0, 'size must be positive integer');
-
-    if (BinaryParser.isBunOptimized()) {
-      // Bun has optimized buffer allocation
-      return new Uint8Array(size);
-    } else {
-      // Standard allocation for other runtimes
-      return new Uint8Array(size);
+    if (!Number.isInteger(size) || size <= 0) {
+      throw new Error('Size must be positive integer');
     }
+
+    return new Uint8Array(size);
   }
 }

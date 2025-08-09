@@ -10,7 +10,7 @@
  */
 
 import { type } from 'arktype';
-import type { FastqSequence, QualityEncoding, ParserOptions, ParseResult } from '../types';
+import type { FastqSequence, QualityEncoding, ParserOptions } from '../types';
 import { FastqSequenceSchema, SequenceIdSchema, SequenceSchema, QualitySchema } from '../types';
 import {
   ValidationError,
@@ -29,7 +29,7 @@ export class QualityScores {
    */
   static toNumbers(qualityString: string, encoding: QualityEncoding = 'phred33'): number[] {
     const scores: number[] = [];
-    const offset = this.getOffset(encoding);
+    const offset = QualityScores.getOffset(encoding);
 
     for (let i = 0; i < qualityString.length; i++) {
       const ascii = qualityString.charCodeAt(i);
@@ -59,7 +59,7 @@ export class QualityScores {
    * Convert numeric scores to ASCII quality string
    */
   static toString(scores: number[], encoding: QualityEncoding = 'phred33'): string {
-    const offset = this.getOffset(encoding);
+    const offset = QualityScores.getOffset(encoding);
     return scores.map((score) => String.fromCharCode(score + offset)).join('');
   }
 
@@ -146,7 +146,7 @@ export class QualityScores {
  * Streaming FASTQ parser with quality score handling
  */
 export class FastqParser {
-  private options: Required<ParserOptions>;
+  private readonly options: Required<ParserOptions>;
 
   constructor(options: ParserOptions = {}) {
     this.options = {
@@ -194,12 +194,15 @@ export class FastqParser {
     options?: import('../types').FileReaderOptions
   ): AsyncIterable<FastqSequence> {
     // Tiger Style: Assert function arguments
-    console.assert(typeof filePath === 'string', 'filePath must be a string');
-    console.assert(filePath.length > 0, 'filePath must not be empty');
-    console.assert(
-      !options || typeof options === 'object',
-      'options must be an object if provided'
-    );
+    if (typeof filePath !== 'string') {
+      throw new ValidationError('filePath must be a string');
+    }
+    if (filePath.length === 0) {
+      throw new ValidationError('filePath must not be empty');
+    }
+    if (options && typeof options !== 'object') {
+      throw new ValidationError('options must be an object if provided');
+    }
 
     // Import I/O modules dynamically to avoid circular dependencies
     const { FileReader } = await import('../io/file-reader');
@@ -373,7 +376,23 @@ export class FastqParser {
     // Parse quality scores if requested
     if (this.options.parseQualityScores) {
       try {
-        (fastqSequence as any).qualityScores = QualityScores.toNumbers(quality, qualityEncoding);
+        const qualityScores = QualityScores.toNumbers(quality, qualityEncoding);
+        (fastqSequence as any).qualityScores = qualityScores;
+
+        // Calculate quality statistics when scores are available
+        if (qualityScores && qualityScores.length > 0) {
+          const mean = qualityScores.reduce((sum, score) => sum + score, 0) / qualityScores.length;
+          const min = Math.min(...qualityScores);
+          const max = Math.max(...qualityScores);
+          const lowQualityBases = qualityScores.filter((score) => score < 20).length;
+
+          (fastqSequence as any).qualityStats = {
+            mean,
+            min,
+            max,
+            lowQualityBases,
+          };
+        }
       } catch (error) {
         throw new QualityError(
           error instanceof Error ? error.message : String(error),
@@ -480,8 +499,12 @@ export class FastqParser {
    */
   private async validateFilePath(filePath: string): Promise<string> {
     // Tiger Style: Assert function arguments
-    console.assert(typeof filePath === 'string', 'filePath must be a string');
-    console.assert(filePath.length > 0, 'filePath must not be empty');
+    if (typeof filePath !== 'string') {
+      throw new ValidationError('filePath must be a string');
+    }
+    if (filePath.length === 0) {
+      throw new ValidationError('filePath must not be empty');
+    }
 
     // Import FileReader dynamically to avoid circular dependencies
     const { FileReader } = await import('../io/file-reader');
@@ -539,10 +562,9 @@ export class FastqParser {
     lines: AsyncIterable<string>
   ): AsyncIterable<FastqSequence> {
     // Tiger Style: Assert function arguments
-    console.assert(
-      typeof lines === 'object' && Symbol.asyncIterator in lines,
-      'lines must be async iterable'
-    );
+    if (typeof lines !== 'object' || !(Symbol.asyncIterator in lines)) {
+      throw new ValidationError('lines must be async iterable');
+    }
 
     let lineNumber = 0;
     const lineBuffer: string[] = [];
@@ -616,7 +638,9 @@ export class FastqParser {
     }
 
     // Tiger Style: Assert postconditions
-    console.assert(lineNumber >= 0, 'line number must be non-negative');
+    if (lineNumber < 0) {
+      throw new ParseError('line number must be non-negative', 'FASTQ');
+    }
   }
 }
 
@@ -624,8 +648,8 @@ export class FastqParser {
  * FASTQ writer for outputting sequences
  */
 export class FastqWriter {
-  private qualityEncoding: QualityEncoding;
-  private includeDescription: boolean;
+  private readonly qualityEncoding: QualityEncoding;
+  private readonly includeDescription: boolean;
 
   constructor(
     options: {

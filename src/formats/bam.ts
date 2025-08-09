@@ -18,26 +18,22 @@
 
 import type {
   BAMAlignment,
-  BAMHeader,
-  BGZFBlock,
-  SAMAlignment,
   SAMHeader,
-  SAMTag,
   SAMFlag,
   CIGARString,
   MAPQScore,
   ParserOptions,
 } from '../types';
 import { SAMFlagSchema, MAPQScoreSchema, CIGAROperationSchema } from '../types';
-import { BamError, CompressionError, ValidationError } from '../errors';
+import { ValidationError, ParseError, BamError, CompressionError } from '../errors';
 import { BGZFReader } from './bam/bgzf';
 import { BinaryParser } from './bam/binary';
 import { BGZFCompressor } from './bam/bgzf-compressor';
 import { BinarySerializer } from './bam/binary-serializer';
 import { BAMWriter, type BAMWriterOptions } from './bam/bam-writer';
 import { BAIReader } from './bam/bai-reader';
-import { BAIWriter } from './bam/bai-writer';
-import type { BAIIndex, BAIQueryResult, VirtualOffset } from '../types';
+// BAIWriter imported but not used in current implementation
+import type { BAIIndex } from '../types';
 
 /**
  * Streaming BAM parser with BGZF decompression and binary decoding
@@ -69,7 +65,7 @@ import type { BAIIndex, BAIQueryResult, VirtualOffset } from '../types';
  * ```
  */
 export class BAMParser {
-  private options: Required<ParserOptions>;
+  private readonly options: Required<ParserOptions>;
   private baiReader?: BAIReader;
   private baiIndex?: BAIIndex;
   private referenceNames: string[] = [];
@@ -80,7 +76,9 @@ export class BAMParser {
    */
   constructor(options: ParserOptions = {}) {
     // Tiger Style: Assert constructor arguments
-    console.assert(typeof options === 'object', 'options must be an object');
+    if (typeof options !== 'object') {
+      throw new ValidationError('options must be an object');
+    }
 
     this.options = {
       skipValidation: false,
@@ -88,7 +86,7 @@ export class BAMParser {
       trackLineNumbers: false, // Not applicable to binary format
       qualityEncoding: 'phred33',
       parseQualityScores: false,
-      onError: (error: string) => {
+      onError: (error: string): never => {
         throw new BamError(error, undefined, undefined);
       },
       onWarning: (warning: string) => {
@@ -120,12 +118,15 @@ export class BAMParser {
     options?: import('../types').FileReaderOptions
   ): AsyncIterable<BAMAlignment | SAMHeader> {
     // Tiger Style: Assert function arguments
-    console.assert(typeof filePath === 'string', 'filePath must be a string');
-    console.assert(filePath.length > 0, 'filePath must not be empty');
-    console.assert(
-      !options || typeof options === 'object',
-      'options must be an object if provided'
-    );
+    if (typeof filePath !== 'string') {
+      throw new ValidationError('filePath must be a string');
+    }
+    if (filePath.length === 0) {
+      throw new ValidationError('filePath must not be empty');
+    }
+    if (options && typeof options !== 'object') {
+      throw new ValidationError('options must be an object if provided');
+    }
 
     try {
       // Validate file path first
@@ -167,7 +168,9 @@ export class BAMParser {
    */
   async *parse(stream: ReadableStream<Uint8Array>): AsyncIterable<BAMAlignment | SAMHeader> {
     // Tiger Style: Assert function arguments
-    console.assert(stream instanceof ReadableStream, 'stream must be a ReadableStream');
+    if (!(stream instanceof ReadableStream)) {
+      throw new ValidationError('stream must be a ReadableStream');
+    }
 
     try {
       // Set up BGZF decompression with proper buffer management
@@ -255,6 +258,106 @@ export class BAMParser {
   }
 
   /**
+   * Parse BAM records from a binary string (base64 or hex encoded)
+   * @param data String containing binary BAM data (base64 or hex encoded)
+   * @yields BAMAlignment or SAMHeader objects as they are parsed
+   * @throws {BamError} When BAM format is invalid or string encoding is unsupported
+   * @example
+   * ```typescript
+   * const parser = new BAMParser();
+   * // Base64 encoded BAM data
+   * const bamData = "QkFNAQAAAAA..."; // base64 encoded BAM
+   * for await (const record of parser.parseString(bamData)) {
+   *   if (record.format === 'bam') {
+   *     console.log(`${record.qname} -> ${record.rname}:${record.pos}`);
+   *   }
+   * }
+   * ```
+   */
+  async *parseString(data: string): AsyncIterable<BAMAlignment | SAMHeader> {
+    // Tiger Style: Assert function arguments
+    if (typeof data !== 'string') {
+      throw new ValidationError('data must be a string');
+    }
+    if (data.length === 0) {
+      throw new ValidationError('data must not be empty');
+    }
+
+    try {
+      // BAM is binary, so string input must be base64 or hex encoded
+      const binaryData = this.decodeBinaryString(data);
+
+      // Create stream from binary data
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(binaryData);
+          controller.close();
+        },
+      });
+
+      // Use existing parse method
+      yield* this.parse(stream);
+    } catch (error) {
+      if (error instanceof BamError) {
+        throw error;
+      }
+      throw new BamError(
+        `Failed to parse BAM from string: ${error instanceof Error ? error.message : String(error)}`,
+        undefined,
+        'string_parsing',
+        undefined,
+        'Ensure string is properly base64 or hex encoded binary data'
+      );
+    }
+  }
+
+  /**
+   * Decode binary string data (base64 or hex) to Uint8Array
+   * @param data String data to decode
+   * @returns Decoded binary data
+   * @throws {BamError} When string format is invalid
+   */
+  private decodeBinaryString(data: string): Uint8Array {
+    // Tiger Style: Assert function arguments
+    if (typeof data !== 'string') {
+      throw new ValidationError('data must be a string');
+    }
+
+    // Remove whitespace
+    const cleaned = data.replace(/\s/g, '');
+
+    // Try base64 first (most common for binary data)
+    if (this.isBase64(cleaned)) {
+      return Uint8Array.from(atob(cleaned), (c) => c.charCodeAt(0));
+    }
+
+    // Try hex encoding
+    if (this.isHex(cleaned)) {
+      const bytes = new Uint8Array(cleaned.length / 2);
+      for (let i = 0; i < cleaned.length; i += 2) {
+        bytes[i / 2] = parseInt(cleaned.substr(i, 2), 16);
+      }
+      return bytes;
+    }
+
+    throw new BamError(
+      'Invalid BAM string format. Expected base64 or hex encoded binary data',
+      undefined,
+      'string_encoding',
+      undefined,
+      'Use Buffer.from(bamData).toString("base64") to encode BAM data'
+    );
+  }
+
+  private isBase64(str: string): boolean {
+    return /^[A-Za-z0-9+/]*={0,2}$/.test(str) && str.length % 4 === 0;
+  }
+
+  private isHex(str: string): boolean {
+    return /^[0-9a-fA-F]+$/.test(str) && str.length % 2 === 0;
+  }
+
+  /**
    * Parse BAM header from buffer
    * @param buffer Binary data buffer
    * @returns Header parse result or null if incomplete
@@ -265,7 +368,9 @@ export class BAMParser {
     refNames: string[];
   } | null {
     // Tiger Style: Assert function arguments
-    console.assert(buffer instanceof Uint8Array, 'buffer must be Uint8Array');
+    if (!(buffer instanceof Uint8Array)) {
+      throw new ValidationError('buffer must be Uint8Array');
+    }
 
     if (buffer.length < 12) {
       return null; // Not enough data for minimum header
@@ -370,8 +475,16 @@ export class BAMParser {
       };
 
       // Tiger Style: Assert postconditions
-      console.assert(offset > 12, 'bytes consumed must be greater than minimum header size');
-      console.assert(referenceNames.length === numRefs, 'reference names count must match header');
+      if (offset <= 12) {
+        throw new BamError(
+          'bytes consumed must be greater than minimum header size',
+          undefined,
+          'header'
+        );
+      }
+      if (referenceNames.length !== numRefs) {
+        throw new BamError('reference names count must match header', undefined, 'header');
+      }
 
       return {
         header,
@@ -403,12 +516,15 @@ export class BAMParser {
     blockOffset: number
   ): AsyncIterable<BAMAlignment> {
     // Tiger Style: Assert function arguments
-    console.assert(buffer instanceof Uint8Array, 'buffer must be Uint8Array');
-    console.assert(Array.isArray(references), 'references must be an array');
-    console.assert(
-      Number.isInteger(blockOffset) && blockOffset >= 0,
-      'blockOffset must be non-negative integer'
-    );
+    if (!(buffer instanceof Uint8Array)) {
+      throw new ValidationError('buffer must be Uint8Array');
+    }
+    if (!Array.isArray(references)) {
+      throw new ValidationError('references must be an array');
+    }
+    if (!Number.isInteger(blockOffset) || blockOffset < 0) {
+      throw new ValidationError('blockOffset must be non-negative integer');
+    }
 
     if (buffer.length === 0) {
       return; // Nothing to parse
@@ -467,7 +583,9 @@ export class BAMParser {
         recordCount++;
 
         // Tiger Style: Assert progress
-        console.assert(offset > 0, 'offset must advance');
+        if (offset <= 0) {
+          throw new BamError('offset must advance', undefined, 'alignment', blockOffset + offset);
+        }
       } catch (error) {
         if (error instanceof BamError) {
           // Enhanced error reporting with context
@@ -499,8 +617,17 @@ export class BAMParser {
     }
 
     // Tiger Style: Final assertions
-    console.assert(offset <= buffer.length, 'offset must not exceed buffer length');
-    console.assert(recordCount >= 0, 'record count must be non-negative');
+    if (offset > buffer.length) {
+      throw new BamError(
+        'offset must not exceed buffer length',
+        undefined,
+        'alignment',
+        blockOffset + offset
+      );
+    }
+    if (recordCount < 0) {
+      throw new BamError('record count must be non-negative', undefined, 'alignment', blockOffset);
+    }
   }
 
   /**
@@ -555,13 +682,18 @@ export class BAMParser {
     blockOffset: number
   ): BAMAlignment {
     // Tiger Style: Assert function arguments
-    console.assert(view instanceof DataView, 'view must be DataView');
-    console.assert(Number.isInteger(offset) && offset >= 0, 'offset must be non-negative integer');
-    console.assert(
-      Number.isInteger(blockSize) && blockSize > 0,
-      'blockSize must be positive integer'
-    );
-    console.assert(Array.isArray(references), 'references must be an array');
+    if (!(view instanceof DataView)) {
+      throw new ValidationError('view must be DataView');
+    }
+    if (!Number.isInteger(offset) || offset < 0) {
+      throw new ValidationError('offset must be non-negative integer');
+    }
+    if (!Number.isInteger(blockSize) || blockSize <= 0) {
+      throw new ValidationError('blockSize must be positive integer');
+    }
+    if (!Array.isArray(references)) {
+      throw new ValidationError('references must be an array');
+    }
 
     try {
       // Use the new comprehensive BinaryParser method
@@ -627,9 +759,20 @@ export class BAMParser {
       }
 
       // Tiger Style: Assert postconditions
-      console.assert(alignment.format === 'bam', 'format must be bam');
-      console.assert(typeof alignment.qname === 'string', 'qname must be string');
-      console.assert(alignment.pos >= 0, 'position must be non-negative');
+      if (alignment.format !== 'bam') {
+        throw new BamError('format must be bam', alignment.qname, 'alignment', blockOffset);
+      }
+      if (typeof alignment.qname !== 'string') {
+        throw new BamError('qname must be string', alignment.qname, 'alignment', blockOffset);
+      }
+      if (alignment.pos < 0) {
+        throw new BamError(
+          'position must be non-negative',
+          alignment.qname,
+          'alignment',
+          blockOffset
+        );
+      }
 
       return alignment;
     } catch (error) {
@@ -652,7 +795,9 @@ export class BAMParser {
    */
   private mapTagTypeToSAM(bamTagType: string): 'A' | 'i' | 'f' | 'Z' | 'H' | 'B' {
     // Tiger Style: Assert function arguments
-    console.assert(typeof bamTagType === 'string', 'bamTagType must be a string');
+    if (typeof bamTagType !== 'string') {
+      throw new ValidationError('bamTagType must be a string');
+    }
 
     switch (bamTagType) {
       case 'A':
@@ -688,7 +833,9 @@ export class BAMParser {
    */
   private validateFlag(flag: number, qname?: string, blockOffset?: number): SAMFlag {
     // Tiger Style: Assert function arguments
-    console.assert(Number.isInteger(flag), 'flag must be an integer');
+    if (!Number.isInteger(flag)) {
+      throw new ValidationError('flag must be an integer');
+    }
 
     try {
       const result = SAMFlagSchema(flag);
@@ -721,7 +868,9 @@ export class BAMParser {
    */
   private validateMAPQ(mapq: number, qname?: string, blockOffset?: number): MAPQScore {
     // Tiger Style: Assert function arguments
-    console.assert(Number.isInteger(mapq), 'mapq must be an integer');
+    if (!Number.isInteger(mapq)) {
+      throw new ValidationError('mapq must be an integer');
+    }
 
     try {
       const result = MAPQScoreSchema(mapq);
@@ -755,7 +904,9 @@ export class BAMParser {
    */
   private validateCIGAR(cigar: string, qname?: string, blockOffset?: number): CIGARString {
     // Tiger Style: Assert function arguments
-    console.assert(typeof cigar === 'string', 'cigar must be a string');
+    if (typeof cigar !== 'string') {
+      throw new ValidationError('cigar must be a string');
+    }
 
     try {
       const result = CIGAROperationSchema(cigar);
@@ -785,8 +936,12 @@ export class BAMParser {
    */
   private async validateFilePath(filePath: string): Promise<string> {
     // Tiger Style: Assert function arguments
-    console.assert(typeof filePath === 'string', 'filePath must be a string');
-    console.assert(filePath.length > 0, 'filePath must not be empty');
+    if (typeof filePath !== 'string') {
+      throw new ValidationError('filePath must be a string');
+    }
+    if (filePath.length === 0) {
+      throw new ValidationError('filePath must not be empty');
+    }
 
     // Import FileReader dynamically to avoid circular dependencies
     const { FileReader } = await import('../io/file-reader');
@@ -845,8 +1000,12 @@ export class BAMParser {
    */
   private appendToBuffer(buffer: Uint8Array, newData: Uint8Array): Uint8Array {
     // Tiger Style: Assert function arguments
-    console.assert(buffer instanceof Uint8Array, 'buffer must be Uint8Array');
-    console.assert(newData instanceof Uint8Array, 'newData must be Uint8Array');
+    if (!(buffer instanceof Uint8Array)) {
+      throw new ValidationError('buffer must be Uint8Array');
+    }
+    if (!(newData instanceof Uint8Array)) {
+      throw new ValidationError('newData must be Uint8Array');
+    }
 
     // Use Bun-optimized buffer concatenation
     const combined = new Uint8Array(buffer.length + newData.length);
@@ -869,9 +1028,15 @@ export class BAMParser {
     currentOffset: number
   ): Promise<{ alignments: BAMAlignment[]; bytesConsumed: number }> {
     // Tiger Style: Assert function arguments
-    console.assert(buffer instanceof Uint8Array, 'buffer must be Uint8Array');
-    console.assert(Array.isArray(references), 'references must be an array');
-    console.assert(Number.isInteger(currentOffset), 'currentOffset must be integer');
+    if (!(buffer instanceof Uint8Array)) {
+      throw new ValidationError('buffer must be Uint8Array');
+    }
+    if (!Array.isArray(references)) {
+      throw new ValidationError('references must be an array');
+    }
+    if (!Number.isInteger(currentOffset)) {
+      throw new ValidationError('currentOffset must be integer');
+    }
 
     const alignments: BAMAlignment[] = [];
     let bytesConsumed = 0;
@@ -937,8 +1102,12 @@ export class BAMParser {
     headerParsed: boolean
   ): AsyncIterable<BAMAlignment> {
     // Tiger Style: Assert function arguments
-    console.assert(buffer instanceof Uint8Array, 'buffer must be Uint8Array');
-    console.assert(Array.isArray(references), 'references must be an array');
+    if (!(buffer instanceof Uint8Array)) {
+      throw new ValidationError('buffer must be Uint8Array');
+    }
+    if (!Array.isArray(references)) {
+      throw new ValidationError('references must be an array');
+    }
 
     if (!headerParsed) {
       // Can't parse alignments without header
@@ -970,7 +1139,9 @@ export class BAMParser {
     options?: import('../types').FileReaderOptions
   ): AsyncIterable<BAMAlignment | SAMHeader> {
     // Tiger Style: Assert function arguments
-    console.assert(typeof filePath === 'string', 'filePath must be a string');
+    if (typeof filePath !== 'string') {
+      throw new ValidationError('filePath must be a string');
+    }
 
     // Use Bun.file() for optimal file access
     const file = Bun.file(filePath);
@@ -1005,7 +1176,9 @@ export class BAMParser {
     options?: import('../types').FileReaderOptions
   ): AsyncIterable<BAMAlignment | SAMHeader> {
     // Tiger Style: Assert function arguments
-    console.assert(typeof filePath === 'string', 'filePath must be a string');
+    if (typeof filePath !== 'string') {
+      throw new ValidationError('filePath must be a string');
+    }
 
     // Import I/O modules dynamically to avoid circular dependencies
     const { FileReader } = await import('../io/file-reader');
@@ -1104,12 +1277,15 @@ export class BAMParser {
     options?: import('../types').BAIReaderOptions
   ): Promise<void> {
     // Tiger Style: Assert function arguments
-    console.assert(typeof baiFilePath === 'string', 'baiFilePath must be a string');
-    console.assert(baiFilePath.length > 0, 'baiFilePath must not be empty');
-    console.assert(
-      !options || typeof options === 'object',
-      'options must be an object if provided'
-    );
+    if (typeof baiFilePath !== 'string') {
+      throw new ValidationError('baiFilePath must be a string');
+    }
+    if (baiFilePath.length === 0) {
+      throw new ValidationError('baiFilePath must not be empty');
+    }
+    if (options && typeof options !== 'object') {
+      throw new ValidationError('options must be an object if provided');
+    }
 
     try {
       this.baiReader = new BAIReader(baiFilePath, options);
@@ -1120,8 +1296,12 @@ export class BAMParser {
       console.log(`Loaded BAI index: ${this.baiIndex.referenceCount} references`);
 
       // Tiger Style: Assert postconditions
-      console.assert(this.baiReader !== undefined, 'BAI reader must be initialized');
-      console.assert(this.baiIndex !== undefined, 'BAI index must be loaded');
+      if (this.baiReader === undefined) {
+        throw new BamError('BAI reader must be initialized', undefined, 'index_loading');
+      }
+      if (this.baiIndex === undefined) {
+        throw new BamError('BAI index must be loaded', undefined, 'index_loading');
+      }
     } catch (error) {
       throw new BamError(
         `Failed to load BAI index from '${baiFilePath}': ${error instanceof Error ? error.message : String(error)}`,
@@ -1158,14 +1338,21 @@ export class BAMParser {
     end: number
   ): AsyncIterable<BAMAlignment> {
     // Tiger Style: Assert function arguments
-    console.assert(typeof referenceName === 'string', 'referenceName must be a string');
-    console.assert(referenceName.length > 0, 'referenceName must not be empty');
-    console.assert(
-      Number.isInteger(start) && start > 0,
-      'start must be positive integer (1-based)'
-    );
-    console.assert(Number.isInteger(end) && end > 0, 'end must be positive integer (1-based)');
-    console.assert(end >= start, 'end must be >= start');
+    if (typeof referenceName !== 'string') {
+      throw new ValidationError('referenceName must be a string');
+    }
+    if (referenceName.length === 0) {
+      throw new ValidationError('referenceName must not be empty');
+    }
+    if (!Number.isInteger(start) || start <= 0) {
+      throw new ValidationError('start must be positive integer (1-based)');
+    }
+    if (!Number.isInteger(end) || end <= 0) {
+      throw new ValidationError('end must be positive integer (1-based)');
+    }
+    if (end < start) {
+      throw new ValidationError('end must be >= start');
+    }
 
     if (!this.baiIndex || !this.baiReader) {
       throw new BamError(
@@ -1232,15 +1419,16 @@ export class BAMParser {
    */
   setReferenceNames(names: string[]): void {
     // Tiger Style: Assert function arguments
-    console.assert(Array.isArray(names), 'names must be an array');
+    if (!Array.isArray(names)) {
+      throw new ValidationError('names must be an array');
+    }
 
     this.referenceNames = [...names]; // Copy array
 
     // Tiger Style: Assert postconditions
-    console.assert(
-      this.referenceNames.length === names.length,
-      'reference names must be copied correctly'
-    );
+    if (this.referenceNames.length !== names.length) {
+      throw new ValidationError('reference names must be copied correctly');
+    }
   }
 
   /**
@@ -1412,7 +1600,9 @@ export const BAMUtils = {
    * Detect if binary data contains BAM format
    */
   detectFormat(data: Uint8Array): boolean {
-    console.assert(data instanceof Uint8Array, 'data must be Uint8Array');
+    if (!(data instanceof Uint8Array)) {
+      throw new ValidationError('data must be Uint8Array');
+    }
 
     if (data.length < 4) {
       return false;
@@ -1425,7 +1615,9 @@ export const BAMUtils = {
    * Check if data appears to be BGZF compressed
    */
   isBGZF(data: Uint8Array): boolean {
-    console.assert(data instanceof Uint8Array, 'data must be Uint8Array');
+    if (!(data instanceof Uint8Array)) {
+      throw new ValidationError('data must be Uint8Array');
+    }
 
     return BGZFReader.detectFormat(data);
   },
@@ -1433,10 +1625,15 @@ export const BAMUtils = {
   /**
    * Extract reference names from BAM header
    */
-  async extractReferences(bamData: Uint8Array): Promise<string[]> {
-    console.assert(bamData instanceof Uint8Array, 'bamData must be Uint8Array');
+  async extractReferences(bamData: Uint8Array): Promise<Array<{ name: string; length: number }>> {
+    if (!(bamData instanceof Uint8Array)) {
+      throw new ValidationError('bamData must be Uint8Array');
+    }
 
+    // Parse BAM header to extract reference sequences
     const parser = new BAMParser();
+    const references: Array<{ name: string; length: number }> = [];
+
     const stream = new ReadableStream({
       start(controller) {
         controller.enqueue(bamData);
@@ -1444,16 +1641,47 @@ export const BAMUtils = {
       },
     });
 
-    // Parse just the header to get references
-    for await (const record of parser.parse(stream)) {
-      if (record.format === 'sam-header') {
-        // This is a simplified approach - in practice would extract from binary header
-        return []; // Return empty for now
-      }
-      break; // Only process header
+    // Read only the header
+    const reader = stream.getReader();
+    const { value } = await reader.read();
+    reader.releaseLock();
+
+    if (!value || value.length < 8) {
+      return [];
     }
 
-    return [];
+    // Parse BAM header
+    const view = new DataView(value.buffer, value.byteOffset, value.byteLength);
+
+    // Skip magic bytes (4) and header text length (4)
+    let offset = 8;
+    const headerLength = view.getInt32(4, true);
+    offset += headerLength;
+
+    // Read number of references
+    if (offset + 4 > value.length) return references;
+    const numRefs = view.getInt32(offset, true);
+    offset += 4;
+
+    // Parse each reference
+    for (let i = 0; i < numRefs && offset < value.length; i++) {
+      // Read name length
+      const nameLength = view.getInt32(offset, true);
+      offset += 4;
+
+      // Read name (null-terminated)
+      const nameBytes = new Uint8Array(value.buffer, value.byteOffset + offset, nameLength);
+      const name = new TextDecoder().decode(nameBytes).replace(/\0/g, '');
+      offset += nameLength;
+
+      // Read sequence length
+      const length = view.getInt32(offset, true);
+      offset += 4;
+
+      references.push({ name, length });
+    }
+
+    return references;
   },
 };
 

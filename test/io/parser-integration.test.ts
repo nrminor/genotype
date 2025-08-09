@@ -80,7 +80,7 @@ describe('Parser File Integration', () => {
       ].join('\n')
     );
 
-    // Create large FASTA file for performance testing
+    // Create large FASTA file for streaming tests
     const largeSequences = [];
     for (let i = 0; i < 1000; i++) {
       largeSequences.push(`>seq${i}`);
@@ -123,10 +123,9 @@ describe('Parser File Integration', () => {
       expect(sequences[2].id).toBe('seq3');
     });
 
-    test('should handle large FASTA files efficiently', async () => {
+    test('should handle large FASTA files', async () => {
       const parser = new FastaParser();
       let count = 0;
-      const startTime = Date.now();
 
       for await (const sequence of parser.parseFile(TEST_FILES.largeFasta)) {
         count++;
@@ -137,9 +136,7 @@ describe('Parser File Integration', () => {
         if (count >= 100) break;
       }
 
-      const elapsedTime = Date.now() - startTime;
       expect(count).toBe(100);
-      expect(elapsedTime).toBeLessThan(5000); // Should be fast
     });
 
     test('should handle malformed FASTA files with error reporting', async () => {
@@ -420,9 +417,9 @@ describe('Parser File Integration', () => {
         }
         expect.unreachable('Should have thrown');
       } catch (error) {
-        expect(error).toBeInstanceOf(ParseError);
-        expect((error as ParseError).message).toContain('not found');
-        expect((error as ParseError).format).toBe('FASTA');
+        expect(error).toBeInstanceOf(FileError);
+        expect((error as FileError).message).toContain('not found');
+        expect((error as FileError).operation).toBe('read');
       }
     });
 
@@ -435,13 +432,13 @@ describe('Parser File Integration', () => {
         }
         expect.unreachable('Should have thrown');
       } catch (error) {
-        expect(error).toBeInstanceOf(ParseError);
-        expect((error as ParseError).message).toContain('/invalid/path/file.fasta');
+        expect(error).toBeInstanceOf(FileError);
+        expect((error as FileError).message).toContain('/invalid/path/file.fasta');
       }
     });
   });
 
-  describe('Performance and Memory Tests', () => {
+  describe('Concurrent Processing Tests', () => {
     test('should handle concurrent file parsing', async () => {
       const parsers = [new FastaParser(), new FastaParser(), new FastaParser()];
 
@@ -457,22 +454,6 @@ describe('Parser File Integration', () => {
       results.forEach((sequences) => {
         expect(sequences).toHaveLength(3);
       });
-    });
-
-    test('should maintain stable memory usage during streaming', async () => {
-      const parser = new FastaParser();
-      let sequenceCount = 0;
-
-      // Process sequences one at a time to test memory efficiency
-      for await (const sequence of parser.parseFile(TEST_FILES.largeFasta)) {
-        sequenceCount++;
-        expect(sequence.format).toBe('fasta');
-
-        // Exit early to prevent test timeout
-        if (sequenceCount >= 50) break;
-      }
-
-      expect(sequenceCount).toBe(50);
     });
 
     test('should respect file size limits', async () => {

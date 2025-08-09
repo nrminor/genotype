@@ -6,6 +6,73 @@
  * developer experience, performance, and type safety.
  */
 
+// Compression infrastructure
+export {
+  CompressionDetector,
+  createDecompressor,
+  estimateCompressionRatio,
+  GzipDecompressor,
+  getRecommendedCompression,
+  isCompressionSupported,
+  ZstdDecompressor,
+} from './compression';
+// Error types
+export {
+  BamError,
+  BedError,
+  BufferError,
+  CompatibilityError,
+  CompressionError,
+  createContextualError,
+  ERROR_SUGGESTIONS,
+  FileError,
+  FormatDetectionError,
+  GenotypeError,
+  getErrorSuggestion,
+  MemoryError,
+  ParseError,
+  QualityError,
+  SamError,
+  SequenceError,
+  StreamError,
+  TimeoutError,
+  ValidationError,
+} from './errors';
+// BAM format and BAI indexing
+export {
+  BAIReader,
+  BAIWriter,
+  BAMParser,
+  BAMUtils,
+  BAMWriter,
+  type BAMWriterOptions,
+  BGZFCompressor,
+  BinarySerializer,
+  BinningUtils,
+  VirtualOffsetUtils,
+} from './formats/bam';
+// BED format
+export { BedFormat, BedParser, BedUtils, BedWriter } from './formats/bed';
+// FASTA format
+export { FastaParser, FastaUtils, FastaWriter } from './formats/fasta';
+// FASTQ format
+export { FastqParser, FastqUtils, FastqWriter, QualityScores } from './formats/fastq';
+
+// SAM format
+export { SAMParser, SAMUtils, SAMWriter } from './formats/sam';
+// File I/O infrastructure
+export { FileReader } from './io/file-reader';
+export {
+  detectRuntime,
+  getOptimalBufferSize,
+  getRuntimeCapabilities,
+  getRuntimeGlobals,
+  getRuntimeInfo,
+  type Runtime,
+  type RuntimeCapabilities,
+} from './io/runtime';
+
+export { StreamUtils } from './io/stream-utils';
 // Core types
 export type {
   BAIBin,
@@ -45,15 +112,14 @@ export type {
   SAMAlignment,
   SAMFlag,
   SAMHeader,
-  SamRecord,
   SAMTag,
+  SamRecord,
   Sequence,
   Strand,
   StreamChunk,
   StreamStats,
   VirtualOffset,
-} from "./types";
-
+} from './types';
 export {
   BAIBinNumberSchema,
   BAIBinSchema,
@@ -85,87 +151,7 @@ export {
   StreamChunkSchema,
   // BAI Index schemas
   VirtualOffsetSchema,
-} from "./types";
-
-// Error types
-export {
-  BamError,
-  BedError,
-  BufferError,
-  CompatibilityError,
-  CompressionError,
-  createContextualError,
-  ERROR_SUGGESTIONS,
-  FileError,
-  FormatDetectionError,
-  GenotypeError,
-  getErrorSuggestion,
-  MemoryError,
-  ParseError,
-  QualityError,
-  SamError,
-  SequenceError,
-  StreamError,
-  TimeoutError,
-  ValidationError,
-} from "./errors";
-
-// FASTA format
-export { FastaParser, FastaUtils, FastaWriter } from "./formats/fasta";
-
-// FASTQ format
-export {
-  FastqParser,
-  FastqUtils,
-  FastqWriter,
-  QualityScores,
-} from "./formats/fastq";
-
-// BED format
-export { BedFormat, BedParser, BedUtils, BedWriter } from "./formats/bed";
-
-// SAM format
-export { SAMParser, SAMUtils, SAMWriter } from "./formats/sam";
-
-// BAM format and BAI indexing
-export {
-  BAIReader,
-  BAIWriter,
-  BAMParser,
-  BAMUtils,
-  BAMWriter,
-  type BAMWriterOptions,
-  BGZFCompressor,
-  BinarySerializer,
-  BinningUtils,
-  VirtualOffsetUtils,
-} from "./formats/bam";
-
-// File I/O infrastructure
-export { FileReader } from "./io/file-reader";
-
-export { StreamUtils } from "./io/stream-utils";
-
-export {
-  detectRuntime,
-  getOptimalBufferSize,
-  getRuntimeCapabilities,
-  getRuntimeGlobals,
-  getRuntimeInfo,
-  type Runtime,
-  type RuntimeCapabilities,
-} from "./io/runtime";
-
-// Compression infrastructure
-export {
-  CompressionDetector,
-  createDecompressor,
-  estimateCompressionRatio,
-  getRecommendedCompression,
-  GzipDecompressor,
-  isCompressionSupported,
-  ZstdDecompressor,
-} from "./compression";
+} from './types';
 
 // Native performance library (Zig FFI)
 export {
@@ -174,8 +160,12 @@ export {
   type LibGenotype,
   resolveGenotypeLib,
   setGenotypeLibPath,
-} from "./zig";
+} from './zig';
 
+import { ParseError } from './errors';
+import { BedParser } from './formats/bed';
+import { FastaParser } from './formats/fasta';
+import { FastqParser } from './formats/fastq';
 // Import types for internal use
 import type {
   BedInterval,
@@ -183,11 +173,7 @@ import type {
   FastqSequence,
   FormatDetection,
   ParserOptions,
-} from "./types";
-import { ParseError } from "./errors";
-import { FastaParser } from "./formats/fasta";
-import { FastqParser } from "./formats/fastq";
-import { BedParser } from "./formats/bed";
+} from './types';
 
 /**
  * Auto-detect file format from content
@@ -196,10 +182,10 @@ export function detectFormat(data: string): FormatDetection {
   const trimmed = data.trim();
 
   // FASTA detection
-  if (trimmed.startsWith(">")) {
+  if (trimmed.startsWith('>')) {
     return {
-      format: "fasta",
-      compression: "none",
+      format: 'fasta',
+      compression: 'none',
       confidence: 0.95,
       metadata: {
         estimatedSequences: (trimmed.match(/^>/gm) || []).length,
@@ -208,17 +194,15 @@ export function detectFormat(data: string): FormatDetection {
   }
 
   // FASTQ detection
-  if (trimmed.startsWith("@")) {
+  if (trimmed.startsWith('@')) {
     const lines = trimmed.split(/\r?\n/);
-    if (lines.length >= 4 && lines[2]?.startsWith("+")) {
+    if (lines.length >= 4 && lines[2]?.startsWith('+')) {
       return {
-        format: "fastq",
-        compression: "none",
+        format: 'fastq',
+        compression: 'none',
         confidence: 0.95,
         metadata: {
-          estimatedSequences: Math.floor(
-            lines.filter((l) => l.trim()).length / 4,
-          ),
+          estimatedSequences: Math.floor(lines.filter((l) => l.trim()).length / 4),
         },
       };
     }
@@ -227,23 +211,22 @@ export function detectFormat(data: string): FormatDetection {
   // BED detection
   const dataLines = trimmed.split(/\r?\n/).filter((line) => {
     const t = line.trim();
-    return t && !t.startsWith("#") && !t.startsWith("track") &&
-      !t.startsWith("browser");
+    return t && !t.startsWith('#') && !t.startsWith('track') && !t.startsWith('browser');
   });
 
   if (dataLines.length > 0) {
-    const fields = (dataLines[0] ?? "").split(/\s+/);
+    const fields = (dataLines[0] ?? '').split(/\s+/);
     if (
       fields.length >= 3 &&
-      !isNaN(parseInt(fields[1] ?? "", 10)) &&
-      !isNaN(parseInt(fields[2] ?? "", 10))
+      !isNaN(parseInt(fields[1] ?? '', 10)) &&
+      !isNaN(parseInt(fields[2] ?? '', 10))
     ) {
-      const start = parseInt(fields[1] ?? "", 10);
-      const end = parseInt(fields[2] ?? "", 10);
+      const start = parseInt(fields[1] ?? '', 10);
+      const end = parseInt(fields[2] ?? '', 10);
       if (start >= 0 && end > start) {
         return {
-          format: "bed",
-          compression: "none",
+          format: 'bed',
+          compression: 'none',
           confidence: 0.8,
           metadata: {
             estimatedIntervals: dataLines.length,
@@ -256,22 +239,22 @@ export function detectFormat(data: string): FormatDetection {
 
   // SAM detection (basic heuristic)
   if (
-    trimmed.includes("\t") &&
-    (trimmed.includes("@SQ") ||
-      trimmed.includes("@HD") ||
-      trimmed.split(/\r?\n/).some((line) => line.split("\t").length >= 11))
+    trimmed.includes('\t') &&
+    (trimmed.includes('@SQ') ||
+      trimmed.includes('@HD') ||
+      trimmed.split(/\r?\n/).some((line) => line.split('\t').length >= 11))
   ) {
     return {
-      format: "sam",
-      compression: "none",
+      format: 'sam',
+      compression: 'none',
       confidence: 0.7,
       metadata: {},
     };
   }
 
   return {
-    format: "unknown",
-    compression: "none",
+    format: 'unknown',
+    compression: 'none',
     confidence: 0.0,
     metadata: {},
   };
@@ -282,24 +265,24 @@ export function detectFormat(data: string): FormatDetection {
  */
 export async function* parseAny(
   data: string,
-  options?: ParserOptions,
+  options?: ParserOptions
 ): AsyncIterable<FastaSequence | FastqSequence | BedInterval> {
   const detection = detectFormat(data);
 
   switch (detection.format) {
-    case "fasta": {
+    case 'fasta': {
       const parser = new FastaParser(options);
       yield* parser.parseString(data);
       break;
     }
 
-    case "fastq": {
+    case 'fastq': {
       const parser = new FastqParser(options);
       yield* parser.parseString(data);
       break;
     }
 
-    case "bed": {
+    case 'bed': {
       const parser = new BedParser(options);
       yield* parser.parseString(data);
       break;
@@ -308,23 +291,17 @@ export async function* parseAny(
     default:
       throw new ParseError(
         `Unsupported or unrecognized format: ${detection.format}`,
-        detection.format,
+        detection.format
       );
   }
 }
 
 // Re-export from formats for convenience
-import { BedFormat } from "./formats/bed";
+import { BedFormat } from './formats/bed';
 
 /**
  * Library version and metadata
  */
-export const VERSION = "0.1.0";
-export const SUPPORTED_FORMATS = [
-  "fasta",
-  "fastq",
-  "bed",
-  "sam",
-  "bam",
-] as const;
-export const SUPPORTED_COMPRESSIONS = ["gzip", "zstd"] as const;
+export const VERSION = '0.1.0';
+export const SUPPORTED_FORMATS = ['fasta', 'fastq', 'bed', 'sam', 'bam'] as const;
+export const SUPPORTED_COMPRESSIONS = ['gzip', 'zstd'] as const;

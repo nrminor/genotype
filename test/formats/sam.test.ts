@@ -5,9 +5,10 @@
 import { test, expect, describe } from 'bun:test';
 import {
   SAMParser,
+  SAMWriter,
   SAMUtils,
-  SAMAlignment,
-  SAMHeader,
+  type SAMAlignment,
+  type SAMHeader,
   SamError,
   ValidationError,
 } from '../../src/index.ts';
@@ -471,5 +472,81 @@ describe('SAMUtils', () => {
     expect(SAMUtils.calculateReferenceSpan('50M1D25M')).toBe(76); // D consumes reference
     expect(SAMUtils.calculateReferenceSpan('10S66M')).toBe(66); // S doesn't consume reference
     expect(SAMUtils.calculateReferenceSpan('*')).toBe(0);
+  });
+});
+
+describe('Essential invariants', () => {
+  const parser = new SAMParser();
+  const writer = new SAMWriter();
+
+  test('should maintain round-trip fidelity', async () => {
+    // Ensures write(parse(data)) === data for core data integrity
+    const originalAlignment = {
+      format: 'sam' as const,
+      qname: 'read1',
+      flag: 99,
+      rname: 'chr1',
+      pos: 1000,
+      mapq: 60,
+      cigar: '4M',
+      rnext: '*',
+      pnext: 0,
+      tlen: 0,
+      seq: 'ACGT',
+      qual: 'IIII',
+      lineNumber: 1,
+    };
+
+    // Write to string
+    const samString = writer.writeString([originalAlignment]);
+
+    // Parse back
+    const records = [];
+    for await (const record of parser.parseString(samString)) {
+      records.push(record);
+    }
+
+    expect(records).toHaveLength(1);
+    const parsed = records[0] as SAMAlignment;
+
+    // Validate perfect fidelity
+    expect(parsed.qname).toBe(originalAlignment.qname);
+    expect(parsed.flag).toBe(originalAlignment.flag);
+    expect(parsed.seq).toBe(originalAlignment.seq);
+    expect(parsed.qual).toBe(originalAlignment.qual);
+  });
+
+  test('should stream without loading entire file into memory', async () => {
+    // Verifies streaming functionality - crucial for large genomic files
+    const largeSAM = Array.from(
+      { length: 100 },
+      (_, i) => `read${i}\t0\tchr1\t${1000 + i}\t60\t4M\t*\t0\t0\tACGT\tIIII`
+    ).join('\n');
+
+    let recordCount = 0;
+
+    for await (const record of parser.parseString(largeSAM)) {
+      recordCount++;
+      expect(record.format).toBe('sam');
+    }
+
+    expect(recordCount).toBe(100);
+  });
+
+  test('should handle one example of malformed data gracefully', async () => {
+    // Just one test for malformed data - not dozens of edge cases
+    const malformedSAM = 'read1\tINVALID_FLAG\tchr1\t1000\t60\t4M\t*\t0\t0\tACGT\tIIII';
+
+    let errorThrown = false;
+    try {
+      for await (const record of parser.parseString(malformedSAM)) {
+        // Should not reach here
+      }
+    } catch (error) {
+      errorThrown = true;
+      expect(error).toBeInstanceOf(SamError);
+    }
+
+    expect(errorThrown).toBe(true);
   });
 });

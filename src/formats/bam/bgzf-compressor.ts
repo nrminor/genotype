@@ -13,9 +13,7 @@
  * - ISIZE (4 bytes): Uncompressed data size
  */
 
-import type { BGZFBlock } from '../../types';
-import { BamError, CompressionError } from '../../errors';
-import { BinaryParser } from './binary';
+import { CompressionError } from '../../errors';
 
 /**
  * BGZF compressor for creating BAM files
@@ -25,8 +23,8 @@ import { BinaryParser } from './binary';
  * validation and error handling.
  */
 export class BGZFCompressor {
-  private compressionLevel: number;
-  private blockSize: number;
+  private readonly compressionLevel: number;
+  private readonly blockSize: number;
 
   /**
    * Create a new BGZF compressor

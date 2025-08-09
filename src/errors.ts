@@ -84,7 +84,7 @@ export class CompressionError extends GenotypeError {
     bytesProcessed?: number
   ): CompressionError {
     const errorMessage = systemError instanceof Error ? systemError.message : String(systemError);
-    const suggestion = this.getSuggestionForCompressionError(format, errorMessage);
+    const suggestion = CompressionError.getSuggestionForCompressionError(format, errorMessage);
 
     return new CompressionError(
       `${operation} operation failed for ${format}: ${errorMessage}${suggestion ? `. ${suggestion}` : ''}`,

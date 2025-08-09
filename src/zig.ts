@@ -14,11 +14,12 @@ function getPlatformTarget(): string {
   const arch = os.arch();
 
   // Tiger Style: Assert function preconditions
-  console.assert(
-    typeof platform === 'string' && platform.length > 0,
-    'platform must be non-empty string'
-  );
-  console.assert(typeof arch === 'string' && arch.length > 0, 'arch must be non-empty string');
+  if (typeof platform !== 'string' || platform.length === 0) {
+    throw new Error('platform must be non-empty string');
+  }
+  if (typeof arch !== 'string' || arch.length === 0) {
+    throw new Error('arch must be non-empty string');
+  }
 
   const platformMap: Record<string, string> = {
     darwin: 'macos',
@@ -50,20 +51,25 @@ function findLibrary(): string {
   const libDir = join(__dirname, 'zig/lib');
 
   // Tiger Style: Assert function preconditions
-  console.assert(
-    typeof target === 'string' && target.includes('-'),
-    'target must be valid platform-arch string'
-  );
-  console.assert(
-    typeof libDir === 'string' && libDir.length > 0,
-    'libDir must be non-empty string'
-  );
+  if (typeof target !== 'string' || !target.includes('-')) {
+    throw new Error('target must be valid platform-arch string');
+  }
+  if (typeof libDir !== 'string' || libDir.length === 0) {
+    throw new Error('libDir must be non-empty string');
+  }
 
   // First try target-specific directory
   const [arch, os] = target.split('-');
-  const isWindows = os === 'windows';
-  const libraryName = isWindows ? 'genotype_native' : 'libgenotype_native';
-  const targetLibPath = join(libDir, target, `${libraryName}.${suffix}`);
+
+  // Complete library name logic following OpenTUI pattern
+  const getLibraryName = (platform: string): string => {
+    const prefix = platform === 'windows' ? '' : 'lib';
+    const extension = platform === 'windows' ? '.dll' : platform === 'macos' ? '.dylib' : '.so';
+    return `${prefix}genotype_native${extension}`;
+  };
+
+  const libraryName = getLibraryName(os || 'linux');
+  const targetLibPath = join(libDir, target, libraryName);
 
   if (existsSync(targetLibPath)) {
     return targetLibPath;
@@ -167,9 +173,9 @@ export interface LibGenotype {
  * Following OpenTUI's FFI wrapper pattern with Tiger Style robustness
  */
 class FFIGenotypeLib implements LibGenotype {
-  private genotype: ReturnType<typeof getGenotypeLib>;
-  private encoder: TextEncoder = new TextEncoder();
-  private decoder: TextDecoder = new TextDecoder();
+  private readonly genotype: ReturnType<typeof getGenotypeLib>;
+  private readonly encoder: TextEncoder = new TextEncoder();
+  private readonly decoder: TextDecoder = new TextDecoder();
 
   constructor(libPath?: string) {
     this.genotype = getGenotypeLib(libPath);
@@ -177,10 +183,18 @@ class FFIGenotypeLib implements LibGenotype {
 
   public decompressBGZFBlock(compressedData: Uint8Array, outputBuffer: Uint8Array): number {
     // Tiger Style: Assert function arguments
-    console.assert(compressedData instanceof Uint8Array, 'compressedData must be Uint8Array');
-    console.assert(outputBuffer instanceof Uint8Array, 'outputBuffer must be Uint8Array');
-    console.assert(compressedData.length > 0, 'compressedData must not be empty');
-    console.assert(outputBuffer.length > 0, 'outputBuffer must not be empty');
+    if (!(compressedData instanceof Uint8Array)) {
+      throw new Error('compressedData must be Uint8Array');
+    }
+    if (!(outputBuffer instanceof Uint8Array)) {
+      throw new Error('outputBuffer must be Uint8Array');
+    }
+    if (compressedData.length === 0) {
+      throw new Error('compressedData must not be empty');
+    }
+    if (outputBuffer.length === 0) {
+      throw new Error('outputBuffer must not be empty');
+    }
 
     return this.genotype.symbols.decompress_bgzf_block(
       compressedData,
@@ -192,20 +206,22 @@ class FFIGenotypeLib implements LibGenotype {
 
   public decodePackedSequence(packedData: Uint8Array, sequenceLength: number): string {
     // Tiger Style: Assert function arguments
-    console.assert(packedData instanceof Uint8Array, 'packedData must be Uint8Array');
-    console.assert(
-      Number.isInteger(sequenceLength) && sequenceLength >= 0,
-      'sequenceLength must be non-negative integer'
-    );
+    if (!(packedData instanceof Uint8Array)) {
+      throw new Error('packedData must be Uint8Array');
+    }
+    if (!Number.isInteger(sequenceLength) || sequenceLength < 0) {
+      throw new Error('sequenceLength must be non-negative integer');
+    }
 
     if (sequenceLength === 0) return '';
 
     // Verify packed data has sufficient bytes for sequence length
     const requiredBytes = Math.ceil(sequenceLength / 2);
-    console.assert(
-      packedData.length >= requiredBytes,
-      `packedData too short: need ${requiredBytes} bytes for ${sequenceLength} bases`
-    );
+    if (packedData.length < requiredBytes) {
+      throw new Error(
+        `packedData too short: need ${requiredBytes} bytes for ${sequenceLength} bases`
+      );
+    }
 
     const outputBuffer = new Uint8Array(sequenceLength);
     const result = this.genotype.symbols.decode_packed_sequence(
@@ -226,21 +242,21 @@ class FFIGenotypeLib implements LibGenotype {
 
   public convertQualityScores(qualityString: string): number[] {
     // Tiger Style: Assert function arguments
-    console.assert(typeof qualityString === 'string', 'qualityString must be string');
-    console.assert(
-      qualityString.length <= 10000,
-      'qualityString too long (max 10,000 chars for safety)'
-    );
+    if (typeof qualityString !== 'string') {
+      throw new Error('qualityString must be string');
+    }
+    if (qualityString.length > 10000) {
+      throw new Error('qualityString too long (max 10,000 chars for safety)');
+    }
 
     if (qualityString.length === 0) return [];
 
     // Validate quality string contains only printable ASCII (Phred+33 range: 33-126)
     for (let i = 0; i < qualityString.length; i++) {
       const charCode = qualityString.charCodeAt(i);
-      console.assert(
-        charCode >= 33 && charCode <= 126,
-        `Invalid quality character at position ${i}: ${charCode}`
-      );
+      if (charCode < 33 || charCode > 126) {
+        throw new Error(`Invalid quality character at position ${i}: ${charCode}`);
+      }
     }
 
     const inputBytes = this.encoder.encode(qualityString);
@@ -264,20 +280,28 @@ class FFIGenotypeLib implements LibGenotype {
 
   public calculateGCContent(sequence: string): number {
     // Tiger Style: Assert function arguments
-    console.assert(typeof sequence === 'string', 'sequence must be string');
-    console.assert(sequence.length <= 1000000, 'sequence too long (max 1M chars for safety)');
+    if (typeof sequence !== 'string') {
+      throw new Error('sequence must be string');
+    }
+    if (sequence.length > 1000000) {
+      throw new Error('sequence too long (max 1M chars for safety)');
+    }
 
     if (sequence.length === 0) return 0.0;
 
     // Validate sequence contains only valid nucleotide codes
-    const validBases = /^[ACGTUacgtuRYSWKMBDHVN\-\.\*\s]*$/;
-    console.assert(validBases.test(sequence), 'sequence contains invalid nucleotide characters');
+    const validBases = /^[ACGTUacgtuRYSWKMBDHVN\-.*\s]*$/;
+    if (!validBases.test(sequence)) {
+      throw new Error('sequence contains invalid nucleotide characters');
+    }
 
     const sequenceBytes = this.encoder.encode(sequence);
     const result = this.genotype.symbols.calculate_gc_content(sequenceBytes, sequenceBytes.length);
 
     // Tiger Style: Validate result is in expected range
-    console.assert(result >= 0.0 && result <= 1.0, `GC content out of range: ${result}`);
+    if (result < 0.0 || result > 1.0) {
+      throw new Error(`GC content out of range: ${result}`);
+    }
 
     return result;
   }
@@ -296,10 +320,9 @@ let genotypeLib: LibGenotype | undefined;
  */
 export function setGenotypeLibPath(libPath: string) {
   // Tiger Style: Assert function arguments
-  console.assert(
-    typeof libPath === 'string' && libPath.length > 0,
-    'libPath must be non-empty string'
-  );
+  if (typeof libPath !== 'string' || libPath.length === 0) {
+    throw new Error('libPath must be non-empty string');
+  }
 
   genotypeLibPath = libPath;
   genotypeLib = undefined; // Reset cached instance to force reload

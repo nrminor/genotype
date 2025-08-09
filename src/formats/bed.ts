@@ -18,7 +18,7 @@
  */
 
 import { type } from 'arktype';
-import type { BedInterval, Strand, ParserOptions, ParseResult } from '../types';
+import type { BedInterval, Strand, ParserOptions } from '../types';
 import { BedIntervalSchema } from '../types';
 import { ValidationError, ParseError, BedError, getErrorSuggestion } from '../errors';
 
@@ -64,7 +64,9 @@ export class BedFormat {
     // Handle comma-separated RGB values
     if (/^\d+,\d+,\d+$/.test(rgbString)) {
       const parts = rgbString.split(',').map(Number);
-      console.assert(parts.length === 3, 'RGB string must have exactly 3 components');
+      if (parts.length !== 3) {
+        return null; // Invalid RGB format
+      }
       const r = parts[0]!;
       const g = parts[1]!;
       const b = parts[2]!;
@@ -125,7 +127,7 @@ export class BedFormat {
  * Streaming BED parser with comprehensive validation
  */
 export class BedParser {
-  private options: Required<ParserOptions>;
+  private readonly options: Required<ParserOptions>;
 
   constructor(options: ParserOptions = {}) {
     this.options = {
@@ -173,12 +175,15 @@ export class BedParser {
     options?: import('../types').FileReaderOptions
   ): AsyncIterable<BedInterval> {
     // Tiger Style: Assert function arguments
-    console.assert(typeof filePath === 'string', 'filePath must be a string');
-    console.assert(filePath.length > 0, 'filePath must not be empty');
-    console.assert(
-      !options || typeof options === 'object',
-      'options must be an object if provided'
-    );
+    if (typeof filePath !== 'string') {
+      throw new ValidationError('filePath must be a string');
+    }
+    if (filePath.length === 0) {
+      throw new ValidationError('filePath must not be empty');
+    }
+    if (options && typeof options !== 'object') {
+      throw new ValidationError('options must be an object if provided');
+    }
 
     // Import I/O modules dynamically to avoid circular dependencies
     const { FileReader } = await import('../io/file-reader');
@@ -307,10 +312,37 @@ export class BedParser {
 
     const [chromosome, startStr, endStr, ...optionalFields] = fields;
 
-    // Parse required fields with assertions
-    console.assert(chromosome !== undefined, 'chromosome field is required');
-    console.assert(startStr !== undefined, 'start field is required');
-    console.assert(endStr !== undefined, 'end field is required');
+    // Parse required fields with validation
+    if (chromosome === undefined) {
+      throw new BedError(
+        'chromosome field is required',
+        undefined,
+        undefined,
+        undefined,
+        lineNumber,
+        line
+      );
+    }
+    if (startStr === undefined) {
+      throw new BedError(
+        'start field is required',
+        undefined,
+        undefined,
+        undefined,
+        lineNumber,
+        line
+      );
+    }
+    if (endStr === undefined) {
+      throw new BedError(
+        'end field is required',
+        undefined,
+        undefined,
+        undefined,
+        lineNumber,
+        line
+      );
+    }
 
     const start = this.parseInteger(startStr!, 'start', lineNumber, line);
     const end = this.parseInteger(endStr!, 'end', lineNumber, line);
@@ -334,10 +366,25 @@ export class BedParser {
 
     const interval: BedInterval = intervalData;
 
+    // Add computed properties
+    const mutableInterval = interval as any;
+    mutableInterval.length = end - start;
+    mutableInterval.midpoint = Math.floor((start + end) / 2);
+
     // Parse optional fields based on BED variant
     if (optionalFields.length > 0) {
       this.parseOptionalFields(interval, optionalFields, lineNumber, line);
     }
+
+    // Calculate stats after all fields are parsed
+    mutableInterval.stats = {
+      length: mutableInterval.length,
+      hasThickRegion: Boolean(
+        mutableInterval.thickStart !== undefined && mutableInterval.thickEnd !== undefined
+      ),
+      hasBlocks: Boolean(mutableInterval.blockCount && mutableInterval.blockCount > 1),
+      bedType: this.determineBedType(optionalFields.length),
+    };
 
     // Final validation
     if (!this.options.skipValidation) {
@@ -633,8 +680,26 @@ export class BedParser {
     }
 
     for (let i = 0; i < blockCount; i++) {
-      console.assert(blockStarts[i] !== undefined, `blockStarts[${i}] is required`);
-      console.assert(blockSizes[i] !== undefined, `blockSizes[${i}] is required`);
+      if (blockStarts[i] === undefined) {
+        throw new BedError(
+          `blockStarts[${i}] is required`,
+          interval.chromosome,
+          interval.start,
+          interval.end,
+          lineNumber,
+          line
+        );
+      }
+      if (blockSizes[i] === undefined) {
+        throw new BedError(
+          `blockSizes[${i}] is required`,
+          interval.chromosome,
+          interval.start,
+          interval.end,
+          lineNumber,
+          line
+        );
+      }
 
       const blockStart = interval.start + blockStarts[i]!;
       const blockEnd = blockStart + blockSizes[i]!;
@@ -706,8 +771,12 @@ export class BedParser {
    */
   private async validateFilePath(filePath: string): Promise<string> {
     // Tiger Style: Assert function arguments
-    console.assert(typeof filePath === 'string', 'filePath must be a string');
-    console.assert(filePath.length > 0, 'filePath must not be empty');
+    if (typeof filePath !== 'string') {
+      throw new ValidationError('filePath must be a string');
+    }
+    if (filePath.length === 0) {
+      throw new ValidationError('filePath must not be empty');
+    }
 
     // Import FileReader dynamically to avoid circular dependencies
     const { FileReader } = await import('../io/file-reader');
@@ -771,10 +840,9 @@ export class BedParser {
     lines: AsyncIterable<string>
   ): AsyncIterable<BedInterval> {
     // Tiger Style: Assert function arguments
-    console.assert(
-      typeof lines === 'object' && Symbol.asyncIterator in lines,
-      'lines must be async iterable'
-    );
+    if (typeof lines !== 'object' || !(Symbol.asyncIterator in lines)) {
+      throw new ValidationError('lines must be async iterable');
+    }
 
     let lineNumber = 0;
 
@@ -829,7 +897,32 @@ export class BedParser {
     }
 
     // Tiger Style: Assert postconditions
-    console.assert(lineNumber >= 0, 'line number must be non-negative');
+    if (lineNumber < 0) {
+      throw new BedError(
+        'line number must be non-negative',
+        undefined,
+        undefined,
+        undefined,
+        lineNumber
+      );
+    }
+  }
+
+  /**
+   * Determine BED format type based on number of fields
+   */
+  private determineBedType(
+    optionalFieldCount: number
+  ): 'BED3' | 'BED4' | 'BED5' | 'BED6' | 'BED9' | 'BED12' {
+    // Base 3 fields (chromosome, start, end) + optional fields
+    const totalFields = 3 + optionalFieldCount;
+
+    if (totalFields <= 3) return 'BED3';
+    if (totalFields <= 4) return 'BED4';
+    if (totalFields <= 5) return 'BED5';
+    if (totalFields <= 6) return 'BED6';
+    if (totalFields <= 9) return 'BED9';
+    return 'BED12';
   }
 }
 
@@ -837,8 +930,8 @@ export class BedParser {
  * BED writer for outputting intervals
  */
 export class BedWriter {
-  private variant: string;
-  private precision: number;
+  private readonly variant: string;
+  private readonly precision: number;
 
   constructor(
     options: {
@@ -933,15 +1026,16 @@ export const BedUtils = {
 
     // Check first few data lines
     for (let i = 0; i < Math.min(3, lines.length); i++) {
-      console.assert(lines[i] !== undefined, `lines[${i}] must exist`);
+      if (lines[i] === undefined) {
+        return false; // Invalid format
+      }
       const fields = lines[i]!.split(/\s+/);
       if (fields.length < 3) return false;
 
       // Check if start and end are integers
-      console.assert(
-        fields[1] !== undefined && fields[2] !== undefined,
-        'start and end fields are required'
-      );
+      if (fields[1] === undefined || fields[2] === undefined) {
+        return false; // Invalid format
+      }
       if (isNaN(parseInt(fields[1]!, 10)) || isNaN(parseInt(fields[2]!, 10))) {
         return false;
       }
@@ -1033,13 +1127,19 @@ export const BedUtils = {
     if (intervals.length <= 1) return intervals;
 
     const sorted = this.sortIntervals(intervals);
-    console.assert(sorted[0] !== undefined, 'sorted intervals must have at least one element');
-    const merged: BedInterval[] = [sorted[0]!];
+    if (sorted[0] === undefined) {
+      throw new ValidationError('sorted intervals must have at least one element');
+    }
+    const merged: BedInterval[] = [sorted[0]];
 
     for (let i = 1; i < sorted.length; i++) {
-      console.assert(sorted[i] !== undefined, `sorted[${i}] must exist`);
+      if (sorted[i] === undefined) {
+        throw new ValidationError(`sorted[${i}] must exist`);
+      }
       const current = sorted[i]!;
-      console.assert(merged[merged.length - 1] !== undefined, 'last merged interval must exist');
+      if (merged[merged.length - 1] === undefined) {
+        throw new ValidationError('last merged interval must exist');
+      }
       const last = merged[merged.length - 1]!;
 
       // Check if intervals overlap (on same chromosome)

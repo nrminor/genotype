@@ -77,7 +77,7 @@ export class FileReader {
       throw new FileError('Path must not be empty', path, 'stat');
     }
 
-    const validatedPath = this.validatePath(path);
+    const validatedPath = FileReader.validatePath(path);
     const runtime = detectRuntime();
 
     try {
@@ -146,7 +146,7 @@ export class FileReader {
       throw new FileError('Path must not be empty', path, 'stat');
     }
 
-    const validatedPath = this.validatePath(path);
+    const validatedPath = FileReader.validatePath(path);
     const runtime = detectRuntime();
 
     try {
@@ -203,7 +203,7 @@ export class FileReader {
     console.assert(typeof path === 'string', 'path must be a string');
     console.assert(path.length > 0, 'path must not be empty');
 
-    const validatedPath = this.validatePath(path);
+    const validatedPath = FileReader.validatePath(path);
     const runtime = detectRuntime();
 
     try {
@@ -307,12 +307,12 @@ export class FileReader {
     console.assert(path.length > 0, 'path must not be empty');
     console.assert(typeof options === 'object', 'options must be an object');
 
-    const validatedPath = this.validatePath(path);
+    const validatedPath = FileReader.validatePath(path);
     const runtime = detectRuntime();
-    const mergedOptions = this.mergeOptions(options, runtime);
+    const mergedOptions = FileReader.mergeOptions(options, runtime);
 
     // Validate file before creating stream
-    const validation = await this.validateFile(validatedPath, mergedOptions);
+    const validation = await FileReader.validateFile(validatedPath, mergedOptions);
     if (!validation.isValid) {
       throw new FileError(validation.error || 'File validation failed', validatedPath, 'read');
     }
@@ -327,11 +327,11 @@ export class FileReader {
 
     try {
       // Create base stream first
-      let stream = await this.createBaseStream(validatedPath, mergedOptions, runtime);
+      let stream = await FileReader.createBaseStream(validatedPath, mergedOptions, runtime);
 
       // Apply decompression if enabled and needed
       if (mergedOptions.autoDecompress) {
-        stream = await this.applyDecompression(stream, validatedPath, mergedOptions);
+        stream = await FileReader.applyDecompression(stream, validatedPath, mergedOptions);
       }
 
       return stream;
@@ -525,12 +525,12 @@ export class FileReader {
     console.assert(path.length > 0, 'path must not be empty');
     console.assert(typeof options === 'object', 'options must be an object');
 
-    const validatedPath = this.validatePath(path);
+    const validatedPath = FileReader.validatePath(path);
     const runtime = detectRuntime();
-    const mergedOptions = this.mergeOptions(options, runtime);
+    const mergedOptions = FileReader.mergeOptions(options, runtime);
 
     // Check file size before reading
-    const fileSize = await this.getSize(validatedPath);
+    const fileSize = await FileReader.getSize(validatedPath);
     if (fileSize > mergedOptions.maxFileSize) {
       throw new FileError(
         `File too large: ${fileSize} bytes exceeds limit of ${mergedOptions.maxFileSize} bytes`,
@@ -563,7 +563,7 @@ export class FileReader {
     }
 
     // Fallback to streaming approach for other runtimes or when options require it
-    const stream = await this.createStream(validatedPath, mergedOptions);
+    const stream = await FileReader.createStream(validatedPath, mergedOptions);
     const reader = stream.getReader();
 
     // Handle binary encoding by reading as bytes instead of text
@@ -673,7 +673,7 @@ export class FileReader {
     console.assert(['node', 'deno', 'bun'].includes(runtime), 'runtime must be valid');
 
     const defaults = {
-      ...this.DEFAULT_OPTIONS,
+      ...FileReader.DEFAULT_OPTIONS,
       bufferSize: getOptimalBufferSize(runtime),
     };
 
@@ -706,7 +706,7 @@ export class FileReader {
 
     try {
       // Check if file exists
-      if (!(await this.exists(path))) {
+      if (!(await FileReader.exists(path))) {
         return {
           isValid: false,
           error: 'File does not exist or is not accessible',
@@ -714,7 +714,7 @@ export class FileReader {
       }
 
       // Get metadata
-      const metadata = await this.getMetadata(path);
+      const metadata = await FileReader.getMetadata(path);
 
       // Check file size
       if (metadata.size > options.maxFileSize) {

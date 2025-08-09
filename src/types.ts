@@ -35,9 +35,7 @@ function validateCigarSequenceConsistency(cigar: string, sequence: string): void
 
   // Check if CIGAR matches sequence length (allow some flexibility for edge cases)
   if (consumesQuery > 0 && Math.abs(consumesQuery - sequence.length) > sequence.length * 0.1) {
-    console.warn(
-      `CIGAR/sequence length mismatch: CIGAR consumes ${consumesQuery}, sequence length ${sequence.length}`
-    );
+    // CIGAR/sequence length mismatch detected but continuing for compatibility
   }
 }
 
@@ -428,10 +426,10 @@ export const ValidSequenceChar = type(
  */
 export const SequenceIdSchema = type('string>0').pipe((id: string) => {
   // Remove common problematic characters but preserve meaningful ones
-  const cleaned = id.replace(/[^\w\-\.\|:]/g, '_');
-  // Warn about IDs that might cause issues
+  const cleaned = id.replace(/[^\w\-.|:]/g, '_');
+  // Clean IDs that might cause issues
   if (id !== cleaned) {
-    console.warn(`Sequence ID '${id}' contains special characters, consider using '${cleaned}'`);
+    // Sequence ID contains special characters, using cleaned version
   }
   return cleaned;
 });
@@ -442,10 +440,10 @@ export const SequenceIdSchema = type('string>0').pipe((id: string) => {
 export const SequenceSchema = type('string').pipe((seq: string) => {
   // Remove whitespace and validate characters
   const cleaned = seq.replace(/\s+/g, '').toUpperCase();
-  const validPattern = /^[ACGTURYSWKMBDHVN\-\.\*]*$/;
+  const validPattern = /^[ACGTURYSWKMBDHVN\-.*]*$/;
 
   if (!validPattern.test(cleaned)) {
-    const invalidChars = cleaned.match(/[^ACGTURYSWKMBDHVN\-\.\*]/g);
+    const invalidChars = cleaned.match(/[^ACGTURYSWKMBDHVN\-.*]/g);
     throw new Error(`Invalid sequence characters: ${invalidChars?.join(', ')}`);
   }
 
@@ -480,8 +478,7 @@ export const GenomicCoordinate = type('number>=0').pipe((coord: number) => {
     throw new Error('Genomic coordinates must be integers');
   }
   if (coord > 300_000_000) {
-    // Larger than any known chromosome
-    console.warn(`Unusually large coordinate: ${coord}`);
+    // Larger than any known chromosome - continuing but may be unusual
   }
   return coord;
 });
@@ -505,7 +502,7 @@ export const ChromosomeSchema = type('string>0').pipe((chr: string) => {
 
   const isValid = validPatterns.some((pattern) => pattern.test(normalized));
   if (!isValid) {
-    console.warn(`Unusual chromosome name: ${chr}`);
+    // Unusual chromosome name detected but continuing for compatibility
   }
 
   return chr; // Return original format for compatibility
@@ -540,7 +537,7 @@ export const FastaSequenceSchema = type({
       length: fasta.sequence.length,
       gcContent,
       hasAmbiguousBases: /[RYSWKMBDHVN]/.test(fasta.sequence),
-      hasGaps: /[\-\.\*]/.test(fasta.sequence),
+      hasGaps: /[-.*]/.test(fasta.sequence),
     },
   };
 });
@@ -798,7 +795,7 @@ export const SAMHeaderSchema = type({
         throw new Error('HD header must have VN (version) field');
       }
       break;
-    case 'SQ':
+    case 'SQ': {
       if (!header.fields.SN || !header.fields.LN) {
         throw new Error('SQ header must have SN (sequence name) and LN (length) fields');
       }
@@ -807,6 +804,7 @@ export const SAMHeaderSchema = type({
         throw new Error(`Invalid SQ length: ${header.fields.LN}`);
       }
       break;
+    }
     case 'RG':
       if (!header.fields.ID) {
         throw new Error('RG header must have ID field');
@@ -1063,8 +1061,12 @@ export interface FileIOContext {
  */
 export const FilePathSchema = type('string>0').pipe((path: string) => {
   // Tiger Style: Assert preconditions
-  console.assert(typeof path === 'string', 'path must be a string');
-  console.assert(path.length > 0, 'path must not be empty');
+  if (typeof path !== 'string') {
+    throw new Error('path must be a string');
+  }
+  if (path.length === 0) {
+    throw new Error('path must not be empty');
+  }
 
   // Check for invalid characters including null bytes
   if (path.includes('\0')) {
@@ -1078,7 +1080,7 @@ export const FilePathSchema = type('string>0').pipe((path: string) => {
   }
 
   // Normalize path separators and resolve relative components
-  const normalized = path.replace(/[\\\/]+/g, '/').replace(/\/+/g, '/');
+  const normalized = path.replace(/[\\/]+/g, '/').replace(/\/+/g, '/');
 
   // Security: Prevent directory traversal attacks
   if (normalized.includes('../') || normalized.includes('..\\')) {
@@ -1100,11 +1102,11 @@ export const FilePathSchema = type('string>0').pipe((path: string) => {
   if (
     sensitivePatterns.some((pattern) => normalized.toLowerCase().includes(pattern.toLowerCase()))
   ) {
-    console.warn(`Access to potentially sensitive path: ${normalized}`);
+    // Access to potentially sensitive path detected
   }
 
   // Determine if path is absolute
-  const isAbsolute = normalized.startsWith('/') || /^[A-Za-z]:[\\\/]/.test(normalized);
+  const isAbsolute = normalized.startsWith('/') || /^[A-Za-z]:[\\/]/.test(normalized);
 
   return normalized as FilePath & { readonly __absolute: typeof isAbsolute };
 });
@@ -1127,20 +1129,17 @@ export const FileReaderOptionsSchema = type({
 }).pipe((options) => {
   // Validate buffer size bounds
   if (options.bufferSize && options.bufferSize > 1_048_576) {
-    // 1MB max buffer
-    console.warn(`Large buffer size: ${options.bufferSize} bytes`);
+    // Large buffer size detected - 1MB max buffer
   }
 
   // Validate timeout bounds
   if (options.timeout && options.timeout > 300_000) {
-    // 5 minute max timeout
-    console.warn(`Long timeout: ${options.timeout}ms`);
+    // Long timeout detected - 5 minute max timeout
   }
 
   // Validate file size bounds
   if (options.maxFileSize && options.maxFileSize > 10_737_418_240) {
-    // 10GB max
-    console.warn(`Very large max file size: ${options.maxFileSize} bytes`);
+    // Very large max file size detected - 10GB max
   }
 
   // Validate decompression options if provided
@@ -1148,9 +1147,7 @@ export const FileReaderOptionsSchema = type({
     try {
       DecompressorOptionsSchema(options.decompressionOptions);
     } catch (error) {
-      console.warn(
-        `Invalid decompression options: ${error instanceof Error ? error.message : String(error)}`
-      );
+      // Invalid decompression options detected - continuing with defaults
     }
   }
 
@@ -1208,7 +1205,7 @@ export const FileMetadataSchema = type({
 
   // Validate extension format
   if (metadata.extension && !metadata.extension.startsWith('.')) {
-    console.warn(`Extension should start with dot: ${metadata.extension}`);
+    // Extension should start with dot but continuing
   }
 
   return metadata;
@@ -1456,14 +1453,12 @@ export const DecompressorOptionsSchema = type({
 }).pipe((options) => {
   // Validate buffer size bounds
   if (options.bufferSize && options.bufferSize > 10_485_760) {
-    // 10MB max
-    console.warn(`Large decompression buffer: ${options.bufferSize} bytes`);
+    // Large decompression buffer detected - 10MB max
   }
 
   // Validate max output size bounds
   if (options.maxOutputSize && options.maxOutputSize > 107_374_182_400) {
-    // 100GB max
-    console.warn(`Very large max output size: ${options.maxOutputSize} bytes`);
+    // Very large max output size detected - 100GB max
   }
 
   return options;
@@ -1554,8 +1549,7 @@ export const BAIChunkSchema = type({
   }
 
   if (chunkSize > 1_073_741_824) {
-    // 1GB sanity check
-    console.warn(`Very large BAI chunk: ${chunkSize} bytes`);
+    // Very large BAI chunk detected - 1GB sanity check
   }
 
   return chunk;
@@ -1585,11 +1579,11 @@ export const BAIBinSchema = type({
 }).pipe((bin) => {
   // Additional bin-level validation
   if (bin.chunks.length === 0) {
-    console.warn(`BAI bin ${bin.binId} has no chunks`);
+    // BAI bin has no chunks
   }
 
   if (bin.chunks.length > 10000) {
-    console.warn(`BAI bin ${bin.binId} has many chunks: ${bin.chunks.length}`);
+    // BAI bin has many chunks
   }
 
   return bin;
@@ -1615,9 +1609,7 @@ export const BAILinearIndexSchema = type({
 }).pipe((linearIndex) => {
   // Tiger Style: Validate standard 16KB interval size
   if (linearIndex.intervalSize !== 16384) {
-    console.warn(
-      `Non-standard linear index interval size: ${linearIndex.intervalSize} (standard is 16384)`
-    );
+    // Non-standard linear index interval size detected (standard is 16384)
   }
 
   // Validate interval ordering (should be non-decreasing)
@@ -1626,7 +1618,7 @@ export const BAILinearIndexSchema = type({
     const curr = linearIndex.intervals[i]!;
 
     if (prev !== 0n && curr !== 0n && curr < prev) {
-      console.warn(`Linear index intervals not ordered at position ${i}`);
+      // Linear index intervals not ordered at this position
       break;
     }
   }
@@ -1680,11 +1672,11 @@ export const BAIReferenceSchema = type({
 
   // Tiger Style: Assert reasonable bin count
   if (validatedBins.size === 0) {
-    console.warn('BAI reference has no bins');
+    // BAI reference has no bins
   }
 
   if (validatedBins.size > 50000) {
-    console.warn(`BAI reference has many bins: ${validatedBins.size}`);
+    // BAI reference has many bins
   }
 
   return {
@@ -1726,7 +1718,7 @@ export const BAIIndexSchema = type({
 
   // Validate version format if provided
   if (index.version && !/^\d+\.\d+$/.test(index.version)) {
-    console.warn(`Non-standard BAI version format: ${index.version}`);
+    // Non-standard BAI version format detected
   }
 
   // Calculate and warn about large indexes
@@ -1737,9 +1729,7 @@ export const BAIIndexSchema = type({
     return sum;
   }, 0);
   if (totalBins > 100000) {
-    console.warn(
-      `Large BAI index: ${totalBins} total bins across ${index.referenceCount} references`
-    );
+    // Large BAI index detected with many bins across references
   }
 
   return index;
@@ -1814,13 +1804,13 @@ export const BAIWriterOptionsSchema = type({
 
     // Check if power of 2 for alignment efficiency
     if ((options.intervalSize & (options.intervalSize - 1)) !== 0) {
-      console.warn(`Non-power-of-2 interval size: ${options.intervalSize} (may be less efficient)`);
+      // Non-power-of-2 interval size detected (may be less efficient)
     }
   }
 
   // Validate max chunks per bin
   if (options.maxChunksPerBin && options.maxChunksPerBin > 100000) {
-    console.warn(`Very high max chunks per bin: ${options.maxChunksPerBin}`);
+    // Very high max chunks per bin detected
   }
 
   return options;
@@ -1839,14 +1829,12 @@ export const BAIReaderOptionsSchema = type({
 }).pipe((options) => {
   // Validate buffer size bounds
   if (options.bufferSize && options.bufferSize > 10_485_760) {
-    // 10MB
-    console.warn(`Large buffer size for BAI reading: ${options.bufferSize} bytes`);
+    // Large buffer size for BAI reading detected - 10MB
   }
 
   // Validate timeout bounds
   if (options.timeout && options.timeout > 300000) {
-    // 5 minutes
-    console.warn(`Long timeout for BAI operations: ${options.timeout}ms`);
+    // Long timeout for BAI operations detected - 5 minutes
   }
 
   return options;

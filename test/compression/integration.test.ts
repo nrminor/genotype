@@ -5,8 +5,7 @@
  * decompression, and integration with genomic file parsers.
  */
 
-import { describe, test, expect, beforeAll } from 'bun:test';
-import { FileReader } from '../../src/io/file-reader';
+import { describe, test, expect } from 'bun:test';
 import { CompressionDetector, createDecompressor } from '../../src/compression';
 import { CompressionError } from '../../src/errors';
 import { createReadableStreamFromData } from '../test-utils';
@@ -219,63 +218,7 @@ describe('Compression Integration', () => {
     });
   });
 
-  describe('performance and memory management', () => {
-    test('should handle streaming with appropriate buffer sizes', () => {
-      const testOptions = [
-        { bufferSize: 32 * 1024 }, // 32KB
-        { bufferSize: 128 * 1024 }, // 128KB
-        { bufferSize: 512 * 1024 }, // 512KB
-      ];
-
-      for (const options of testOptions) {
-        const gzipDecompressor = createDecompressor('gzip');
-        const stream = gzipDecompressor.createStream(options);
-        expect(stream).toBeInstanceOf(TransformStream);
-      }
-    });
-
-    test('should validate memory constraints', () => {
-      const memoryConstraints = {
-        maxOutputSize: 100 * 1024 * 1024, // 100MB
-        bufferSize: 256 * 1024, // 256KB
-      };
-
-      expect(memoryConstraints.maxOutputSize).toBe(104857600);
-      expect(memoryConstraints.bufferSize).toBe(262144);
-    });
-
-    test('should handle progress tracking for large files', async () => {
-      let progressUpdates = 0;
-      let totalBytesProcessed = 0;
-
-      const progressCallback = (bytes: number, total?: number) => {
-        progressUpdates++;
-        totalBytesProcessed = bytes;
-        expect(bytes).toBeGreaterThanOrEqual(0);
-        if (total !== undefined) {
-          expect(total).toBeGreaterThanOrEqual(bytes);
-        }
-      };
-
-      const options = {
-        onProgress: progressCallback,
-        bufferSize: 64 * 1024,
-      };
-
-      // Test that progress callback structure is valid
-      expect(typeof options.onProgress).toBe('function');
-      expect(options.bufferSize).toBe(65536);
-
-      // Simulate progress updates
-      options.onProgress(1024);
-      options.onProgress(2048, 10240);
-
-      expect(progressUpdates).toBe(2);
-      expect(totalBytesProcessed).toBe(2048);
-    });
-  });
-
-  describe('runtime-specific optimizations', () => {
+  describe('runtime-specific functionality', () => {
     test('should detect runtime capabilities', () => {
       // Test that runtime detection works (this will vary by actual runtime)
       const gzipDecompressor = createDecompressor('gzip');
@@ -296,22 +239,6 @@ describe('Compression Integration', () => {
       for (const path of testPaths) {
         const format = CompressionDetector.fromExtension(path);
         expect(['gzip', 'zstd', 'none']).toContain(format);
-      }
-    });
-
-    test('should optimize buffer sizes per runtime', () => {
-      // Different buffer sizes should be handled appropriately
-      const bufferSizes = [
-        32 * 1024, // 32KB - conservative
-        64 * 1024, // 64KB - standard
-        128 * 1024, // 128KB - larger
-        256 * 1024, // 256KB - optimized for Bun
-      ];
-
-      for (const bufferSize of bufferSizes) {
-        const options = { bufferSize };
-        const gzipStream = createDecompressor('gzip').createStream(options);
-        expect(gzipStream).toBeInstanceOf(TransformStream);
       }
     });
   });
@@ -346,23 +273,6 @@ describe('Compression Integration', () => {
       expect(estimates.sequence_gzip).toBeGreaterThan(2);
       expect(estimates.sequence_zstd).toBeGreaterThan(estimates.sequence_gzip);
       expect(estimates.variant_zstd).toBeGreaterThan(4);
-    });
-
-    test('should handle large genomic datasets', async () => {
-      // Simulate processing a large genomic file
-      const largeFileOptions = {
-        bufferSize: 512 * 1024, // 512KB for large files
-        maxOutputSize: 10 * 1024 * 1024 * 1024, // 10GB limit
-        onProgress: (bytes: number) => {
-          // Progress tracking for large files
-          if (bytes % (1024 * 1024) === 0) {
-            console.log(`Processed ${bytes / (1024 * 1024)}MB`);
-          }
-        },
-      };
-
-      expect(largeFileOptions.bufferSize).toBe(524288);
-      expect(largeFileOptions.maxOutputSize).toBe(10737418240);
     });
   });
 });

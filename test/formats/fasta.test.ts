@@ -7,8 +7,7 @@ import {
   FastaParser,
   FastaWriter,
   FastaUtils,
-  FastaSequence,
-  ValidationError,
+  type FastaSequence,
   ParseError,
   SequenceError,
 } from '../../src/index.ts';

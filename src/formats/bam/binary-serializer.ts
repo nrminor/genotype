@@ -9,7 +9,7 @@
  * - Type-safe binary operations with bounds checking
  */
 
-import type { SAMAlignment, SAMHeader, SAMTag, CIGARString } from '../../types';
+import type { SAMAlignment, SAMTag, CIGARString } from '../../types';
 import { BamError } from '../../errors';
 
 /**
@@ -181,6 +181,66 @@ export class BinarySerializer {
   }
 
   /**
+   * Write a 16-bit signed integer in little-endian format
+   * @param buffer Uint8Array buffer to write to
+   * @param offset Starting offset in buffer
+   * @param value 16-bit signed integer value (-32768 to 32767)
+   * @throws {BamError} If offset is out of bounds or value is invalid
+   */
+  static writeInt16(buffer: Uint8Array, offset: number, value: number): void {
+    const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+    view.setInt16(offset, value, true); // true = little-endian
+  }
+
+  /**
+   * Write a 16-bit unsigned integer in little-endian format
+   * @param buffer Uint8Array buffer to write to
+   * @param offset Starting offset in buffer
+   * @param value 16-bit unsigned integer value (0 to 65535)
+   * @throws {BamError} If offset is out of bounds or value is invalid
+   */
+  static writeUInt16(buffer: Uint8Array, offset: number, value: number): void {
+    const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+    view.setUint16(offset, value, true); // true = little-endian
+  }
+
+  /**
+   * Write a 32-bit signed integer in little-endian format
+   * @param buffer Uint8Array buffer to write to
+   * @param offset Starting offset in buffer
+   * @param value 32-bit signed integer value
+   * @throws {BamError} If offset is out of bounds or value is invalid
+   */
+  static writeInt32(buffer: Uint8Array, offset: number, value: number): void {
+    const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+    view.setInt32(offset, value, true); // true = little-endian
+  }
+
+  /**
+   * Write a 32-bit unsigned integer in little-endian format
+   * @param buffer Uint8Array buffer to write to
+   * @param offset Starting offset in buffer
+   * @param value 32-bit unsigned integer value
+   * @throws {BamError} If offset is out of bounds or value is invalid
+   */
+  static writeUInt32(buffer: Uint8Array, offset: number, value: number): void {
+    const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+    view.setUint32(offset, value, true); // true = little-endian
+  }
+
+  /**
+   * Write a 32-bit float in little-endian format
+   * @param buffer Uint8Array buffer to write to
+   * @param offset Starting offset in buffer
+   * @param value 32-bit float value
+   * @throws {BamError} If offset is out of bounds or value is invalid
+   */
+  static writeFloat32(buffer: Uint8Array, offset: number, value: number): void {
+    const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+    view.setFloat32(offset, value, true); // true = little-endian
+  }
+
+  /**
    * Encode nucleotide sequence using 4-bit packing for BAM format
    *
    * BAM encodes nucleotides using 4 bits per base:
@@ -298,7 +358,7 @@ export class BinarySerializer {
     }
 
     // Parse CIGAR operations
-    const operations = this.parseCIGARString(cigar);
+    const operations = BinarySerializer.parseCIGARString(cigar);
     const bytesNeeded = operations.length * 4; // 4 bytes per operation
 
     if (offset + bytesNeeded > buffer.length) {
@@ -525,7 +585,12 @@ export class BinarySerializer {
       buffer[currentOffset++] = tag.type.charCodeAt(0);
 
       // Write tag value based on type
-      const bytesWritten = this.packTagValue(tag.type, tag.value, buffer, currentOffset);
+      const bytesWritten = BinarySerializer.packTagValue(
+        tag.type,
+        tag.value,
+        buffer,
+        currentOffset
+      );
       currentOffset += bytesWritten;
     }
 
@@ -689,7 +754,8 @@ export class BinarySerializer {
         return 4;
 
       case 'Z': // Null-terminated string
-      case 'H': // Hex string
+      case 'H': {
+        // Hex string
         if (typeof value !== 'string') {
           throw new BamError(
             `Invalid string tag value: ${value} (must be string)`,
@@ -714,24 +780,103 @@ export class BinarySerializer {
         buffer[offset + bytes.length] = 0;
 
         return bytes.length + 1;
+      }
 
-      case 'B': // Array of values
-        // For now, treat as string representation
-        // TODO: Implement proper binary array encoding
+      case 'B': {
+        // Array of values
+        // Implement proper binary array encoding for 'B' type tags
         if (typeof value !== 'string') {
           throw new BamError(
-            `Array tag not fully implemented - value must be string representation`,
+            `B-type array tag value must be string format: "subtype,value1,value2,..."`,
             undefined,
             'tags'
           );
         }
-        const arrayBytes = new TextEncoder().encode(value);
-        if (offset + arrayBytes.length + 1 > buffer.length) {
-          throw new BamError(`Buffer too small for array tag`, undefined, 'tags');
+
+        // Parse array format: "c,1,2,3" or "f,1.0,2.0,3.0"
+        const parts = value.split(',');
+        if (parts.length < 2) {
+          throw new BamError(`Invalid B-type array format: ${value}`, undefined, 'tags');
         }
-        buffer.set(arrayBytes, offset);
-        buffer[offset + arrayBytes.length] = 0;
-        return arrayBytes.length + 1;
+
+        const subtype = parts[0]; // c, C, s, S, i, I, f
+        const elements = parts.slice(1).map((v) => {
+          if (subtype === 'f') return parseFloat(v);
+          return parseInt(v, 10);
+        });
+
+        // Calculate required space: 1 (subtype) + 4 (count) + elements
+        let elementSize: number;
+        switch (subtype) {
+          case 'c':
+          case 'C':
+            elementSize = 1;
+            break;
+          case 's':
+          case 'S':
+            elementSize = 2;
+            break;
+          case 'i':
+          case 'I':
+          case 'f':
+            elementSize = 4;
+            break;
+          default:
+            throw new BamError(`Invalid B-type subtype: ${subtype}`, undefined, 'tags');
+        }
+
+        const totalSize = 1 + 4 + elements.length * elementSize;
+        if (offset + totalSize > buffer.length) {
+          throw new BamError(
+            `Buffer too small for B-type array: need ${totalSize} bytes`,
+            undefined,
+            'tags'
+          );
+        }
+
+        let currentOffset = offset;
+
+        // Write subtype
+        buffer[currentOffset++] = subtype.charCodeAt(0);
+
+        // Write element count
+        this.writeInt32(buffer, currentOffset, elements.length);
+        currentOffset += 4;
+
+        // Write elements based on subtype
+        for (const elem of elements) {
+          switch (subtype) {
+            case 'c': // int8
+              buffer[currentOffset++] = elem;
+              break;
+            case 'C': // uint8
+              buffer[currentOffset++] = elem & 0xff;
+              break;
+            case 's': // int16
+              this.writeInt16(buffer, currentOffset, elem);
+              currentOffset += 2;
+              break;
+            case 'S': // uint16
+              this.writeUInt16(buffer, currentOffset, elem);
+              currentOffset += 2;
+              break;
+            case 'i': // int32
+              this.writeInt32(buffer, currentOffset, elem);
+              currentOffset += 4;
+              break;
+            case 'I': // uint32
+              this.writeUInt32(buffer, currentOffset, elem);
+              currentOffset += 4;
+              break;
+            case 'f': // float32
+              this.writeFloat32(buffer, currentOffset, elem);
+              currentOffset += 4;
+              break;
+          }
+        }
+
+        return totalSize;
+      }
 
       default:
         throw new BamError(`Unsupported tag type: '${type}'`, undefined, 'tags');
@@ -756,7 +901,7 @@ export class BinarySerializer {
 
     // CIGAR operations
     if (alignment.cigar !== '*') {
-      const operations = this.parseCIGARString(alignment.cigar);
+      const operations = BinarySerializer.parseCIGARString(alignment.cigar);
       totalSize += operations.length * 4;
     }
 

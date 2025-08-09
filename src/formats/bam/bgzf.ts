@@ -17,6 +17,19 @@ import type { BGZFBlock } from '../../types';
 import { BamError, CompressionError } from '../../errors';
 import { BinaryParser } from './binary';
 
+// Constants for BGZF format
+const BGZF_HEADER_SIZE = 18;
+const GZIP_ID1 = 0x1f;
+const GZIP_ID2 = 0x8b;
+const GZIP_CM_DEFLATE = 0x08;
+const GZIP_FLG_FEXTRA = 0x04;
+const BGZF_XLEN = 6;
+const BGZF_SI1 = 0x42; // 'B'
+const BGZF_SI2 = 0x43; // 'C'
+const BGZF_SLEN = 2;
+const MIN_BGZF_BLOCK_SIZE = 26;
+const MAX_BGZF_BLOCK_SIZE = 65536;
+
 /**
  * BGZF reader for decompressing BAM files
  *
@@ -46,24 +59,46 @@ export class BGZFReader {
    * @throws {BamError} If block header is invalid
    */
   static readBlockHeader(buffer: Uint8Array, offset: number): BGZFBlock {
-    // Tiger Style: Assert function arguments
-    console.assert(buffer instanceof Uint8Array, 'buffer must be a Uint8Array');
-    console.assert(Number.isInteger(offset) && offset >= 0, 'offset must be non-negative integer');
+    BGZFReader.validateBuffer(buffer, offset);
+    const view = new DataView(buffer.buffer, buffer.byteOffset + offset);
 
-    if (buffer.length < offset + 18) {
+    BGZFReader.validateGzipHeader(view);
+    BGZFReader.validateExtraField(view);
+
+    const compressedSize = BGZFReader.readBlockSize(view);
+    BGZFReader.validateBlockSize(compressedSize, buffer, offset);
+
+    const { uncompressedSize, crc32 } = BGZFReader.readBlockFooter(buffer, offset, compressedSize);
+
+    return {
+      offset,
+      compressedSize,
+      uncompressedSize,
+      crc32,
+    };
+  }
+
+  /**
+   * Validate buffer has enough data for BGZF header
+   */
+  private static validateBuffer(buffer: Uint8Array, offset: number): void {
+    if (buffer.length < offset + BGZF_HEADER_SIZE) {
       throw new BamError(
-        `Buffer too small for BGZF header: need 18 bytes at offset ${offset}, have ${buffer.length - offset}`,
+        `Buffer too small for BGZF header: need ${BGZF_HEADER_SIZE} bytes at offset ${offset}, have ${buffer.length - offset}`,
         undefined,
         'bgzf'
       );
     }
+  }
 
-    const view = new DataView(buffer.buffer, buffer.byteOffset + offset);
-
+  /**
+   * Validate gzip header fields
+   */
+  private static validateGzipHeader(view: DataView): void {
     // Validate gzip magic bytes
     const id1 = view.getUint8(0);
     const id2 = view.getUint8(1);
-    if (id1 !== 0x1f || id2 !== 0x8b) {
+    if (id1 !== GZIP_ID1 || id2 !== GZIP_ID2) {
       throw new BamError(
         `Invalid gzip magic bytes: expected 0x1f 0x8b, got 0x${id1.toString(16)} 0x${id2.toString(16)}`,
         undefined,
@@ -73,7 +108,7 @@ export class BGZFReader {
 
     // Validate compression method (deflate)
     const cm = view.getUint8(2);
-    if (cm !== 0x08) {
+    if (cm !== GZIP_CM_DEFLATE) {
       throw new BamError(
         `Invalid compression method: expected 0x08 (deflate), got 0x${cm.toString(16)}`,
         undefined,
@@ -83,21 +118,24 @@ export class BGZFReader {
 
     // Validate flags (must have extra field)
     const flg = view.getUint8(3);
-    if ((flg & 0x04) === 0) {
+    if ((flg & GZIP_FLG_FEXTRA) === 0) {
       throw new BamError(
         `Invalid BGZF flags: extra field bit not set (0x${flg.toString(16)})`,
         undefined,
         'bgzf'
       );
     }
+  }
 
-    // Skip MTIME (4 bytes), XFL (1 byte), OS (1 byte) - total offset now 10
-
+  /**
+   * Validate BGZF extra field
+   */
+  private static validateExtraField(view: DataView): void {
     // Validate extra field length
     const xlen = view.getUint16(10, true); // little-endian
-    if (xlen !== 6) {
+    if (xlen !== BGZF_XLEN) {
       throw new BamError(
-        `Invalid BGZF extra field length: expected 6, got ${xlen}`,
+        `Invalid BGZF extra field length: expected ${BGZF_XLEN}, got ${xlen}`,
         undefined,
         'bgzf'
       );
@@ -106,7 +144,7 @@ export class BGZFReader {
     // Validate BC subfield identifier
     const si1 = view.getUint8(12);
     const si2 = view.getUint8(13);
-    if (si1 !== 0x42 || si2 !== 0x43) {
+    if (si1 !== BGZF_SI1 || si2 !== BGZF_SI2) {
       throw new BamError(
         `Invalid BGZF subfield identifier: expected BC (0x42 0x43), got 0x${si1.toString(16)} 0x${si2.toString(16)}`,
         undefined,
@@ -116,32 +154,42 @@ export class BGZFReader {
 
     // Validate BC subfield length
     const slen = view.getUint16(14, true); // little-endian
-    if (slen !== 2) {
+    if (slen !== BGZF_SLEN) {
       throw new BamError(
-        `Invalid BGZF BC subfield length: expected 2, got ${slen}`,
+        `Invalid BGZF BC subfield length: expected ${BGZF_SLEN}, got ${slen}`,
         undefined,
         'bgzf'
       );
     }
+  }
 
-    // Read block size
+  /**
+   * Read block size from BGZF header
+   */
+  private static readBlockSize(view: DataView): number {
     const bc = view.getUint16(16, true); // little-endian
-    const compressedSize = bc + 1;
+    return bc + 1;
+  }
 
-    // Validate block size bounds
-    if (compressedSize < 26) {
-      // Minimum BGZF block size
+  /**
+   * Validate block size and buffer completeness
+   */
+  private static validateBlockSize(
+    compressedSize: number,
+    buffer: Uint8Array,
+    offset: number
+  ): void {
+    if (compressedSize < MIN_BGZF_BLOCK_SIZE) {
       throw new BamError(
-        `Invalid BGZF block size: ${compressedSize} bytes (minimum 26)`,
+        `Invalid BGZF block size: ${compressedSize} bytes (minimum ${MIN_BGZF_BLOCK_SIZE})`,
         undefined,
         'bgzf'
       );
     }
 
-    if (compressedSize > 65536) {
-      // Maximum BGZF block size
+    if (compressedSize > MAX_BGZF_BLOCK_SIZE) {
       throw new BamError(
-        `Invalid BGZF block size: ${compressedSize} bytes (maximum 65536)`,
+        `Invalid BGZF block size: ${compressedSize} bytes (maximum ${MAX_BGZF_BLOCK_SIZE})`,
         undefined,
         'bgzf'
       );
@@ -155,37 +203,27 @@ export class BGZFReader {
         'bgzf'
       );
     }
+  }
+
+  /**
+   * Read block footer (CRC32 and uncompressed size)
+   */
+  private static readBlockFooter(
+    buffer: Uint8Array,
+    offset: number,
+    compressedSize: number
+  ): { uncompressedSize: number; crc32: number } {
+    const view = new DataView(buffer.buffer, buffer.byteOffset);
 
     // Read uncompressed size from block footer (last 4 bytes)
     const isizeOffset = offset + compressedSize - 4;
-    const uncompressedSize = BinaryParser.readUInt32LE(
-      new DataView(buffer.buffer, buffer.byteOffset),
-      isizeOffset
-    );
+    const uncompressedSize = BinaryParser.readUInt32LE(view, isizeOffset);
 
     // Read CRC32 from block footer (4 bytes before ISIZE)
     const crc32Offset = offset + compressedSize - 8;
-    const crc32 = BinaryParser.readUInt32LE(
-      new DataView(buffer.buffer, buffer.byteOffset),
-      crc32Offset
-    );
+    const crc32 = BinaryParser.readUInt32LE(view, crc32Offset);
 
-    const block: BGZFBlock = {
-      offset,
-      compressedSize,
-      uncompressedSize,
-      crc32,
-    };
-
-    // Tiger Style: Assert postconditions
-    console.assert(block.compressedSize >= 26, 'block size must be at least 26 bytes');
-    console.assert(block.compressedSize <= 65536, 'block size must not exceed 65536 bytes');
-    console.assert(
-      block.uncompressedSize <= 65536,
-      'uncompressed size must not exceed 65536 bytes'
-    );
-
-    return block;
+    return { uncompressedSize, crc32 };
   }
 
   /**
@@ -209,14 +247,14 @@ export class BGZFReader {
 
     try {
       // Validate block header first
-      const blockInfo = this.readBlockHeader(blockData, 0);
+      const blockInfo = BGZFReader.readBlockHeader(blockData, 0);
 
       // Extract compressed data (skip 18-byte header, exclude 8-byte footer)
       const compressedData = blockData.slice(18, blockData.length - 8);
 
       // Create gzip-compatible stream for decompression
       // BGZF blocks are standard deflate streams with gzip wrapper
-      const decompressedData = await this.inflateData(compressedData);
+      const decompressedData = await BGZFReader.inflateData(compressedData);
 
       // Validate decompressed size matches header
       if (decompressedData.length !== blockInfo.uncompressedSize) {
@@ -229,7 +267,7 @@ export class BGZFReader {
 
       // Validate CRC32 if available
       if (blockInfo.crc32 !== undefined) {
-        const calculatedCrc = await this.calculateCRC32(decompressedData);
+        const calculatedCrc = await BGZFReader.calculateCRC32(decompressedData);
         if (calculatedCrc !== blockInfo.crc32) {
           throw new CompressionError(
             `CRC32 mismatch: expected 0x${blockInfo.crc32.toString(16)}, got 0x${calculatedCrc.toString(16)}`,
@@ -351,7 +389,7 @@ export class BGZFReader {
     }
 
     try {
-      this.readBlockHeader(data, 0);
+      BGZFReader.readBlockHeader(data, 0);
       return true;
     } catch {
       return false;
@@ -454,7 +492,7 @@ export class BGZFReader {
 
     while (offset < buffer.length) {
       try {
-        const block = this.readBlockHeader(buffer, offset);
+        const block = BGZFReader.readBlockHeader(buffer, offset);
         blocks.push(block);
         offset += block.compressedSize;
       } catch {

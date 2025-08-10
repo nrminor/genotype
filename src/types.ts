@@ -62,7 +62,7 @@ function validateChunkOrdering(chunks: any[]): void {
  */
 function isValidChunk(chunk: any): chunk is { beginOffset: number } {
   return (
-    chunk &&
+    chunk !== null && chunk !== undefined &&
     typeof chunk === 'object' &&
     'beginOffset' in chunk &&
     typeof chunk.beginOffset === 'number'
@@ -629,7 +629,7 @@ export const BedIntervalSchema = type({
   }
 
   // Validate block structure if present
-  if (bed.blockCount && (bed.blockSizes || bed.blockStarts)) {
+  if (bed.blockCount !== null && bed.blockCount !== undefined && bed.blockCount !== 0 && (bed.blockSizes !== null && bed.blockSizes !== undefined || bed.blockStarts !== null && bed.blockStarts !== undefined)) {
     if (bed.blockSizes && bed.blockSizes.length !== bed.blockCount) {
       throw new Error(
         `Block sizes count (${bed.blockSizes.length}) != block count (${bed.blockCount})`
@@ -654,15 +654,15 @@ export const BedIntervalSchema = type({
       length,
       hasThickRegion: bed.thickStart !== undefined && bed.thickEnd !== undefined,
       hasBlocks: bed.blockCount !== undefined && bed.blockCount > 1,
-      bedType: bed.blockCount
+      bedType: bed.blockCount !== null && bed.blockCount !== undefined && bed.blockCount !== 0
         ? 'BED12'
-        : bed.itemRgb
+        : bed.itemRgb !== null && bed.itemRgb !== undefined && bed.itemRgb !== ''
           ? 'BED9'
-          : bed.strand
+          : bed.strand !== null && bed.strand !== undefined && bed.strand !== '.'
             ? 'BED6'
             : bed.score !== undefined
               ? 'BED5'
-              : bed.name
+              : bed.name !== null && bed.name !== undefined && bed.name !== ''
                 ? 'BED4'
                 : 'BED3',
     },
@@ -791,12 +791,12 @@ export const SAMHeaderSchema = type({
   // Type-specific field validation
   switch (header.type) {
     case 'HD':
-      if (!header.fields.VN) {
+      if (header.fields.VN === undefined || header.fields.VN === null || header.fields.VN === '') {
         throw new Error('HD header must have VN (version) field');
       }
       break;
     case 'SQ': {
-      if (!header.fields.SN || !header.fields.LN) {
+      if (header.fields.SN === undefined || header.fields.SN === null || header.fields.SN === '' || header.fields.LN === undefined || header.fields.LN === null || header.fields.LN === '') {
         throw new Error('SQ header must have SN (sequence name) and LN (length) fields');
       }
       const length = parseInt(header.fields.LN);
@@ -806,12 +806,12 @@ export const SAMHeaderSchema = type({
       break;
     }
     case 'RG':
-      if (!header.fields.ID) {
+      if (header.fields.ID === undefined || header.fields.ID === null || header.fields.ID === '') {
         throw new Error('RG header must have ID field');
       }
       break;
     case 'PG':
-      if (!header.fields.ID) {
+      if (header.fields.ID === undefined || header.fields.ID === null || header.fields.ID === '') {
         throw new Error('PG header must have ID field');
       }
       break;
@@ -1128,22 +1128,22 @@ export const FileReaderOptionsSchema = type({
   'decompressionOptions?': 'unknown', // DecompressorOptions
 }).pipe((options) => {
   // Validate buffer size bounds
-  if (options.bufferSize && options.bufferSize > 1_048_576) {
+  if (options.bufferSize !== null && options.bufferSize !== undefined && options.bufferSize !== 0 && options.bufferSize > 1_048_576) {
     // Large buffer size detected - 1MB max buffer
   }
 
   // Validate timeout bounds
-  if (options.timeout && options.timeout > 300_000) {
+  if (options.timeout !== null && options.timeout !== undefined && options.timeout !== 0 && options.timeout > 300_000) {
     // Long timeout detected - 5 minute max timeout
   }
 
   // Validate file size bounds
-  if (options.maxFileSize && options.maxFileSize > 10_737_418_240) {
+  if (options.maxFileSize !== null && options.maxFileSize !== undefined && options.maxFileSize !== 0 && options.maxFileSize > 10_737_418_240) {
     // Very large max file size detected - 10GB max
   }
 
   // Validate decompression options if provided
-  if (options.decompressionOptions) {
+  if (options.decompressionOptions !== null && options.decompressionOptions !== undefined) {
     try {
       DecompressorOptionsSchema(options.decompressionOptions);
     } catch (error) {
@@ -1178,7 +1178,7 @@ export const StreamChunkSchema = type({
   }
 
   // Validate total bytes consistency
-  if (chunk.totalBytes && chunk.bytesRead > chunk.totalBytes) {
+  if (chunk.totalBytes !== null && chunk.totalBytes !== undefined && chunk.totalBytes !== 0 && chunk.bytesRead > chunk.totalBytes) {
     throw new Error('Bytes read cannot exceed total bytes');
   }
 
@@ -1421,7 +1421,7 @@ export const CompressionDetectionSchema = type({
   detectionMethod: '"magic-bytes"|"extension"|"hybrid"',
 }).pipe((detection) => {
   // Validate magic bytes if present
-  if (detection.magicBytes && !(detection.magicBytes instanceof Uint8Array)) {
+  if (detection.magicBytes !== null && detection.magicBytes !== undefined && !(detection.magicBytes instanceof Uint8Array)) {
     throw new Error('magicBytes must be Uint8Array');
   }
 
@@ -1431,10 +1431,10 @@ export const CompressionDetectionSchema = type({
   }
 
   // Validate method consistency
-  if (detection.detectionMethod === 'magic-bytes' && !detection.magicBytes) {
+  if (detection.detectionMethod === 'magic-bytes' && (detection.magicBytes === null || detection.magicBytes === undefined)) {
     throw new Error('magic-bytes detection method requires magicBytes');
   }
-  if (detection.detectionMethod === 'extension' && !detection.extension) {
+  if (detection.detectionMethod === 'extension' && (detection.extension === null || detection.extension === undefined || detection.extension === '')) {
     throw new Error('extension detection method requires extension');
   }
 
@@ -1452,12 +1452,12 @@ export const DecompressorOptionsSchema = type({
   'validateIntegrity?': 'boolean',
 }).pipe((options) => {
   // Validate buffer size bounds
-  if (options.bufferSize && options.bufferSize > 10_485_760) {
+  if (options.bufferSize !== null && options.bufferSize !== undefined && options.bufferSize !== 0 && options.bufferSize > 10_485_760) {
     // Large decompression buffer detected - 10MB max
   }
 
   // Validate max output size bounds
-  if (options.maxOutputSize && options.maxOutputSize > 107_374_182_400) {
+  if (options.maxOutputSize !== null && options.maxOutputSize !== undefined && options.maxOutputSize !== 0 && options.maxOutputSize > 107_374_182_400) {
     // Very large max output size detected - 100GB max
   }
 
@@ -1712,18 +1712,18 @@ export const BAIIndexSchema = type({
   }
 
   // Validate createdAt is Date if provided
-  if (index.createdAt && !(index.createdAt instanceof Date)) {
+  if (index.createdAt !== null && index.createdAt !== undefined && !(index.createdAt instanceof Date)) {
     throw new Error('createdAt must be a Date object');
   }
 
   // Validate version format if provided
-  if (index.version && !/^\d+\.\d+$/.test(index.version)) {
+  if (index.version !== null && index.version !== undefined && index.version !== '' && !/^\d+\.\d+$/.test(index.version)) {
     // Non-standard BAI version format detected
   }
 
   // Calculate and warn about large indexes
   const totalBins = index.references.reduce((sum, ref) => {
-    if (typeof ref === 'object' && 'bins' in ref && ref.bins && typeof ref.bins.size === 'number') {
+    if (typeof ref === 'object' && ref !== null && 'bins' in ref && ref.bins !== null && ref.bins !== undefined && typeof ref.bins.size === 'number') {
       return sum + ref.bins.size;
     }
     return sum;
@@ -1797,7 +1797,7 @@ export const BAIWriterOptionsSchema = type({
   'signal?': 'unknown', // AbortSignal
 }).pipe((options) => {
   // Validate interval size is power of 2 and reasonable
-  if (options.intervalSize) {
+  if (options.intervalSize !== null && options.intervalSize !== undefined && options.intervalSize !== 0) {
     if (options.intervalSize < 1024 || options.intervalSize > 65536) {
       throw new Error(`Invalid interval size: ${options.intervalSize} (should be 1024-65536)`);
     }
@@ -1809,7 +1809,7 @@ export const BAIWriterOptionsSchema = type({
   }
 
   // Validate max chunks per bin
-  if (options.maxChunksPerBin && options.maxChunksPerBin > 100000) {
+  if (options.maxChunksPerBin !== null && options.maxChunksPerBin !== undefined && options.maxChunksPerBin !== 0 && options.maxChunksPerBin > 100000) {
     // Very high max chunks per bin detected
   }
 
@@ -1828,12 +1828,12 @@ export const BAIReaderOptionsSchema = type({
   'onProgress?': 'unknown', // Function
 }).pipe((options) => {
   // Validate buffer size bounds
-  if (options.bufferSize && options.bufferSize > 10_485_760) {
+  if (options.bufferSize !== null && options.bufferSize !== undefined && options.bufferSize !== 0 && options.bufferSize > 10_485_760) {
     // Large buffer size for BAI reading detected - 10MB
   }
 
   // Validate timeout bounds
-  if (options.timeout && options.timeout > 300000) {
+  if (options.timeout !== null && options.timeout !== undefined && options.timeout !== 0 && options.timeout > 300000) {
     // Long timeout for BAI operations detected - 5 minutes
   }
 

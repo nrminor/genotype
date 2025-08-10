@@ -15,9 +15,25 @@
    exhaustive justification
 8. **MANDATORY: Run validation workflows** - All features MUST pass
    `bun run validate` or `bun run validate:full` before being declared complete
+9. **MANDATORY AFTER COMPACTION: Re-read CLAUDE.md and AGENTS.md** - After ANY
+   context compaction or conversation continuation, you MUST re-read these
+   documents BEFORE proceeding with ANY work
 
 **NO EXCEPTIONS. Any code that doesn't follow these guidelines OR fails
 validation will be rejected.**
+
+### ⚠️ CRITICAL: POST-COMPACTION REQUIREMENTS
+
+**Context compaction is lossy and leads to critical oversights.**
+
+After ANY compaction event:
+1. **STOP all work immediately**
+2. **Re-read CLAUDE.md (if available) in full**
+3. **Re-read AGENTS.md in full**
+4. **Review any work in progress against these requirements**
+5. **ONLY proceed after confirming compliance**
+
+**It is UNACCEPTABLE to proceed without project rules and guidelines in context.**
 
 ## Overview
 
@@ -182,10 +198,50 @@ DECLARED COMPLETE.**
 **It is UNACCEPTABLE to declare work finished when ANY of the following fail:**
 
 - Type checking errors
+- ESLint errors OR warnings
 - Test failures
 - Build failures
 - Zig compilation errors
 - Zig test failures
+
+**ZERO TOLERANCE for linting issues:**
+- ALL ESLint warnings must be resolved
+- ALL TypeScript strict mode violations must be fixed
+- NO suppression comments (@ts-ignore, eslint-disable) without documented justification
+- Code style warnings are NOT "minor" - they are technical debt
+
+### PREVENTIVE MEASURES
+
+#### 1. ENFORCE VALIDATION-FIRST WORKFLOW
+
+**❌ FORBIDDEN WORKFLOW:**
+```
+Write code → Mark complete → (Maybe) validate
+```
+
+**✅ MANDATORY WORKFLOW:**
+```
+Write code → Run `bun run validate` → Fix ALL issues → Write tests → Validate again → ONLY THEN mark complete
+```
+
+#### 2. REDEFINE "COMPLETE"
+
+A task is ONLY complete when:
+- ✅ `bun run validate` passes with ZERO errors AND ZERO warnings
+- ✅ Tests exist and pass
+- ✅ No TypeScript errors
+- ✅ No ESLint warnings or errors
+- ✅ No build failures
+- ✅ Evidence provided (full validation output showing 0 problems)
+
+#### 3. CHECKPOINT SYSTEM
+
+Before marking ANY task complete, you MUST:
+1. Show the COMPLETE output of `bun run validate`
+2. Show the test results
+3. Show the ESLint output explicitly stating "✔ 0 problems (0 errors, 0 warnings)"
+4. Explicitly state: "Validation passed, tests passed, ZERO errors, ZERO warnings"
+5. If validation fails OR any warnings exist, the task stays "in_progress" or moves to "blocked"
 
 ### Required Validation Commands
 
@@ -228,14 +284,18 @@ bun run build:with-native
 
 **ALL of the following MUST be true before declaring any work complete:**
 
-1. ✅ **`bun run lint`** - Zero TypeScript compilation errors
+1. ✅ **`bun run lint`** - Zero TypeScript compilation errors AND zero ESLint warnings
+   - Output must show: "✔ 0 problems (0 errors, 0 warnings)"
+   - ANY number other than 0 means work is INCOMPLETE
 2. ✅ **`bun run test`** - All TypeScript tests pass
 3. ✅ **`bun run test:zig`** - All Zig tests pass (if applicable)
 4. ✅ **`bun run build`** - Clean TypeScript build
 5. ✅ **`bun run build:with-native`** - Clean native + TypeScript build (if
    applicable)
 
-**NO EXCEPTIONS. NO "I'll fix it later." NO "It's just a small issue."**
+**NO EXCEPTIONS. NO "I'll fix it later." NO "It's just warnings." NO "It still works."**
+
+**323 warnings is 323 problems. 1 warning is 1 problem. ZERO is the only acceptable number.**
 
 ### When to Use Each Validation Level
 
@@ -244,16 +304,54 @@ bun run build:with-native
 - **`bun run validate:full`** - Native library changes, FFI modifications,
   performance optimizations
 
+### Linting Standards - ZERO WARNINGS POLICY
+
+**Every warning is a defect. Every suppression is technical debt.**
+
+#### What Constitutes a Linting Violation:
+- **ESLint warnings** - ALL must be fixed, not suppressed
+- **TypeScript strict mode violations** - Fix the code, not the config
+- **Unused variables** - Remove them
+- **Missing return types** - Add explicit types
+- **Any type usage** - Replace with proper types
+- **Complexity warnings** - Refactor the code
+- **Unsafe operations** - Make them safe
+- **Style inconsistencies** - Follow the project style
+
+#### Unacceptable Practices:
+```typescript
+// ❌ NEVER DO THIS - Suppressing warnings is NOT fixing them
+// @ts-ignore
+// @ts-expect-error  
+// eslint-disable-next-line
+// eslint-disable
+```
+
+#### Why Zero Warnings:
+1. **Warnings become normalized** - Teams learn to ignore them
+2. **Signal-to-noise ratio degrades** - Real issues get lost
+3. **Broken window theory** - One warning leads to hundreds
+4. **Maintenance burden** - Future developers inherit your mess
+5. **Quality erosion** - Standards slip over time
+
+#### Common ESLint Warnings That MUST Be Fixed:
+- `@typescript-eslint/no-explicit-any` - Use proper types
+- `@typescript-eslint/explicit-function-return-type` - Add return types
+- `@typescript-eslint/strict-boolean-expressions` - Handle all cases explicitly
+- `complexity` - Refactor complex functions
+- `max-lines-per-function` - Split large functions
+- And ALL others - no exceptions
+
 ### Failure Protocol
 
-If ANY validation step fails:
+If ANY validation step fails OR any warnings exist:
 
 1. **STOP** - Do not proceed with other work
-2. **FIX** - Address the failing check immediately
+2. **FIX** - Address EVERY failing check and warning immediately
 3. **RERUN** - Execute the full validation workflow again
-4. **VERIFY** - Ensure all checks pass before continuing
+4. **VERIFY** - Ensure all checks pass with ZERO problems before continuing
 
-**Work is NOT complete until all validation passes.**
+**Work is NOT complete until validation shows: ✔ 0 problems (0 errors, 0 warnings)**
 
 #### Bioinformatics-Specific Examples
 

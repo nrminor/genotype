@@ -267,8 +267,8 @@ export class BGZFCompressor {
     console.assert(this.isBunAvailable(), 'Bun must be available');
 
     // Use Bun.gzipSync with raw deflate for BGZF compatibility
-    const compressed = (Bun as any).gzipSync(data, {
-      level: this.compressionLevel as any,
+    const compressed = (globalThis as { Bun?: { gzipSync: (data: Uint8Array, options: { level: number; windowBits: number; memLevel: number }) => Uint8Array } }).Bun!.gzipSync(data, {
+      level: this.compressionLevel,
       // Use raw deflate format (no gzip wrapper)
       windowBits: -15,
       memLevel: 8,

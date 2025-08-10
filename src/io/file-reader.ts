@@ -84,7 +84,7 @@ export class FileReader {
       switch (runtime) {
         case 'node': {
           const { fs } = getRuntimeGlobals('node');
-          if (!fs)
+          if (fs === undefined || fs === null)
             throw new CompatibilityError('Node.js fs module not available', 'node', 'filesystem');
 
           try {
@@ -97,7 +97,7 @@ export class FileReader {
 
         case 'deno': {
           const { Deno } = getRuntimeGlobals('deno');
-          if (!Deno)
+          if (Deno === undefined || Deno === null)
             throw new CompatibilityError('Deno global not available', 'deno', 'filesystem');
 
           try {
@@ -110,7 +110,7 @@ export class FileReader {
 
         case 'bun': {
           const { Bun } = getRuntimeGlobals('bun');
-          if (!Bun || !Bun.file)
+          if (Bun === undefined || Bun === null || Bun.file === undefined || Bun.file === null)
             throw new CompatibilityError('Bun.file not available', 'bun', 'filesystem');
 
           try {
@@ -153,7 +153,7 @@ export class FileReader {
       switch (runtime) {
         case 'node': {
           const { fs } = getRuntimeGlobals('node');
-          if (!fs)
+          if (fs === undefined || fs === null)
             throw new CompatibilityError('Node.js fs module not available', 'node', 'filesystem');
 
           const stats = await fs.promises.stat(validatedPath);
@@ -162,7 +162,7 @@ export class FileReader {
 
         case 'deno': {
           const { Deno } = getRuntimeGlobals('deno');
-          if (!Deno)
+          if (Deno === undefined || Deno === null)
             throw new CompatibilityError('Deno global not available', 'deno', 'filesystem');
 
           const stat = await Deno.stat(validatedPath);
@@ -171,7 +171,7 @@ export class FileReader {
 
         case 'bun': {
           const { Bun } = getRuntimeGlobals('bun');
-          if (!Bun || !Bun.file)
+          if (Bun === undefined || Bun === null || Bun.file === undefined || Bun.file === null)
             throw new CompatibilityError('Bun.file not available', 'bun', 'filesystem');
 
           const file = Bun.file(validatedPath);
@@ -210,7 +210,7 @@ export class FileReader {
       switch (runtime) {
         case 'node': {
           const { fs, path: pathModule } = getRuntimeGlobals('node');
-          if (!fs || !pathModule)
+          if (fs === undefined || fs === null || pathModule === undefined || pathModule === null)
             throw new CompatibilityError('Node.js modules not available', 'node', 'filesystem');
 
           const stats = await fs.promises.stat(validatedPath);
@@ -244,7 +244,7 @@ export class FileReader {
 
         case 'deno': {
           const { Deno } = getRuntimeGlobals('deno');
-          if (!Deno)
+          if (Deno === undefined || Deno === null)
             throw new CompatibilityError('Deno global not available', 'deno', 'filesystem');
 
           const stat = await Deno.stat(validatedPath);
@@ -265,7 +265,7 @@ export class FileReader {
 
         case 'bun': {
           const { Bun } = getRuntimeGlobals('bun');
-          if (!Bun || !Bun.file)
+          if (Bun === undefined || Bun === null || Bun.file === undefined || Bun.file === null)
             throw new CompatibilityError('Bun.file not available', 'bun', 'filesystem');
 
           const file = Bun.file(validatedPath);
@@ -313,7 +313,7 @@ export class FileReader {
 
     // Validate file before creating stream
     const validation = await FileReader.validateFile(validatedPath, mergedOptions);
-    if (!validation.isValid) {
+    if (validation.isValid === false) {
       throw new FileError(validation.error || 'File validation failed', validatedPath, 'read');
     }
 
@@ -352,7 +352,7 @@ export class FileReader {
     switch (runtime) {
       case 'node': {
         const { fs } = getRuntimeGlobals('node');
-        if (!fs)
+        if (fs === undefined || fs === null)
           throw new CompatibilityError('Node.js fs module not available', 'node', 'filesystem');
 
         const nodeStream = fs.createReadStream(validatedPath, {
@@ -374,7 +374,7 @@ export class FileReader {
             });
 
             // Handle abort signal
-            if (mergedOptions.signal) {
+            if (mergedOptions.signal !== undefined && mergedOptions.signal !== null) {
               mergedOptions.signal.addEventListener('abort', () => {
                 nodeStream.destroy();
                 controller.error(new Error('Read operation aborted'));
@@ -386,7 +386,7 @@ export class FileReader {
 
       case 'deno': {
         const { Deno } = getRuntimeGlobals('deno');
-        if (!Deno) throw new CompatibilityError('Deno global not available', 'deno', 'filesystem');
+        if (Deno === undefined || Deno === null) throw new CompatibilityError('Deno global not available', 'deno', 'filesystem');
 
         const file = await Deno.open(validatedPath, { read: true });
 
@@ -419,7 +419,7 @@ export class FileReader {
 
       case 'bun': {
         const { Bun } = getRuntimeGlobals('bun');
-        if (!Bun || !Bun.file)
+        if (Bun === undefined || Bun === null || Bun.file === undefined || Bun.file === null)
           throw new CompatibilityError('Bun.file not available', 'bun', 'filesystem');
 
         const file = Bun.file(validatedPath);
@@ -443,12 +443,12 @@ export class FileReader {
                 controller.enqueue(value);
 
                 // Progress callback for Bun (more efficient than other runtimes)
-                if (mergedOptions.onProgress) {
+                if (mergedOptions.onProgress !== undefined && mergedOptions.onProgress !== null) {
                   mergedOptions.onProgress(totalBytesRead, file.size);
                 }
 
                 // Check for abort signal
-                if (mergedOptions.signal?.aborted) {
+                if (mergedOptions.signal !== undefined && mergedOptions.signal !== null && mergedOptions.signal.aborted === true) {
                   reader.releaseLock();
                   throw new Error('Read operation aborted');
                 }
@@ -543,12 +543,12 @@ export class FileReader {
     if (
       runtime === 'bun' &&
       mergedOptions.encoding === 'utf8' &&
-      !mergedOptions.signal &&
-      !mergedOptions.onProgress
+      (mergedOptions.signal === undefined || mergedOptions.signal === null) &&
+      (mergedOptions.onProgress === undefined || mergedOptions.onProgress === null)
     ) {
       try {
         const { Bun } = getRuntimeGlobals('bun');
-        if (Bun && Bun.file) {
+        if (Bun !== undefined && Bun !== null && Bun.file !== undefined && Bun.file !== null) {
           const file = Bun.file(validatedPath);
           const result = await file.text();
 
@@ -580,7 +580,7 @@ export class FileReader {
           totalLength += value.length;
 
           // Progress callback
-          if (mergedOptions.onProgress) {
+          if (mergedOptions.onProgress !== undefined && mergedOptions.onProgress !== null) {
             mergedOptions.onProgress(totalLength, fileSize);
           }
         }
@@ -613,7 +613,7 @@ export class FileReader {
         result += decoder.decode(value, { stream: true });
 
         // Progress callback
-        if (mergedOptions.onProgress) {
+        if (mergedOptions.onProgress !== undefined && mergedOptions.onProgress !== null) {
           mergedOptions.onProgress(result.length, fileSize);
         }
       }

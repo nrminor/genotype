@@ -198,7 +198,8 @@ export class FastaParser {
 
         // Process complete lines
         const lines = buffer.split(/\r?\n/);
-        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+        const lastLine = lines.pop();
+        buffer = lastLine !== null && lastLine !== undefined ? lastLine : ''; // Keep incomplete line in buffer
 
         if (lines.length > 0) {
           yield* this.parseLines(lines, lineNumber);
@@ -425,7 +426,7 @@ export class FastaParser {
     const result = {
       format: 'fasta' as const,
       id,
-      description: description || undefined,
+      description: description !== null && description !== undefined && description !== '' ? description : undefined,
       lineNumber: this.options.trackLineNumbers ? lineNumber : undefined,
     };
 
@@ -439,9 +440,9 @@ export class FastaParser {
 
     return {
       format: 'fasta',
-      id: result.id || '',
-      ...(result.description && { description: result.description }),
-      ...(result.lineNumber && { lineNumber: result.lineNumber }),
+      id: result.id !== null && result.id !== undefined && result.id !== '' ? result.id : '',
+      ...(result.description !== null && result.description !== undefined && result.description !== '' && { description: result.description }),
+      ...(result.lineNumber !== null && result.lineNumber !== undefined && result.lineNumber !== 0 && { lineNumber: result.lineNumber }),
     };
   }
 
@@ -514,7 +515,7 @@ export class FastaParser {
       throw new ValidationError('sequenceBuffer must be an array');
     }
     if (sequenceBuffer.length === 0) {
-      throw new SequenceError('Empty sequence found', partialSequence.id || 'unknown', lineNumber);
+      throw new SequenceError('Empty sequence found', partialSequence.id !== null && partialSequence.id !== undefined && partialSequence.id !== '' ? partialSequence.id : 'unknown', lineNumber);
     }
     if (!Number.isInteger(lineNumber) || lineNumber <= 0) {
       throw new ValidationError('lineNumber must be positive integer');
@@ -523,16 +524,16 @@ export class FastaParser {
     const length = sequence.length;
 
     if (length === 0) {
-      throw new SequenceError('Empty sequence found', partialSequence.id || 'unknown', lineNumber);
+      throw new SequenceError('Empty sequence found', partialSequence.id !== null && partialSequence.id !== undefined && partialSequence.id !== '' ? partialSequence.id : 'unknown', lineNumber);
     }
 
     const fastaSequence: FastaSequence = {
       format: 'fasta',
-      id: partialSequence.id || '',
-      ...(partialSequence.description && { description: partialSequence.description }),
+      id: partialSequence.id !== null && partialSequence.id !== undefined && partialSequence.id !== '' ? partialSequence.id : '',
+      ...(partialSequence.description !== null && partialSequence.description !== undefined && partialSequence.description !== '' && { description: partialSequence.description }),
       sequence,
       length,
-      ...(partialSequence.lineNumber && { lineNumber: partialSequence.lineNumber }),
+      ...(partialSequence.lineNumber !== null && partialSequence.lineNumber !== undefined && partialSequence.lineNumber !== 0 && { lineNumber: partialSequence.lineNumber }),
     };
 
     // Final validation if not skipping
@@ -694,7 +695,7 @@ export class FastaParser {
         // Handle case where header exists but no sequence data
         throw new SequenceError(
           'Header found but no sequence data',
-          currentSequence.id || 'unknown',
+          currentSequence.id !== null && currentSequence.id !== undefined && currentSequence.id !== '' ? currentSequence.id : 'unknown',
           lineNumber
         );
       }
@@ -732,7 +733,7 @@ export class FastaWriter {
       includeDescription?: boolean;
     } = {}
   ) {
-    this.lineWidth = options.lineWidth || 80;
+    this.lineWidth = options.lineWidth !== null && options.lineWidth !== undefined && options.lineWidth !== 0 ? options.lineWidth : 80;
     this.includeDescription = options.includeDescription ?? true;
   }
 
@@ -742,7 +743,7 @@ export class FastaWriter {
   formatSequence(sequence: FastaSequence): string {
     let header = `>${sequence.id}`;
 
-    if (this.includeDescription && sequence.description) {
+    if (this.includeDescription === true && sequence.description !== null && sequence.description !== undefined && sequence.description !== '') {
       header += ` ${sequence.description}`;
     }
 
@@ -833,7 +834,7 @@ export const FastaUtils = {
     let gcCount = 0;
 
     for (const char of sequence.toUpperCase()) {
-      composition[char] = (composition[char] || 0) + 1;
+      composition[char] = (composition[char] !== null && composition[char] !== undefined ? composition[char] : 0) + 1;
       if (char === 'G' || char === 'C') {
         gcCount++;
       }

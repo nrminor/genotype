@@ -278,7 +278,7 @@ export class ZstdDecompressor {
     let buffer = new Uint8Array(0);
 
     return new TransformStream({
-      start(controller) {
+      start(controller): void {
         try {
           // Initialize runtime-specific decompressor
           if (runtime === 'node') {
@@ -331,7 +331,7 @@ export class ZstdDecompressor {
         }
       },
 
-      transform(chunk, controller) {
+      transform(chunk, controller): void {
         if (!initialized) {
           controller.error(new CompressionError('Decompressor not initialized', 'zstd', 'stream'));
           return;
@@ -375,7 +375,7 @@ export class ZstdDecompressor {
         }
       },
 
-      flush(controller) {
+      flush(controller): void {
         try {
           if (runtime === 'node' && decompressor) {
             const nodeStream = decompressor as { end?: () => void };

@@ -353,32 +353,33 @@ export class BedParser {
       throw new BedError(coordValidation.error!, chromosome, start, end, lineNumber, line);
     }
 
-    // Build base interval
-    const intervalData: any = {
+    // Build mutable interval data
+    type MutableBedInterval = {
+      -readonly [K in keyof BedInterval]: BedInterval[K];
+    };
+
+    const intervalData: Partial<MutableBedInterval> = {
       chromosome: chromosome!,
       start,
       end,
+      length: end - start,
+      midpoint: Math.floor((start + end) / 2),
     };
 
     if (this.options.trackLineNumbers) {
       intervalData.lineNumber = lineNumber;
     }
 
-    const interval: BedInterval = intervalData;
-
-    // Add computed properties
-    const mutableInterval = interval as any;
-    mutableInterval.length = end - start;
-    mutableInterval.midpoint = Math.floor((start + end) / 2);
+    const mutableInterval = intervalData as MutableBedInterval;
 
     // Parse optional fields based on BED variant
     if (optionalFields.length > 0) {
-      this.parseOptionalFields(interval, optionalFields, lineNumber, line);
+      this.parseOptionalFields(mutableInterval as BedInterval, optionalFields, lineNumber, line);
     }
 
     // Calculate stats after all fields are parsed
     mutableInterval.stats = {
-      length: mutableInterval.length,
+      length: mutableInterval.length!,
       hasThickRegion: Boolean(
         mutableInterval.thickStart !== undefined && mutableInterval.thickEnd !== undefined
       ),
@@ -388,7 +389,7 @@ export class BedParser {
 
     // Final validation
     if (!this.options.skipValidation) {
-      const validation = BedIntervalSchema(interval);
+      const validation = BedIntervalSchema(mutableInterval as BedInterval);
       if (validation instanceof type.errors) {
         throw new BedError(
           `Invalid BED interval: ${validation.summary}`,
@@ -401,7 +402,7 @@ export class BedParser {
       }
     }
 
-    return interval;
+    return mutableInterval as BedInterval;
   }
 
   /**

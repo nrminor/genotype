@@ -1113,13 +1113,13 @@ export class BinaryParser {
    */
   private static parseArrayElement(tagData: Uint8Array, offset: number, arrayType: string): number {
     const operations = {
-      c: () => BinaryParser.parseSignedInt8Element(tagData, offset),
-      C: () => BinaryParser.parseUnsignedInt8Element(tagData, offset),
-      s: () => BinaryParser.parseSignedInt16Element(tagData, offset),
-      S: () => BinaryParser.parseUnsignedInt16Element(tagData, offset),
-      i: () => BinaryParser.parseSignedInt32Element(tagData, offset),
-      I: () => BinaryParser.parseUnsignedInt32Element(tagData, offset),
-      f: () => BinaryParser.parseFloatElement(tagData, offset),
+      c: (): number => BinaryParser.parseSignedInt8Element(tagData, offset),
+      C: (): number => BinaryParser.parseUnsignedInt8Element(tagData, offset),
+      s: (): number => BinaryParser.parseSignedInt16Element(tagData, offset),
+      S: (): number => BinaryParser.parseUnsignedInt16Element(tagData, offset),
+      i: (): number => BinaryParser.parseSignedInt32Element(tagData, offset),
+      I: (): number => BinaryParser.parseUnsignedInt32Element(tagData, offset),
+      f: (): number => BinaryParser.parseFloatElement(tagData, offset),
     };
 
     const operation = operations[arrayType as keyof typeof operations];

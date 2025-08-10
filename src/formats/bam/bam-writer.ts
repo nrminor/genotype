@@ -890,7 +890,12 @@ export class BAMWriter {
   getWriterInfo(): {
     options: Required<BAMWriterOptions>;
     compressionInfo: ReturnType<BGZFCompressor['getCompressionInfo']>;
-    serializerStats: any;
+    serializerStats: {
+      maxAlignmentSize: number;
+      bufferPoolSize: number;
+      bufferUtilization: number;
+      bunOptimized: boolean;
+    };
     bunOptimized: boolean;
   } {
     return {

@@ -89,7 +89,7 @@ export class BAMParser {
       onError: (error: string): never => {
         throw new BamError(error, undefined, undefined);
       },
-      onWarning: (warning: string) => {
+      onWarning: (warning: string): void => {
         console.warn(`BAM Warning: ${warning}`);
       },
       ...options,
@@ -289,7 +289,7 @@ export class BAMParser {
 
       // Create stream from binary data
       const stream = new ReadableStream({
-        start(controller) {
+        start(controller): void {
           controller.enqueue(binaryData);
           controller.close();
         },
@@ -730,11 +730,11 @@ export class BAMParser {
         format: 'bam',
         qname: parsedRecord.readName,
         flag: this.validateFlag(parsedRecord.flag, parsedRecord.readName, blockOffset),
-        rname: rname || '*',
+        rname: (rname !== undefined && rname !== null && rname !== '') ? rname : '*',
         pos: Math.max(0, parsedRecord.pos + 1), // Convert to 1-based and ensure non-negative
         mapq: this.validateMAPQ(parsedRecord.mapq, parsedRecord.readName, blockOffset),
         cigar: this.validateCIGAR(parsedRecord.cigar, parsedRecord.readName, blockOffset),
-        rnext: rnext || '*',
+        rnext: (rnext !== undefined && rnext !== null && rnext !== '') ? rnext : '*',
         pnext: Math.max(0, parsedRecord.nextPos + 1), // Convert to 1-based and ensure non-negative
         tlen: parsedRecord.tlen,
         seq: parsedRecord.sequence,

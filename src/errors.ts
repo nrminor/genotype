@@ -24,10 +24,10 @@ export class GenotypeError extends Error {
    */
   override toString(): string {
     let msg = `${this.name}: ${this.message}`;
-    if (this.lineNumber) {
+    if (this.lineNumber !== undefined && this.lineNumber !== null) {
       msg += ` (line ${this.lineNumber})`;
     }
-    if (this.context) {
+    if (this.context !== undefined && this.context !== null && this.context !== '') {
       msg += `\nContext: ${this.context}`;
     }
     return msg;
@@ -87,7 +87,7 @@ export class CompressionError extends GenotypeError {
     const suggestion = CompressionError.getSuggestionForCompressionError(format, errorMessage);
 
     return new CompressionError(
-      `${operation} operation failed for ${format}: ${errorMessage}${suggestion ? `. ${suggestion}` : ''}`,
+      `${operation} operation failed for ${format}: ${errorMessage}${suggestion !== undefined && suggestion !== null && suggestion !== '' ? `. ${suggestion}` : ''}`,
       format,
       operation,
       bytesProcessed,
@@ -165,7 +165,7 @@ export class FileError extends GenotypeError {
     const suggestion = FileError.getSuggestionForSystemError(errorMessage);
 
     return new FileError(
-      `${operation} operation failed: ${errorMessage}${suggestion ? `. ${suggestion}` : ''}`,
+      `${operation} operation failed: ${errorMessage}${suggestion !== undefined && suggestion !== null && suggestion !== '' ? `. ${suggestion}` : ''}`,
       filePath,
       operation,
       systemError,
@@ -209,7 +209,7 @@ export class FileError extends GenotypeError {
 
     if (this.systemError instanceof Error) {
       msg += `\nSystem Error: ${this.systemError.name}: ${this.systemError.message}`;
-      if (this.systemError.stack) {
+      if (this.systemError.stack !== undefined && this.systemError.stack !== null && this.systemError.stack !== '') {
         msg += `\nStack: ${this.systemError.stack}`;
       }
     }
@@ -357,7 +357,7 @@ export function createContextualError(
   const { lineNumber, context, data } = options;
   let contextStr = context;
 
-  if (data && !contextStr) {
+  if (data && (contextStr === undefined || contextStr === null || contextStr === '')) {
     contextStr = Object.entries(data)
       .map(([key, value]) => `${key}: ${value}`)
       .join(', ');

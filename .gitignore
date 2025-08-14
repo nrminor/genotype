@@ -9,6 +9,7 @@
 !/README.md
 !/AGENTS.md
 !/LICENSE
+!/justfile
 !/examples/
 !/examples/bam-writer-example.ts
 

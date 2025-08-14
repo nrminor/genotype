@@ -78,10 +78,10 @@ export class SAMParser {
       trackLineNumbers: true,
       qualityEncoding: 'phred33',
       parseQualityScores: false,
-      onError: (error: string, lineNumber?: number) => {
+      onError: (error: string, lineNumber?: number): void => {
         throw new SamError(error, undefined, undefined, lineNumber);
       },
-      onWarning: (warning: string, lineNumber?: number) => {
+      onWarning: (warning: string, lineNumber?: number): void => {
         console.warn(`SAM Warning (line ${lineNumber}): ${warning}`);
       },
       ...options,
@@ -138,13 +138,13 @@ export class SAMParser {
     }
 
     // Import I/O modules dynamically to avoid circular dependencies
-    const { FileReader } = await import('../io/file-reader');
+    const { createStream } = await import('../io/file-reader');
     const { StreamUtils } = await import('../io/stream-utils');
 
     try {
       // Validate file path and create stream
       const validatedPath = await this.validateFilePath(filePath);
-      const stream = await FileReader.createStream(validatedPath, options);
+      const stream = await createStream(validatedPath, options);
 
       // Convert binary stream to lines and parse
       const lines = StreamUtils.readLines(stream, options?.encoding || 'utf8');
@@ -348,7 +348,7 @@ export class SAMParser {
     if (fields.length < 11) {
       throw new SamError(
         `Insufficient fields: expected 11, got ${fields.length}`,
-        fields[0] || 'unknown',
+        fields[0] !== undefined && fields[0] !== null && fields[0] !== '' ? fields[0] : 'unknown',
         'alignment',
         lineNumber,
         alignmentLine
@@ -680,11 +680,11 @@ export class SAMParser {
       throw new ValidationError('filePath must not be empty');
     }
 
-    // Import FileReader dynamically to avoid circular dependencies
-    const { FileReader } = await import('../io/file-reader');
+    // Import FileReader functions dynamically to avoid circular dependencies
+    const { exists, getMetadata } = await import('../io/file-reader');
 
     // Check if file exists and is readable
-    if (!(await FileReader.exists(filePath))) {
+    if (!(await exists(filePath))) {
       throw new SamError(
         `SAM file not found or not accessible: ${filePath}`,
         undefined,
@@ -696,7 +696,7 @@ export class SAMParser {
 
     // Get file metadata for additional validation
     try {
-      const metadata = await FileReader.getMetadata(filePath);
+      const metadata = await getMetadata(filePath);
 
       if (!metadata.readable) {
         throw new SamError(
@@ -864,7 +864,7 @@ export class SAMWriter {
       includeLineNumbers: options.includeLineNumbers ?? true,
       onError:
         options.onError ||
-        ((error: string, record?: SAMAlignment | SAMHeader) => {
+        ((error: string, record?: SAMAlignment | SAMHeader): void => {
           const recordInfo = record
             ? (record as any).format === 'sam'
               ? (record as SAMAlignment).qname
@@ -874,7 +874,7 @@ export class SAMWriter {
         }),
       onWarning:
         options.onWarning ||
-        ((warning: string, record?: SAMAlignment | SAMHeader) => {
+        ((warning: string, record?: SAMAlignment | SAMHeader): void => {
           const recordInfo = record
             ? (record as any).format === 'sam'
               ? (record as SAMAlignment).qname
@@ -1082,7 +1082,11 @@ export class SAMWriter {
     // Format fields based on header type
     if (header.type === 'CO') {
       // Comment headers store the entire comment in fields.comment
-      if (header.fields.comment) {
+      if (
+        header.fields.comment !== undefined &&
+        header.fields.comment !== null &&
+        header.fields.comment !== ''
+      ) {
         line += `\t${header.fields.comment}`;
       }
     } else {

@@ -31,7 +31,7 @@
     "test:deno": "deno test test/**/*.test.ts",
     "lint": "tsc --noEmit && eslint src test --ext .ts",
     "lint:fix": "eslint src test --ext .ts --fix",
-    "format": "prettier --write \"src/**/*.{ts,js,json}\" \"test/**/*.{ts,js,json}\" \"*.{ts,js,json,md}\"",
+    "format": "prettier --write \"src/**/*.{ts,js,json}\" \"test/**/*.{ts,js,json}\" \"examples/**/*.{ts,js,json}\" \"*.{ts,js,json,md}\"",
     "format:check": "prettier --check \"src/**/*.{ts,js,json}\" \"test/**/*.{ts,js,json}\" \"*.{ts,js,json,md}\"",
     "clean": "rm -rf dist && cd src/zig && zig build clean",
     "prepublishOnly": "bun run clean && bun run build:with-native",
@@ -61,6 +61,7 @@
     "typescript": ">=5.0.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.1.4",
     "@eslint/js": "^9.32.0",
     "@types/bun": "^1.1.0",
     "@types/node": "^22.0.0",
@@ -75,7 +76,6 @@
     "vscode-langservers-extracted": "4.8"
   },
   "dependencies": {
-    "@biomejs/biome": "^2.1.4",
     "arktype": "^2.0.0-rc.8"
   },
   "prettier": {

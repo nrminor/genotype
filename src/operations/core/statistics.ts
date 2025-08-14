@@ -1,6 +1,6 @@
 /**
  * Statistics accumulator for streaming sequence analysis
- * 
+ *
  * Provides constant-memory statistics calculation for arbitrarily large datasets
  * Uses Welford's algorithm for numerical stability in variance calculations
  */
@@ -21,11 +21,13 @@ export interface SequenceStats {
   n90: number;
   gcContent: number;
   baseComposition: Record<string, number>;
-  qualityStats?: {
-    meanQuality: number;
-    minQuality: number;
-    maxQuality: number;
-  } | undefined;
+  qualityStats?:
+    | {
+        meanQuality: number;
+        minQuality: number;
+        maxQuality: number;
+      }
+    | undefined;
 }
 
 /**
@@ -37,20 +39,20 @@ export class SequenceStatsAccumulator {
   private totalLength = 0;
   private minLength = Number.MAX_SAFE_INTEGER;
   private maxLength = 0;
-  
+
   // For variance calculation (Welford's algorithm)
   private mean = 0;
   private m2 = 0;
-  
+
   // Base composition
   private baseCount: Record<string, number> = {};
   private gcCount = 0;
-  
+
   // For N50/N90 calculation, we need to keep lengths
   // In production, might use reservoir sampling for huge datasets
   private lengths: number[] = [];
   private readonly maxLengthsStored = 1000000; // Limit for memory
-  
+
   // Quality statistics (if FASTQ)
   private qualitySum = 0;
   private qualityCount = 0;
@@ -59,50 +61,66 @@ export class SequenceStatsAccumulator {
 
   /**
    * Add a sequence to the accumulator
-   * 
+   *
    * @param sequence - Sequence to accumulate statistics for
-   * 
+   *
    * 🔥 ZIG OPTIMIZATION: Statistics calculation in single pass
    */
   add(sequence: Sequence): void {
     // Tiger Style: Assert input
-    if (!sequence || !sequence.sequence) {
+    if (
+      sequence === undefined ||
+      sequence === null ||
+      sequence.sequence === undefined ||
+      sequence.sequence === null ||
+      sequence.sequence === ''
+    ) {
       throw new Error('Valid sequence required for statistics');
     }
 
     this.count++;
     const length = sequence.length || sequence.sequence.length;
-    
+
     // Update length statistics
     this.totalLength += length;
     this.minLength = Math.min(this.minLength, length);
     this.maxLength = Math.max(this.maxLength, length);
-    
+
     // Update mean and variance (Welford's algorithm)
     const delta = length - this.mean;
     this.mean += delta / this.count;
     const delta2 = length - this.mean;
     this.m2 += delta * delta2;
-    
+
     // Store length for N50/N90 calculation (with limit)
     if (this.lengths.length < this.maxLengthsStored) {
       this.lengths.push(length);
     }
-    
+
     // Update base composition
     const seq = sequence.sequence.toUpperCase();
     for (let i = 0; i < seq.length; i++) {
       const base = seq[i];
-      if (base) {
-        this.baseCount[base] = (this.baseCount[base] || 0) + 1;
+      if (base !== undefined && base !== null && base !== '') {
+        this.baseCount[base] =
+          (this.baseCount[base] !== undefined &&
+          this.baseCount[base] !== null &&
+          this.baseCount[base] !== 0
+            ? this.baseCount[base]
+            : 0) + 1;
         if (base === 'G' || base === 'C' || base === 'S') {
           this.gcCount++;
         }
       }
     }
-    
+
     // Update quality statistics if available (FASTQ)
-    if ('quality' in sequence && (sequence as any).quality) {
+    if (
+      'quality' in sequence &&
+      (sequence as any).quality !== undefined &&
+      (sequence as any).quality !== null &&
+      (sequence as any).quality !== ''
+    ) {
       const quality = (sequence as any).quality;
       for (let i = 0; i < quality.length; i++) {
         const qual = quality.charCodeAt(i) - 33; // Assume Phred33
@@ -147,22 +165,25 @@ export class SequenceStatsAccumulator {
         n50: 0,
         n90: 0,
         gcContent: 0,
-        baseComposition: {}
+        baseComposition: {},
       };
     }
 
     // Calculate N50 and N90
     const { n50, n90, median } = this.calculateNStats();
-    
+
     // Calculate GC content
     const gcContent = this.totalLength > 0 ? this.gcCount / this.totalLength : 0;
-    
+
     // Prepare quality stats if available
-    const qualityStats = this.qualityCount > 0 ? {
-      meanQuality: this.qualitySum / this.qualityCount,
-      minQuality: this.minQuality,
-      maxQuality: this.maxQuality
-    } : undefined;
+    const qualityStats =
+      this.qualityCount > 0
+        ? {
+            meanQuality: this.qualitySum / this.qualityCount,
+            minQuality: this.minQuality,
+            maxQuality: this.maxQuality,
+          }
+        : undefined;
 
     return {
       count: this.count,
@@ -175,7 +196,7 @@ export class SequenceStatsAccumulator {
       n90,
       gcContent,
       baseComposition: { ...this.baseCount },
-      qualityStats
+      qualityStats,
     };
   }
 
@@ -190,7 +211,7 @@ export class SequenceStatsAccumulator {
 
     // Sort lengths in descending order
     const sorted = [...this.lengths].sort((a, b) => b - a);
-    
+
     // Calculate median
     const mid = Math.floor(sorted.length / 2);
     let median = 0;
@@ -203,14 +224,14 @@ export class SequenceStatsAccumulator {
     } else {
       median = sorted[mid] ?? 0;
     }
-    
+
     // Calculate N50 and N90
     let cumSum = 0;
     let n50 = 0;
     let n90 = 0;
     const threshold50 = this.totalLength * 0.5;
     const threshold90 = this.totalLength * 0.9;
-    
+
     for (const length of sorted) {
       cumSum += length;
       if (n50 === 0 && cumSum >= threshold50) {
@@ -221,7 +242,7 @@ export class SequenceStatsAccumulator {
         break;
       }
     }
-    
+
     return { n50, n90, median };
   }
 
@@ -265,32 +286,37 @@ export class SequenceStatsAccumulator {
    */
   merge(other: SequenceStatsAccumulator): void {
     if (other.count === 0) return;
-    
+
     // Merge length statistics
     const combinedCount = this.count + other.count;
     const delta = other.mean - this.mean;
     const newMean = (this.count * this.mean + other.count * other.mean) / combinedCount;
-    const newM2 = this.m2 + other.m2 + delta * delta * this.count * other.count / combinedCount;
-    
+    const newM2 = this.m2 + other.m2 + (delta * delta * this.count * other.count) / combinedCount;
+
     this.count = combinedCount;
     this.totalLength += other.totalLength;
     this.minLength = Math.min(this.minLength, other.minLength);
     this.maxLength = Math.max(this.maxLength, other.maxLength);
     this.mean = newMean;
     this.m2 = newM2;
-    
+
     // Merge base composition
     for (const [base, count] of Object.entries(other.baseCount)) {
-      this.baseCount[base] = (this.baseCount[base] || 0) + count;
+      this.baseCount[base] =
+        (this.baseCount[base] !== undefined &&
+        this.baseCount[base] !== null &&
+        this.baseCount[base] !== 0
+          ? this.baseCount[base]
+          : 0) + count;
     }
     this.gcCount += other.gcCount;
-    
+
     // Merge lengths array (with limit)
     const remainingSpace = this.maxLengthsStored - this.lengths.length;
     if (remainingSpace > 0) {
       this.lengths.push(...other.lengths.slice(0, remainingSpace));
     }
-    
+
     // Merge quality statistics
     this.qualitySum += other.qualitySum;
     this.qualityCount += other.qualityCount;
@@ -326,13 +352,13 @@ export async function calculateSequenceStats(
   sequences: AsyncIterable<Sequence> | Iterable<Sequence>
 ): Promise<SequenceStats> {
   const accumulator = new SequenceStatsAccumulator();
-  
+
   // Check if async iterable
   if (Symbol.asyncIterator in sequences) {
     await accumulator.addStream(sequences as AsyncIterable<Sequence>);
   } else {
     accumulator.addMany(sequences as Iterable<Sequence>);
   }
-  
+
   return accumulator.getStats();
 }

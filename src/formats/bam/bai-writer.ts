@@ -1,6 +1,6 @@
 /**
  * BAI (BAM Index) writer for generating BAM index files
- * 
+ *
  * Provides comprehensive BAI index generation capabilities:
  * - Streaming index generation from BAM alignments
  * - Memory-efficient processing of large BAM files
@@ -9,7 +9,7 @@
  * - Binary BAI file serialization with proper format compliance
  * - Progress tracking and cancellation support
  * - Bun-optimized I/O and buffer management
- * 
+ *
  * Follows Tiger Style with extensive validation and clear error messages.
  */
 
@@ -22,11 +22,9 @@ import type {
   VirtualOffset,
   BAIBinNumber,
   BAMAlignment,
-  FilePath
+  FilePath,
 } from '../../types';
-import {
-  FilePathSchema
-} from '../../types';
+import { FilePathSchema } from '../../types';
 import { BamError } from '../../errors';
 // BinaryParser import removed - not used in current implementation
 import { VirtualOffsetUtils, BinningUtils, updateLinearIndex, mergeChunks } from './bai-utils';
@@ -54,26 +52,26 @@ interface ReferenceAccumulator {
 
 /**
  * BAI writer class for generating BAM index files
- * 
+ *
  * Supports both batch index generation from complete BAM files and
  * streaming index generation for real-time processing.
- * 
+ *
  * @example Batch index generation
  * ```typescript
  * const writer = new BAIWriter('/path/to/output.bam.bai');
  * const index = await writer.generateIndex('/path/to/input.bam');
  * await writer.writeIndex(index);
  * ```
- * 
+ *
  * @example Streaming index generation
  * ```typescript
  * const writer = new BAIWriter('/path/to/output.bam.bai', { streamingMode: true });
- * 
+ *
  * // Process alignments one by one
  * for (const alignment of bamAlignments) {
  *   await writer.addAlignment(alignment, virtualOffset);
  * }
- * 
+ *
  * const index = await writer.finalize();
  * ```
  */
@@ -112,13 +110,16 @@ export class BAIWriter {
       ...(options.onProgress && { onProgress: options.onProgress }),
       streamingMode: options.streamingMode ?? false,
       maxChunksPerBin: options.maxChunksPerBin ?? 10000,
-      ...(options.signal && { signal: options.signal })
+      ...(options.signal && { signal: options.signal }),
     } as Required<BAIWriterOptions>;
 
     this.referenceAccumulators = new Map();
 
     // Tiger Style: Assert initialized state
-    console.assert(this.referenceAccumulators.size === 0, 'reference accumulators must be empty initially');
+    console.assert(
+      this.referenceAccumulators.size === 0,
+      'reference accumulators must be empty initially'
+    );
     console.assert(this.totalAlignments === 0, 'alignment count must be zero initially');
   }
 
@@ -133,14 +134,13 @@ export class BAIWriter {
     // Tiger Style: Assert function arguments
     console.assert(typeof bamFilePath === 'string', 'bamFilePath must be a string');
     console.assert(bamFilePath.length > 0, 'bamFilePath must not be empty');
-    console.assert(!referenceNames || Array.isArray(referenceNames), 'referenceNames must be array if provided');
+    console.assert(
+      !referenceNames || Array.isArray(referenceNames),
+      'referenceNames must be array if provided'
+    );
 
     if (this.isFinalized) {
-      throw new BamError(
-        'BAI writer has already been finalized',
-        undefined,
-        'writer_state'
-      );
+      throw new BamError('BAI writer has already been finalized', undefined, 'writer_state');
     }
 
     try {
@@ -148,31 +148,27 @@ export class BAIWriter {
       const { BAMParser } = await import('../bam');
       const parser = new BAMParser({
         skipValidation: !this.options.validateAlignments,
-        onError: (error) => {
+        onError: (error): void => {
           console.warn(`BAM parsing warning: ${error}`);
-        }
+        },
       });
 
       this.referenceNames = referenceNames || [];
       let alignmentCount = 0;
       let currentVirtualOffset = 0n as VirtualOffset;
-      
+
       const startTime = Date.now();
 
       // Process BAM file alignment by alignment
       for await (const record of parser.parseFile(bamFilePath)) {
         // Check for cancellation
         if (this.options.signal?.aborted) {
-          throw new BamError(
-            'Index generation cancelled by user',
-            undefined,
-            'cancelled'
-          );
+          throw new BamError('Index generation cancelled by user', undefined, 'cancelled');
         }
 
         if (record.format === 'bam') {
           const bamAlignment = record as BAMAlignment;
-          
+
           // Calculate virtual offset (simplified - in real implementation would track BGZF blocks)
           currentVirtualOffset = VirtualOffsetUtils.pack(
             Math.floor(alignmentCount / 1000) * 65536, // Simulate BGZF blocks
@@ -183,7 +179,11 @@ export class BAIWriter {
           alignmentCount++;
 
           // Progress reporting
-          if (this.options.onProgress && alignmentCount % 10000 === 0) {
+          if (
+            this.options.onProgress !== undefined &&
+            this.options.onProgress !== null &&
+            alignmentCount % 10000 === 0
+          ) {
             this.options.onProgress(alignmentCount);
           }
         }
@@ -191,12 +191,11 @@ export class BAIWriter {
 
       // Finalize and generate index
       const index = await this.finalize();
-      
+
       const processingTime = Date.now() - startTime;
       console.log(`Generated BAI index: ${alignmentCount} alignments, ${processingTime}ms`);
 
       return index;
-
     } catch (error) {
       throw new BamError(
         `Failed to generate BAI index from ${bamFilePath}: ${error instanceof Error ? error.message : String(error)}`,
@@ -253,7 +252,7 @@ export class BAIWriter {
           linearIndex: [],
           alignmentCount: 0,
           lastPosition: -1,
-          lastVirtualOffset: 0n as VirtualOffset
+          lastVirtualOffset: 0n as VirtualOffset,
         };
         this.referenceAccumulators.set(refId, refAccumulator);
       }
@@ -270,7 +269,7 @@ export class BAIWriter {
       if (!binAccumulator) {
         binAccumulator = {
           binId: binNumber,
-          chunks: []
+          chunks: [],
         };
         refAccumulator.bins.set(binNumber, binAccumulator);
       }
@@ -294,9 +293,10 @@ export class BAIWriter {
 
       // Check for memory limits
       if (binAccumulator.chunks.length > this.options.maxChunksPerBin!) {
-        console.warn(`Bin ${binNumber} in reference ${refId} has ${binAccumulator.chunks.length} chunks - consider merging`);
+        console.warn(
+          `Bin ${binNumber} in reference ${refId} has ${binAccumulator.chunks.length} chunks - consider merging`
+        );
       }
-
     } catch (error) {
       throw new BamError(
         `Failed to add alignment to index: ${error instanceof Error ? error.message : String(error)}`,
@@ -315,11 +315,7 @@ export class BAIWriter {
    */
   async finalize(): Promise<BAIIndex> {
     if (this.isFinalized) {
-      throw new BamError(
-        'BAI writer has already been finalized',
-        undefined,
-        'writer_state'
-      );
+      throw new BamError('BAI writer has already been finalized', undefined, 'writer_state');
     }
 
     try {
@@ -329,44 +325,48 @@ export class BAIWriter {
 
       for (let refId = 0; refId < referenceCount; refId++) {
         const accumulator = this.referenceAccumulators.get(refId);
-        
+
         if (!accumulator) {
           // Create empty reference for missing data
           references.push({
             bins: new Map(),
             linearIndex: {
               intervals: [],
-              intervalSize: this.options.intervalSize
-            }
+              intervalSize: this.options.intervalSize,
+            },
           });
           continue;
         }
 
         // Convert bin accumulators to final bins
         const bins = new Map<number, BAIBin>();
-        
+
         for (const [binId, binAccumulator] of accumulator.bins) {
           // Merge and optimize chunks
           const mergedChunks = mergeChunks(binAccumulator.chunks);
-          
+
           const bin: BAIBin = {
             binId: binAccumulator.binId,
-            chunks: mergedChunks
+            chunks: mergedChunks,
           };
-          
+
           bins.set(binId, bin);
         }
 
         // Create linear index
         const linearIndex: BAILinearIndex = {
           intervals: [...accumulator.linearIndex], // Copy array
-          intervalSize: this.options.intervalSize
+          intervalSize: this.options.intervalSize,
         };
 
         const reference: BAIReference = {
           bins,
           linearIndex,
-          ...(this.referenceNames[refId] && { referenceName: this.referenceNames[refId] })
+          ...(this.referenceNames[refId] !== undefined &&
+          this.referenceNames[refId] !== null &&
+          this.referenceNames[refId] !== ''
+            ? { referenceName: this.referenceNames[refId] }
+            : {}),
         };
 
         references.push(reference);
@@ -378,22 +378,26 @@ export class BAIWriter {
         references,
         version: '1.0',
         createdAt: new Date(),
-        sourceFile: this.outputPath
+        sourceFile: this.outputPath,
       };
 
       // Store index (skip schema validation for now due to ArkType complexity)
       const validatedIndex = index;
-      
+
       this.isFinalized = true;
 
       // Tiger Style: Assert postconditions
-      console.assert(validatedIndex.referenceCount === references.length, 'reference count must match');
+      console.assert(
+        validatedIndex.referenceCount === references.length,
+        'reference count must match'
+      );
       console.assert(this.isFinalized, 'writer must be finalized');
 
-      console.log(`Finalized BAI index: ${this.totalAlignments} alignments, ${references.length} references`);
+      console.log(
+        `Finalized BAI index: ${this.totalAlignments} alignments, ${references.length} references`
+      );
 
       return validatedIndex;
-
     } catch (error) {
       throw new BamError(
         `Failed to finalize BAI index: ${error instanceof Error ? error.message : String(error)}`,
@@ -424,7 +428,6 @@ export class BAIWriter {
       await this.writeBinaryData(binaryData);
 
       console.log(`Wrote BAI index: ${binaryData.length} bytes to ${this.outputPath}`);
-
     } catch (error) {
       throw new BamError(
         `Failed to write BAI index to ${this.outputPath}: ${error instanceof Error ? error.message : String(error)}`,
@@ -453,7 +456,7 @@ export class BAIWriter {
   setReferenceNames(names: string[]): void {
     // Tiger Style: Assert function arguments
     console.assert(Array.isArray(names), 'names must be an array');
-    
+
     if (this.isFinalized) {
       throw new BamError(
         'Cannot set reference names: BAI writer has been finalized',
@@ -463,9 +466,12 @@ export class BAIWriter {
     }
 
     this.referenceNames = [...names]; // Copy array
-    
+
     // Tiger Style: Assert postconditions
-    console.assert(this.referenceNames.length === names.length, 'reference names must be copied correctly');
+    console.assert(
+      this.referenceNames.length === names.length,
+      'reference names must be copied correctly'
+    );
   }
 
   /**
@@ -494,7 +500,7 @@ export class BAIWriter {
       referencesWithData: this.referenceAccumulators.size,
       totalBins,
       totalChunks,
-      isFinalized: this.isFinalized
+      isFinalized: this.isFinalized,
     };
   }
 
@@ -505,19 +511,11 @@ export class BAIWriter {
    */
   private validateAlignment(alignment: BAMAlignment): void {
     if (alignment.pos < 0) {
-      throw new BamError(
-        `Invalid position: ${alignment.pos}`,
-        alignment.qname,
-        'pos'
-      );
+      throw new BamError(`Invalid position: ${alignment.pos}`, alignment.qname, 'pos');
     }
 
     if (alignment.rname !== '*' && alignment.pos === 0) {
-      throw new BamError(
-        'Mapped alignment cannot have position 0',
-        alignment.qname,
-        'pos'
-      );
+      throw new BamError('Mapped alignment cannot have position 0', alignment.qname, 'pos');
     }
 
     // Additional validation could be added here
@@ -585,7 +583,7 @@ export class BAIWriter {
     // 1. Check for overlapping/adjacent chunks
     // 2. Merge where appropriate
     // 3. Maintain sorted order
-    
+
     binAccumulator.chunks.push({ beginOffset, endOffset });
   }
 
@@ -595,13 +593,13 @@ export class BAIWriter {
   private serializeIndex(index: BAIIndex): Uint8Array {
     // Calculate total size needed
     let totalSize = 8; // Magic + reference count
-    
+
     for (const reference of index.references) {
       totalSize += 4; // Number of bins
       for (const bin of reference.bins.values()) {
-        totalSize += 4 + 4 + (bin.chunks.length * 16); // bin_id + chunk_count + chunks
+        totalSize += 4 + 4 + bin.chunks.length * 16; // bin_id + chunk_count + chunks
       }
-      totalSize += 4 + (reference.linearIndex.intervals.length * 8); // interval_count + intervals
+      totalSize += 4 + reference.linearIndex.intervals.length * 8; // interval_count + intervals
     }
 
     // Allocate buffer
@@ -629,7 +627,7 @@ export class BAIWriter {
 
       // Write bins (sorted by bin ID)
       const sortedBins = Array.from(reference.bins.entries()).sort((a, b) => a[0] - b[0]);
-      
+
       for (const [binId, bin] of sortedBins) {
         // Write bin ID
         view.setUint32(offset, binId, true);
@@ -642,14 +640,14 @@ export class BAIWriter {
         // Write chunks
         for (const chunk of bin.chunks) {
           // Write begin offset (64-bit)
-          const { blockOffset: beginBlock, uncompressedOffset: beginUncomp } = 
+          const { blockOffset: beginBlock, uncompressedOffset: beginUncomp } =
             VirtualOffsetUtils.unpack(chunk.beginOffset);
           view.setUint32(offset, beginUncomp, true);
           view.setUint32(offset + 4, beginBlock, true);
           offset += 8;
 
           // Write end offset (64-bit)
-          const { blockOffset: endBlock, uncompressedOffset: endUncomp } = 
+          const { blockOffset: endBlock, uncompressedOffset: endUncomp } =
             VirtualOffsetUtils.unpack(chunk.endOffset);
           view.setUint32(offset, endUncomp, true);
           view.setUint32(offset + 4, endBlock, true);
@@ -671,7 +669,10 @@ export class BAIWriter {
     }
 
     // Tiger Style: Assert we used exactly the expected amount of space
-    console.assert(offset === totalSize, `serialized size mismatch: expected ${totalSize}, actual ${offset}`);
+    console.assert(
+      offset === totalSize,
+      `serialized size mismatch: expected ${totalSize}, actual ${offset}`
+    );
 
     return uint8View;
   }
@@ -682,14 +683,19 @@ export class BAIWriter {
   private async writeBinaryData(data: Uint8Array): Promise<void> {
     try {
       // Use Bun.write for optimal performance when available
-      if (typeof globalThis !== 'undefined' && 'Bun' in globalThis && globalThis.Bun?.write) {
+      if (
+        typeof globalThis !== 'undefined' &&
+        'Bun' in globalThis &&
+        globalThis.Bun !== undefined &&
+        globalThis.Bun !== null &&
+        typeof globalThis.Bun.write === 'function'
+      ) {
         await globalThis.Bun.write(this.outputPath, data);
         return;
       }
 
       // Fallback to other runtime file APIs would go here
       throw new Error('No supported file write method available');
-
     } catch (error) {
       throw new BamError(
         `Failed to write binary data: ${error instanceof Error ? error.message : String(error)}`,

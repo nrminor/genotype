@@ -63,10 +63,10 @@ export class FastaParser {
       trackLineNumbers: true,
       qualityEncoding: 'phred33', // Not used for FASTA
       parseQualityScores: false, // Not used for FASTA
-      onError: (error: string, lineNumber?: number) => {
+      onError: (error: string, lineNumber?: number): void => {
         throw new ParseError(error, 'FASTA', lineNumber);
       },
-      onWarning: (warning: string, lineNumber?: number) => {
+      onWarning: (warning: string, lineNumber?: number): void => {
         console.warn(`FASTA Warning (line ${lineNumber}): ${warning}`);
       },
       ...options,
@@ -128,13 +128,13 @@ export class FastaParser {
     }
 
     // Import I/O modules dynamically to avoid circular dependencies
-    const { FileReader } = await import('../io/file-reader');
+    const { createStream } = await import('../io/file-reader');
     const { StreamUtils } = await import('../io/stream-utils');
 
     try {
       // Validate file path and create stream
       const validatedPath = await this.validateFilePath(filePath);
-      const stream = await FileReader.createStream(validatedPath, options);
+      const stream = await createStream(validatedPath, options);
 
       // Convert binary stream to lines and parse
       const lines = StreamUtils.readLines(stream, options?.encoding || 'utf8');
@@ -426,7 +426,10 @@ export class FastaParser {
     const result = {
       format: 'fasta' as const,
       id,
-      description: description !== null && description !== undefined && description !== '' ? description : undefined,
+      description:
+        description !== null && description !== undefined && description !== ''
+          ? description
+          : undefined,
       lineNumber: this.options.trackLineNumbers ? lineNumber : undefined,
     };
 
@@ -441,8 +444,12 @@ export class FastaParser {
     return {
       format: 'fasta',
       id: result.id !== null && result.id !== undefined && result.id !== '' ? result.id : '',
-      ...(result.description !== null && result.description !== undefined && result.description !== '' && { description: result.description }),
-      ...(result.lineNumber !== null && result.lineNumber !== undefined && result.lineNumber !== 0 && { lineNumber: result.lineNumber }),
+      ...(result.description !== null &&
+        result.description !== undefined &&
+        result.description !== '' && { description: result.description }),
+      ...(result.lineNumber !== null &&
+        result.lineNumber !== undefined &&
+        result.lineNumber !== 0 && { lineNumber: result.lineNumber }),
     };
   }
 
@@ -515,7 +522,13 @@ export class FastaParser {
       throw new ValidationError('sequenceBuffer must be an array');
     }
     if (sequenceBuffer.length === 0) {
-      throw new SequenceError('Empty sequence found', partialSequence.id !== null && partialSequence.id !== undefined && partialSequence.id !== '' ? partialSequence.id : 'unknown', lineNumber);
+      throw new SequenceError(
+        'Empty sequence found',
+        partialSequence.id !== null && partialSequence.id !== undefined && partialSequence.id !== ''
+          ? partialSequence.id
+          : 'unknown',
+        lineNumber
+      );
     }
     if (!Number.isInteger(lineNumber) || lineNumber <= 0) {
       throw new ValidationError('lineNumber must be positive integer');
@@ -524,16 +537,29 @@ export class FastaParser {
     const length = sequence.length;
 
     if (length === 0) {
-      throw new SequenceError('Empty sequence found', partialSequence.id !== null && partialSequence.id !== undefined && partialSequence.id !== '' ? partialSequence.id : 'unknown', lineNumber);
+      throw new SequenceError(
+        'Empty sequence found',
+        partialSequence.id !== null && partialSequence.id !== undefined && partialSequence.id !== ''
+          ? partialSequence.id
+          : 'unknown',
+        lineNumber
+      );
     }
 
     const fastaSequence: FastaSequence = {
       format: 'fasta',
-      id: partialSequence.id !== null && partialSequence.id !== undefined && partialSequence.id !== '' ? partialSequence.id : '',
-      ...(partialSequence.description !== null && partialSequence.description !== undefined && partialSequence.description !== '' && { description: partialSequence.description }),
+      id:
+        partialSequence.id !== null && partialSequence.id !== undefined && partialSequence.id !== ''
+          ? partialSequence.id
+          : '',
+      ...(partialSequence.description !== null &&
+        partialSequence.description !== undefined &&
+        partialSequence.description !== '' && { description: partialSequence.description }),
       sequence,
       length,
-      ...(partialSequence.lineNumber !== null && partialSequence.lineNumber !== undefined && partialSequence.lineNumber !== 0 && { lineNumber: partialSequence.lineNumber }),
+      ...(partialSequence.lineNumber !== null &&
+        partialSequence.lineNumber !== undefined &&
+        partialSequence.lineNumber !== 0 && { lineNumber: partialSequence.lineNumber }),
     };
 
     // Final validation if not skipping
@@ -593,17 +619,17 @@ export class FastaParser {
       throw new ValidationError('filePath must not be empty');
     }
 
-    // Import FileReader dynamically to avoid circular dependencies
-    const { FileReader } = await import('../io/file-reader');
+    // Import FileReader functions dynamically to avoid circular dependencies
+    const { exists, getMetadata } = await import('../io/file-reader');
 
     // Check if file exists and is readable
-    if (!(await FileReader.exists(filePath))) {
+    if (!(await exists(filePath))) {
       throw new FileError(`FASTA file not found or not accessible: ${filePath}`, filePath, 'read');
     }
 
     // Get file metadata for additional validation
     try {
-      const metadata = await FileReader.getMetadata(filePath);
+      const metadata = await getMetadata(filePath);
 
       if (!metadata.readable) {
         throw new ParseError(
@@ -695,7 +721,11 @@ export class FastaParser {
         // Handle case where header exists but no sequence data
         throw new SequenceError(
           'Header found but no sequence data',
-          currentSequence.id !== null && currentSequence.id !== undefined && currentSequence.id !== '' ? currentSequence.id : 'unknown',
+          currentSequence.id !== null &&
+          currentSequence.id !== undefined &&
+          currentSequence.id !== ''
+            ? currentSequence.id
+            : 'unknown',
           lineNumber
         );
       }
@@ -726,15 +756,21 @@ export class FastaParser {
 export class FastaWriter {
   private readonly lineWidth: number;
   private readonly includeDescription: boolean;
+  private readonly lineEnding: string;
 
   constructor(
     options: {
       lineWidth?: number;
       includeDescription?: boolean;
+      lineEnding?: string;
     } = {}
   ) {
-    this.lineWidth = options.lineWidth !== null && options.lineWidth !== undefined && options.lineWidth !== 0 ? options.lineWidth : 80;
+    this.lineWidth =
+      options.lineWidth !== null && options.lineWidth !== undefined && options.lineWidth !== 0
+        ? options.lineWidth
+        : 80;
     this.includeDescription = options.includeDescription ?? true;
+    this.lineEnding = options.lineEnding ?? (process.platform === 'win32' ? '\r\n' : '\n');
   }
 
   /**
@@ -743,21 +779,26 @@ export class FastaWriter {
   formatSequence(sequence: FastaSequence): string {
     let header = `>${sequence.id}`;
 
-    if (this.includeDescription === true && sequence.description !== null && sequence.description !== undefined && sequence.description !== '') {
+    if (
+      this.includeDescription === true &&
+      sequence.description !== null &&
+      sequence.description !== undefined &&
+      sequence.description !== ''
+    ) {
       header += ` ${sequence.description}`;
     }
 
     // Wrap sequence to specified line width
     const wrappedSequence = this.wrapText(sequence.sequence, this.lineWidth);
 
-    return `${header}\n${wrappedSequence}`;
+    return `${header}${this.lineEnding}${wrappedSequence}`;
   }
 
   /**
    * Format multiple sequences as string
    */
   formatSequences(sequences: FastaSequence[]): string {
-    return sequences.map((seq) => this.formatSequence(seq)).join('\n');
+    return sequences.map((seq) => this.formatSequence(seq)).join(this.lineEnding);
   }
 
   /**
@@ -772,7 +813,7 @@ export class FastaWriter {
 
     try {
       for await (const sequence of sequences) {
-        const formatted = this.formatSequence(sequence) + '\n';
+        const formatted = this.formatSequence(sequence) + this.lineEnding;
         await writer.write(encoder.encode(formatted));
       }
     } finally {
@@ -790,7 +831,7 @@ export class FastaWriter {
     for (let i = 0; i < text.length; i += width) {
       lines.push(text.slice(i, i + width));
     }
-    return lines.join('\n');
+    return lines.join(this.lineEnding);
   }
 }
 
@@ -834,7 +875,8 @@ export const FastaUtils = {
     let gcCount = 0;
 
     for (const char of sequence.toUpperCase()) {
-      composition[char] = (composition[char] !== null && composition[char] !== undefined ? composition[char] : 0) + 1;
+      composition[char] =
+        (composition[char] !== null && composition[char] !== undefined ? composition[char] : 0) + 1;
       if (char === 'G' || char === 'C') {
         gcCount++;
       }

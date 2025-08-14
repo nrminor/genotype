@@ -16,6 +16,23 @@ export {
   isCompressionSupported,
   ZstdDecompressor,
 } from './compression';
+// SeqOps - Unix pipeline-style sequence operations
+export {
+  SeqOps,
+  seqops,
+  SequenceStatsCalculator,
+  type SequenceStats,
+  type StatsOptions,
+  SubseqExtractor,
+  type SubseqOptions,
+  // New semantic API types
+  type FilterOptions,
+  type TransformOptions,
+  type CleanOptions,
+  type QualityOptions,
+  type ValidateOptions,
+} from './operations';
+
 // Error types
 export {
   BamError,
@@ -47,7 +64,6 @@ export {
   BAMWriter,
   type BAMWriterOptions,
   BGZFCompressor,
-  BinarySerializer,
   BinningUtils,
   VirtualOffsetUtils,
 } from './formats/bam';
@@ -56,7 +72,17 @@ export { BedFormat, BedParser, BedUtils, BedWriter } from './formats/bed';
 // FASTA format
 export { FastaParser, FastaUtils, FastaWriter } from './formats/fasta';
 // FASTQ format
-export { FastqParser, FastqUtils, FastqWriter, QualityScores } from './formats/fastq';
+export {
+  FastqParser,
+  FastqUtils,
+  FastqWriter,
+  QualityScores,
+  toNumbers,
+  toString,
+  getOffset,
+  detectEncoding,
+  calculateStats,
+} from './formats/fastq';
 
 // SAM format
 export { SAMParser, SAMUtils, SAMWriter } from './formats/sam';
@@ -72,7 +98,14 @@ export {
   type RuntimeCapabilities,
 } from './io/runtime';
 
-export { StreamUtils } from './io/stream-utils';
+export {
+  StreamUtils,
+  readLines,
+  processBuffer,
+  pipe,
+  processChunks,
+  batchLines,
+} from './io/stream-utils';
 // Core types
 export type {
   BAIBin,
@@ -115,6 +148,8 @@ export type {
   SAMTag,
   SamRecord,
   Sequence,
+  AbstractSequence,
+  FASTXSequence,
   Strand,
   StreamChunk,
   StreamStats,
@@ -196,7 +231,12 @@ export function detectFormat(data: string): FormatDetection {
   // FASTQ detection
   if (trimmed.startsWith('@')) {
     const lines = trimmed.split(/\r?\n/);
-    if (lines.length >= 4 && lines[2]?.startsWith('+')) {
+    if (
+      lines.length >= 4 &&
+      lines[2] !== undefined &&
+      lines[2] !== null &&
+      lines[2].startsWith('+')
+    ) {
       return {
         format: 'fastq',
         compression: 'none',
@@ -211,7 +251,14 @@ export function detectFormat(data: string): FormatDetection {
   // BED detection
   const dataLines = trimmed.split(/\r?\n/).filter((line) => {
     const t = line.trim();
-    return t && !t.startsWith('#') && !t.startsWith('track') && !t.startsWith('browser');
+    return (
+      t !== undefined &&
+      t !== null &&
+      t !== '' &&
+      !t.startsWith('#') &&
+      !t.startsWith('track') &&
+      !t.startsWith('browser')
+    );
   });
 
   if (dataLines.length > 0) {
@@ -230,7 +277,7 @@ export function detectFormat(data: string): FormatDetection {
           confidence: 0.8,
           metadata: {
             estimatedIntervals: dataLines.length,
-            bedVariant: BedFormat.detectVariant(fields.length),
+            bedVariant: detectVariant(fields.length),
           },
         };
       }
@@ -297,7 +344,7 @@ export async function* parseAny(
 }
 
 // Re-export from formats for convenience
-import { BedFormat } from './formats/bed';
+import { detectVariant } from './formats/bed';
 
 /**
  * Library version and metadata

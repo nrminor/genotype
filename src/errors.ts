@@ -209,7 +209,11 @@ export class FileError extends GenotypeError {
 
     if (this.systemError instanceof Error) {
       msg += `\nSystem Error: ${this.systemError.name}: ${this.systemError.message}`;
-      if (this.systemError.stack !== undefined && this.systemError.stack !== null && this.systemError.stack !== '') {
+      if (
+        this.systemError.stack !== undefined &&
+        this.systemError.stack !== null &&
+        this.systemError.stack !== ''
+      ) {
         msg += `\nStack: ${this.systemError.stack}`;
       }
     }

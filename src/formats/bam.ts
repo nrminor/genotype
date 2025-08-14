@@ -25,11 +25,18 @@ import type {
   ParserOptions,
 } from '../types';
 import { SAMFlagSchema, MAPQScoreSchema, CIGAROperationSchema } from '../types';
-import { ValidationError, ParseError, BamError, CompressionError } from '../errors';
-import { BGZFReader } from './bam/bgzf';
-import { BinaryParser } from './bam/binary';
+import { ValidationError, BamError, CompressionError } from '../errors';
+import { createStream, detectFormat } from './bam/bgzf';
+import {
+  isValidBAMMagic,
+  readInt32LE,
+  readCString,
+  readFixedString,
+  parseAlignmentRecord,
+  parseOptionalTags,
+  isBunOptimized,
+} from './bam/binary';
 import { BGZFCompressor } from './bam/bgzf-compressor';
-import { BinarySerializer } from './bam/binary-serializer';
 import { BAMWriter, type BAMWriterOptions } from './bam/bam-writer';
 import { BAIReader } from './bam/bai-reader';
 // BAIWriter imported but not used in current implementation
@@ -136,7 +143,7 @@ export class BAMParser {
       if (
         typeof globalThis !== 'undefined' &&
         'Bun' in globalThis &&
-        globalThis.Bun &&
+        globalThis.Bun !== undefined &&
         typeof globalThis.Bun.file === 'function'
       ) {
         yield* this.parseFileWithBun(validatedPath, options);
@@ -174,7 +181,7 @@ export class BAMParser {
 
     try {
       // Set up BGZF decompression with proper buffer management
-      const bgzfStream = stream.pipeThrough(BGZFReader.createStream());
+      const bgzfStream = stream.pipeThrough(createStream());
       const reader = bgzfStream.getReader();
 
       // Optimized buffer management for large BAM files
@@ -382,7 +389,7 @@ export class BAMParser {
 
       // Check BAM magic bytes
       const magic = buffer.slice(0, 4);
-      if (!BinaryParser.isValidBAMMagic(magic)) {
+      if (!isValidBAMMagic(magic)) {
         throw new BamError(
           'Invalid BAM magic bytes - file may be corrupted or not a BAM file',
           undefined,
@@ -392,7 +399,7 @@ export class BAMParser {
       offset += 4;
 
       // Read SAM header text length
-      const headerLength = BinaryParser.readInt32LE(view, offset);
+      const headerLength = readInt32LE(view, offset);
       offset += 4;
 
       if (headerLength < 0) {
@@ -404,13 +411,14 @@ export class BAMParser {
         return null; // Need more data
       }
 
-      // Read SAM header text
-      const samHeaderText =
-        headerLength > 0 ? BinaryParser.readFixedString(view, offset, headerLength) : '';
+      // Read SAM header text (currently not parsed, skip over it)
+      // TODO: Parse SAM header text to extract @HD, @SQ, @RG, @PG lines
+      // const samHeaderText =
+      //   headerLength > 0 ? readFixedString(view, offset, headerLength) : '';
       offset += headerLength;
 
       // Read number of reference sequences
-      const numRefs = BinaryParser.readInt32LE(view, offset);
+      const numRefs = readInt32LE(view, offset);
       offset += 4;
 
       if (numRefs < 0) {
@@ -427,7 +435,7 @@ export class BAMParser {
           return null;
         }
 
-        const nameLength = BinaryParser.readInt32LE(view, offset);
+        const nameLength = readInt32LE(view, offset);
         offset += 4;
 
         if (nameLength <= 0) {
@@ -444,12 +452,12 @@ export class BAMParser {
         }
 
         // Read reference name (null-terminated)
-        const nameResult = BinaryParser.readCString(view, offset, nameLength);
+        const nameResult = readCString(view, offset, nameLength);
         const refName = nameResult.value;
         offset += nameLength;
 
         // Read reference length
-        const refLength = BinaryParser.readInt32LE(view, offset);
+        const refLength = readInt32LE(view, offset);
         offset += 4;
 
         if (refLength < 0) {
@@ -541,7 +549,7 @@ export class BAMParser {
           break; // Need more data
         }
 
-        const blockSize = BinaryParser.readInt32LE(view, offset);
+        const blockSize = readInt32LE(view, offset);
 
         // Tiger Style: Comprehensive validation
         if (blockSize <= 0) {
@@ -697,7 +705,7 @@ export class BAMParser {
 
     try {
       // Use the new comprehensive BinaryParser method
-      const parsedRecord = BinaryParser.parseAlignmentRecord(view, offset, blockSize);
+      const parsedRecord = parseAlignmentRecord(view, offset, blockSize);
 
       // Convert reference IDs to names
       const rname =
@@ -714,10 +722,7 @@ export class BAMParser {
       // Parse optional tags if present
       let samTags: import('../types').SAMTag[] | undefined;
       if (parsedRecord.optionalTags) {
-        const parsedTags = BinaryParser.parseOptionalTags(
-          parsedRecord.optionalTags,
-          parsedRecord.readName
-        );
+        const parsedTags = parseOptionalTags(parsedRecord.optionalTags, parsedRecord.readName);
         samTags = parsedTags.map((tag) => ({
           tag: tag.tag,
           type: this.mapTagTypeToSAM(tag.type),
@@ -730,11 +735,11 @@ export class BAMParser {
         format: 'bam',
         qname: parsedRecord.readName,
         flag: this.validateFlag(parsedRecord.flag, parsedRecord.readName, blockOffset),
-        rname: (rname !== undefined && rname !== null && rname !== '') ? rname : '*',
+        rname: rname !== undefined && rname !== null && rname !== '' ? rname : '*',
         pos: Math.max(0, parsedRecord.pos + 1), // Convert to 1-based and ensure non-negative
         mapq: this.validateMAPQ(parsedRecord.mapq, parsedRecord.readName, blockOffset),
         cigar: this.validateCIGAR(parsedRecord.cigar, parsedRecord.readName, blockOffset),
-        rnext: (rnext !== undefined && rnext !== null && rnext !== '') ? rnext : '*',
+        rnext: rnext !== undefined && rnext !== null && rnext !== '' ? rnext : '*',
         pnext: Math.max(0, parsedRecord.nextPos + 1), // Convert to 1-based and ensure non-negative
         tlen: parsedRecord.tlen,
         seq: parsedRecord.sequence,
@@ -943,11 +948,11 @@ export class BAMParser {
       throw new ValidationError('filePath must not be empty');
     }
 
-    // Import FileReader dynamically to avoid circular dependencies
-    const { FileReader } = await import('../io/file-reader');
+    // Import FileReader functions dynamically to avoid circular dependencies
+    const { exists, getMetadata } = await import('../io/file-reader');
 
     // Check if file exists and is readable
-    if (!(await FileReader.exists(filePath))) {
+    if (!(await exists(filePath))) {
       throw new BamError(
         `BAM file not found or not accessible: ${filePath}`,
         undefined,
@@ -959,7 +964,7 @@ export class BAMParser {
 
     // Get file metadata for additional validation
     try {
-      const metadata = await FileReader.getMetadata(filePath);
+      const metadata = await getMetadata(filePath);
 
       if (!metadata.readable) {
         throw new BamError(
@@ -1045,7 +1050,7 @@ export class BAMParser {
     while (bytesConsumed + 4 < buffer.length) {
       try {
         const view = new DataView(buffer.buffer, buffer.byteOffset + bytesConsumed);
-        const blockSize = BinaryParser.readInt32LE(view, 0);
+        const blockSize = readInt32LE(view, 0);
 
         if (blockSize <= 0 || blockSize > 100 * 1024 * 1024) {
           // 100MB sanity check
@@ -1149,7 +1154,7 @@ export class BAMParser {
     // Check BAM magic bytes first
     const headerChunk = await file.slice(0, 4).arrayBuffer();
     const magic = new Uint8Array(headerChunk);
-    if (!BinaryParser.isValidBAMMagic(magic)) {
+    if (!isValidBAMMagic(magic)) {
       throw new BamError(
         'Invalid BAM magic bytes - file may be corrupted or not a BAM file',
         undefined,
@@ -1158,8 +1163,12 @@ export class BAMParser {
     }
 
     // Create optimized stream with proper buffer size for Bun
-    const bufferSize = options?.bufferSize || 256 * 1024; // 256KB default for Bun
+    const bufferSize =
+      options?.bufferSize !== undefined && options?.bufferSize !== null && options?.bufferSize !== 0
+        ? options.bufferSize
+        : 256 * 1024; // 256KB default for Bun
     const stream = file.stream();
+    // Note: bufferSize calculated but Bun file.stream() doesn't accept options
 
     // Parse BAM from stream
     yield* this.parse(stream);
@@ -1181,13 +1190,18 @@ export class BAMParser {
     }
 
     // Import I/O modules dynamically to avoid circular dependencies
-    const { FileReader } = await import('../io/file-reader');
+    const { createStream } = await import('../io/file-reader');
 
     // Create stream with appropriate settings
-    const stream = await FileReader.createStream(filePath, {
+    const stream = await createStream(filePath, {
       ...options,
       autoDecompress: false, // We handle BGZF ourselves
-      bufferSize: options?.bufferSize || 64 * 1024, // 64KB default for other runtimes
+      bufferSize:
+        options?.bufferSize !== undefined &&
+        options?.bufferSize !== null &&
+        options?.bufferSize !== 0
+          ? options.bufferSize
+          : 64 * 1024, // 64KB default for other runtimes
     });
 
     // Parse BAM from raw binary stream
@@ -1213,7 +1227,7 @@ export class BAMParser {
     memoryEfficient: boolean;
     recommendedBufferSize: number;
   } {
-    const runtime = BinaryParser.isBunOptimized()
+    const runtime = isBunOptimized()
       ? 'bun'
       : typeof globalThis !== 'undefined' && 'Deno' in globalThis
         ? 'deno'
@@ -1223,9 +1237,9 @@ export class BAMParser {
 
     return {
       runtime,
-      bunOptimized: BinaryParser.isBunOptimized(),
+      bunOptimized: isBunOptimized(),
       memoryEfficient: true, // Our implementation is memory efficient
-      recommendedBufferSize: BinaryParser.isBunOptimized() ? 256 * 1024 : 64 * 1024,
+      recommendedBufferSize: isBunOptimized() ? 256 * 1024 : 64 * 1024,
     };
   }
 
@@ -1240,7 +1254,7 @@ export class BAMParser {
     enableWarnings?: boolean;
   }): BAMParser {
     const defaultOptions = {
-      bufferSize: BinaryParser.isBunOptimized() ? 256 * 1024 : 64 * 1024,
+      bufferSize: isBunOptimized() ? 256 * 1024 : 64 * 1024,
       skipValidation: false,
       enableWarnings: true,
       ...options,
@@ -1608,7 +1622,7 @@ export const BAMUtils = {
       return false;
     }
 
-    return BinaryParser.isValidBAMMagic(data.slice(0, 4));
+    return isValidBAMMagic(data.slice(0, 4));
   },
 
   /**
@@ -1619,7 +1633,7 @@ export const BAMUtils = {
       throw new ValidationError('data must be Uint8Array');
     }
 
-    return BGZFReader.detectFormat(data);
+    return detectFormat(data);
   },
 
   /**
@@ -1635,7 +1649,7 @@ export const BAMUtils = {
     const references: Array<{ name: string; length: number }> = [];
 
     const stream = new ReadableStream({
-      start(controller) {
+      start(controller): void {
         controller.enqueue(bamData);
         controller.close();
       },
@@ -1646,7 +1660,7 @@ export const BAMUtils = {
     const { value } = await reader.read();
     reader.releaseLock();
 
-    if (!value || value.length < 8) {
+    if (value === undefined || value === null || value.length < 8) {
       return [];
     }
 
@@ -1688,7 +1702,6 @@ export const BAMUtils = {
 // Export BAM writing components
 export { BAMWriter, type BAMWriterOptions };
 export { BGZFCompressor };
-export { BinarySerializer };
 
 // Export BAI indexing components
 export { BAIReader } from './bam/bai-reader';

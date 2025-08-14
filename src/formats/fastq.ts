@@ -10,137 +10,144 @@
  */
 
 import { type } from 'arktype';
-import type { FastqSequence, QualityEncoding, ParserOptions } from '../types';
-import { FastqSequenceSchema, SequenceIdSchema, SequenceSchema, QualitySchema } from '../types';
 import {
-  ValidationError,
-  ParseError,
-  SequenceError,
-  QualityError,
   getErrorSuggestion,
+  ParseError,
+  QualityError,
+  SequenceError,
+  ValidationError,
 } from '../errors';
+import type { FastqSequence, ParserOptions, QualityEncoding } from '../types';
+import { SequenceSchema } from '../types';
+
+/**
+ * Convert ASCII quality string to numeric scores
+ */
+export function toNumbers(qualityString: string, encoding: QualityEncoding = 'phred33'): number[] {
+  const scores: number[] = [];
+  const offset = getOffset(encoding);
+
+  for (let i = 0; i < qualityString.length; i++) {
+    const ascii = qualityString.charCodeAt(i);
+    const score = ascii - offset;
+
+    // Validate score range
+    if (encoding === 'solexa') {
+      // Solexa scores can be negative
+      scores.push(score);
+    } else {
+      // Phred scores should be non-negative
+      if (score < 0) {
+        throw new QualityError(
+          `Invalid quality score: ASCII ${ascii} gives score ${score} (should be >= 0)`,
+          'unknown',
+          encoding
+        );
+      }
+      scores.push(score);
+    }
+  }
+
+  return scores;
+}
+
+/**
+ * Convert numeric scores to ASCII quality string
+ */
+export function toString(scores: number[], encoding: QualityEncoding = 'phred33'): string {
+  const offset = getOffset(encoding);
+  return scores.map((score) => String.fromCharCode(score + offset)).join('');
+}
+
+/**
+ * Get ASCII offset for quality encoding
+ */
+export function getOffset(encoding: QualityEncoding): number {
+  switch (encoding) {
+    case 'phred33':
+      return 33;
+    case 'phred64':
+      return 64;
+    case 'solexa':
+      return 64;
+    default:
+      throw new Error(`Unknown quality encoding: ${encoding}`);
+  }
+}
+
+/**
+ * Detect quality encoding from quality string
+ */
+export function detectEncoding(qualityString: string): QualityEncoding {
+  let minAscii = 255;
+  let maxAscii = 0;
+
+  for (let i = 0; i < qualityString.length; i++) {
+    const ascii = qualityString.charCodeAt(i);
+    minAscii = Math.min(minAscii, ascii);
+    maxAscii = Math.max(maxAscii, ascii);
+  }
+
+  // Decision logic based on ASCII ranges
+  if (minAscii >= 33 && maxAscii <= 73) {
+    return 'phred33'; // Standard Illumina 1.8+
+  } else if (minAscii >= 64 && maxAscii <= 104) {
+    return 'phred64'; // Illumina 1.3-1.7
+  } else if (minAscii >= 59 && maxAscii <= 104) {
+    return 'solexa'; // Solexa/early Illumina
+  } else if (minAscii >= 33 && maxAscii <= 126) {
+    // Could be either, default to phred33
+    return 'phred33';
+  } else {
+    throw new QualityError(
+      `Cannot detect quality encoding: ASCII range ${minAscii}-${maxAscii}`,
+      'unknown'
+    );
+  }
+}
+
+/**
+ * Calculate quality statistics
+ */
+export function calculateStats(scores: number[]): {
+  mean: number;
+  median: number;
+  min: number;
+  max: number;
+  q25: number;
+  q75: number;
+} {
+  if (scores.length === 0) {
+    throw new QualityError('Cannot calculate stats for empty quality array', 'unknown');
+  }
+
+  const sorted = [...scores].sort((a, b) => a - b);
+  const length = sorted.length;
+
+  return {
+    mean: scores.reduce((sum, score) => sum + score, 0) / length,
+    median:
+      length % 2 === 0
+        ? ((sorted[length / 2 - 1] ?? 0) + (sorted[length / 2] ?? 0)) / 2
+        : (sorted[Math.floor(length / 2)] ?? 0),
+    min: sorted[0] ?? 0,
+    max: sorted[length - 1] ?? 0,
+    q25: sorted[Math.floor(length * 0.25)] ?? 0,
+    q75: sorted[Math.floor(length * 0.75)] ?? 0,
+  };
+}
 
 /**
  * Quality score conversion utilities
+ * @deprecated Use individual function imports for better tree-shaking
  */
-export class QualityScores {
-  /**
-   * Convert ASCII quality string to numeric scores
-   */
-  static toNumbers(qualityString: string, encoding: QualityEncoding = 'phred33'): number[] {
-    const scores: number[] = [];
-    const offset = QualityScores.getOffset(encoding);
-
-    for (let i = 0; i < qualityString.length; i++) {
-      const ascii = qualityString.charCodeAt(i);
-      const score = ascii - offset;
-
-      // Validate score range
-      if (encoding === 'solexa') {
-        // Solexa scores can be negative
-        scores.push(score);
-      } else {
-        // Phred scores should be non-negative
-        if (score < 0) {
-          throw new QualityError(
-            `Invalid quality score: ASCII ${ascii} gives score ${score} (should be >= 0)`,
-            'unknown',
-            encoding
-          );
-        }
-        scores.push(score);
-      }
-    }
-
-    return scores;
-  }
-
-  /**
-   * Convert numeric scores to ASCII quality string
-   */
-  static toString(scores: number[], encoding: QualityEncoding = 'phred33'): string {
-    const offset = QualityScores.getOffset(encoding);
-    return scores.map((score) => String.fromCharCode(score + offset)).join('');
-  }
-
-  /**
-   * Get ASCII offset for quality encoding
-   */
-  static getOffset(encoding: QualityEncoding): number {
-    switch (encoding) {
-      case 'phred33':
-        return 33;
-      case 'phred64':
-        return 64;
-      case 'solexa':
-        return 64;
-      default:
-        throw new Error(`Unknown quality encoding: ${encoding}`);
-    }
-  }
-
-  /**
-   * Detect quality encoding from quality string
-   */
-  static detectEncoding(qualityString: string): QualityEncoding {
-    let minAscii = 255;
-    let maxAscii = 0;
-
-    for (let i = 0; i < qualityString.length; i++) {
-      const ascii = qualityString.charCodeAt(i);
-      minAscii = Math.min(minAscii, ascii);
-      maxAscii = Math.max(maxAscii, ascii);
-    }
-
-    // Decision logic based on ASCII ranges
-    if (minAscii >= 33 && maxAscii <= 73) {
-      return 'phred33'; // Standard Illumina 1.8+
-    } else if (minAscii >= 64 && maxAscii <= 104) {
-      return 'phred64'; // Illumina 1.3-1.7
-    } else if (minAscii >= 59 && maxAscii <= 104) {
-      return 'solexa'; // Solexa/early Illumina
-    } else if (minAscii >= 33 && maxAscii <= 126) {
-      // Could be either, default to phred33
-      return 'phred33';
-    } else {
-      throw new QualityError(
-        `Cannot detect quality encoding: ASCII range ${minAscii}-${maxAscii}`,
-        'unknown'
-      );
-    }
-  }
-
-  /**
-   * Calculate quality statistics
-   */
-  static calculateStats(scores: number[]): {
-    mean: number;
-    median: number;
-    min: number;
-    max: number;
-    q25: number;
-    q75: number;
-  } {
-    if (scores.length === 0) {
-      throw new QualityError('Cannot calculate stats for empty quality array', 'unknown');
-    }
-
-    const sorted = [...scores].sort((a, b) => a - b);
-    const length = sorted.length;
-
-    return {
-      mean: scores.reduce((sum, score) => sum + score, 0) / length,
-      median:
-        length % 2 === 0
-          ? ((sorted[length / 2 - 1] ?? 0) + (sorted[length / 2] ?? 0)) / 2
-          : (sorted[Math.floor(length / 2)] ?? 0),
-      min: sorted[0] ?? 0,
-      max: sorted[length - 1] ?? 0,
-      q25: sorted[Math.floor(length * 0.25)] ?? 0,
-      q75: sorted[Math.floor(length * 0.75)] ?? 0,
-    };
-  }
-}
+export const QualityScores = {
+  toNumbers,
+  toString,
+  getOffset,
+  detectEncoding,
+  calculateStats,
+} as const;
 
 /**
  * Streaming FASTQ parser with quality score handling
@@ -155,10 +162,10 @@ export class FastqParser {
       trackLineNumbers: true,
       qualityEncoding: 'phred33',
       parseQualityScores: false, // Lazy loading by default
-      onError: (error: string, lineNumber?: number) => {
+      onError: (error: string, lineNumber?: number): void => {
         throw new ParseError(error, 'FASTQ', lineNumber);
       },
-      onWarning: (warning: string, lineNumber?: number) => {
+      onWarning: (warning: string, lineNumber?: number): void => {
         console.warn(`FASTQ Warning (line ${lineNumber}): ${warning}`);
       },
       ...options,
@@ -205,13 +212,13 @@ export class FastqParser {
     }
 
     // Import I/O modules dynamically to avoid circular dependencies
-    const { FileReader } = await import('../io/file-reader');
+    const { createStream } = await import('../io/file-reader');
     const { StreamUtils } = await import('../io/stream-utils');
 
     try {
       // Validate file path and create stream
       const validatedPath = await this.validateFilePath(filePath);
-      const stream = await FileReader.createStream(validatedPath, options);
+      const stream = await createStream(validatedPath, options);
 
       // Convert binary stream to lines and parse
       const lines = StreamUtils.readLines(stream, options?.encoding || 'utf8');
@@ -254,7 +261,8 @@ export class FastqParser {
         buffer += decoder.decode(value, { stream: true });
 
         const lines = buffer.split(/\r?\n/);
-        buffer = lines.pop() || '';
+        const poppedLine = lines.pop();
+        buffer = poppedLine !== undefined ? poppedLine : '';
 
         if (lines.length > 0) {
           yield* this.parseLines(lines, lineNumber);
@@ -327,7 +335,7 @@ export class FastqParser {
     const [headerLine, sequenceLine, separatorLine, qualityLine] = lines;
 
     // Validate header line
-    if (!headerLine?.startsWith('@')) {
+    if (headerLine === undefined || headerLine === null || !headerLine.startsWith('@')) {
       throw new ParseError(
         'FASTQ header must start with "@"',
         'FASTQ',
@@ -346,7 +354,7 @@ export class FastqParser {
     const sequence = this.cleanSequence(sequenceLine ?? '', startLineNumber + 1);
 
     // Validate separator (should be '+' optionally followed by ID)
-    if (!separatorLine?.startsWith('+')) {
+    if (separatorLine === undefined || separatorLine === null || !separatorLine.startsWith('+')) {
       throw new ParseError(
         'FASTQ separator must start with "+"',
         'FASTQ',
@@ -365,7 +373,9 @@ export class FastqParser {
     const fastqSequence: FastqSequence = {
       format: 'fastq',
       id,
-      ...(description && { description }),
+      ...(description !== undefined && description !== null && description !== ''
+        ? { description }
+        : {}),
       sequence,
       quality,
       qualityEncoding,
@@ -376,11 +386,11 @@ export class FastqParser {
     // Parse quality scores if requested
     if (this.options.parseQualityScores) {
       try {
-        const qualityScores = QualityScores.toNumbers(quality, qualityEncoding);
+        const qualityScores = toNumbers(quality, qualityEncoding);
         (fastqSequence as any).qualityScores = qualityScores;
 
         // Calculate quality statistics when scores are available
-        if (qualityScores && qualityScores.length > 0) {
+        if (qualityScores !== undefined && qualityScores !== null && qualityScores.length > 0) {
           const mean = qualityScores.reduce((sum, score) => sum + score, 0) / qualityScores.length;
           const min = Math.min(...qualityScores);
           const max = Math.max(...qualityScores);
@@ -481,7 +491,7 @@ export class FastqParser {
     }
 
     try {
-      return QualityScores.detectEncoding(quality);
+      return detectEncoding(quality);
     } catch (error) {
       this.options.onWarning(
         `Could not detect quality encoding for sequence '${sequenceId}', using phred33`,
@@ -506,11 +516,11 @@ export class FastqParser {
       throw new ValidationError('filePath must not be empty');
     }
 
-    // Import FileReader dynamically to avoid circular dependencies
-    const { FileReader } = await import('../io/file-reader');
+    // Import FileReader functions dynamically to avoid circular dependencies
+    const { exists, getMetadata } = await import('../io/file-reader');
 
     // Check if file exists and is readable
-    if (!(await FileReader.exists(filePath))) {
+    if (!(await exists(filePath))) {
       throw new ParseError(
         `FASTQ file not found or not accessible: ${filePath}`,
         'FASTQ',
@@ -521,7 +531,7 @@ export class FastqParser {
 
     // Get file metadata for additional validation
     try {
-      const metadata = await FileReader.getMetadata(filePath);
+      const metadata = await getMetadata(filePath);
 
       if (!metadata.readable) {
         throw new ParseError(
@@ -614,7 +624,7 @@ export class FastqParser {
           `Incomplete FASTQ record: expected 4 lines, got ${lineBuffer.length}`,
           'FASTQ',
           lineNumber,
-          `Record starts with: ${lineBuffer[0] || 'unknown'}`
+          `Record starts with: ${lineBuffer[0] !== undefined && lineBuffer[0] !== null && lineBuffer[0] !== '' ? lineBuffer[0] : 'unknown'}`
         );
 
         if (!this.options.skipValidation) {
@@ -667,15 +677,20 @@ export class FastqWriter {
   formatSequence(sequence: FastqSequence): string {
     let header = `@${sequence.id}`;
 
-    if (this.includeDescription && sequence.description) {
+    if (
+      this.includeDescription === true &&
+      sequence.description !== undefined &&
+      sequence.description !== null &&
+      sequence.description !== ''
+    ) {
       header += ` ${sequence.description}`;
     }
 
     // Convert quality if needed
     let quality = sequence.quality;
     if (sequence.qualityEncoding !== this.qualityEncoding) {
-      const scores = QualityScores.toNumbers(sequence.quality, sequence.qualityEncoding);
-      quality = QualityScores.toString(scores, this.qualityEncoding);
+      const scores = toNumbers(sequence.quality, sequence.qualityEncoding);
+      quality = toString(scores, this.qualityEncoding);
     }
 
     return `${header}\n${sequence.sequence}\n+\n${quality}`;
@@ -752,8 +767,8 @@ export const FastqUtils = {
   ): string {
     if (fromEncoding === toEncoding) return qualityString;
 
-    const scores = QualityScores.toNumbers(qualityString, fromEncoding);
-    return QualityScores.toString(scores, toEncoding);
+    const scores = toNumbers(qualityString, fromEncoding);
+    return toString(scores, toEncoding);
   },
 
   /**
@@ -764,11 +779,11 @@ export const FastqUtils = {
       return { valid: false, error: `Expected 4 lines, got ${lines.length}` };
     }
 
-    if (!lines[0]?.startsWith('@')) {
+    if (lines[0] === undefined || lines[0] === null || !lines[0].startsWith('@')) {
       return { valid: false, error: 'Header must start with @' };
     }
 
-    if (!lines[2]?.startsWith('+')) {
+    if (lines[2] === undefined || lines[2] === null || !lines[2].startsWith('+')) {
       return { valid: false, error: 'Separator must start with +' };
     }
 

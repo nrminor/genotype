@@ -139,7 +139,7 @@ export const supportsFeature = (feature: keyof RuntimeCapabilities): boolean => 
  * Provides type-safe access to runtime-specific globals while
  * maintaining compatibility across environments.
  */
-export const getRuntimeGlobals = (runtime: Runtime) => {
+export const getRuntimeGlobals = (runtime: Runtime): Record<string, unknown> => {
   // Tiger Style: Assert function arguments
   console.assert(typeof runtime === 'string', 'runtime must be a string');
   console.assert(['node', 'deno', 'bun'].includes(runtime), 'runtime must be valid');
@@ -207,7 +207,7 @@ export const getOptimalBufferSize = (runtime: Runtime): number => {
 /**
  * Runtime information for debugging and telemetry
  */
-export const getRuntimeInfo = () => {
+export const getRuntimeInfo = (): Record<string, unknown> => {
   const runtime = detectRuntime();
   const capabilities = getRuntimeCapabilities(runtime);
 
@@ -217,14 +217,14 @@ export const getRuntimeInfo = () => {
     optimalBufferSize: getOptimalBufferSize(runtime),
     timestamp: Date.now(),
     // Runtime-specific version information
-    version: (() => {
+    version: ((): string => {
       switch (runtime) {
         case 'node':
-          return (globalThis as any).process?.versions?.node || 'unknown';
+          return (globalThis as any).process?.versions?.node ?? 'unknown';
         case 'deno':
-          return (globalThis as any).Deno?.version?.deno || 'unknown';
+          return (globalThis as any).Deno?.version?.deno ?? 'unknown';
         case 'bun':
-          return (globalThis as any).Bun?.version || 'unknown';
+          return (globalThis as any).Bun?.version ?? 'unknown';
         default:
           return 'unknown';
       }

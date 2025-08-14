@@ -1,6 +1,6 @@
 /**
  * Reservoir sampling for selecting random samples from streams
- * 
+ *
  * Maintains fixed memory usage regardless of stream size
  * Critical for sampling large genomic datasets that don't fit in memory
  */
@@ -13,7 +13,7 @@ export class ReservoirSampler<T> {
   private reservoir: T[] = [];
   private seen = 0;
   private readonly rng: () => number;
-  
+
   constructor(
     private readonly size: number,
     seed?: number
@@ -22,22 +22,20 @@ export class ReservoirSampler<T> {
     if (size <= 0) {
       throw new Error('Reservoir size must be positive');
     }
-    
+
     // Initialize RNG with optional seed for reproducibility
-    this.rng = seed !== undefined 
-      ? this.createSeededRNG(seed)
-      : Math.random;
+    this.rng = seed !== undefined ? this.createSeededRNG(seed) : Math.random;
   }
-  
+
   /**
    * Add item to reservoir using reservoir sampling algorithm
    * Each item has equal probability of being selected
-   * 
+   *
    * 🔥 ZIG OPTIMIZATION: Random number generation
    */
   add(item: T): void {
     this.seen++;
-    
+
     if (this.reservoir.length < this.size) {
       // Fill reservoir until full
       this.reservoir.push(item);
@@ -50,7 +48,7 @@ export class ReservoirSampler<T> {
       }
     }
   }
-  
+
   /**
    * Process entire stream and return sample
    */
@@ -60,7 +58,7 @@ export class ReservoirSampler<T> {
     }
     return this.getSample();
   }
-  
+
   /**
    * Get current sample
    * Returns copy to prevent external modification
@@ -68,21 +66,21 @@ export class ReservoirSampler<T> {
   getSample(): T[] {
     return [...this.reservoir];
   }
-  
+
   /**
    * Get number of items seen so far
    */
   getSeenCount(): number {
     return this.seen;
   }
-  
+
   /**
    * Get current reservoir fill level
    */
   getCurrentSize(): number {
     return this.reservoir.length;
   }
-  
+
   /**
    * Reset sampler for reuse
    */
@@ -90,17 +88,17 @@ export class ReservoirSampler<T> {
     this.reservoir = [];
     this.seen = 0;
   }
-  
+
   /**
    * Create seeded random number generator using xorshift algorithm
    * Provides reproducible sampling when seed is specified
-   * 
+   *
    * 🔥 ZIG OPTIMIZATION: Fast PRNG implementation
    */
   private createSeededRNG(seed: number): () => number {
     // Use xorshift32 for fast, good-quality random numbers
     let state = seed;
-    
+
     return () => {
       // xorshift32 algorithm
       state ^= state << 13;
@@ -118,7 +116,7 @@ export class ReservoirSampler<T> {
  */
 export class SystematicSampler<T> {
   private count = 0;
-  
+
   constructor(
     private readonly interval: number,
     private readonly offset: number = 0
@@ -131,27 +129,26 @@ export class SystematicSampler<T> {
       throw new Error('Offset must be non-negative');
     }
   }
-  
+
   /**
    * Sample items systematically from stream
    */
   async *sample(stream: AsyncIterable<T>): AsyncIterable<T> {
     for await (const item of stream) {
-      if ((this.count - this.offset) % this.interval === 0 && 
-          this.count >= this.offset) {
+      if ((this.count - this.offset) % this.interval === 0 && this.count >= this.offset) {
         yield item;
       }
       this.count++;
     }
   }
-  
+
   /**
    * Reset sampler for reuse
    */
   reset(): void {
     this.count = 0;
   }
-  
+
   /**
    * Get number of items seen
    */
@@ -167,7 +164,7 @@ export class SystematicSampler<T> {
 export class StratifiedSampler<T> {
   private readonly strata = new Map<string, ReservoirSampler<T>>();
   private readonly samplesPerStratum: number;
-  
+
   constructor(
     private readonly totalSamples: number,
     private readonly getStratum: (item: T) => string,
@@ -178,33 +175,34 @@ export class StratifiedSampler<T> {
     if (totalSamples <= 0) {
       throw new Error('Total samples must be positive');
     }
-    
+
     // Calculate samples per stratum
-    this.samplesPerStratum = expectedStrata 
-      ? Math.ceil(totalSamples / expectedStrata)
-      : totalSamples;
-    
+    this.samplesPerStratum =
+      expectedStrata !== undefined && expectedStrata !== null && expectedStrata !== 0
+        ? Math.ceil(totalSamples / expectedStrata)
+        : totalSamples;
+
     // Create initial sampler with seed for reproducibility
     this.createSamplerForStratum('__default__', seed);
   }
-  
+
   /**
    * Add item to appropriate stratum
    */
   add(item: T): void {
     const stratum = this.getStratum(item);
-    
+
     if (!this.strata.has(stratum)) {
       // Create new sampler for this stratum
       // Use stratum hash as seed offset for reproducibility
       const seed = this.hashString(stratum);
       this.createSamplerForStratum(stratum, seed);
     }
-    
+
     const sampler = this.strata.get(stratum);
     sampler?.add(item);
   }
-  
+
   /**
    * Process stream with stratified sampling
    */
@@ -214,33 +212,33 @@ export class StratifiedSampler<T> {
     }
     return this.getSamples();
   }
-  
+
   /**
    * Get samples from all strata
    */
   getSamples(): Map<string, T[]> {
     const samples = new Map<string, T[]>();
-    
+
     for (const [stratum, sampler] of this.strata) {
       const stratumSamples = sampler.getSample();
       if (stratumSamples.length > 0) {
         samples.set(stratum, stratumSamples);
       }
     }
-    
+
     return samples;
   }
-  
+
   /**
    * Get flat array of all samples
    */
   getAllSamples(): T[] {
     const allSamples: T[] = [];
-    
+
     for (const sampler of this.strata.values()) {
       allSamples.push(...sampler.getSample());
     }
-    
+
     // Limit to requested total if necessary
     if (allSamples.length > this.totalSamples) {
       // Randomly select subset
@@ -250,10 +248,10 @@ export class StratifiedSampler<T> {
       }
       return finalSampler.getSample();
     }
-    
+
     return allSamples;
   }
-  
+
   /**
    * Reset all samplers
    */
@@ -262,14 +260,14 @@ export class StratifiedSampler<T> {
       sampler.reset();
     }
   }
-  
+
   /**
    * Create sampler for a stratum
    */
   private createSamplerForStratum(stratum: string, seed?: number): void {
     this.strata.set(stratum, new ReservoirSampler<T>(this.samplesPerStratum, seed));
   }
-  
+
   /**
    * Simple string hash for reproducible seeding
    */
@@ -277,7 +275,7 @@ export class StratifiedSampler<T> {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash; // Convert to 32bit integer
     }
     return Math.abs(hash);
@@ -291,7 +289,7 @@ export class StratifiedSampler<T> {
 export class WeightedReservoirSampler<T> {
   private reservoir: Array<{ item: T; key: number }> = [];
   private readonly rng: () => number;
-  
+
   constructor(
     private readonly size: number,
     seed?: number
@@ -300,12 +298,10 @@ export class WeightedReservoirSampler<T> {
     if (size <= 0) {
       throw new Error('Reservoir size must be positive');
     }
-    
-    this.rng = seed !== undefined
-      ? this.createSeededRNG(seed)
-      : Math.random;
+
+    this.rng = seed !== undefined ? this.createSeededRNG(seed) : Math.random;
   }
-  
+
   /**
    * Add weighted item to reservoir
    * Uses A-Res algorithm (Algorithm A with Reservoir)
@@ -315,14 +311,14 @@ export class WeightedReservoirSampler<T> {
     if (weight <= 0) {
       throw new Error('Weight must be positive');
     }
-    
+
     // Generate key = random^(1/weight)
     const key = Math.pow(this.rng(), 1 / weight);
-    
+
     if (this.reservoir.length < this.size) {
       // Reservoir not full, add item
       this.reservoir.push({ item, key });
-      
+
       // Keep reservoir sorted by key (max-heap property)
       if (this.reservoir.length === this.size) {
         this.reservoir.sort((a, b) => b.key - a.key);
@@ -333,7 +329,7 @@ export class WeightedReservoirSampler<T> {
       if (lastItem && key > lastItem.key) {
         // Replace item with smallest key
         this.reservoir[this.size - 1] = { item, key };
-        
+
         // Maintain sorted order
         let i = this.size - 1;
         while (i > 0) {
@@ -351,39 +347,37 @@ export class WeightedReservoirSampler<T> {
       }
     }
   }
-  
+
   /**
    * Process weighted stream
    */
-  async sampleStream(
-    stream: AsyncIterable<{ item: T; weight: number }>
-  ): Promise<T[]> {
+  async sampleStream(stream: AsyncIterable<{ item: T; weight: number }>): Promise<T[]> {
     for await (const { item, weight } of stream) {
       this.add(item, weight);
     }
     return this.getSample();
   }
-  
+
   /**
    * Get current sample
    */
   getSample(): T[] {
-    return this.reservoir.map(r => r.item);
+    return this.reservoir.map((r) => r.item);
   }
-  
+
   /**
    * Reset sampler
    */
   reset(): void {
     this.reservoir = [];
   }
-  
+
   /**
    * Create seeded RNG
    */
   private createSeededRNG(seed: number): () => number {
     let state = seed;
-    
+
     return () => {
       state ^= state << 13;
       state ^= state >>> 17;
@@ -399,7 +393,7 @@ export class WeightedReservoirSampler<T> {
  */
 export class BernoulliSampler<T> {
   private readonly rng: () => number;
-  
+
   constructor(
     private readonly probability: number,
     seed?: number
@@ -408,12 +402,10 @@ export class BernoulliSampler<T> {
     if (probability < 0 || probability > 1) {
       throw new Error('Probability must be between 0 and 1');
     }
-    
-    this.rng = seed !== undefined
-      ? this.createSeededRNG(seed)
-      : Math.random;
+
+    this.rng = seed !== undefined ? this.createSeededRNG(seed) : Math.random;
   }
-  
+
   /**
    * Sample items with fixed probability
    */
@@ -424,20 +416,20 @@ export class BernoulliSampler<T> {
       }
     }
   }
-  
+
   /**
    * Check if item should be sampled
    */
   shouldSample(): boolean {
     return this.rng() < this.probability;
   }
-  
+
   /**
    * Create seeded RNG
    */
   private createSeededRNG(seed: number): () => number {
     let state = seed;
-    
+
     return () => {
       state ^= state << 13;
       state ^= state >>> 17;

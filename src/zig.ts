@@ -32,8 +32,16 @@ function getPlatformTarget(): string {
     arm64: 'aarch64',
   };
 
-  const zigPlatform = platformMap[platform] || platform;
-  const zigArch = archMap[arch] || arch;
+  const zigPlatform =
+    platformMap[platform] !== undefined &&
+    platformMap[platform] !== null &&
+    platformMap[platform] !== ''
+      ? platformMap[platform]
+      : platform;
+  const zigArch =
+    archMap[arch] !== undefined && archMap[arch] !== null && archMap[arch] !== ''
+      ? archMap[arch]
+      : arch;
 
   return `${zigArch}-${zigPlatform}`;
 }
@@ -68,7 +76,7 @@ function findLibrary(): string {
     return `${prefix}genotype_native${extension}`;
   };
 
-  const libraryName = getLibraryName(os || 'linux');
+  const libraryName = getLibraryName(os !== undefined && os !== null && os !== '' ? os : 'linux');
   const targetLibPath = join(libDir, target, libraryName);
 
   if (existsSync(targetLibPath)) {
@@ -90,8 +98,29 @@ function findLibrary(): string {
  * @param libPath Optional custom path to library (for testing)
  * @returns FFI binding object with native function symbols
  */
-function getGenotypeLib(libPath?: string) {
-  const resolvedLibPath = libPath || findLibrary();
+function getGenotypeLib(libPath?: string): {
+  symbols: {
+    decompress_bgzf_block: (
+      compressedData: Uint8Array,
+      compressedSize: number,
+      outputBuffer: Uint8Array,
+      outputSize: number
+    ) => number;
+    decode_packed_sequence: (
+      packedData: Uint8Array,
+      sequenceLength: number,
+      outputBuffer: Uint8Array
+    ) => number;
+    convert_quality_scores: (
+      inputData: Uint8Array,
+      inputSize: number,
+      outputBuffer: Float32Array
+    ) => number;
+    calculate_gc_content: (sequenceData: Uint8Array, sequenceLength: number) => number;
+  };
+} {
+  const resolvedLibPath =
+    libPath !== undefined && libPath !== null && libPath !== '' ? libPath : findLibrary();
 
   return dlopen(resolvedLibPath, {
     // BGZF decompression
@@ -318,7 +347,7 @@ let genotypeLib: LibGenotype | undefined;
  *
  * @param libPath Absolute path to the native library file
  */
-export function setGenotypeLibPath(libPath: string) {
+export function setGenotypeLibPath(libPath: string): void {
   // Tiger Style: Assert function arguments
   if (typeof libPath !== 'string' || libPath.length === 0) {
     throw new Error('libPath must be non-empty string');

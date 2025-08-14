@@ -8,6 +8,11 @@ import {
   FastqWriter,
   FastqUtils,
   QualityScores,
+  toNumbers,
+  toString as qualityToString,
+  getOffset,
+  detectEncoding,
+  calculateStats,
   type FastqSequence,
   ValidationError,
 } from '../../src/index.ts';
@@ -15,35 +20,45 @@ import {
 describe('QualityScores', () => {
   test('should convert Phred+33 to numbers', () => {
     const quality = '!!!"#$%';
-    const scores = QualityScores.toNumbers(quality, 'phred33');
+    const scores = toNumbers(quality, 'phred33');
     expect(scores).toEqual([0, 0, 0, 1, 2, 3, 4]);
+    // Also test backward compatibility
+    expect(QualityScores.toNumbers(quality, 'phred33')).toEqual([0, 0, 0, 1, 2, 3, 4]);
   });
 
   test('should convert Phred+64 to numbers', () => {
     const quality = '@@@@ABCD';
-    const scores = QualityScores.toNumbers(quality, 'phred64');
+    const scores = toNumbers(quality, 'phred64');
     expect(scores).toEqual([0, 0, 0, 0, 1, 2, 3, 4]);
+    // Also test backward compatibility
+    expect(QualityScores.toNumbers(quality, 'phred64')).toEqual([0, 0, 0, 0, 1, 2, 3, 4]);
   });
 
   test('should convert numbers to Phred+33', () => {
     const scores = [0, 10, 20, 30, 40];
-    const quality = QualityScores.toString(scores, 'phred33');
+    const quality = qualityToString(scores, 'phred33');
     expect(quality).toBe('!+5?I');
+    // Also test backward compatibility
+    expect(QualityScores.toString(scores, 'phred33')).toBe('!+5?I');
   });
 
   test('should detect Phred+33 encoding', () => {
     const quality = '!!!"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHI';
+    expect(detectEncoding(quality)).toBe('phred33');
+    // Also test backward compatibility
     expect(QualityScores.detectEncoding(quality)).toBe('phred33');
   });
 
   test('should detect Phred+64 encoding', () => {
     const quality = '@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefgh';
+    expect(detectEncoding(quality)).toBe('phred64');
+    // Also test backward compatibility
     expect(QualityScores.detectEncoding(quality)).toBe('phred64');
   });
 
   test('should calculate quality statistics', () => {
     const scores = [10, 20, 30, 40, 50];
-    const stats = QualityScores.calculateStats(scores);
+    const stats = calculateStats(scores);
 
     expect(stats.mean).toBe(30);
     expect(stats.median).toBe(30);
@@ -51,9 +66,15 @@ describe('QualityScores', () => {
     expect(stats.max).toBe(50);
     expect(stats.q25).toBe(20);
     expect(stats.q75).toBe(40);
+
+    // Also test backward compatibility
+    const statsCompat = QualityScores.calculateStats(scores);
+    expect(statsCompat.mean).toBe(30);
   });
 
   test('should handle empty quality array', () => {
+    expect(() => calculateStats([])).toThrow('Cannot calculate stats for empty quality array');
+    // Also test backward compatibility
     expect(() => QualityScores.calculateStats([])).toThrow(
       'Cannot calculate stats for empty quality array'
     );

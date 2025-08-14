@@ -16,8 +16,16 @@
 
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { BAMParser, BAMUtils } from '../../src/formats/bam';
-import { BGZFReader } from '../../src/formats/bam/bgzf';
-import { BinaryParser } from '../../src/formats/bam/binary';
+import { readBlockHeader, detectFormat } from '../../src/formats/bam/bgzf';
+import {
+  readInt32LE,
+  readUInt16LE,
+  readUInt8,
+  readCString,
+  decodeSequence,
+  parseBinaryCIGAR,
+  isValidBAMMagic,
+} from '../../src/formats/bam/binary';
 import { BamError } from '../../src/errors';
 import type { BAMHeader } from '../../src/types';
 
@@ -31,16 +39,16 @@ describe('BinaryParser', () => {
       view.setInt32(0, 0x12345678, true);
       view.setInt32(4, -1, true);
 
-      expect(BinaryParser.readInt32LE(view, 0)).toBe(0x12345678);
-      expect(BinaryParser.readInt32LE(view, 4)).toBe(-1);
+      expect(readInt32LE(view, 0)).toBe(0x12345678);
+      expect(readInt32LE(view, 4)).toBe(-1);
     });
 
     it('should throw error for out-of-bounds access', () => {
       const buffer = new ArrayBuffer(4);
       const view = new DataView(buffer);
 
-      expect(() => BinaryParser.readInt32LE(view, 1)).toThrow(BamError);
-      expect(() => BinaryParser.readInt32LE(view, 4)).toThrow(BamError);
+      expect(() => readInt32LE(view, 1)).toThrow(BamError);
+      expect(() => readInt32LE(view, 4)).toThrow(BamError);
     });
   });
 
@@ -52,8 +60,8 @@ describe('BinaryParser', () => {
       view.setUint16(0, 0x1234, true);
       view.setUint16(2, 65535, true);
 
-      expect(BinaryParser.readUInt16LE(view, 0)).toBe(0x1234);
-      expect(BinaryParser.readUInt16LE(view, 2)).toBe(65535);
+      expect(readUInt16LE(view, 0)).toBe(0x1234);
+      expect(readUInt16LE(view, 2)).toBe(65535);
     });
   });
 
@@ -65,8 +73,8 @@ describe('BinaryParser', () => {
       view.setUint8(0, 123);
       view.setUint8(1, 255);
 
-      expect(BinaryParser.readUInt8(view, 0)).toBe(123);
-      expect(BinaryParser.readUInt8(view, 1)).toBe(255);
+      expect(readUInt8(view, 0)).toBe(123);
+      expect(readUInt8(view, 1)).toBe(255);
     });
   });
 
@@ -81,11 +89,11 @@ describe('BinaryParser', () => {
         view.setUint8(i, text[i]);
       }
 
-      const result1 = BinaryParser.readCString(view, 0, 15);
+      const result1 = readCString(view, 0, 15);
       expect(result1.value).toBe('hello');
       expect(result1.bytesRead).toBe(6);
 
-      const result2 = BinaryParser.readCString(view, 6, 9);
+      const result2 = readCString(view, 6, 9);
       expect(result2.value).toBe('world');
       expect(result2.bytesRead).toBe(6);
     });
@@ -99,7 +107,7 @@ describe('BinaryParser', () => {
         view.setUint8(i, 65); // 'A'
       }
 
-      expect(() => BinaryParser.readCString(view, 0, 5)).toThrow(BamError);
+      expect(() => readCString(view, 0, 5)).toThrow(BamError);
     });
   });
 
@@ -108,7 +116,7 @@ describe('BinaryParser', () => {
       // Test sequence "ACGT" (1,2,4,8 in 4-bit encoding)
       const buffer = new Uint8Array([0x12, 0x48]); // 0001 0010, 0100 1000
 
-      const result = BinaryParser.decodeSequence(buffer, 4);
+      const result = decodeSequence(buffer, 4);
       expect(result).toBe('ACGT');
     });
 
@@ -116,20 +124,20 @@ describe('BinaryParser', () => {
       // Test sequence "ACG" (1,2,4 in 4-bit encoding)
       const buffer = new Uint8Array([0x12, 0x40]); // 0001 0010, 0100 0000
 
-      const result = BinaryParser.decodeSequence(buffer, 3);
+      const result = decodeSequence(buffer, 3);
       expect(result).toBe('ACG');
     });
 
     it('should handle empty sequences', () => {
       const buffer = new Uint8Array(0);
-      const result = BinaryParser.decodeSequence(buffer, 0);
+      const result = decodeSequence(buffer, 0);
       expect(result).toBe('');
     });
 
     it('should throw error for insufficient buffer', () => {
       const buffer = new Uint8Array([0x12]);
 
-      expect(() => BinaryParser.decodeSequence(buffer, 4)).toThrow(BamError);
+      expect(() => decodeSequence(buffer, 4)).toThrow(BamError);
     });
   });
 
@@ -144,7 +152,7 @@ describe('BinaryParser', () => {
       view.setUint32(4, (5 << 4) | 1, true); // 5I (I=1)
       view.setUint32(8, (3 << 4) | 2, true); // 3D (D=2)
 
-      const result = BinaryParser.parseBinaryCIGAR(view, 0, 3);
+      const result = parseBinaryCIGAR(view, 0, 3);
       expect(result).toBe('10M5I3D');
     });
 
@@ -152,7 +160,7 @@ describe('BinaryParser', () => {
       const buffer = new ArrayBuffer(4);
       const view = new DataView(buffer);
 
-      const result = BinaryParser.parseBinaryCIGAR(view, 0, 0);
+      const result = parseBinaryCIGAR(view, 0, 0);
       expect(result).toBe('*');
     });
 
@@ -162,24 +170,24 @@ describe('BinaryParser', () => {
 
       view.setUint32(0, (10 << 4) | 15, true); // Invalid operation type 15
 
-      expect(() => BinaryParser.parseBinaryCIGAR(view, 0, 1)).toThrow(BamError);
+      expect(() => parseBinaryCIGAR(view, 0, 1)).toThrow(BamError);
     });
   });
 
   describe('isValidBAMMagic', () => {
     it('should validate correct BAM magic bytes', () => {
       const magic = new Uint8Array([0x42, 0x41, 0x4d, 0x01]); // "BAM\1"
-      expect(BinaryParser.isValidBAMMagic(magic)).toBe(true);
+      expect(isValidBAMMagic(magic)).toBe(true);
     });
 
     it('should reject incorrect magic bytes', () => {
       const magic = new Uint8Array([0x42, 0x41, 0x4d, 0x00]); // "BAM\0"
-      expect(BinaryParser.isValidBAMMagic(magic)).toBe(false);
+      expect(isValidBAMMagic(magic)).toBe(false);
     });
 
     it('should reject insufficient data', () => {
       const magic = new Uint8Array([0x42, 0x41, 0x4d]); // Too short
-      expect(BinaryParser.isValidBAMMagic(magic)).toBe(false);
+      expect(isValidBAMMagic(magic)).toBe(false);
     });
   });
 });
@@ -220,12 +228,12 @@ describe('BGZFReader', () => {
         0x00, // ISIZE
       ]);
 
-      expect(BGZFReader.detectFormat(header)).toBe(true);
+      expect(detectFormat(header)).toBe(true);
     });
 
     it('should reject non-BGZF data', () => {
       const data = new Uint8Array([0x00, 0x01, 0x02, 0x03]);
-      expect(BGZFReader.detectFormat(data)).toBe(false);
+      expect(detectFormat(data)).toBe(false);
     });
   });
 
@@ -255,7 +263,7 @@ describe('BGZFReader', () => {
       blockData[18] = blockData[19] = blockData[20] = blockData[21] = 0x00; // CRC32
       blockData[22] = blockData[23] = blockData[24] = blockData[25] = 0x00; // ISIZE
 
-      const block = BGZFReader.readBlockHeader(blockData, 0);
+      const block = readBlockHeader(blockData, 0);
       expect(block.compressedSize).toBe(26);
       expect(block.offset).toBe(0);
     });
@@ -264,7 +272,7 @@ describe('BGZFReader', () => {
       const blockData = new Uint8Array(26);
       blockData[0] = 0x00; // Invalid magic
 
-      expect(() => BGZFReader.readBlockHeader(blockData, 0)).toThrow(BamError);
+      expect(() => readBlockHeader(blockData, 0)).toThrow(BamError);
     });
   });
 });
@@ -494,7 +502,7 @@ describe('Essential BAM invariants', () => {
     const buffer = new ArrayBuffer(4);
     const view = new DataView(buffer);
     view.setInt32(0, 12345, true);
-    expect(BinaryParser.readInt32LE(view, 0)).toBe(12345);
+    expect(readInt32LE(view, 0)).toBe(12345);
   });
 
   it('should stream binary data efficiently', async () => {
@@ -526,7 +534,7 @@ describe('Essential BAM invariants', () => {
 
     // Should handle corrupted BGZF gracefully
     const corruptedBGZF = new Uint8Array([0x1f, 0x8b, 0x08]);
-    expect(BGZFReader.detectFormat(corruptedBGZF)).toBe(false);
+    expect(detectFormat(corruptedBGZF)).toBe(false);
   });
 });
 
@@ -557,7 +565,7 @@ describe('Edge cases and error recovery', () => {
       const buffer = new Uint8Array([0xff, 0xff]);
 
       // This should succeed since all values 0-15 are valid in the lookup table
-      const result = BinaryParser.decodeSequence(buffer, 4);
+      const result = decodeSequence(buffer, 4);
       expect(result).toBe('NNNN'); // All 15s map to 'N'
     });
 
@@ -580,7 +588,7 @@ describe('Edge cases and error recovery', () => {
       view.setUint16(16, 70000, true); // Invalid large block size
 
       const data = new Uint8Array(buffer);
-      expect(() => BGZFReader.readBlockHeader(data, 0)).toThrow(BamError);
+      expect(() => readBlockHeader(data, 0)).toThrow(BamError);
     });
   });
 
@@ -595,11 +603,11 @@ describe('Edge cases and error recovery', () => {
       }
 
       // This should throw because string is not null-terminated within limit
-      expect(() => BinaryParser.readCString(view, 0, 5)).toThrow(BamError);
+      expect(() => readCString(view, 0, 5)).toThrow(BamError);
     });
 
     it('should handle zero-length sequences', () => {
-      const result = BinaryParser.decodeSequence(new Uint8Array(0), 0);
+      const result = decodeSequence(new Uint8Array(0), 0);
       expect(result).toBe('');
     });
   });

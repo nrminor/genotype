@@ -267,7 +267,16 @@ export class BGZFCompressor {
     console.assert(this.isBunAvailable(), 'Bun must be available');
 
     // Use Bun.gzipSync with raw deflate for BGZF compatibility
-    const compressed = (globalThis as { Bun?: { gzipSync: (data: Uint8Array, options: { level: number; windowBits: number; memLevel: number }) => Uint8Array } }).Bun!.gzipSync(data, {
+    const compressed = (
+      globalThis as {
+        Bun?: {
+          gzipSync: (
+            data: Uint8Array,
+            options: { level: number; windowBits: number; memLevel: number }
+          ) => Uint8Array;
+        };
+      }
+    ).Bun!.gzipSync(data, {
       level: this.compressionLevel,
       // Use raw deflate format (no gzip wrapper)
       windowBits: -15,
@@ -426,7 +435,10 @@ export class BGZFCompressor {
     data: Uint8Array
   ): Promise<void> {
     // Tiger Style: Assert function arguments
-    console.assert(writer && typeof writer === 'object', 'writer must be an object');
+    console.assert(
+      writer !== undefined && writer !== null && typeof writer === 'object',
+      'writer must be an object'
+    );
     console.assert(data instanceof Uint8Array, 'data must be Uint8Array');
     console.assert('write' in writer, 'writer must have write method');
 
@@ -467,7 +479,7 @@ export class BGZFCompressor {
     let buffer = new Uint8Array(0);
 
     return new TransformStream({
-      transform: async (chunk, controller) => {
+      transform: async (chunk, controller): Promise<void> => {
         try {
           // Tiger Style: Assert chunk validity
           console.assert(chunk instanceof Uint8Array, 'chunk must be Uint8Array');
@@ -491,7 +503,7 @@ export class BGZFCompressor {
         }
       },
 
-      flush: async (controller) => {
+      flush: async (controller): Promise<void> => {
         try {
           // Compress any remaining data
           if (buffer.length > 0) {
@@ -519,7 +531,7 @@ export class BGZFCompressor {
     return (
       typeof globalThis !== 'undefined' &&
       'Bun' in globalThis &&
-      globalThis.Bun &&
+      globalThis.Bun !== undefined &&
       typeof globalThis.Bun.gzipSync === 'function'
     );
   }
@@ -557,7 +569,7 @@ export class BGZFCompressor {
     } = {}
   ): BGZFCompressor {
     const {
-      compressionLevel = options.prioritizeSpeed ? 1 : 6,
+      compressionLevel = options.prioritizeSpeed === true ? 1 : 6,
       blockSize = 65536,
       prioritizeSpeed = false,
     } = options;

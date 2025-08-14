@@ -19,7 +19,17 @@
 import type { SAMAlignment, SAMHeader } from '../../types';
 import { BamError, CompressionError } from '../../errors';
 import { BGZFCompressor } from './bgzf-compressor';
-import { BinarySerializer } from './binary-serializer';
+import {
+  createOptimizedSerializer,
+  writeInt32LE,
+  writeUInt32LE,
+  writeCString,
+  packCIGAR,
+  packSequence,
+  packQualityScores,
+  packTags,
+  calculateAlignmentSize,
+} from './binary-serializer';
 
 // Constants for BAM writer configuration
 const DEFAULT_BUFFER_SIZE = 256 * 1024; // 256KB
@@ -79,7 +89,7 @@ export interface BAMWriterOptions {
 export class BAMWriter {
   private readonly options: Required<BAMWriterOptions>;
   private readonly compressor: BGZFCompressor;
-  private readonly serializer: ReturnType<typeof BinarySerializer.createOptimizedSerializer>;
+  private readonly serializer: ReturnType<typeof createOptimizedSerializer>;
 
   /**
    * Create a new BAM writer with specified options
@@ -119,7 +129,7 @@ export class BAMWriter {
       blockSize: this.options.blockSize,
     });
 
-    this.serializer = BinarySerializer.createOptimizedSerializer({
+    this.serializer = createOptimizedSerializer({
       maxAlignmentSize: this.options.maxAlignmentSize,
       bufferPoolSize: 10,
     });
@@ -233,11 +243,11 @@ export class BAMWriter {
     const bgzfStream = this.compressor.createStream();
 
     return new WritableStream({
-      start: async (controller) => {
+      start: async (controller): Promise<void> => {
         // Stream is ready
       },
 
-      write: async (chunk, controller) => {
+      write: async (chunk, controller): Promise<void> => {
         try {
           // Tiger Style: Assert chunk validity
           console.assert(chunk instanceof Uint8Array, 'chunk must be Uint8Array');
@@ -255,7 +265,7 @@ export class BAMWriter {
         }
       },
 
-      close: async () => {
+      close: async (): Promise<void> => {
         try {
           // Close BGZF stream
           const writer = bgzfStream.writable.getWriter();
@@ -269,7 +279,7 @@ export class BAMWriter {
         }
       },
 
-      abort: async (reason) => {
+      abort: async (reason): Promise<void> => {
         try {
           const writer = bgzfStream.writable.getWriter();
           await writer.abort(reason);
@@ -358,7 +368,7 @@ export class BAMWriter {
     buffer[offset++] = 0x01; // version
 
     // Write SAM header text length
-    BinarySerializer.writeInt32LE(view, offset, headerTextSize);
+    writeInt32LE(view, offset, headerTextSize);
     offset += 4;
 
     // Write SAM header text
@@ -369,7 +379,7 @@ export class BAMWriter {
     }
 
     // Write number of reference sequences
-    BinarySerializer.writeInt32LE(view, offset, references.length);
+    writeInt32LE(view, offset, references.length);
     offset += 4;
 
     // Write reference sequence information
@@ -377,7 +387,7 @@ export class BAMWriter {
       const nameBytes = new TextEncoder().encode(ref.name);
 
       // Name length (including null terminator)
-      BinarySerializer.writeInt32LE(view, offset, nameBytes.length + 1);
+      writeInt32LE(view, offset, nameBytes.length + 1);
       offset += 4;
 
       // Reference name
@@ -386,7 +396,7 @@ export class BAMWriter {
       buffer[offset++] = 0; // null terminator
 
       // Reference length
-      BinarySerializer.writeInt32LE(view, offset, ref.length);
+      writeInt32LE(view, offset, ref.length);
       offset += 4;
     }
 
@@ -414,30 +424,30 @@ export class BAMWriter {
 
     try {
       // Calculate alignment size
-      const totalSize = BinarySerializer.calculateAlignmentSize(alignment, references);
+      const totalSize = calculateAlignmentSize(alignment, references);
       const buffer = this.serializer.getBuffer(totalSize + 4); // +4 for block size prefix
       const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 
       let offset = 0;
 
       // Write block size (total record size - 4)
-      BinarySerializer.writeInt32LE(view, offset, totalSize);
+      writeInt32LE(view, offset, totalSize);
       offset += 4;
 
       // Write refID
       const refID = this.getRefID(alignment.rname, references);
-      BinarySerializer.writeInt32LE(view, offset, refID);
+      writeInt32LE(view, offset, refID);
       offset += 4;
 
       // Write pos (convert from 1-based to 0-based)
-      BinarySerializer.writeInt32LE(view, offset, alignment.pos - 1);
+      writeInt32LE(view, offset, alignment.pos - 1);
       offset += 4;
 
       // Write bin_mq_nl (bin<<16 | MAPQ<<8 | l_read_name)
       const readNameLength = alignment.qname.length + 1; // +1 for null terminator
       const bin = this.calculateBin(alignment.pos - 1, this.calculateAlignmentEnd(alignment)); // Use 0-based for bin calculation
       const binMqNl = (bin << 16) | (alignment.mapq << 8) | readNameLength;
-      BinarySerializer.writeUInt32LE(view, offset, binMqNl);
+      writeUInt32LE(view, offset, binMqNl);
       offset += 4;
 
       // Count CIGAR operations
@@ -445,12 +455,12 @@ export class BAMWriter {
 
       // Write flag_nc (FLAG<<16 | n_cigar_op)
       const flagNc = (alignment.flag << 16) | numCigarOps;
-      BinarySerializer.writeUInt32LE(view, offset, flagNc);
+      writeUInt32LE(view, offset, flagNc);
       offset += 4;
 
       // Write l_seq
       const seqLength = alignment.seq === '*' ? 0 : alignment.seq.length;
-      BinarySerializer.writeInt32LE(view, offset, seqLength);
+      writeInt32LE(view, offset, seqLength);
       offset += 4;
 
       // Write next_refID
@@ -458,38 +468,38 @@ export class BAMWriter {
         alignment.rnext === '=' ? alignment.rname : alignment.rnext,
         references
       );
-      BinarySerializer.writeInt32LE(view, offset, nextRefID);
+      writeInt32LE(view, offset, nextRefID);
       offset += 4;
 
       // Write next_pos (convert from 1-based to 0-based)
-      BinarySerializer.writeInt32LE(view, offset, alignment.pnext - 1);
+      writeInt32LE(view, offset, alignment.pnext - 1);
       offset += 4;
 
       // Write tlen
-      BinarySerializer.writeInt32LE(view, offset, alignment.tlen);
+      writeInt32LE(view, offset, alignment.tlen);
       offset += 4;
 
       // Write read_name (null-terminated)
-      offset += BinarySerializer.writeCString(view, offset, alignment.qname, 256);
+      offset += writeCString(view, offset, alignment.qname, 256);
 
       // Write CIGAR
       if (alignment.cigar !== '*') {
-        offset += BinarySerializer.packCIGAR(alignment.cigar, buffer, offset);
+        offset += packCIGAR(alignment.cigar, buffer, offset);
       }
 
       // Write sequence (4-bit packed)
       if (alignment.seq !== '*') {
-        offset += BinarySerializer.packSequence(alignment.seq, buffer, offset);
+        offset += packSequence(alignment.seq, buffer, offset);
       }
 
       // Write quality scores
       if (alignment.qual !== '*') {
-        offset += BinarySerializer.packQualityScores(alignment.qual, buffer, offset);
+        offset += packQualityScores(alignment.qual, buffer, offset);
       }
 
       // Write optional tags
       if (alignment.tags) {
-        offset += BinarySerializer.packTags(alignment.tags, buffer, offset);
+        offset += packTags(alignment.tags, buffer, offset);
       }
 
       // Return exact-sized buffer
@@ -726,7 +736,10 @@ export class BAMWriter {
     alignments: Iterable<SAMAlignment> | AsyncIterable<SAMAlignment>
   ): Promise<void> {
     // Tiger Style: Assert function arguments
-    console.assert(writer && typeof writer === 'object', 'writer must be an object');
+    console.assert(
+      writer !== undefined && writer !== null && typeof writer === 'object',
+      'writer must be an object'
+    );
     console.assert('write' in writer, 'writer must have write method');
 
     // Extract reference sequences from header
@@ -769,7 +782,12 @@ export class BAMWriter {
     const references: string[] = [];
 
     for (const h of headers) {
-      if (h.type === 'SQ' && h.fields.SN) {
+      if (
+        h.type === 'SQ' &&
+        h.fields.SN !== undefined &&
+        h.fields.SN !== null &&
+        h.fields.SN !== ''
+      ) {
         references.push(h.fields.SN);
       }
     }
@@ -861,7 +879,12 @@ export class BAMWriter {
     const references: string[] = [];
 
     for (const h of headers) {
-      if (h.type === 'SQ' && h.fields.SN) {
+      if (
+        h.type === 'SQ' &&
+        h.fields.SN !== undefined &&
+        h.fields.SN !== null &&
+        h.fields.SN !== ''
+      ) {
         references.push(h.fields.SN);
       }
     }
@@ -877,7 +900,7 @@ export class BAMWriter {
     return (
       typeof globalThis !== 'undefined' &&
       'Bun' in globalThis &&
-      globalThis.Bun &&
+      globalThis.Bun !== undefined &&
       typeof globalThis.Bun.write === 'function' &&
       typeof globalThis.Bun.file === 'function'
     );

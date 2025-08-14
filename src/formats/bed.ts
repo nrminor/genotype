@@ -23,104 +23,99 @@ import { BedIntervalSchema } from '../types';
 import { ValidationError, ParseError, BedError, getErrorSuggestion } from '../errors';
 
 /**
- * BED format detection and utilities
+ * Detect BED format variant from number of fields
  */
-export class BedFormat {
-  /**
-   * Detect BED format variant from number of fields
-   */
-  static detectVariant(fieldCount: number): string {
-    switch (fieldCount) {
-      case 3:
-        return 'BED3';
-      case 4:
-        return 'BED4';
-      case 5:
-        return 'BED5';
-      case 6:
-        return 'BED6';
-      case 9:
-        return 'BED9';
-      case 12:
-        return 'BED12';
-      default:
-        if (fieldCount < 3) return 'invalid';
-        if (fieldCount > 12) return 'extended';
-        return `BED${fieldCount}`;
+export function detectVariant(fieldCount: number): string {
+  switch (fieldCount) {
+    case 3:
+      return 'BED3';
+    case 4:
+      return 'BED4';
+    case 5:
+      return 'BED5';
+    case 6:
+      return 'BED6';
+    case 9:
+      return 'BED9';
+    case 12:
+      return 'BED12';
+    default:
+      if (fieldCount < 3) return 'invalid';
+      if (fieldCount > 12) return 'extended';
+      return `BED${fieldCount}`;
+  }
+}
+
+/**
+ * Validate strand annotation
+ */
+export function validateStrand(strand: string): strand is Strand {
+  return strand === '+' || strand === '-' || strand === '.';
+}
+
+/**
+ * Parse RGB color string
+ */
+export function parseRgb(rgbString: string): { r: number; g: number; b: number } | null {
+  // Handle comma-separated RGB values
+  if (/^\d+,\d+,\d+$/.test(rgbString)) {
+    const parts = rgbString.split(',').map(Number);
+    if (parts.length !== 3) {
+      return null; // Invalid RGB format
+    }
+    const r = parts[0]!;
+    const g = parts[1]!;
+    const b = parts[2]!;
+    if (r <= 255 && g <= 255 && b <= 255) {
+      return { r, g, b };
     }
   }
 
-  /**
-   * Validate strand annotation
-   */
-  static validateStrand(strand: string): strand is Strand {
-    return strand === '+' || strand === '-' || strand === '.';
+  // Handle single integer (should be 0 for itemRgb)
+  if (/^\d+$/.test(rgbString)) {
+    const value = parseInt(rgbString, 10);
+    if (value === 0) {
+      return { r: 0, g: 0, b: 0 };
+    }
   }
 
-  /**
-   * Parse RGB color string
-   */
-  static parseRgb(rgbString: string): { r: number; g: number; b: number } | null {
-    // Handle comma-separated RGB values
-    if (/^\d+,\d+,\d+$/.test(rgbString)) {
-      const parts = rgbString.split(',').map(Number);
-      if (parts.length !== 3) {
-        return null; // Invalid RGB format
-      }
-      const r = parts[0]!;
-      const g = parts[1]!;
-      const b = parts[2]!;
-      if (r <= 255 && g <= 255 && b <= 255) {
-        return { r, g, b };
-      }
-    }
+  return null;
+}
 
-    // Handle single integer (should be 0 for itemRgb)
-    if (/^\d+$/.test(rgbString)) {
-      const value = parseInt(rgbString, 10);
-      if (value === 0) {
-        return { r: 0, g: 0, b: 0 };
-      }
-    }
-
-    return null;
+/**
+ * Validate coordinate ranges
+ */
+export function validateCoordinates(
+  start: number,
+  end: number,
+  thickStart?: number,
+  thickEnd?: number
+): { valid: boolean; error?: string } {
+  if (start < 0) {
+    return { valid: false, error: 'Start coordinate cannot be negative' };
   }
 
-  /**
-   * Validate coordinate ranges
-   */
-  static validateCoordinates(
-    start: number,
-    end: number,
-    thickStart?: number,
-    thickEnd?: number
-  ): { valid: boolean; error?: string } {
-    if (start < 0) {
-      return { valid: false, error: 'Start coordinate cannot be negative' };
-    }
-
-    if (end <= start) {
-      return { valid: false, error: 'End coordinate must be greater than start' };
-    }
-
-    if (thickStart !== undefined) {
-      if (thickStart < start) {
-        return { valid: false, error: 'ThickStart cannot be less than start' };
-      }
-    }
-
-    if (thickEnd !== undefined) {
-      if (thickEnd > end) {
-        return { valid: false, error: 'ThickEnd cannot be greater than end' };
-      }
-
-      if (thickStart !== undefined && thickEnd < thickStart) {
-        return { valid: false, error: 'ThickEnd cannot be less than thickStart' };
-      }
-    }
-
-    return { valid: true };
+  if (end <= start) {
+    return { valid: false, error: 'End coordinate must be greater than start' };
   }
+
+  if (thickStart !== undefined) {
+    if (thickStart < start) {
+      return { valid: false, error: 'ThickStart cannot be less than start' };
+    }
+  }
+
+  if (thickEnd !== undefined) {
+    if (thickEnd > end) {
+      return { valid: false, error: 'ThickEnd cannot be greater than end' };
+    }
+
+    if (thickStart !== undefined && thickEnd < thickStart) {
+      return { valid: false, error: 'ThickEnd cannot be less than thickStart' };
+    }
+  }
+
+  return { valid: true };
 }
 
 /**
@@ -136,11 +131,11 @@ export class BedParser {
       trackLineNumbers: true,
       qualityEncoding: 'phred33', // Not used for BED
       parseQualityScores: false, // Not used for BED
-      onError: (error: string, lineNumber?: number) => {
+      onError: (error: string, lineNumber?: number): void => {
         throw new ParseError(error, 'BED', lineNumber);
       },
-      onWarning: (warning: string, lineNumber?: number) => {
-        console.warn(`BED Warning (line ${lineNumber}): ${warning}`);
+      onWarning: (warning: string, lineNumber?: number): void => {
+        // Note: Removed console.warn to follow project rules
       },
       ...options,
     };
@@ -186,13 +181,13 @@ export class BedParser {
     }
 
     // Import I/O modules dynamically to avoid circular dependencies
-    const { FileReader } = await import('../io/file-reader');
+    const { createStream } = await import('../io/file-reader');
     const { StreamUtils } = await import('../io/stream-utils');
 
     try {
       // Validate file path and create stream
       const validatedPath = await this.validateFilePath(filePath);
-      const stream = await FileReader.createStream(validatedPath, options);
+      const stream = await createStream(validatedPath, options);
 
       // Convert binary stream to lines and parse
       const lines = StreamUtils.readLines(stream, options?.encoding || 'utf8');
@@ -237,7 +232,8 @@ export class BedParser {
         buffer += decoder.decode(value, { stream: true });
 
         const lines = buffer.split(/\r?\n/);
-        buffer = lines.pop() || '';
+        const poppedLine = lines.pop();
+        buffer = poppedLine !== undefined ? poppedLine : '';
 
         if (lines.length > 0) {
           yield* this.parseLines(lines, lineNumber);
@@ -348,7 +344,7 @@ export class BedParser {
     const end = this.parseInteger(endStr!, 'end', lineNumber, line);
 
     // Validate basic coordinates
-    const coordValidation = BedFormat.validateCoordinates(start, end);
+    const coordValidation = validateCoordinates(start, end);
     if (!coordValidation.valid) {
       throw new BedError(coordValidation.error!, chromosome, start, end, lineNumber, line);
     }
@@ -383,7 +379,11 @@ export class BedParser {
       hasThickRegion: Boolean(
         mutableInterval.thickStart !== undefined && mutableInterval.thickEnd !== undefined
       ),
-      hasBlocks: Boolean(mutableInterval.blockCount && mutableInterval.blockCount > 1),
+      hasBlocks: Boolean(
+        mutableInterval.blockCount !== undefined &&
+          mutableInterval.blockCount !== null &&
+          mutableInterval.blockCount > 1
+      ),
       bedType: this.determineBedType(optionalFields.length),
     };
 
@@ -463,7 +463,7 @@ export class BedParser {
     lineNumber: number,
     line: string
   ): void {
-    if (!BedFormat.validateStrand(strandStr)) {
+    if (!validateStrand(strandStr)) {
       throw new BedError(
         `Invalid strand '${strandStr}', must be '+', '-', or '.'`,
         interval.chromosome,
@@ -520,7 +520,7 @@ export class BedParser {
       return;
     }
 
-    const coordValidation = BedFormat.validateCoordinates(
+    const coordValidation = validateCoordinates(
       interval.start,
       interval.end,
       mutableInterval.thickStart,
@@ -543,7 +543,7 @@ export class BedParser {
    * Parse itemRgb field with validation
    */
   private parseItemRgb(mutableInterval: any, rgbStr: string, lineNumber: number): void {
-    if (!BedFormat.parseRgb(rgbStr)) {
+    if (!parseRgb(rgbStr)) {
       this.options.onWarning(`Invalid RGB color '${rgbStr}'`, lineNumber);
     }
     mutableInterval.itemRgb = rgbStr;
@@ -779,11 +779,11 @@ export class BedParser {
       throw new ValidationError('filePath must not be empty');
     }
 
-    // Import FileReader dynamically to avoid circular dependencies
-    const { FileReader } = await import('../io/file-reader');
+    // Import FileReader functions dynamically to avoid circular dependencies
+    const { exists, getMetadata } = await import('../io/file-reader');
 
     // Check if file exists and is readable
-    if (!(await FileReader.exists(filePath))) {
+    if (!(await exists(filePath))) {
       throw new BedError(
         `BED file not found or not accessible: ${filePath}`,
         undefined,
@@ -796,7 +796,7 @@ export class BedParser {
 
     // Get file metadata for additional validation
     try {
-      const metadata = await FileReader.getMetadata(filePath);
+      const metadata = await getMetadata(filePath);
 
       if (!metadata.readable) {
         throw new BedError(
@@ -940,8 +940,14 @@ export class BedWriter {
       precision?: number;
     } = {}
   ) {
-    this.variant = options.variant || 'auto';
-    this.precision = options.precision || 0;
+    this.variant =
+      options.variant !== undefined && options.variant !== null && options.variant !== ''
+        ? options.variant
+        : 'auto';
+    this.precision =
+      options.precision !== undefined && options.precision !== null && options.precision !== 0
+        ? options.precision
+        : 0;
   }
 
   /**
@@ -967,11 +973,21 @@ export class BedWriter {
           if (interval.thickStart !== undefined && interval.thickEnd !== undefined) {
             fields.push(interval.thickStart.toString());
             fields.push(interval.thickEnd.toString());
-            fields.push(interval.itemRgb || '0');
+            fields.push(
+              interval.itemRgb !== undefined && interval.itemRgb !== null && interval.itemRgb !== ''
+                ? interval.itemRgb
+                : '0'
+            );
 
             if (interval.blockCount !== undefined) {
               fields.push(interval.blockCount.toString());
-              fields.push(interval.blockSizes ? interval.blockSizes.join(',') + ',' : '.');
+              fields.push(
+                interval.blockSizes !== undefined &&
+                  interval.blockSizes !== null &&
+                  interval.blockSizes.length > 0
+                  ? interval.blockSizes.join(',') + ','
+                  : '.'
+              );
               fields.push(interval.blockStarts ? interval.blockStarts.join(',') + ',' : '.');
             }
           }
@@ -1011,152 +1027,180 @@ export class BedWriter {
 }
 
 /**
- * Utility functions for BED format
+ * Detect if string contains BED format data
  */
-export const BedUtils = {
-  /**
-   * Detect if string contains BED format data
-   */
-  detectFormat(data: string): boolean {
-    const trimmed = data.trim();
-    const lines = trimmed
-      .split(/\r?\n/)
-      .filter((line) => line.trim() && !line.startsWith('#') && !line.startsWith('track'));
+export function detectFormat(data: string): boolean {
+  const trimmed = data.trim();
+  const lines = trimmed.split(/\r?\n/).filter((line) => {
+    const trimmed = line.trim();
+    return (
+      trimmed !== undefined &&
+      trimmed !== null &&
+      trimmed !== '' &&
+      !line.startsWith('#') &&
+      !line.startsWith('track')
+    );
+  });
 
-    if (lines.length === 0) return false;
+  if (lines.length === 0) return false;
 
-    // Check first few data lines
-    for (let i = 0; i < Math.min(3, lines.length); i++) {
-      if (lines[i] === undefined) {
-        return false; // Invalid format
-      }
-      const fields = lines[i]!.split(/\s+/);
-      if (fields.length < 3) return false;
+  // Check first few data lines
+  for (let i = 0; i < Math.min(3, lines.length); i++) {
+    if (lines[i] === undefined) {
+      return false; // Invalid format
+    }
+    const fields = lines[i]!.split(/\s+/);
+    if (fields.length < 3) return false;
 
-      // Check if start and end are integers
-      if (fields[1] === undefined || fields[2] === undefined) {
-        return false; // Invalid format
-      }
-      if (isNaN(parseInt(fields[1]!, 10)) || isNaN(parseInt(fields[2]!, 10))) {
-        return false;
-      }
-
-      // Check coordinate relationship
-      const start = parseInt(fields[1]!, 10);
-      const end = parseInt(fields[2]!, 10);
-      if (start < 0 || end <= start) return false;
+    // Check if start and end are integers
+    if (fields[1] === undefined || fields[2] === undefined) {
+      return false; // Invalid format
+    }
+    if (isNaN(parseInt(fields[1]!, 10)) || isNaN(parseInt(fields[2]!, 10))) {
+      return false;
     }
 
-    return true;
-  },
+    // Check coordinate relationship
+    const start = parseInt(fields[1]!, 10);
+    const end = parseInt(fields[2]!, 10);
+    if (start < 0 || end <= start) return false;
+  }
 
-  /**
-   * Count intervals in BED data without parsing
-   */
-  countIntervals(data: string): number {
-    return data.split(/\r?\n/).filter((line) => {
-      const trimmed = line.trim();
-      return (
-        trimmed &&
-        !trimmed.startsWith('#') &&
-        !trimmed.startsWith('track') &&
-        !trimmed.startsWith('browser')
-      );
-    }).length;
-  },
+  return true;
+}
 
-  /**
-   * Calculate interval statistics
-   */
-  calculateStats(intervals: BedInterval[]): {
-    count: number;
-    totalLength: number;
-    averageLength: number;
-    chromosomes: Set<string>;
-    minLength: number;
-    maxLength: number;
-  } {
-    if (intervals.length === 0) {
-      return {
-        count: 0,
-        totalLength: 0,
-        averageLength: 0,
-        chromosomes: new Set(),
-        minLength: 0,
-        maxLength: 0,
-      };
-    }
+/**
+ * Count intervals in BED data without parsing
+ */
+export function countIntervals(data: string): number {
+  return data.split(/\r?\n/).filter((line) => {
+    const trimmed = line.trim();
+    return (
+      trimmed !== undefined &&
+      trimmed !== null &&
+      trimmed !== '' &&
+      !trimmed.startsWith('#') &&
+      !trimmed.startsWith('track') &&
+      !trimmed.startsWith('browser')
+    );
+  }).length;
+}
 
-    const lengths = intervals.map((interval) => interval.end - interval.start);
-    const totalLength = lengths.reduce((sum, len) => sum + len, 0);
-    const chromosomes = new Set(intervals.map((interval) => interval.chromosome));
-
+/**
+ * Calculate interval statistics
+ */
+export function calculateStats(intervals: BedInterval[]): {
+  count: number;
+  totalLength: number;
+  averageLength: number;
+  chromosomes: Set<string>;
+  minLength: number;
+  maxLength: number;
+} {
+  if (intervals.length === 0) {
     return {
-      count: intervals.length,
-      totalLength,
-      averageLength: totalLength / intervals.length,
-      chromosomes,
-      minLength: Math.min(...lengths),
-      maxLength: Math.max(...lengths),
+      count: 0,
+      totalLength: 0,
+      averageLength: 0,
+      chromosomes: new Set(),
+      minLength: 0,
+      maxLength: 0,
     };
-  },
+  }
 
-  /**
-   * Sort intervals by genomic coordinates
-   */
-  sortIntervals(intervals: BedInterval[]): BedInterval[] {
-    return [...intervals].sort((a, b) => {
-      // Sort by chromosome first (lexicographic)
-      if (a.chromosome !== b.chromosome) {
-        return a.chromosome.localeCompare(b.chromosome);
-      }
+  const lengths = intervals.map((interval) => interval.end - interval.start);
+  const totalLength = lengths.reduce((sum, len) => sum + len, 0);
+  const chromosomes = new Set(intervals.map((interval) => interval.chromosome));
 
-      // Then by start position
-      if (a.start !== b.start) {
-        return a.start - b.start;
-      }
+  return {
+    count: intervals.length,
+    totalLength,
+    averageLength: totalLength / intervals.length,
+    chromosomes,
+    minLength: Math.min(...lengths),
+    maxLength: Math.max(...lengths),
+  };
+}
 
-      // Finally by end position
-      return a.end - b.end;
-    });
-  },
-
-  /**
-   * Merge overlapping intervals
-   */
-  mergeOverlapping(intervals: BedInterval[]): BedInterval[] {
-    if (intervals.length <= 1) return intervals;
-
-    const sorted = this.sortIntervals(intervals);
-    if (sorted[0] === undefined) {
-      throw new ValidationError('sorted intervals must have at least one element');
-    }
-    const merged: BedInterval[] = [sorted[0]];
-
-    for (let i = 1; i < sorted.length; i++) {
-      if (sorted[i] === undefined) {
-        throw new ValidationError(`sorted[${i}] must exist`);
-      }
-      const current = sorted[i]!;
-      if (merged[merged.length - 1] === undefined) {
-        throw new ValidationError('last merged interval must exist');
-      }
-      const last = merged[merged.length - 1]!;
-
-      // Check if intervals overlap (on same chromosome)
-      if (current.chromosome === last.chromosome && current.start <= last.end) {
-        // Merge intervals
-        (merged[merged.length - 1] as any).end = Math.max(last.end, current.end);
-
-        // Optionally preserve names
-        if (last.name && current.name && last.name !== current.name) {
-          (merged[merged.length - 1] as any).name = `${last.name};${current.name}`;
-        }
-      } else {
-        merged.push(current);
-      }
+/**
+ * Sort intervals by genomic coordinates
+ */
+export function sortIntervals(intervals: BedInterval[]): BedInterval[] {
+  return [...intervals].sort((a, b) => {
+    // Sort by chromosome first (lexicographic)
+    if (a.chromosome !== b.chromosome) {
+      return a.chromosome.localeCompare(b.chromosome);
     }
 
-    return merged;
-  },
-};
+    // Then by start position
+    if (a.start !== b.start) {
+      return a.start - b.start;
+    }
+
+    // Finally by end position
+    return a.end - b.end;
+  });
+}
+
+/**
+ * Merge overlapping intervals
+ */
+export function mergeOverlapping(intervals: BedInterval[]): BedInterval[] {
+  if (intervals.length <= 1) return intervals;
+
+  const sorted = sortIntervals(intervals);
+  if (sorted[0] === undefined) {
+    throw new ValidationError('sorted intervals must have at least one element');
+  }
+  const merged: BedInterval[] = [sorted[0]];
+
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] === undefined) {
+      throw new ValidationError(`sorted[${i}] must exist`);
+    }
+    const current = sorted[i]!;
+    if (merged[merged.length - 1] === undefined) {
+      throw new ValidationError('last merged interval must exist');
+    }
+    const last = merged[merged.length - 1]!;
+
+    // Check if intervals overlap (on same chromosome)
+    if (current.chromosome === last.chromosome && current.start <= last.end) {
+      // Merge intervals
+      (merged[merged.length - 1] as any).end = Math.max(last.end, current.end);
+
+      // Optionally preserve names
+      if (
+        last.name !== undefined &&
+        last.name !== null &&
+        last.name !== '' &&
+        current.name !== undefined &&
+        current.name !== null &&
+        current.name !== '' &&
+        last.name !== current.name
+      ) {
+        (merged[merged.length - 1] as any).name = `${last.name};${current.name}`;
+      }
+    } else {
+      merged.push(current);
+    }
+  }
+
+  return merged;
+}
+
+// Backward compatibility namespace exports
+export const BedFormat = {
+  detectVariant,
+  validateStrand,
+  parseRgb,
+  validateCoordinates,
+} as const;
+
+export const BedUtils = {
+  detectFormat,
+  countIntervals,
+  calculateStats,
+  sortIntervals,
+  mergeOverlapping,
+} as const;

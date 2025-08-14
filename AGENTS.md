@@ -27,6 +27,7 @@ validation will be rejected.**
 **Context compaction is lossy and leads to critical oversights.**
 
 After ANY compaction event:
+
 1. **STOP all work immediately**
 2. **Re-read CLAUDE.md (if available) in full**
 3. **Re-read AGENTS.md in full**
@@ -205,6 +206,7 @@ DECLARED COMPLETE.**
 - Zig test failures
 
 **ZERO TOLERANCE for linting issues:**
+
 - ALL ESLint warnings must be resolved
 - ALL TypeScript strict mode violations must be fixed
 - NO suppression comments (@ts-ignore, eslint-disable) without documented justification
@@ -215,11 +217,13 @@ DECLARED COMPLETE.**
 #### 1. ENFORCE VALIDATION-FIRST WORKFLOW
 
 **❌ FORBIDDEN WORKFLOW:**
+
 ```
 Write code → Mark complete → (Maybe) validate
 ```
 
 **✅ MANDATORY WORKFLOW:**
+
 ```
 Write code → Run `bun run validate` → Fix ALL issues → Write tests → Validate again → ONLY THEN mark complete
 ```
@@ -227,6 +231,7 @@ Write code → Run `bun run validate` → Fix ALL issues → Write tests → Val
 #### 2. REDEFINE "COMPLETE"
 
 A task is ONLY complete when:
+
 - ✅ `bun run validate` passes with ZERO errors AND ZERO warnings
 - ✅ Tests exist and pass
 - ✅ No TypeScript errors
@@ -237,6 +242,7 @@ A task is ONLY complete when:
 #### 3. CHECKPOINT SYSTEM
 
 Before marking ANY task complete, you MUST:
+
 1. Show the COMPLETE output of `bun run validate`
 2. Show the test results
 3. Show the ESLint output explicitly stating "✔ 0 problems (0 errors, 0 warnings)"
@@ -309,6 +315,7 @@ bun run build:with-native
 **Every warning is a defect. Every suppression is technical debt.**
 
 #### What Constitutes a Linting Violation:
+
 - **ESLint warnings** - ALL must be fixed, not suppressed
 - **TypeScript strict mode violations** - Fix the code, not the config
 - **Unused variables** - Remove them
@@ -319,15 +326,17 @@ bun run build:with-native
 - **Style inconsistencies** - Follow the project style
 
 #### Unacceptable Practices:
+
 ```typescript
 // ❌ NEVER DO THIS - Suppressing warnings is NOT fixing them
 // @ts-ignore
-// @ts-expect-error  
+// @ts-expect-error
 // eslint-disable-next-line
 // eslint-disable
 ```
 
 #### Why Zero Warnings:
+
 1. **Warnings become normalized** - Teams learn to ignore them
 2. **Signal-to-noise ratio degrades** - Real issues get lost
 3. **Broken window theory** - One warning leads to hundreds
@@ -335,6 +344,7 @@ bun run build:with-native
 5. **Quality erosion** - Standards slip over time
 
 #### Common ESLint Warnings That MUST Be Fixed:
+
 - `@typescript-eslint/no-explicit-any` - Use proper types
 - `@typescript-eslint/explicit-function-return-type` - Add return types
 - `@typescript-eslint/strict-boolean-expressions` - Handle all cases explicitly

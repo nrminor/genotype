@@ -36,6 +36,7 @@
 !/src/validation/
 !/src/validation/*.ts
 !/src/operations/
+!/src/operations/*.ts
 !/src/operations/core/
 !/src/operations/core/*.ts
 !/src/compression/

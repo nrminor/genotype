@@ -5,7 +5,7 @@
  * Uses Welford's algorithm for numerical stability in variance calculations
  */
 
-import type { Sequence } from '../../types';
+import type { AbstractSequence } from '../../types';
 
 /**
  * Sequence statistics result
@@ -66,7 +66,7 @@ export class SequenceStatsAccumulator {
    *
    * 🔥 ZIG OPTIMIZATION: Statistics calculation in single pass
    */
-  add(sequence: Sequence): void {
+  add(sequence: AbstractSequence): void {
     // Tiger Style: Assert input
     if (
       sequence === undefined ||
@@ -135,7 +135,7 @@ export class SequenceStatsAccumulator {
   /**
    * Add multiple sequences
    */
-  addMany(sequences: Iterable<Sequence>): void {
+  addMany(sequences: Iterable<AbstractSequence>): void {
     for (const seq of sequences) {
       this.add(seq);
     }
@@ -144,7 +144,7 @@ export class SequenceStatsAccumulator {
   /**
    * Add sequences from async iterable (streaming)
    */
-  async addStream(sequences: AsyncIterable<Sequence>): Promise<void> {
+  async addStream(sequences: AsyncIterable<AbstractSequence>): Promise<void> {
     for await (const seq of sequences) {
       this.add(seq);
     }
@@ -349,15 +349,15 @@ ${stats.qualityStats ? `Mean quality: ${stats.qualityStats.meanQuality.toFixed(2
  * Utility function to calculate stats for a complete sequence collection
  */
 export async function calculateSequenceStats(
-  sequences: AsyncIterable<Sequence> | Iterable<Sequence>
+  sequences: AsyncIterable<AbstractSequence> | Iterable<AbstractSequence>
 ): Promise<SequenceStats> {
   const accumulator = new SequenceStatsAccumulator();
 
   // Check if async iterable
   if (Symbol.asyncIterator in sequences) {
-    await accumulator.addStream(sequences as AsyncIterable<Sequence>);
+    await accumulator.addStream(sequences as AsyncIterable<AbstractSequence>);
   } else {
-    accumulator.addMany(sequences as Iterable<Sequence>);
+    accumulator.addMany(sequences as Iterable<AbstractSequence>);
   }
 
   return accumulator.getStats();

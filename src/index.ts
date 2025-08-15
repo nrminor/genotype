@@ -16,23 +16,6 @@ export {
   isCompressionSupported,
   ZstdDecompressor,
 } from './compression';
-// SeqOps - Unix pipeline-style sequence operations
-export {
-  SeqOps,
-  seqops,
-  SequenceStatsCalculator,
-  type SequenceStats,
-  type StatsOptions,
-  SubseqExtractor,
-  type SubseqOptions,
-  // New semantic API types
-  type FilterOptions,
-  type TransformOptions,
-  type CleanOptions,
-  type QualityOptions,
-  type ValidateOptions,
-} from './operations';
-
 // Error types
 export {
   BamError,
@@ -73,17 +56,16 @@ export { BedFormat, BedParser, BedUtils, BedWriter } from './formats/bed';
 export { FastaParser, FastaUtils, FastaWriter } from './formats/fasta';
 // FASTQ format
 export {
+  calculateStats,
+  detectEncoding,
   FastqParser,
   FastqUtils,
   FastqWriter,
+  getOffset,
   QualityScores,
   toNumbers,
   toString,
-  getOffset,
-  detectEncoding,
-  calculateStats,
 } from './formats/fastq';
-
 // SAM format
 export { SAMParser, SAMUtils, SAMWriter } from './formats/sam';
 // File I/O infrastructure
@@ -97,17 +79,34 @@ export {
   type Runtime,
   type RuntimeCapabilities,
 } from './io/runtime';
-
 export {
-  StreamUtils,
-  readLines,
-  processBuffer,
-  pipe,
-  processChunks,
   batchLines,
+  pipe,
+  processBuffer,
+  processChunks,
+  readLines,
+  StreamUtils,
 } from './io/stream-utils';
+// SeqOps - Unix pipeline-style sequence operations
+export {
+  type CleanOptions,
+  // New semantic API types
+  type FilterOptions,
+  type QualityOptions,
+  SeqOps,
+  type SequenceStats,
+  SequenceStatsCalculator,
+  type StatsOptions,
+  SubseqExtractor,
+  type SubseqOptions,
+  seqops,
+  type TransformOptions,
+  type ValidateOptions,
+} from './operations';
 // Core types
 export type {
+  AbstractSequence,
+  AbstractSequence as Sequence,
   BAIBin,
   BAIBinNumber,
   BAIChunk,
@@ -127,6 +126,7 @@ export type {
   CompressionDetection,
   CompressionFormat,
   DecompressorOptions,
+  FASTXSequence,
   FastaSequence,
   FastqSequence,
   FileHandle,
@@ -147,9 +147,6 @@ export type {
   SAMHeader,
   SAMTag,
   SamRecord,
-  Sequence,
-  AbstractSequence,
-  FASTXSequence,
   Strand,
   StreamChunk,
   StreamStats,
@@ -265,8 +262,8 @@ export function detectFormat(data: string): FormatDetection {
     const fields = (dataLines[0] ?? '').split(/\s+/);
     if (
       fields.length >= 3 &&
-      !isNaN(parseInt(fields[1] ?? '', 10)) &&
-      !isNaN(parseInt(fields[2] ?? '', 10))
+      !Number.isNaN(parseInt(fields[1] ?? '', 10)) &&
+      !Number.isNaN(parseInt(fields[2] ?? '', 10))
     ) {
       const start = parseInt(fields[1] ?? '', 10);
       const end = parseInt(fields[2] ?? '', 10);

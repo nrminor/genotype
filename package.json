@@ -3,23 +3,36 @@
   "version": "0.1.0",
   "description": "A feature-rich TypeScript library for working with genomic data formats (FASTA, FASTQ, SAM, BAM, BED)",
   "type": "module",
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nrminor/genotype"
+  },
+
+  "engines": {
+    "bun": ">=1.2.0"
+  },
+  "types": "src/index.ts",
+  "module": "src/index.ts",
+  "main": "dist/index.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": "./dist/index.js"
     }
   },
   "files": [
     "dist",
     "src",
-    "README.md"
+    "README.md",
+    "LICENSE*"
   ],
+  "sideEffects": false,
   "scripts": {
-    "build": "tsc && node scripts/build.js",
+    "build:dev": "cd src/zig && zig build -Doptimize=Debug",
+    "build:prod": "cd src/zig && zig build -Doptimize=ReleaseFast",
+    "build": "bun run build:native && bun run build:lib",
+    "build:lib": "bun scripts/build.mjs --lib",
+    "build:native": "bun scripts/build.mjs --native",
     "build:zig": "cd src/zig && zig build",
     "build:zig:dev": "cd src/zig && zig build -Doptimize=Debug",
     "build:zig:prod": "cd src/zig && zig build -Doptimize=ReleaseFast",
@@ -54,11 +67,19 @@
   ],
   "author": "",
   "license": "MIT",
-  "engines": {
-    "node": ">=18.0.0"
-  },
   "peerDependencies": {
     "typescript": ">=5.0.0"
+  },
+  "dependencies": {
+    "arktype": "^2.0.0-rc.8"
+  },
+  "optionalDependencies": {
+    "genotype-darwin-x64": "0.1.0",
+    "genotype-darwin-arm64": "0.1.0",
+    "genotype-linux-x64": "0.1.0",
+    "genotype-linux-arm64": "0.1.0",
+    "genotype-win32-x64": "0.1.0",
+    "genotype-win32-arm64": "0.1.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.1.4",
@@ -74,9 +95,6 @@
     "typescript": "^5.5.0",
     "typescript-language-server": "^4.3.4",
     "vscode-langservers-extracted": "4.8"
-  },
-  "dependencies": {
-    "arktype": "^2.0.0-rc.8"
   },
   "prettier": {
     "semi": true,

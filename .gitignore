@@ -64,5 +64,7 @@
 !/test/fixtures/sample.fastq
 !/test/fixtures/sample.bed
 !/scripts/
-!/scripts/build.js
+!/scripts/build.mjs
+!/scripts/pack.mjs
+!/scripts/publish.mjs
 !/scripts/demo.ts

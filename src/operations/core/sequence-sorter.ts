@@ -23,7 +23,7 @@
  * - Deduplication adds ~20% overhead with Set tracking
  */
 
-import type { FastqSequence, Sequence } from '../../types';
+import type { FastqSequence, AbstractSequence } from '../../types';
 import { ExternalSorter } from './memory';
 
 /**
@@ -62,7 +62,7 @@ export type SortBy =
   | 'id-desc' // Sort reverse alphabetically by ID
   | 'quality' // Sort by average quality (FASTQ only, highest first)
   | 'quality-asc' // Sort by average quality (FASTQ only, lowest first)
-  | ((a: Sequence, b: Sequence) => number); // Custom comparison function
+  | ((a: AbstractSequence, b: AbstractSequence) => number); // Custom comparison function
 
 /**
  * Configuration options for sequence sorting.
@@ -167,7 +167,7 @@ export interface SortOptions {
  * happens entirely in memory. Larger datasets use disk-based merge sort.
  */
 export class SequenceSorter {
-  private readonly compareFn: (a: Sequence, b: Sequence) => number;
+  private readonly compareFn: (a: AbstractSequence, b: AbstractSequence) => number;
   private readonly options: Required<SortOptions>;
   private readonly seenIds?: Set<string>;
 
@@ -207,12 +207,12 @@ export class SequenceSorter {
    * Memory usage is bounded by chunkSize option. For datasets larger than
    * chunkSize, temporary files are created in tempDir.
    */
-  async *sort(sequences: AsyncIterable<Sequence>): AsyncGenerator<Sequence> {
+  async *sort(sequences: AsyncIterable<AbstractSequence>): AsyncGenerator<AbstractSequence> {
     // If deduplication is requested, filter first
     const input = this.options.unique ? this.deduplicate(sequences) : sequences;
 
     // Create external sorter with sequence-specific serialization
-    const sorter = new ExternalSorter<Sequence>(
+    const sorter = new ExternalSorter<AbstractSequence>(
       this.options.chunkSize,
       this.options.tempDir,
       this.serializeSequence.bind(this),
@@ -243,8 +243,8 @@ export class SequenceSorter {
    * This method loads all sequences into memory. For large datasets,
    * use the streaming sort() method instead.
    */
-  async sortInMemory(sequences: AsyncIterable<Sequence>): Promise<Sequence[]> {
-    const array: Sequence[] = [];
+  async sortInMemory(sequences: AsyncIterable<AbstractSequence>): Promise<AbstractSequence[]> {
+    const array: AbstractSequence[] = [];
 
     for await (const seq of sequences) {
       if (
@@ -289,12 +289,16 @@ export class SequenceSorter {
    * when you only need a small number of top sequences. Memory usage
    * is proportional to N, not the dataset size.
    */
-  async *getTopN(sequences: AsyncIterable<Sequence>, n: number): AsyncGenerator<Sequence> {
+  async *getTopN(
+    sequences: AsyncIterable<AbstractSequence>,
+    n: number
+  ): AsyncGenerator<AbstractSequence> {
     // For top-N, we need to invert the comparison
     // The heap keeps the "smallest" N items according to its compareFn
     // So to keep the largest N, we invert the comparison
-    const invertedCompareFn = (a: Sequence, b: Sequence): number => -this.compareFn(a, b);
-    const heap = new MinHeap<Sequence>(n, invertedCompareFn);
+    const invertedCompareFn = (a: AbstractSequence, b: AbstractSequence): number =>
+      -this.compareFn(a, b);
+    const heap = new MinHeap<AbstractSequence>(n, invertedCompareFn);
 
     for await (const seq of sequences) {
       heap.add(seq);
@@ -309,7 +313,7 @@ export class SequenceSorter {
 
   // Private helper methods
 
-  private getCompareFn(sortBy: SortBy): (a: Sequence, b: Sequence) => number {
+  private getCompareFn(sortBy: SortBy): (a: AbstractSequence, b: AbstractSequence) => number {
     if (typeof sortBy === 'function') {
       return sortBy;
     }
@@ -345,12 +349,12 @@ export class SequenceSorter {
     }
   }
 
-  private getGCContent(seq: Sequence): number {
+  private getGCContent(seq: AbstractSequence): number {
     const gcCount = (seq.sequence.match(/[GCgc]/g) || []).length;
     return gcCount / seq.sequence.length;
   }
 
-  private getAverageQuality(seq: Sequence): number {
+  private getAverageQuality(seq: AbstractSequence): number {
     // Only applicable to FASTQ sequences
     if (!('quality' in seq)) {
       return 0;
@@ -367,7 +371,7 @@ export class SequenceSorter {
     return sum / fastq.quality.length;
   }
 
-  private serializeSequence(seq: Sequence): string {
+  private serializeSequence(seq: AbstractSequence): string {
     // Use a compact JSON format for serialization
     if ('quality' in seq) {
       // FASTQ format
@@ -388,7 +392,7 @@ export class SequenceSorter {
     }
   }
 
-  private deserializeSequence(line: string): Sequence {
+  private deserializeSequence(line: string): AbstractSequence {
     try {
       const obj = JSON.parse(line);
 
@@ -406,7 +410,7 @@ export class SequenceSorter {
         return fastq;
       } else {
         // FASTA
-        const fasta: Sequence = {
+        const fasta: AbstractSequence = {
           id: obj.id,
           sequence: obj.s,
           description: obj.d,
@@ -424,7 +428,9 @@ export class SequenceSorter {
     }
   }
 
-  private async *deduplicate(sequences: AsyncIterable<Sequence>): AsyncGenerator<Sequence> {
+  private async *deduplicate(
+    sequences: AsyncIterable<AbstractSequence>
+  ): AsyncGenerator<AbstractSequence> {
     for await (const seq of sequences) {
       const key = this.getSequenceKey(seq);
       if (this.seenIds !== undefined && this.seenIds !== null && !this.seenIds.has(key)) {
@@ -434,7 +440,7 @@ export class SequenceSorter {
     }
   }
 
-  private getSequenceKey(seq: Sequence): string {
+  private getSequenceKey(seq: AbstractSequence): string {
     // Use both ID and sequence for uniqueness
     return `${seq.id}:${seq.sequence}`;
   }
@@ -579,11 +585,11 @@ class MinHeap<T> {
  * @since v0.1.0
  */
 export async function sortSequences(
-  sequences: AsyncIterable<Sequence>,
+  sequences: AsyncIterable<AbstractSequence>,
   options?: SortOptions
-): Promise<Sequence[]> {
+): Promise<AbstractSequence[]> {
   const sorter = new SequenceSorter(options);
-  const result: Sequence[] = [];
+  const result: AbstractSequence[] = [];
 
   for await (const seq of sorter.sort(sequences)) {
     result.push(seq);
@@ -616,12 +622,12 @@ export async function sortSequences(
  * @since v0.1.0
  */
 export async function getTopSequences(
-  sequences: AsyncIterable<Sequence>,
+  sequences: AsyncIterable<AbstractSequence>,
   n: number,
   sortBy: SortBy = 'length'
-): Promise<Sequence[]> {
+): Promise<AbstractSequence[]> {
   const sorter = new SequenceSorter({ sortBy });
-  const result: Sequence[] = [];
+  const result: AbstractSequence[] = [];
 
   for await (const seq of sorter.getTopN(sequences, n)) {
     result.push(seq);

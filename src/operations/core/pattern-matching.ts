@@ -25,7 +25,7 @@
  * - IUPAC matching has overhead for ambiguous base expansion
  */
 
-import type { Sequence } from '../../types';
+import type { AbstractSequence } from '../../types';
 import { SequenceValidator } from '../validate';
 import { reverseComplement } from './sequence-manipulation';
 
@@ -784,7 +784,7 @@ export class SequenceMatcher {
    * @param sequences - Async iterable of sequences to search
    * @yields {SequenceMatch} Match objects as they are found
    */
-  async *findAll(sequences: AsyncIterable<Sequence>): AsyncGenerator<SequenceMatch> {
+  async *findAll(sequences: AsyncIterable<AbstractSequence>): AsyncGenerator<SequenceMatch> {
     for await (const sequence of sequences) {
       const matches = this.findInSequence(sequence);
       for (const match of matches) {
@@ -799,7 +799,7 @@ export class SequenceMatcher {
    * @param sequence - Sequence object or raw sequence string to search
    * @returns Array of all matches found in the sequence
    */
-  findInSequence(sequence: Sequence | string): SequenceMatch[] {
+  findInSequence(sequence: AbstractSequence | string): SequenceMatch[] {
     const isSequenceObject = typeof sequence === 'object';
     const seq = isSequenceObject ? sequence.sequence : sequence;
     const seqId = isSequenceObject ? sequence.id : 'unknown';
@@ -832,7 +832,7 @@ export class SequenceMatcher {
    * @param sequence - Sequence to search
    * @returns First match found, or null if no matches
    */
-  findFirst(sequence: Sequence | string): SequenceMatch | null {
+  findFirst(sequence: AbstractSequence | string): SequenceMatch | null {
     const matches = this.findInSequence(sequence);
     if (matches.length > 0) {
       const firstMatch = matches[0];
@@ -848,7 +848,7 @@ export class SequenceMatcher {
    * @param sequence - Sequence to test
    * @returns True if pattern exists in sequence
    */
-  test(sequence: Sequence | string): boolean {
+  test(sequence: AbstractSequence | string): boolean {
     return this.findFirst(sequence) !== null;
   }
 
@@ -858,7 +858,7 @@ export class SequenceMatcher {
    * @param sequence - Sequence to count matches in
    * @returns Number of pattern occurrences
    */
-  count(sequence: Sequence | string): number {
+  count(sequence: AbstractSequence | string): number {
     const text = typeof sequence === 'object' ? sequence.sequence : sequence;
     const searchText = this.options.caseSensitive ? text : text.toUpperCase();
 
@@ -1146,7 +1146,7 @@ export class SequenceMatcher {
  */
 export function findPattern(
   pattern: string,
-  sequence: Sequence | string,
+  sequence: AbstractSequence | string,
   options?: MatcherOptions
 ): SequenceMatch[] {
   const matcher = new SequenceMatcher(pattern, options);
@@ -1165,7 +1165,7 @@ export function findPattern(
  */
 export function hasPattern(
   pattern: string,
-  sequence: Sequence | string,
+  sequence: AbstractSequence | string,
   options?: MatcherOptions
 ): boolean {
   const matcher = new SequenceMatcher(pattern, options);

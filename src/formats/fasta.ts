@@ -53,7 +53,6 @@ export class FastaParser {
    * @param options Parser configuration options
    */
   constructor(options: ParserOptions = {}) {
-    // Tiger Style: Assert constructor arguments
     if (typeof options !== 'object') {
       throw new ValidationError('options must be an object');
     }
@@ -88,7 +87,6 @@ export class FastaParser {
    * ```
    */
   async *parseString(data: string): AsyncIterable<FastaSequence> {
-    // Tiger Style: Assert function arguments
     if (typeof data !== 'string') {
       throw new ValidationError('data must be a string');
     }
@@ -218,7 +216,6 @@ export class FastaParser {
    * @yields FastaSequence objects as they are parsed
    */
   private async *parseLines(lines: string[], startLineNumber = 1): AsyncIterable<FastaSequence> {
-    // Tiger Style: Assert function arguments
     if (!Array.isArray(lines)) {
       throw new ValidationError('lines must be an array');
     }
@@ -554,12 +551,16 @@ export class FastaParser {
           : '',
       ...(partialSequence.description !== null &&
         partialSequence.description !== undefined &&
-        partialSequence.description !== '' && { description: partialSequence.description }),
+        partialSequence.description !== '' && {
+          description: partialSequence.description,
+        }),
       sequence,
       length,
       ...(partialSequence.lineNumber !== null &&
         partialSequence.lineNumber !== undefined &&
-        partialSequence.lineNumber !== 0 && { lineNumber: partialSequence.lineNumber }),
+        partialSequence.lineNumber !== 0 && {
+          lineNumber: partialSequence.lineNumber,
+        }),
     };
 
     // Final validation if not skipping

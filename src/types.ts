@@ -73,7 +73,7 @@ function isValidChunk(chunk: any): chunk is { beginOffset: number } {
 /**
  * Base sequence interface - foundation for all genomic sequence types
  */
-export interface Sequence {
+export interface AbstractSequence {
   /** Sequence identifier (required, but may be empty string in malformed data) */
   readonly id: string;
   /** Optional description/comment line */
@@ -82,24 +82,6 @@ export interface Sequence {
   readonly sequence: string;
   /** Cached sequence length for performance */
   readonly length: number;
-  /** Original line number where this sequence started (for error reporting) */
-  readonly lineNumber?: number;
-}
-
-/**
- * The most abstract representation of a biological sequence
- * Foundation for all sequence types (FASTA, FASTQ, BAM, etc.)
- * This is the core type used by SeqOps operations for format-agnostic processing
- */
-export interface AbstractSequence {
-  /** Sequence identifier */
-  readonly id: string;
-  /** The actual sequence data */
-  readonly sequence: string;
-  /** Cached sequence length for performance */
-  readonly length: number;
-  /** Optional description/comment line */
-  readonly description?: string;
   /** Original line number where this sequence started (for error reporting) */
   readonly lineNumber?: number;
 }
@@ -173,9 +155,18 @@ export interface FastqSequence extends FASTXSequence {
 }
 
 // SAM Format Branded Types for compile-time safety
-export type SAMFlag = number & { readonly __brand: 'SAMFlag'; readonly __valid: true };
-export type CIGARString = string & { readonly __brand: 'CIGAR'; readonly __validated: true };
-export type MAPQScore = number & { readonly __brand: 'MAPQ'; readonly __range: '0-255' };
+export type SAMFlag = number & {
+  readonly __brand: 'SAMFlag';
+  readonly __valid: true;
+};
+export type CIGARString = string & {
+  readonly __brand: 'CIGAR';
+  readonly __validated: true;
+};
+export type MAPQScore = number & {
+  readonly __brand: 'MAPQ';
+  readonly __range: '0-255';
+};
 
 /**
  * SAM optional tag with strict typing
@@ -606,7 +597,7 @@ export const FastqSequenceSchema = type({
   QualitySchema({ quality: fastq.quality, encoding: fastq.qualityEncoding });
 
   // Calculate quality statistics if scores provided
-  let qualityStats;
+  let qualityStats = {};
   if (fastq.qualityScores) {
     const scores = fastq.qualityScores;
     qualityStats = {
@@ -1292,13 +1283,19 @@ export const FileMetadataSchema = type({
  * Virtual file offset used in BAI indexes for BGZF-compressed BAM files
  * Combines BGZF block offset (48 bits) and uncompressed offset within block (16 bits)
  */
-export type VirtualOffset = bigint & { readonly __brand: 'VirtualOffset'; readonly __valid: true };
+export type VirtualOffset = bigint & {
+  readonly __brand: 'VirtualOffset';
+  readonly __valid: true;
+};
 
 /**
  * BAI bin number using UCSC binning scheme
  * Hierarchical spatial indexing for efficient genomic region queries
  */
-export type BAIBinNumber = number & { readonly __brand: 'BAIBin'; readonly __valid: true };
+export type BAIBinNumber = number & {
+  readonly __brand: 'BAIBin';
+  readonly __valid: true;
+};
 
 /**
  * BAI chunk representing a contiguous region in the BAM file

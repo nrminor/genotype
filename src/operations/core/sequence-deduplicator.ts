@@ -23,7 +23,7 @@
  * - ExactDeduplicator provides 100% accuracy at higher memory cost
  */
 
-import type { Sequence } from '../../types';
+import type { AbstractSequence } from '../../types';
 import { BloomFilter, ScalableBloomFilter } from './bloom-filter';
 
 /**
@@ -55,7 +55,7 @@ export type DeduplicationStrategy =
   | 'id' // Deduplicate by ID only
   | 'both' // Deduplicate by ID and sequence (default)
   | 'exact' // Deduplicate by exact match of all fields
-  | ((seq: Sequence) => string); // Custom key function
+  | ((seq: AbstractSequence) => string); // Custom key function
 
 /**
  * Configuration options for sequence deduplication.
@@ -240,7 +240,7 @@ export interface DeduplicationStats {
 export class SequenceDeduplicator {
   private bloom: BloomFilter | ScalableBloomFilter;
   private readonly options: Required<DeduplicationOptions>;
-  private readonly getKey: (seq: Sequence) => string;
+  private readonly getKey: (seq: AbstractSequence) => string;
   private stats: DeduplicationStats;
   private readonly duplicateTracker?: Map<string, number>;
 
@@ -299,7 +299,7 @@ export class SequenceDeduplicator {
    * }
    * ```
    */
-  async *deduplicate(sequences: AsyncIterable<Sequence>): AsyncGenerator<Sequence> {
+  async *deduplicate(sequences: AsyncIterable<AbstractSequence>): AsyncGenerator<AbstractSequence> {
     for await (const seq of sequences) {
       if (this.processSequence(seq)) {
         yield seq;
@@ -324,7 +324,7 @@ export class SequenceDeduplicator {
    * console.log(`${stats.duplicateCount} duplicates found`);
    * ```
    */
-  async process(sequences: AsyncIterable<Sequence>): Promise<void> {
+  async process(sequences: AsyncIterable<AbstractSequence>): Promise<void> {
     for await (const seq of sequences) {
       this.processSequence(seq);
     }
@@ -346,7 +346,7 @@ export class SequenceDeduplicator {
    * }
    * ```
    */
-  isUnique(sequence: Sequence): boolean {
+  isUnique(sequence: AbstractSequence): boolean {
     const key = this.getKey(sequence);
     return !this.bloom.contains(key);
   }
@@ -366,7 +366,7 @@ export class SequenceDeduplicator {
    * }
    * ```
    */
-  markAsSeen(sequence: Sequence): void {
+  markAsSeen(sequence: AbstractSequence): void {
     const key = this.getKey(sequence);
     this.bloom.add(key);
     this.stats.uniqueCount++;
@@ -485,7 +485,7 @@ export class SequenceDeduplicator {
 
   // Private helper methods
 
-  private processSequence(seq: Sequence): boolean {
+  private processSequence(seq: AbstractSequence): boolean {
     this.stats.totalProcessed++;
     const key = this.getKey(seq);
 
@@ -508,7 +508,7 @@ export class SequenceDeduplicator {
     }
   }
 
-  private createKeyFunction(strategy: DeduplicationStrategy): (seq: Sequence) => string {
+  private createKeyFunction(strategy: DeduplicationStrategy): (seq: AbstractSequence) => string {
     if (typeof strategy === 'function') {
       return strategy;
     }
@@ -568,7 +568,7 @@ export class SequenceDeduplicator {
  */
 export class ExactDeduplicator {
   private readonly seen = new Set<string>();
-  private readonly getKey: (seq: Sequence) => string;
+  private readonly getKey: (seq: AbstractSequence) => string;
   private stats = {
     totalProcessed: 0,
     uniqueCount: 0,
@@ -624,7 +624,7 @@ export class ExactDeduplicator {
    * }
    * ```
    */
-  async *deduplicate(sequences: AsyncIterable<Sequence>): AsyncGenerator<Sequence> {
+  async *deduplicate(sequences: AsyncIterable<AbstractSequence>): AsyncGenerator<AbstractSequence> {
     for await (const seq of sequences) {
       this.stats.totalProcessed++;
       const key = this.getKey(seq);
@@ -699,11 +699,11 @@ export class ExactDeduplicator {
  * @since v0.1.0
  */
 export async function deduplicateSequences(
-  sequences: AsyncIterable<Sequence>,
+  sequences: AsyncIterable<AbstractSequence>,
   options?: DeduplicationOptions
-): Promise<Sequence[]> {
+): Promise<AbstractSequence[]> {
   const dedup = new SequenceDeduplicator(options);
-  const result: Sequence[] = [];
+  const result: AbstractSequence[] = [];
 
   for await (const seq of dedup.deduplicate(sequences)) {
     result.push(seq);
@@ -738,7 +738,7 @@ export async function deduplicateSequences(
  * @since v0.1.0
  */
 export async function findDuplicates(
-  sequences: AsyncIterable<Sequence>,
+  sequences: AsyncIterable<AbstractSequence>,
   options?: DeduplicationOptions
 ): Promise<DeduplicationStats> {
   const dedup = new SequenceDeduplicator({

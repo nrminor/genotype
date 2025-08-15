@@ -8,7 +8,7 @@
  * Different organisms use different genetic codes (e.g., mitochondrial vs nuclear)
  */
 
-import { reverseComplement } from './transforms';
+import { reverseComplement } from './sequence-manipulation';
 
 /**
  * Genetic code identifiers matching NCBI standards

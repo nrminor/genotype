@@ -1,24 +1,24 @@
 /**
  * Comprehensive sequence statistics calculation for SeqOps
- * 
+ *
  * This module provides statistical analysis functionality that mirrors
  * the `seqkit stats` command, offering comprehensive metrics for both
  * FASTA and FASTQ sequences including N50, GC content, and quality statistics.
- * 
+ *
  * Key features:
  * - N50/N90 calculation with efficient algorithms
  * - GC content and composition analysis
  * - Quality score statistics for FASTQ files
  * - Streaming computation for memory efficiency
  * - Real-time statistics updates during processing
- * 
+ *
  * @version v0.1.0
  * @since v0.1.0
  */
 
 import type { AbstractSequence, FASTXSequence, FastqSequence, QualityEncoding } from '../types';
 import { SequenceError } from '../errors';
-import { charToScore } from './core/quality';
+import { charToScore } from './core/encoding';
 
 // =============================================================================
 // TYPES AND INTERFACES
@@ -26,7 +26,7 @@ import { charToScore } from './core/quality';
 
 /**
  * Comprehensive sequence statistics result
- * 
+ *
  * Contains all statistical metrics calculated from a set of sequences,
  * including length distributions, composition analysis, and quality metrics.
  */
@@ -47,7 +47,7 @@ export interface SequenceStats {
   readonly maxLength: number;
   /** Average sequence length */
   readonly avgLength: number;
-  
+
   // Advanced statistics
   /** N50 - length where 50% of bases are in sequences >= this length */
   readonly n50?: number;
@@ -59,7 +59,7 @@ export interface SequenceStats {
   readonly q2Length?: number;
   /** Third quartile length */
   readonly q3Length?: number;
-  
+
   // Composition statistics
   /** Overall GC content (0.0 to 1.0) */
   readonly gcContent?: number;
@@ -77,7 +77,7 @@ export interface SequenceStats {
     readonly N: number;
     readonly other: number;
   };
-  
+
   // FASTQ-specific statistics
   /** Average quality score across all bases */
   readonly avgQuality?: number;
@@ -95,7 +95,7 @@ export interface SequenceStats {
 
 /**
  * Configuration options for statistics calculation
- * 
+ *
  * Controls which statistics are computed and how they are formatted.
  */
 export interface StatsOptions {
@@ -125,7 +125,7 @@ interface StatsAccumulator {
   minLength: number;
   maxLength: number;
   lengths: number[];
-  
+
   // Composition tracking
   gcCount: number;
   atCount: number;
@@ -140,7 +140,7 @@ interface StatsAccumulator {
     N: number;
     other: number;
   };
-  
+
   // Quality tracking (FASTQ)
   totalQuality: number;
   qualityCount: number;
@@ -148,7 +148,7 @@ interface StatsAccumulator {
   maxQuality: number;
   q20Count: number;
   q30Count: number;
-  
+
   // Format detection
   hasFasta: boolean;
   hasFastq: boolean;
@@ -163,24 +163,24 @@ interface StatsAccumulator {
 
 /**
  * High-performance sequence statistics calculator with streaming support
- * 
+ *
  * Calculates comprehensive statistics from sequences while maintaining
  * constant memory usage through streaming computation where possible.
- * 
+ *
  * @example
  * ```typescript
  * // Basic statistics
  * const calculator = new SequenceStatsCalculator();
  * const stats = await calculator.calculateStats(sequences);
  * console.log(`N50: ${stats.n50}, GC: ${stats.gcContent}%`);
- * 
+ *
  * // Detailed statistics with quality
  * const detailedStats = await calculator.calculateStats(sequences, {
  *   detailed: true,
  *   includeQuality: true,
  *   includeComposition: true
  * });
- * 
+ *
  * // Tabular output for command-line
  * const tableStats = await calculator.calculateStats(sequences, {
  *   tabular: true,
@@ -200,14 +200,14 @@ export class SequenceStatsCalculator {
 
   /**
    * Calculate comprehensive sequence statistics
-   * 
+   *
    * Processes sequences through a single pass, computing all requested
    * statistics while maintaining memory efficiency.
-   * 
+   *
    * @param sequences - Input sequences to analyze
    * @param options - Configuration options for statistics
    * @returns Comprehensive statistics result
-   * 
+   *
    * @example
    * ```typescript
    * const stats = await calculator.calculateStats(sequences, {
@@ -230,13 +230,13 @@ export class SequenceStatsCalculator {
       fileName: options.fileName,
     };
     const accumulator = this.createAccumulator();
-    
+
     try {
       // Process sequences and accumulate statistics
       for await (const sequence of sequences) {
         this.processSequence(sequence, accumulator, opts);
       }
-      
+
       // Calculate final statistics from accumulated data
       return this.finalizeStatistics(accumulator, opts);
     } catch (error) {
@@ -251,15 +251,15 @@ export class SequenceStatsCalculator {
 
   /**
    * Calculate N50, N90, and other percentile metrics
-   * 
+   *
    * N50 is the sequence length where 50% of the total bases are in
    * sequences of this length or longer. This is a key metric for
    * genome assembly quality assessment.
-   * 
+   *
    * @param lengths - Array of sequence lengths (will be sorted)
    * @param percentile - Target percentile (50 for N50, 90 for N90)
    * @returns The NX value
-   * 
+   *
    * @example
    * ```typescript
    * const lengths = [100, 200, 300, 400, 500];
@@ -275,12 +275,12 @@ export class SequenceStatsCalculator {
     if (percentile < 0 || percentile > 100) {
       throw new Error(`Invalid percentile: ${percentile} (must be 0-100)`);
     }
-    
+
     // Sort lengths in descending order
     const sorted = [...lengths].sort((a, b) => b - a);
     const totalLength = sorted.reduce((sum, len) => sum + len, 0);
     const targetLength = totalLength * (percentile / 100);
-    
+
     let cumulativeLength = 0;
     for (const length of sorted) {
       cumulativeLength += length;
@@ -288,16 +288,16 @@ export class SequenceStatsCalculator {
         return length;
       }
     }
-    
+
     return sorted[sorted.length - 1] || 0;
   }
 
   /**
    * Calculate quality statistics for FASTQ sequences
-   * 
+   *
    * Computes mean, min, max, and percentile-based quality metrics
    * from quality strings using the appropriate encoding.
-   * 
+   *
    * @param qualities - Array of quality strings
    * @param encoding - Quality encoding system
    * @returns Quality statistics
@@ -315,14 +315,14 @@ export class SequenceStatsCalculator {
     if (qualities.length === 0) {
       return { mean: 0, min: 0, max: 0, q20Percentage: 0, q30Percentage: 0 };
     }
-    
+
     let totalScore = 0;
     let totalBases = 0;
     let minScore = Infinity;
     let maxScore = -Infinity;
     let q20Count = 0;
     let q30Count = 0;
-    
+
     for (const qualityString of qualities) {
       for (let i = 0; i < qualityString.length; i++) {
         const score = charToScore(qualityString[i]!, encoding);
@@ -330,12 +330,12 @@ export class SequenceStatsCalculator {
         totalBases++;
         minScore = Math.min(minScore, score);
         maxScore = Math.max(maxScore, score);
-        
+
         if (score >= 20) q20Count++;
         if (score >= 30) q30Count++;
       }
     }
-    
+
     return {
       mean: totalBases > 0 ? totalScore / totalBases : 0,
       min: minScore === Infinity ? 0 : minScore,
@@ -360,7 +360,7 @@ export class SequenceStatsCalculator {
       minLength: Infinity,
       maxLength: -Infinity,
       lengths: [],
-      
+
       gcCount: 0,
       atCount: 0,
       gapCount: 0,
@@ -374,14 +374,14 @@ export class SequenceStatsCalculator {
         N: 0,
         other: 0,
       },
-      
+
       totalQuality: 0,
       qualityCount: 0,
       minQuality: Infinity,
       maxQuality: -Infinity,
       q20Count: 0,
       q30Count: 0,
-      
+
       hasFasta: false,
       hasFastq: false,
       hasProtein: false,
@@ -393,7 +393,7 @@ export class SequenceStatsCalculator {
   /**
    * Process a single sequence and update accumulator
    * @private
-   * 
+   *
    * @optimize ZIG_CANDIDATE - HOT LOOP FOR BASE COMPOSITION
    * - Character-by-character iteration for counting
    * - SIMD: Population count instructions for base composition
@@ -416,18 +416,18 @@ export class SequenceStatsCalculator {
     accumulator.totalLength += sequence.length;
     accumulator.minLength = Math.min(accumulator.minLength, sequence.length);
     accumulator.maxLength = Math.max(accumulator.maxLength, sequence.length);
-    
+
     // Store length for N50 calculation if detailed stats requested
     if (options.detailed) {
       accumulator.lengths.push(sequence.length);
     }
-    
+
     // Analyze sequence composition
     this.analyzeComposition(sequence.sequence, accumulator, options);
-    
+
     // Detect format and type
     this.detectFormat(sequence, accumulator);
-    
+
     // Process quality if FASTQ
     if (this.isFastqSequence(sequence) && options.includeQuality) {
       this.processQuality(sequence, accumulator);
@@ -444,10 +444,10 @@ export class SequenceStatsCalculator {
     options: { gapChars: string; ambiguousChars: string; includeComposition: boolean }
   ): void {
     const upperSeq = sequence.toUpperCase();
-    
+
     for (let i = 0; i < upperSeq.length; i++) {
       const char = upperSeq[i]!;
-      
+
       // Count bases
       switch (char) {
         case 'G':
@@ -490,7 +490,7 @@ export class SequenceStatsCalculator {
           else if ('DEFHIKLMPQVWY'.includes(char)) {
             accumulator.hasProtein = true;
           }
-          
+
           if (options.includeComposition) {
             accumulator.baseComposition.other++;
           }
@@ -521,21 +521,18 @@ export class SequenceStatsCalculator {
    * Process quality scores for FASTQ sequences
    * @private
    */
-  private processQuality(
-    sequence: FastqSequence,
-    accumulator: StatsAccumulator
-  ): void {
+  private processQuality(sequence: FastqSequence, accumulator: StatsAccumulator): void {
     const quality = sequence.quality;
     const encoding = sequence.qualityEncoding;
-    
+
     for (let i = 0; i < quality.length; i++) {
       const score = charToScore(quality[i]!, encoding);
-      
+
       accumulator.totalQuality += score;
       accumulator.qualityCount++;
       accumulator.minQuality = Math.min(accumulator.minQuality, score);
       accumulator.maxQuality = Math.max(accumulator.maxQuality, score);
-      
+
       if (score >= 20) accumulator.q20Count++;
       if (score >= 30) accumulator.q30Count++;
     }
@@ -547,13 +544,18 @@ export class SequenceStatsCalculator {
    */
   private finalizeStatistics(
     accumulator: StatsAccumulator,
-    options: { fileName?: string | undefined; detailed: boolean; includeComposition: boolean; includeQuality: boolean }
+    options: {
+      fileName?: string | undefined;
+      detailed: boolean;
+      includeComposition: boolean;
+      includeQuality: boolean;
+    }
   ): SequenceStats {
     // Handle empty input
     if (accumulator.count === 0) {
       return this.createEmptyStats(options.fileName);
     }
-    
+
     // Build statistics object with all computed values
     const stats: SequenceStats = {
       ...(options.fileName !== undefined && { file: options.fileName }),
@@ -564,16 +566,26 @@ export class SequenceStatsCalculator {
       minLength: accumulator.minLength === Infinity ? 0 : accumulator.minLength,
       maxLength: accumulator.maxLength === -Infinity ? 0 : accumulator.maxLength,
       avgLength: accumulator.totalLength / accumulator.count,
-      
+
       // Add detailed statistics if requested
-      ...(options.detailed && accumulator.lengths.length > 0 && {
-        n50: this.calculateNX(accumulator.lengths, 50),
-        n90: this.calculateNX(accumulator.lengths, 90),
-        q1Length: [...accumulator.lengths].sort((a, b) => a - b)[Math.floor(accumulator.lengths.length * 0.25)] || 0,
-        q2Length: [...accumulator.lengths].sort((a, b) => a - b)[Math.floor(accumulator.lengths.length * 0.5)] || 0,
-        q3Length: [...accumulator.lengths].sort((a, b) => a - b)[Math.floor(accumulator.lengths.length * 0.75)] || 0,
-      }),
-      
+      ...(options.detailed &&
+        accumulator.lengths.length > 0 && {
+          n50: this.calculateNX(accumulator.lengths, 50),
+          n90: this.calculateNX(accumulator.lengths, 90),
+          q1Length:
+            [...accumulator.lengths].sort((a, b) => a - b)[
+              Math.floor(accumulator.lengths.length * 0.25)
+            ] || 0,
+          q2Length:
+            [...accumulator.lengths].sort((a, b) => a - b)[
+              Math.floor(accumulator.lengths.length * 0.5)
+            ] || 0,
+          q3Length:
+            [...accumulator.lengths].sort((a, b) => a - b)[
+              Math.floor(accumulator.lengths.length * 0.75)
+            ] || 0,
+        }),
+
       // Add composition statistics
       ...(accumulator.totalLength > 0 && {
         ...(accumulator.gcCount + accumulator.atCount > 0 && {
@@ -585,18 +597,21 @@ export class SequenceStatsCalculator {
           baseComposition: { ...accumulator.baseComposition },
         }),
       }),
-      
+
       // Add quality statistics if FASTQ
-      ...(accumulator.hasFastq && options.includeQuality && accumulator.qualityCount > 0 && accumulator.qualityEncoding !== undefined && {
-        avgQuality: accumulator.totalQuality / accumulator.qualityCount,
-        minQuality: accumulator.minQuality === Infinity ? 0 : accumulator.minQuality,
-        maxQuality: accumulator.maxQuality === -Infinity ? 0 : accumulator.maxQuality,
-        q20Percentage: (accumulator.q20Count / accumulator.qualityCount) * 100,
-        q30Percentage: (accumulator.q30Count / accumulator.qualityCount) * 100,
-        qualityEncoding: accumulator.qualityEncoding,
-      }),
+      ...(accumulator.hasFastq &&
+        options.includeQuality &&
+        accumulator.qualityCount > 0 &&
+        accumulator.qualityEncoding !== undefined && {
+          avgQuality: accumulator.totalQuality / accumulator.qualityCount,
+          minQuality: accumulator.minQuality === Infinity ? 0 : accumulator.minQuality,
+          maxQuality: accumulator.maxQuality === -Infinity ? 0 : accumulator.maxQuality,
+          q20Percentage: (accumulator.q20Count / accumulator.qualityCount) * 100,
+          q30Percentage: (accumulator.q30Count / accumulator.qualityCount) * 100,
+          qualityEncoding: accumulator.qualityEncoding,
+        }),
     };
-    
+
     return stats;
   }
 
@@ -656,8 +671,12 @@ export class SequenceStatsCalculator {
    * @private
    */
   private isFastqSequence(sequence: AbstractSequence | FASTXSequence): sequence is FastqSequence {
-    return 'quality' in sequence && 'qualityEncoding' in sequence && 
-           typeof sequence.quality === 'string' && sequence.qualityEncoding !== undefined;
+    return (
+      'quality' in sequence &&
+      'qualityEncoding' in sequence &&
+      typeof sequence.quality === 'string' &&
+      sequence.qualityEncoding !== undefined
+    );
   }
 }
 
@@ -667,10 +686,10 @@ export class SequenceStatsCalculator {
 
 /**
  * Create a statistics calculator with convenient defaults
- * 
+ *
  * @param options - Default options for all calculations
  * @returns Configured SequenceStatsCalculator instance
- * 
+ *
  * @example
  * ```typescript
  * const calculator = createStatsCalculator({ detailed: true });
@@ -683,11 +702,11 @@ export function createStatsCalculator(options: StatsOptions = {}): SequenceStats
 
 /**
  * Calculate statistics from sequences directly
- * 
+ *
  * @param sequences - Input sequences
  * @param options - Statistics options
  * @returns Calculated statistics
- * 
+ *
  * @example
  * ```typescript
  * const stats = await calculateSequenceStats(sequences, {
@@ -707,10 +726,10 @@ export async function calculateSequenceStats(
 
 /**
  * Format statistics for tabular display
- * 
+ *
  * @param stats - Statistics to format
  * @returns Formatted string for console output
- * 
+ *
  * @example
  * ```typescript
  * const stats = await calculateSequenceStats(sequences);
@@ -719,9 +738,9 @@ export async function calculateSequenceStats(
  */
 export function formatStatsTable(stats: SequenceStats): string {
   const lines: string[] = [];
-  
+
   lines.push('File\tFormat\tType\tNum_seqs\tSum_len\tMin_len\tMax_len\tAvg_len');
-  
+
   const row = [
     stats.file || '-',
     stats.format,
@@ -732,23 +751,23 @@ export function formatStatsTable(stats: SequenceStats): string {
     stats.maxLength.toString(),
     stats.avgLength.toFixed(1),
   ];
-  
+
   if (stats.n50 !== undefined) {
     lines[0] += '\tN50';
     row.push(stats.n50.toString());
   }
-  
+
   if (stats.gcContent !== undefined) {
     lines[0] += '\tGC%';
     row.push((stats.gcContent * 100).toFixed(2));
   }
-  
+
   if (stats.avgQuality !== undefined) {
     lines[0] += '\tAvg_qual';
     row.push(stats.avgQuality.toFixed(1));
   }
-  
+
   lines.push(row.join('\t'));
-  
+
   return lines.join('\n');
 }

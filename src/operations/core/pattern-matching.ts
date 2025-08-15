@@ -26,7 +26,8 @@
  */
 
 import type { Sequence } from '../../types';
-import { SequenceValidator } from './validation';
+import { SequenceValidator } from '../validate';
+import { reverseComplement } from './sequence-manipulation';
 
 // =============================================================================
 // TYPES AND INTERFACES
@@ -1172,6 +1173,76 @@ export function hasPattern(
 }
 
 // =============================================================================
+// ADDITIONAL PATTERN UTILITIES (moved from transforms.ts)
+// =============================================================================
+
+/**
+ * Check if a sequence is palindromic (equals its reverse complement)
+ *
+ * @example
+ * ```typescript
+ * const isPalin = isPalindromic('GAATTC');
+ * console.log(isPalin); // true (EcoRI site is palindromic)
+ *
+ * const notPalin = isPalindromic('ATCG');
+ * console.log(notPalin); // false
+ * ```
+ *
+ * @param sequence - DNA sequence to check
+ * @returns True if sequence equals its reverse complement
+ *
+ * 🔥 ZIG: Vectorized comparison could speed up palindrome checking
+ */
+export function isPalindromic(sequence: string): boolean {
+  // Tiger Style: Assert input
+  if (!sequence || typeof sequence !== 'string') {
+    throw new Error('Sequence must be a non-empty string');
+  }
+
+  const revComp = reverseComplement(sequence);
+  return sequence.toUpperCase() === revComp.toUpperCase();
+}
+
+/**
+ * Simple pattern finding with overlapping matches
+ *
+ * This is a simpler version than the full SequenceMatcher,
+ * useful for basic pattern finding needs.
+ *
+ * @example
+ * ```typescript
+ * const positions = findSimplePattern('ATATA', 'ATA');
+ * console.log(positions); // [0, 2] (overlapping matches)
+ * ```
+ *
+ * @param sequence - Sequence to search in
+ * @param pattern - Pattern to find
+ * @returns Array of zero-based positions where pattern occurs
+ */
+export function findSimplePattern(sequence: string, pattern: string): number[] {
+  // Tiger Style: Assert inputs
+  if (!sequence || typeof sequence !== 'string') {
+    throw new Error('Sequence must be a non-empty string');
+  }
+  if (!pattern || typeof pattern !== 'string') {
+    throw new Error('Pattern must be a non-empty string');
+  }
+
+  const positions: number[] = [];
+  const upperSeq = sequence.toUpperCase();
+  const upperPat = pattern.toUpperCase();
+
+  let index = upperSeq.indexOf(upperPat);
+  while (index !== -1) {
+    positions.push(index);
+    // Look for overlapping matches
+    index = upperSeq.indexOf(upperPat, index + 1);
+  }
+
+  return positions;
+}
+
+// =============================================================================
 // LEGACY COMPATIBILITY EXPORT
 // =============================================================================
 
@@ -1189,4 +1260,6 @@ export const PatternMatcher = {
   longestCommonSubstring,
   findPalindromes,
   findTandemRepeats,
+  isPalindromic,
+  findSimplePattern,
 } as const;

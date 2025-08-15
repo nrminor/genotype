@@ -1,24 +1,24 @@
 /**
  * Subsequence extraction operations for SeqOps
- * 
+ *
  * This module provides subsequence extraction functionality that mirrors
  * the `seqkit subseq` command, offering flexible region extraction from
  * sequences using various coordinate specifications.
- * 
+ *
  * Key features:
  * - Region extraction by coordinates (1:100, 50:-1, etc.)
  * - BED/GTF file support for batch extraction
  * - Flanking sequence extraction
  * - Strand-aware extraction with reverse complement
  * - Support for both 0-based and 1-based coordinate systems
- * 
+ *
  * @version v0.1.0
  * @since v0.1.0
  */
 
 import type { AbstractSequence, FASTXSequence, FastqSequence } from '../types';
 import { SequenceError } from '../errors';
-import { reverseComplement } from './core/transforms';
+import { reverseComplement } from './core/sequence-manipulation';
 
 // =============================================================================
 // TYPES AND INTERFACES
@@ -26,7 +26,7 @@ import { reverseComplement } from './core/transforms';
 
 /**
  * Configuration options for subsequence extraction
- * 
+ *
  * Provides flexible ways to specify regions to extract, including
  * simple coordinates, region files, and flanking sequences.
  */
@@ -40,7 +40,7 @@ export interface SubseqOptions {
   start?: number;
   /** End position (alternative to region) */
   end?: number;
-  
+
   // File-based regions (in-memory for now)
   /** BED regions to extract */
   bedRegions?: Array<{ chromosome: string; chromStart: number; chromEnd: number }>;
@@ -48,13 +48,13 @@ export interface SubseqOptions {
   gtfFeatures?: Array<{ seqname: string; start: number; end: number; feature: string }>;
   /** Feature type to filter (for GTF) */
   featureType?: string;
-  
+
   // ID-based filtering
   /** Pattern to match sequence IDs */
   idPattern?: RegExp;
   /** List of sequence IDs to extract */
   idList?: string[];
-  
+
   // Flanking sequences
   /** Number of bases to include upstream of region */
   upstream?: number;
@@ -62,21 +62,21 @@ export interface SubseqOptions {
   downstream?: number;
   /** Extract only flanking sequences, not the region itself */
   onlyFlank?: boolean;
-  
+
   // Coordinate system
   /** Use 1-based coordinates (default: true for biological convention) */
   oneBased?: boolean;
-  
+
   // Strand handling
   /** Strand orientation for extraction */
   strand?: '+' | '-' | 'both';
   /** Reverse complement if on minus strand */
   reverseComplementMinus?: boolean;
-  
+
   // Circular sequences
   /** Treat sequences as circular */
   circular?: boolean;
-  
+
   // Output options
   /** Include region coordinates in sequence ID */
   includeCoordinates?: boolean;
@@ -88,7 +88,7 @@ export interface SubseqOptions {
 
 /**
  * Parsed region specification
- * 
+ *
  * Internal representation of a region after parsing from string format.
  */
 export interface ParsedRegion {
@@ -104,7 +104,7 @@ export interface ParsedRegion {
 
 /**
  * Extracted subsequence with metadata
- * 
+ *
  * Contains the extracted sequence and information about its origin.
  */
 export interface ExtractedSubsequence<T extends AbstractSequence> extends AbstractSequence {
@@ -124,11 +124,11 @@ export interface ExtractedSubsequence<T extends AbstractSequence> extends Abstra
 
 /**
  * High-performance subsequence extractor with flexible region specification
- * 
+ *
  * Extracts subsequences from biological sequences using various coordinate
  * systems and region specifications. Supports both simple coordinate ranges
  * and complex region files.
- * 
+ *
  * @example
  * ```typescript
  * // Extract specific region
@@ -137,14 +137,14 @@ export interface ExtractedSubsequence<T extends AbstractSequence> extends Abstra
  *   region: "100:500",
  *   includeCoordinates: true
  * });
- * 
+ *
  * // Extract with flanking sequences
  * const withFlanks = extractor.extract(sequences, {
  *   region: "1000:2000",
  *   upstream: 100,
  *   downstream: 100
  * });
- * 
+ *
  * // Extract multiple regions
  * const multiRegions = extractor.extract(sequences, {
  *   regions: ["1:100", "200:300", "-100:-1"]
@@ -154,14 +154,14 @@ export interface ExtractedSubsequence<T extends AbstractSequence> extends Abstra
 export class SubseqExtractor {
   /**
    * Extract subsequences from input sequences
-   * 
+   *
    * Processes sequences and extracts specified regions, handling
    * various coordinate formats and options.
-   * 
+   *
    * @param sequences - Input sequences to extract from
    * @param options - Extraction configuration
    * @yields Extracted subsequences
-   * 
+   *
    * @example
    * ```typescript
    * for await (const subseq of extractor.extract(sequences, options)) {
@@ -175,7 +175,7 @@ export class SubseqExtractor {
   ): AsyncIterable<T> {
     // Tiger Style: Validate options
     this.validateOptions(options);
-    
+
     try {
       for await (const sequence of sequences) {
         // Check ID-based filtering first
@@ -184,10 +184,10 @@ export class SubseqExtractor {
             continue;
           }
         }
-        
+
         // Collect all regions to extract
         const extractedRegions: T[] = [];
-        
+
         // Determine regions to extract
         const regions: string[] = [];
         if (options.region) {
@@ -196,7 +196,7 @@ export class SubseqExtractor {
         if (options.regions) {
           regions.push(...options.regions);
         }
-        
+
         // Extract regions or entire sequence with flanking
         if (regions.length > 0) {
           for (const regionStr of regions) {
@@ -232,8 +232,10 @@ export class SubseqExtractor {
         } else if (options.gtfFeatures) {
           // Extract GTF features
           for (const feature of options.gtfFeatures) {
-            if (feature.seqname === sequence.id && 
-                (!options.featureType || feature.feature === options.featureType)) {
+            if (
+              feature.seqname === sequence.id &&
+              (!options.featureType || feature.feature === options.featureType)
+            ) {
               const extracted = this.extractGtfFeature(sequence, feature, options);
               if (extracted) {
                 if (options.concatenate) {
@@ -250,7 +252,7 @@ export class SubseqExtractor {
         } else {
           throw new Error('No extraction criteria specified');
         }
-        
+
         // If concatenating, combine all extracted regions
         if (options.concatenate && extractedRegions.length > 0) {
           const concatenated = this.concatenateSequences(extractedRegions, options);
@@ -271,48 +273,44 @@ export class SubseqExtractor {
 
   /**
    * Parse region string into coordinates
-   * 
+   *
    * Supports various formats:
    * - "100:200" - from position 100 to 200
    * - "100:-1" - from position 100 to end
    * - "-100:-1" - last 100 bases
    * - ":500" - from start to position 500
-   * 
+   *
    * @param region - Region string to parse
    * @param sequenceLength - Length of the sequence for negative indices
    * @param oneBased - Whether to use 1-based coordinates
    * @returns Parsed region with 0-based coordinates
-   * 
+   *
    * @example
    * ```typescript
    * const region = extractor.parseRegion("100:200", 1000, true);
    * // Returns: { start: 99, end: 200, original: "100:200", hasNegativeIndices: false }
    * ```
-   * 
+   *
    * @optimize ZIG_CANDIDATE - STRING PARSING WITH BOUNDS CHECKING
    * - Lots of string operations and integer parsing
    * - Boundary checking and coordinate conversion
    * - Could be optimized with pre-compiled regex or state machine
    * - Expected speedup: 5-10x
    */
-  parseRegion(
-    region: string,
-    sequenceLength: number,
-    oneBased: boolean = true
-  ): ParsedRegion {
+  parseRegion(region: string, sequenceLength: number, oneBased: boolean = true): ParsedRegion {
     // Tiger Style: Validate input
     if (!region || region.trim() === '') {
       throw new Error('Region string cannot be empty');
     }
-    
+
     const parts = region.split(':');
     if (parts.length !== 2) {
       throw new Error(`Invalid region format: ${region} (expected "start:end")`);
     }
-    
+
     const [startStr, endStr] = parts;
     let hasNegativeIndices = false;
-    
+
     // Parse start position
     let start: number;
     if (!startStr || startStr === '') {
@@ -329,7 +327,7 @@ export class SubseqExtractor {
         start = start - 1; // Convert to 0-based
       }
     }
-    
+
     // Parse end position
     let end: number;
     if (!endStr || endStr === '' || endStr === '-1') {
@@ -348,22 +346,24 @@ export class SubseqExtractor {
         // For 1-based, end is inclusive, keep as-is (becomes exclusive in 0-based)
       }
     }
-    
-    // Validate coordinates  
+
+    // Validate coordinates
     if (start < 0) start = 0;
     if (end > sequenceLength) end = sequenceLength;
-    
+
     // Check for invalid ranges
     if (start > sequenceLength) {
-      throw new Error(`Start position (${start + (oneBased ? 1 : 0)}) exceeds sequence length (${sequenceLength})`);
+      throw new Error(
+        `Start position (${start + (oneBased ? 1 : 0)}) exceeds sequence length (${sequenceLength})`
+      );
     }
-    
+
     // Allow start > end for circular sequences (will be handled in extraction)
     if (start >= end) {
       // For now, still enforce this until circular handling is complete
       throw new Error(`Invalid region: start (${start + (oneBased ? 1 : 0)}) >= end (${end})`);
     }
-    
+
     return {
       start,
       end,
@@ -384,19 +384,19 @@ export class SubseqExtractor {
     if (options.upstream !== undefined && options.upstream < 0) {
       throw new Error('Upstream value must be non-negative');
     }
-    
+
     if (options.downstream !== undefined && options.downstream < 0) {
       throw new Error('Downstream value must be non-negative');
     }
-    
+
     if (options.onlyFlank && !options.upstream && !options.downstream) {
       throw new Error('onlyFlank requires upstream or downstream to be specified');
     }
-    
+
     if (options.region && options.bedRegions) {
       throw new Error('Cannot specify both region and bedRegions');
     }
-    
+
     if (options.start !== undefined && options.end !== undefined && options.start > options.end) {
       throw new Error('Start position must be less than end position');
     }
@@ -429,7 +429,7 @@ export class SubseqExtractor {
   /**
    * Extract a specific region from a sequence
    * @private
-   * 
+   *
    * @optimize ZIG_CANDIDATE - SUBSTRING OPERATIONS
    * - Multiple string allocations for substring extraction
    * - Memory copy operations that could be optimized
@@ -442,22 +442,23 @@ export class SubseqExtractor {
     options: SubseqOptions
   ): T | null {
     // Parse region if it's a string
-    const region = typeof regionStr === 'string'
-      ? this.parseRegion(regionStr, sequence.length, options.oneBased !== false)
-      : regionStr;
-    
+    const region =
+      typeof regionStr === 'string'
+        ? this.parseRegion(regionStr, sequence.length, options.oneBased !== false)
+        : regionStr;
+
     // Apply flanking if specified
     let start = region.start;
     let end = region.end;
-    
+
     if (options.upstream) {
       start = Math.max(0, start - options.upstream);
     }
-    
+
     if (options.downstream) {
       end = Math.min(sequence.length, end + options.downstream);
     }
-    
+
     if (options.onlyFlank) {
       // Extract only the flanking regions, not the core region
       const upstreamSeq = sequence.sequence.substring(
@@ -468,20 +469,15 @@ export class SubseqExtractor {
         region.end,
         Math.min(sequence.length, region.end + (options.downstream || 0))
       );
-      
+
       const subseq = upstreamSeq + downstreamSeq;
       if (subseq.length === 0) {
         return null;
       }
-      
-      return this.createExtractedSequence(
-        sequence,
-        subseq,
-        { ...region, start, end },
-        options
-      );
+
+      return this.createExtractedSequence(sequence, subseq, { ...region, start, end }, options);
     }
-    
+
     // Handle circular sequences
     let subseq: string;
     if (options.circular && start > end) {
@@ -491,22 +487,17 @@ export class SubseqExtractor {
       // Normal extraction
       subseq = sequence.sequence.substring(start, end);
     }
-    
+
     if (subseq.length === 0) {
       return null;
     }
-    
+
     // Handle strand if specified
     if (options.strand === '-') {
       subseq = reverseComplement(subseq);
     }
-    
-    return this.createExtractedSequence(
-      sequence,
-      subseq,
-      { ...region, start, end },
-      options
-    );
+
+    return this.createExtractedSequence(sequence, subseq, { ...region, start, end }, options);
   }
 
   /**
@@ -524,7 +515,7 @@ export class SubseqExtractor {
       original: `1:${sequence.length}`,
       hasNegativeIndices: false,
     };
-    
+
     return this.extractRegion(sequence, region, options);
   }
 
@@ -542,12 +533,13 @@ export class SubseqExtractor {
     let newId = original.id;
     if (options.includeCoordinates) {
       const sep = options.coordinateSeparator || ':';
-      const coordStr = options.oneBased !== false
-        ? `${region.start + 1}${sep}${region.end}`
-        : `${region.start}${sep}${region.end}`;
+      const coordStr =
+        options.oneBased !== false
+          ? `${region.start + 1}${sep}${region.end}`
+          : `${region.start}${sep}${region.end}`;
       newId = `${original.id}${sep}${coordStr}`;
     }
-    
+
     // Handle quality scores for FASTQ
     let quality: string | undefined;
     if (this.isFastqSequence(original)) {
@@ -558,13 +550,13 @@ export class SubseqExtractor {
         Math.max(0, qualStart),
         Math.min(original.quality.length, qualEnd)
       );
-      
+
       // Reverse quality if sequence was reverse complemented
       if (options.strand === '-' && options.reverseComplementMinus !== false) {
         quality = quality.split('').reverse().join('');
       }
     }
-    
+
     // Create new sequence object preserving type
     const result = {
       ...original,
@@ -573,7 +565,7 @@ export class SubseqExtractor {
       length: subseq.length,
       ...(quality !== undefined && { quality }),
     } as T;
-    
+
     return result;
   }
 
@@ -595,12 +587,12 @@ export class SubseqExtractor {
   ): T | null {
     let start = options.start ?? 0;
     let end = options.end ?? sequence.length;
-    
+
     // Convert to 0-based if needed
     if (options.oneBased !== false && start > 0) {
       start = start - 1;
     }
-    
+
     // Apply upstream/downstream
     if (options.upstream) {
       start = Math.max(0, start - options.upstream);
@@ -608,7 +600,7 @@ export class SubseqExtractor {
     if (options.downstream) {
       end = Math.min(sequence.length, end + options.downstream);
     }
-    
+
     // Handle circular sequences
     if (options.circular && start > end) {
       const subseq = sequence.sequence.substring(start) + sequence.sequence.substring(0, end);
@@ -619,15 +611,15 @@ export class SubseqExtractor {
         options
       );
     }
-    
+
     const subseq = sequence.sequence.substring(start, end);
-    
+
     // Apply strand operations
     let finalSeq = subseq;
     if (options.strand === '-') {
       finalSeq = reverseComplement(subseq);
     }
-    
+
     return this.createExtractedSequence(
       sequence,
       finalSeq,
@@ -648,9 +640,9 @@ export class SubseqExtractor {
     // BED format is 0-based, half-open
     const start = bed.chromStart;
     const end = bed.chromEnd;
-    
+
     const subseq = sequence.sequence.substring(start, end);
-    
+
     return this.createExtractedSequence(
       sequence,
       subseq,
@@ -671,9 +663,9 @@ export class SubseqExtractor {
     // GTF format is 1-based, inclusive
     const start = feature.start - 1;
     const end = feature.end;
-    
+
     const subseq = sequence.sequence.substring(start, end);
-    
+
     return this.createExtractedSequence(
       sequence,
       subseq,
@@ -681,7 +673,7 @@ export class SubseqExtractor {
       options
     );
   }
-  
+
   /**
    * Concatenate multiple extracted sequences into one
    * @private
@@ -693,14 +685,14 @@ export class SubseqExtractor {
     if (sequences.length === 0) {
       return null;
     }
-    
+
     // Concatenate all sequences
-    const concatenatedSeq = sequences.map(s => s.sequence).join('');
-    
+    const concatenatedSeq = sequences.map((s) => s.sequence).join('');
+
     // For quality scores (FASTQ), concatenate them too
     let concatenatedQuality: string | undefined;
     if (this.isFastqSequence(sequences[0]!)) {
-      const qualities = sequences.map(s => {
+      const qualities = sequences.map((s) => {
         if (this.isFastqSequence(s)) {
           return s.quality;
         }
@@ -708,7 +700,7 @@ export class SubseqExtractor {
       });
       concatenatedQuality = qualities.join('');
     }
-    
+
     // Use the first sequence as the template
     const first = sequences[0]!;
     const result = {
@@ -717,7 +709,7 @@ export class SubseqExtractor {
       length: concatenatedSeq.length,
       ...(concatenatedQuality !== undefined && { quality: concatenatedQuality }),
     } as T;
-    
+
     return result;
   }
 }
@@ -728,15 +720,15 @@ export class SubseqExtractor {
 
 /**
  * Create a subsequence extractor with convenient defaults
- * 
+ *
  * @param options - Default options for all extractions
  * @returns Configured SubseqExtractor instance
- * 
+ *
  * @example
  * ```typescript
- * const extractor = createSubseqExtractor({ 
+ * const extractor = createSubseqExtractor({
  *   oneBased: true,
- *   includeCoordinates: true 
+ *   includeCoordinates: true
  * });
  * ```
  */
@@ -746,11 +738,11 @@ export function createSubseqExtractor(): SubseqExtractor {
 
 /**
  * Extract subsequences from sequences directly
- * 
+ *
  * @param sequences - Input sequences
  * @param options - Extraction options
  * @returns Extracted subsequences
- * 
+ *
  * @example
  * ```typescript
  * const subseqs = extractSubsequences(sequences, {
@@ -758,7 +750,7 @@ export function createSubseqExtractor(): SubseqExtractor {
  *   upstream: 50,
  *   downstream: 50
  * });
- * 
+ *
  * for await (const subseq of subseqs) {
  *   console.log(subseq.id, subseq.length);
  * }
@@ -774,12 +766,12 @@ export async function* extractSubsequences<T extends AbstractSequence>(
 
 /**
  * Extract a single region from a single sequence
- * 
+ *
  * @param sequence - Input sequence
  * @param region - Region to extract
  * @param options - Additional options
  * @returns Extracted subsequence or null if invalid
- * 
+ *
  * @example
  * ```typescript
  * const subseq = await extractSingleRegion(sequence, "100:200", {
@@ -793,22 +785,18 @@ export async function extractSingleRegion<T extends AbstractSequence>(
   options: SubseqOptions = {}
 ): Promise<T | null> {
   const extractor = new SubseqExtractor();
-  const parsed = extractor.parseRegion(
-    region,
-    sequence.length,
-    options.oneBased !== false
-  );
-  
+  const parsed = extractor.parseRegion(region, sequence.length, options.oneBased !== false);
+
   // Create async iterable from single sequence
   async function* singleSequence(): AsyncIterable<T> {
     yield sequence;
   }
-  
+
   // Extract and return first result
   const iter = extractor.extract(singleSequence(), { ...options, region });
   const iterator = iter[Symbol.asyncIterator]();
   const result = await iterator.next();
-  
+
   // Return the extracted value or null
   return result.done ? null : result.value;
 }

@@ -1,10 +1,10 @@
 /**
  * FilterProcessor - Remove sequences based on criteria
- * 
+ *
  * This processor implements filtering logic for sequences based on
  * length, GC content, patterns, and custom functions. All criteria
  * within a single filter call are combined with AND logic.
- * 
+ *
  * @version v0.1.0
  * @since v0.1.0
  */
@@ -14,7 +14,7 @@ import type { FilterOptions, Processor } from './types';
 
 /**
  * Processor for filtering sequences based on various criteria
- * 
+ *
  * @example
  * ```typescript
  * const processor = new FilterProcessor();
@@ -28,7 +28,7 @@ import type { FilterOptions, Processor } from './types';
 export class FilterProcessor implements Processor<FilterOptions> {
   /**
    * Process sequences with filtering criteria
-   * 
+   *
    * @param source - Input sequences
    * @param options - Filter options
    * @yields Sequences that pass all filter criteria
@@ -48,7 +48,7 @@ export class FilterProcessor implements Processor<FilterOptions> {
 
   /**
    * Check if a sequence passes all filter criteria
-   * 
+   *
    * @param seq - Sequence to check
    * @param options - Filter criteria
    * @returns True if sequence passes all criteria
@@ -112,17 +112,17 @@ export class FilterProcessor implements Processor<FilterOptions> {
 
   /**
    * Calculate GC content percentage
-   * 
+   *
    * ZIG_CANDIDATE: Character counting loop for GC bases.
    * Native implementation would provide significant speedup
    * for large sequences by avoiding regex overhead.
-   * 
+   *
    * @param sequence - DNA/RNA sequence
    * @returns GC content as percentage (0-100)
    */
   private calculateGC(sequence: string): number {
     if (sequence.length === 0) return 0;
-    
+
     // ZIG_CANDIDATE: This regex match creates intermediate array
     // Native loop would be more efficient for counting
     const gcCount = (sequence.match(/[GC]/gi) || []).length;

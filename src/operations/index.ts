@@ -1,13 +1,13 @@
 /**
  * SeqOps - Unix pipeline-style sequence operations for TypeScript
- * 
+ *
  * This module provides the main SeqOps class that enables method chaining
  * for sequence processing operations, mimicking the intuitive flow of
  * Unix command pipelines while maintaining type safety.
- * 
+ *
  * Version 2.0 introduces semantic methods that replace the monolithic seq() method
  * with focused, single-purpose operations for better discoverability and clarity.
- * 
+ *
  * @version v0.1.0
  * @since v0.1.0
  */
@@ -29,16 +29,16 @@ import type {
   TransformOptions,
   CleanOptions,
   QualityOptions,
-  ValidateOptions
+  ValidateOptions,
 } from './types';
 
 /**
  * Main SeqOps class providing fluent interface for sequence operations
- * 
+ *
  * Enables Unix pipeline-style method chaining for processing genomic sequences.
  * All operations are lazy-evaluated and maintain streaming behavior for
  * memory efficiency with large datasets.
- * 
+ *
  * @example
  * ```typescript
  * // Basic pipeline
@@ -47,7 +47,7 @@ import type {
  *   .transform({ reverseComplement: true })
  *   .subseq({ region: "100:500" })
  *   .writeFasta('output.fasta');
- * 
+ *
  * // Complex filtering and analysis
  * const stats = await seqops(sequences)
  *   .quality({ minScore: 20, trim: true })
@@ -58,7 +58,7 @@ import type {
 export class SeqOps {
   /**
    * Create a new SeqOps pipeline
-   * 
+   *
    * @param source - Input sequences (async iterable)
    */
   constructor(private source: AsyncIterable<AbstractSequence>) {}
@@ -69,20 +69,20 @@ export class SeqOps {
 
   /**
    * Filter sequences based on criteria
-   * 
+   *
    * Remove sequences that don't meet specified criteria. All criteria
    * within a single filter call are combined with AND logic.
-   * 
+   *
    * @param options - Filter criteria or custom predicate
    * @returns New SeqOps instance for chaining
-   * 
+   *
    * @example
    * ```typescript
    * // Filter by length and GC content
    * seqops(sequences)
    *   .filter({ minLength: 100, maxGC: 60 })
    *   .filter({ hasAmbiguous: false })
-   * 
+   *
    * // Custom filter function
    * seqops(sequences)
    *   .filter({ custom: seq => seq.id.startsWith('chr') })
@@ -93,19 +93,19 @@ export class SeqOps {
     if (typeof options === 'function') {
       return new SeqOps(this.filterWithPredicate(options));
     }
-    
+
     const processor = new FilterProcessor();
     return new SeqOps(processor.process(this.source, options));
   }
 
   /**
    * Transform sequence content
-   * 
+   *
    * Apply transformations that modify the sequence string itself.
-   * 
+   *
    * @param options - Transform options
    * @returns New SeqOps instance for chaining
-   * 
+   *
    * @example
    * ```typescript
    * seqops(sequences)
@@ -121,13 +121,13 @@ export class SeqOps {
 
   /**
    * Clean and sanitize sequences
-   * 
+   *
    * Fix common issues in sequence data such as gaps, ambiguous bases,
    * and whitespace.
-   * 
+   *
    * @param options - Clean options
    * @returns New SeqOps instance for chaining
-   * 
+   *
    * @example
    * ```typescript
    * seqops(sequences)
@@ -143,13 +143,13 @@ export class SeqOps {
 
   /**
    * FASTQ quality operations
-   * 
+   *
    * Filter and trim sequences based on quality scores. Only affects
    * FASTQ sequences; FASTA sequences pass through unchanged.
-   * 
+   *
    * @param options - Quality options
    * @returns New SeqOps instance for chaining
-   * 
+   *
    * @example
    * ```typescript
    * seqops(sequences)
@@ -164,12 +164,12 @@ export class SeqOps {
 
   /**
    * Validate sequences
-   * 
+   *
    * Check sequences for validity and optionally fix or reject invalid ones.
-   * 
+   *
    * @param options - Validation options
    * @returns New SeqOps instance for chaining
-   * 
+   *
    * @example
    * ```typescript
    * seqops(sequences)
@@ -198,19 +198,19 @@ export class SeqOps {
 
   /**
    * Extract subsequences
-   * 
+   *
    * Mirrors `seqkit subseq` functionality for region extraction.
-   * 
+   *
    * @param options - Extraction options
    * @returns New SeqOps instance for chaining
-   * 
+   *
    * @example
    * ```typescript
    * seqops(sequences)
-   *   .subseq({ 
+   *   .subseq({
    *     region: "100:500",
    *     upstream: 50,
-   *     downstream: 50 
+   *     downstream: 50
    *   })
    * ```
    */
@@ -219,15 +219,14 @@ export class SeqOps {
     return new SeqOps(extractor.extract(this.source, options));
   }
 
-
   /**
    * Take first n sequences
-   * 
+   *
    * Mirrors `seqkit head` functionality.
-   * 
+   *
    * @param n - Number of sequences to take
    * @returns New SeqOps instance for chaining
-   * 
+   *
    * @example
    * ```typescript
    * seqops(sequences).head(1000)
@@ -251,13 +250,13 @@ export class SeqOps {
 
   /**
    * Calculate sequence statistics
-   * 
+   *
    * Terminal operation that processes all sequences to compute statistics.
    * Mirrors `seqkit stats` functionality.
-   * 
+   *
    * @param options - Statistics options
    * @returns Promise resolving to statistics
-   * 
+   *
    * @example
    * ```typescript
    * const stats = await seqops(sequences)
@@ -273,13 +272,13 @@ export class SeqOps {
 
   /**
    * Write sequences to FASTA file
-   * 
+   *
    * Terminal operation that writes all sequences in FASTA format.
-   * 
+   *
    * @param path - Output file path
    * @param options - Writer options
    * @returns Promise resolving when write is complete
-   * 
+   *
    * @example
    * ```typescript
    * await seqops(sequences)
@@ -291,10 +290,10 @@ export class SeqOps {
     const lineEnding = process.platform === 'win32' ? '\r\n' : '\n';
     const writer = new FastaWriter({
       ...(options.wrapWidth !== undefined && { lineWidth: options.wrapWidth }),
-      lineEnding
+      lineEnding,
     });
     const stream = Bun.file(path).writer();
-    
+
     try {
       for await (const seq of this.source) {
         const fastaSeq: FastaSequence = {
@@ -315,14 +314,14 @@ export class SeqOps {
 
   /**
    * Write sequences to FASTQ file
-   * 
+   *
    * Terminal operation that writes all sequences in FASTQ format.
    * If input sequences don't have quality scores, uses default quality.
-   * 
+   *
    * @param path - Output file path
    * @param defaultQuality - Default quality string for FASTA sequences
    * @returns Promise resolving when write is complete
-   * 
+   *
    * @example
    * ```typescript
    * await seqops(sequences)
@@ -330,17 +329,14 @@ export class SeqOps {
    *   .writeFastq('output.fastq', 'IIIIIIIIII');
    * ```
    */
-  async writeFastq(
-    path: string,
-    defaultQuality: string = 'I'
-  ): Promise<void> {
+  async writeFastq(path: string, defaultQuality: string = 'I'): Promise<void> {
     const writer = new FastqWriter();
     const stream = Bun.file(path).writer();
-    
+
     try {
       for await (const seq of this.source) {
         let fastqSeq: FastqSequence;
-        
+
         if (this.isFastqSequence(seq)) {
           fastqSeq = seq;
         } else {
@@ -356,7 +352,7 @@ export class SeqOps {
             ...(seq.description !== undefined && { description: seq.description }),
           };
         }
-        
+
         const formatted = writer.formatSequence(fastqSeq);
         stream.write(formatted);
       }
@@ -367,12 +363,12 @@ export class SeqOps {
 
   /**
    * Collect all sequences into an array
-   * 
+   *
    * Terminal operation that materializes all sequences in memory.
    * Use with caution on large datasets.
-   * 
+   *
    * @returns Promise resolving to array of sequences
-   * 
+   *
    * @example
    * ```typescript
    * const sequences = await seqops(input)
@@ -391,11 +387,11 @@ export class SeqOps {
 
   /**
    * Count sequences
-   * 
+   *
    * Terminal operation that counts sequences without loading them in memory.
-   * 
+   *
    * @returns Promise resolving to sequence count
-   * 
+   *
    * @example
    * ```typescript
    * const count = await seqops(sequences)
@@ -413,12 +409,12 @@ export class SeqOps {
 
   /**
    * Process each sequence with a callback
-   * 
+   *
    * Terminal operation that applies a function to each sequence.
-   * 
+   *
    * @param fn - Callback function
    * @returns Promise resolving when processing is complete
-   * 
+   *
    * @example
    * ```typescript
    * await seqops(sequences)
@@ -433,9 +429,9 @@ export class SeqOps {
 
   /**
    * Enable direct iteration over the pipeline
-   * 
+   *
    * @returns Async iterator for sequences
-   * 
+   *
    * @example
    * ```typescript
    * for await (const seq of seqops(sequences).seq({ minLength: 100 })) {
@@ -462,12 +458,12 @@ export class SeqOps {
 
 /**
  * Factory function to create SeqOps pipeline
- * 
+ *
  * Convenient function to start a sequence processing pipeline.
- * 
+ *
  * @param sequences - Input sequences
  * @returns New SeqOps instance
- * 
+ *
  * @example
  * ```typescript
  * const result = await seqops(sequences)
@@ -476,9 +472,7 @@ export class SeqOps {
  *   .writeFasta('output.fasta');
  * ```
  */
-export function seqops(
-  sequences: AsyncIterable<AbstractSequence | FASTXSequence>
-): SeqOps {
+export function seqops(sequences: AsyncIterable<AbstractSequence | FASTXSequence>): SeqOps {
   return new SeqOps(sequences as AsyncIterable<AbstractSequence>);
 }
 
@@ -496,5 +490,5 @@ export type {
   AnnotateOptions,
   SortOptions,
   SampleOptions,
-  GroupOptions
+  GroupOptions,
 } from './types';

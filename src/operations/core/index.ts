@@ -61,7 +61,7 @@ export {
   scoreToChar,
   scoreToErrorProbability,
   validateQualityString,
-} from './quality';
+} from './encoding';
 // Reservoir sampling for streaming
 export {
   BernoulliSampler,
@@ -90,29 +90,58 @@ export {
 } from './sequence-sorter';
 // Statistics accumulator for streaming analysis
 export { calculateSequenceStats, type SequenceStats, SequenceStatsAccumulator } from './statistics';
-// Sequence transformation operations
-// Export both individual functions and grouped object for flexibility
+// Sequence manipulation operations (from sequence-manipulation.ts)
 export {
-  atContent,
-  baseComposition,
-  // Individual functions (tree-shakeable)
   complement,
-  findPattern as findPatternTransform,
-  gcContent,
-  isPalindromic,
   reverse,
   reverseComplement,
-  // Grouped object for convenience
-  SequenceTransforms,
-  toDNA,
   toRNA,
+  toDNA,
+  SequenceManipulation,
+} from './sequence-manipulation';
+
+// Sequence calculations (from calculations.ts)
+export {
+  gcContent,
+  atContent,
+  baseComposition,
   translateSimple,
-} from './transforms';
+  SequenceCalculations,
+} from './calculations';
+
+// Pattern matching additions (from pattern-matching.ts)
+export {
+  isPalindromic,
+  findSimplePattern,
+  findPattern as findPatternTransform,
+} from './pattern-matching';
 // Sequence validation with IUPAC handling
 export {
   IUPAC_DNA,
   IUPAC_PROTEIN,
   IUPAC_RNA,
-  SequenceValidator,
-  ValidationMode,
-} from './validation';
+  // Note: SequenceValidator and ValidationMode moved to operations/validate.ts
+} from './sequence-validation';
+
+// Re-export SequenceValidator and ValidationMode from operations for backward compatibility
+export { SequenceValidator, ValidationMode } from '../validate';
+
+// Import all items needed for backward compatibility object
+import * as seqManip from './sequence-manipulation';
+import * as calcs from './calculations';
+import { isPalindromic as isPalin, findSimplePattern as findPat } from './pattern-matching';
+
+// Backward compatibility: SequenceTransforms combined from new modules
+export const SequenceTransforms = {
+  complement: seqManip.complement,
+  reverse: seqManip.reverse,
+  reverseComplement: seqManip.reverseComplement,
+  toRNA: seqManip.toRNA,
+  toDNA: seqManip.toDNA,
+  gcContent: calcs.gcContent,
+  atContent: calcs.atContent,
+  baseComposition: calcs.baseComposition,
+  translateSimple: calcs.translateSimple,
+  isPalindromic: isPalin,
+  findPattern: findPat,
+} as const;

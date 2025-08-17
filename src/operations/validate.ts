@@ -182,9 +182,6 @@ export class SequenceValidator {
   /**
    * Validate a sequence against the configured pattern
    *
-   * // ZIG OPTIMIZATION: This method is a prime candidate for SIMD optimization
-   * // using vectorized character validation operations in Zig native implementation
-   *
    * @param sequence - The sequence string to validate
    * @returns True if sequence matches the pattern for the configured mode and type
    * @throws {Error} When sequence parameter is invalid
@@ -215,7 +212,6 @@ export class SequenceValidator {
    * @throws {Error} When parameters are invalid
    */
   clean(sequence: string, replaceChar: string = 'N'): string {
-    // Tiger Style: Assert preconditions
     if (typeof sequence !== 'string') {
       throw new Error('sequence must be a string');
     }

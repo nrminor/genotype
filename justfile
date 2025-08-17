@@ -447,12 +447,13 @@ yolo:
     bun run build
 
 # ===== Shortcuts & Aliases =====
-
 # Most important: validate always!
+
 alias val := validate
 alias valid := validate
 
 # Common workflows
+
 alias dev := watch
 alias cov := test-coverage
 alias fix := lint-fix

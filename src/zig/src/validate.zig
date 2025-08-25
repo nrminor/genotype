@@ -3,7 +3,7 @@ const std = @import("std");
 // ---------- Setting up table of valid bases ----------
 fn build_valid_table() [256]bool {
     var t: [256]bool = .{false} ** 256;
-    for ("ACGTacgt") |c| t[c] = true;
+    inline for ("ACGTacgt") |c| t[c] = true;
     return t;
 }
 const VALID = build_valid_table();
@@ -32,15 +32,15 @@ pub const VecBool = @Vector(LANES, bool);
 /// they are invalid.
 fn clean_in_place_scalar(ptr: ?[*]u8, len: usize, replace_byte: u8) usize {
     // no null pointers!
-    if (ptr == null) return 0;
+    var p = if (ptr) ptr.? else return 0;
 
     // find and count any necessary replacements
     var i = 0;
     var replaced = 0;
     while (i < len) : (i += 1) {
-        const base = ptr[i];
+        const base = p[i];
         if (!VALID[base]) {
-            ptr[i] = replace_byte;
+            p[i] = replace_byte;
             replaced += 1;
         }
     }
@@ -50,10 +50,11 @@ fn clean_in_place_scalar(ptr: ?[*]u8, len: usize, replace_byte: u8) usize {
 
 /// SIMD-parallelized implementation of in-place base-cleaning, which simultaneously
 /// replaces all invalid bases within each SIMD vector-length at a time. Replacement is
-/// O(N) worst case, but this divides actual N by L, where L is the number of lanes in
-/// the current architecture's SIMD vector length
+/// O(N) worst case, but this divides actual N by B, where B is the number of blocks that
+/// a sequence must be divided into to accommodate the current architecture's SIMD vector
+/// length
 fn clean_in_place_simd(ptr: ?[*]u8, len: usize, replace_byte: u8) usize {
-    if (ptr == null) return 0;
+    if (len == 0) return 0;
 
     // Treat pointer as unaligned and cast into a SIMD vector pointer
     const PVec = [*]align(1) VecU8;
@@ -110,12 +111,12 @@ fn clean_in_place_simd(ptr: ?[*]u8, len: usize, replace_byte: u8) usize {
 }
 
 pub export fn clean_in_place(ptr: ?[*]u8, len: usize, replace_byte: u8) usize {
-    if (ptr == null or len == 0) return 0;
-    const p = ptr.?;
+    if (len == 0) return 0;
+    const p = if (ptr == null) return 0 else ptr.?;
     var replaced: usize = 0;
 
     if (LANES > 1) {
-        const block_bytes = (len / LANES) * LANES;
+        const block_bytes = (len / LANES) * LANES; // NOTE: This is integer arithmatic, so this isn't a no-op. The division will leave out a remainder if a scalar fallback is needed.
         replaced += clean_in_place_simd(p, block_bytes, replace_byte);
         if (block_bytes < len) {
             replaced += clean_in_place_scalar(p + block_bytes, len - block_bytes, replace_byte);

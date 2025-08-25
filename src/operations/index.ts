@@ -24,12 +24,20 @@ import { TransformProcessor } from './transform';
 import { CleanProcessor } from './clean';
 import { QualityProcessor } from './quality';
 import { ValidateProcessor } from './validate';
+import { GrepProcessor } from './grep';
+import { SampleProcessor } from './sample';
+import { SortProcessor } from './sort';
+import { RmdupProcessor } from './rmdup';
 import type {
   FilterOptions,
   TransformOptions,
   CleanOptions,
   QualityOptions,
   ValidateOptions,
+  GrepOptions,
+  SampleOptions,
+  SortOptions,
+  RmdupOptions,
 } from './types';
 
 /**
@@ -61,7 +69,7 @@ export class SeqOps {
    *
    * @param source - Input sequences (async iterable)
    */
-  constructor(private source: AsyncIterable<AbstractSequence>) {}
+  constructor(private readonly source: AsyncIterable<AbstractSequence>) {}
 
   // =============================================================================
   // SEMANTIC API METHODS
@@ -183,6 +191,48 @@ export class SeqOps {
   }
 
   /**
+   * Search sequences by pattern
+   *
+   * Pattern matching and filtering similar to Unix grep. Supports both
+   * simple string patterns and complex options for advanced use cases.
+   *
+   * @param pattern - Search pattern (string or regex) or full options object
+   * @param target - Target field ('sequence', 'id', or 'description') - defaults to 'sequence'
+   * @returns New SeqOps instance for chaining
+   *
+   * @example
+   * ```typescript
+   * // Simple sequence search (most common case)
+   * seqops(sequences)
+   *   .grep('ATCG')                    // Search sequences for 'ATCG'
+   *   .grep(/^chr\d+/, 'id')           // Search IDs with regex
+   *
+   * // Advanced options for complex scenarios
+   * seqops(sequences)
+   *   .grep({
+   *     pattern: 'ATCGATCG',
+   *     target: 'sequence',
+   *     allowMismatches: 2,
+   *     searchBothStrands: true
+   *   })
+   * ```
+   */
+  grep(
+    pattern: string | RegExp | GrepOptions,
+    target: 'sequence' | 'id' | 'description' = 'sequence'
+  ): SeqOps {
+    const processor = new GrepProcessor();
+
+    // Handle overloaded parameters for better DX
+    const options: GrepOptions =
+      typeof pattern === 'object' && pattern !== null && 'pattern' in pattern
+        ? (pattern as GrepOptions) // Full options object provided
+        : { pattern: pattern as string | RegExp, target }; // Simple pattern with target
+
+    return new SeqOps(processor.process(this.source, options));
+  }
+
+  /**
    * Helper for legacy predicate filter
    * @private
    */
@@ -242,6 +292,180 @@ export class SeqOps {
       }
     }
     return new SeqOps(take(this.source));
+  }
+
+  /**
+   * Sample sequences statistically
+   *
+   * Apply statistical sampling to select a subset of sequences.
+   * Supports both simple count-based sampling and advanced options.
+   *
+   * @param count - Number of sequences to sample, or full options object
+   * @param strategy - Sampling strategy (optional, defaults to 'reservoir')
+   * @returns New SeqOps instance for chaining
+   *
+   * @example
+   * ```typescript
+   * // Simple sampling (most common case)
+   * seqops(sequences)
+   *   .sample(1000)                    // Sample 1000 sequences
+   *   .sample(500, 'systematic')       // Systematic sampling
+   *
+   * // Advanced options for complex scenarios
+   * seqops(sequences)
+   *   .sample({
+   *     n: 1000,
+   *     seed: 42,
+   *     strategy: 'reservoir'
+   *   })
+   * ```
+   */
+  sample(
+    count: number | SampleOptions,
+    strategy: 'random' | 'systematic' | 'reservoir' = 'reservoir'
+  ): SeqOps {
+    const processor = new SampleProcessor();
+
+    // Handle overloaded parameters for better DX
+    const options: SampleOptions =
+      typeof count === 'number'
+        ? { n: count, strategy } // Simple count with optional strategy
+        : count; // Full options object provided
+
+    return new SeqOps(processor.process(this.source, options));
+  }
+
+  /**
+   * Sort sequences by specified criteria
+   *
+   * High-performance sorting optimized for genomic data compression.
+   * Automatically switches between in-memory and external sorting based
+   * on dataset size. Proper sequence ordering dramatically improves
+   * compression ratios for genomic datasets.
+   *
+   * @param options - Sort criteria and options
+   * @returns New SeqOps instance for chaining
+   *
+   * @example
+   * ```typescript
+   * // Sort by length for compression optimization
+   * seqops(sequences)
+   *   .sort({ by: 'length', order: 'desc' })
+   *
+   * // Sort by GC content for clustering similar sequences
+   * seqops(sequences)
+   *   .sort({ by: 'gc', order: 'asc' })
+   *
+   * // Custom sorting for specialized genomic criteria
+   * seqops(sequences)
+   *   .sort({
+   *     custom: (a, b) => a.sequence.localeCompare(b.sequence)
+   *   })
+   * ```
+   */
+  sort(options: SortOptions): SeqOps {
+    const processor = new SortProcessor();
+    return new SeqOps(processor.process(this.source, options));
+  }
+
+  /**
+   * Sort sequences by length (convenience method)
+   *
+   * @param order - Sort order: 'asc' or 'desc' (default: 'asc')
+   * @returns New SeqOps instance for chaining
+   *
+   * @example
+   * ```typescript
+   * seqops(sequences)
+   *   .sortByLength('desc')  // Longest first for compression
+   *   .sortByLength()        // Shortest first (default)
+   * ```
+   */
+  sortByLength(order: 'asc' | 'desc' = 'asc'): SeqOps {
+    return this.sort({ by: 'length', order });
+  }
+
+  /**
+   * Sort sequences by ID (convenience method)
+   *
+   * @param order - Sort order: 'asc' or 'desc' (default: 'asc')
+   * @returns New SeqOps instance for chaining
+   */
+  sortById(order: 'asc' | 'desc' = 'asc'): SeqOps {
+    return this.sort({ by: 'id', order });
+  }
+
+  /**
+   * Sort sequences by GC content (convenience method)
+   *
+   * @param order - Sort order: 'asc' or 'desc' (default: 'asc')
+   * @returns New SeqOps instance for chaining
+   */
+  sortByGC(order: 'asc' | 'desc' = 'asc'): SeqOps {
+    return this.sort({ by: 'gc', order });
+  }
+
+  /**
+   * Remove duplicate sequences
+   *
+   * High-performance deduplication using probabilistic Bloom filters or
+   * exact Set-based approaches. Supports both simple deduplication and
+   * advanced configuration for large datasets.
+   *
+   * @param by - Deduplication criterion or full options object
+   * @param exact - Use exact matching (default: false, uses Bloom filter)
+   * @returns New SeqOps instance for chaining
+   *
+   * @example
+   * ```typescript
+   * // Simple deduplication (most common cases)
+   * seqops(sequences)
+   *   .rmdup('sequence')               // Remove sequence duplicates
+   *   .rmdup('id', true)               // Remove ID duplicates (exact)
+   *
+   * // Advanced options for large datasets
+   * seqops(sequences)
+   *   .rmdup({
+   *     by: 'both',
+   *     expectedUnique: 5_000_000,
+   *     falsePositiveRate: 0.0001
+   *   })
+   * ```
+   */
+  rmdup(by: 'sequence' | 'id' | 'both' | RmdupOptions, exact: boolean = false): SeqOps {
+    const processor = new RmdupProcessor();
+
+    // Handle overloaded parameters for better DX
+    const options: RmdupOptions =
+      typeof by === 'string'
+        ? { by, exact } // Simple by + exact parameters
+        : by; // Full options object provided
+
+    return new SeqOps(processor.process(this.source, options));
+  }
+
+  /**
+   * Remove sequence duplicates (convenience method)
+   *
+   * Most common deduplication use case - remove sequences with identical content.
+   *
+   * @param caseSensitive - Whether to consider case (default: true)
+   * @returns New SeqOps instance for chaining
+   */
+  removeSequenceDuplicates(caseSensitive: boolean = true): SeqOps {
+    return this.rmdup({ by: 'sequence', caseSensitive, exact: false });
+  }
+
+  /**
+   * Remove ID duplicates (convenience method)
+   *
+   * Remove sequences with duplicate IDs, keeping first occurrence.
+   *
+   * @param exact - Use exact matching (default: true for IDs)
+   * @returns New SeqOps instance for chaining
+   */
+  removeIdDuplicates(exact: boolean = true): SeqOps {
+    return this.rmdup({ by: 'id', exact });
   }
 
   // =============================================================================
@@ -487,8 +711,10 @@ export type {
   CleanOptions,
   QualityOptions,
   ValidateOptions,
-  AnnotateOptions,
-  SortOptions,
+  GrepOptions,
   SampleOptions,
+  SortOptions,
+  RmdupOptions,
+  AnnotateOptions,
   GroupOptions,
 } from './types';

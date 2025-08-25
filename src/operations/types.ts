@@ -212,6 +212,32 @@ export interface SampleOptions {
 
   /** Allow sampling with replacement */
   withReplacement?: boolean;
+
+  /** Sampling strategy */
+  strategy?: 'random' | 'systematic' | 'reservoir';
+}
+
+/**
+ * Options for sequence deduplication
+ *
+ * Simplified interface for removing duplicate sequences.
+ * Leverages sophisticated Bloom filter infrastructure.
+ */
+export interface RmdupOptions {
+  /** Deduplication criterion */
+  by: 'sequence' | 'id' | 'both';
+
+  /** Case-sensitive comparison */
+  caseSensitive?: boolean;
+
+  /** Use exact deduplication (higher memory, no false positives) */
+  exact?: boolean;
+
+  /** Expected number of unique sequences (for optimization) */
+  expectedUnique?: number;
+
+  /** Acceptable false positive rate for probabilistic deduplication */
+  falsePositiveRate?: number;
 }
 
 /**
@@ -223,6 +249,35 @@ export interface GroupOptions {
 
   /** Aggregation method for groups */
   aggregate?: 'count' | 'stats' | 'collect';
+}
+
+/**
+ * Options for pattern search operations
+ *
+ * Focused single-responsibility interface for grep-style pattern matching.
+ * Follows Unix grep semantics while adding bioinformatics-specific features.
+ */
+export interface GrepOptions {
+  /** Pattern to search for (string or regex) */
+  pattern: string | RegExp;
+
+  /** Target field to search in */
+  target: 'sequence' | 'id' | 'description';
+
+  /** Case-insensitive matching */
+  ignoreCase?: boolean;
+
+  /** Invert match (like grep -v) */
+  invert?: boolean;
+
+  /** Match whole words only */
+  wholeWord?: boolean;
+
+  /** Allow mismatches in sequence patterns (bioinformatics-specific) */
+  allowMismatches?: number;
+
+  /** Search both strands for sequence patterns */
+  searchBothStrands?: boolean;
 }
 
 /**

@@ -460,6 +460,16 @@ export class FormatDetectionError extends GenotypeError {
 }
 
 /**
+ * Pattern search operation errors
+ */
+export class GrepError extends GenotypeError {
+  constructor(message: string, code: string = 'GREP_ERROR', lineNumber?: number, context?: string) {
+    super(message, code, lineNumber, context);
+    this.name = 'GrepError';
+  }
+}
+
+/**
  * Get helpful suggestion for common error patterns
  */
 export function getErrorSuggestion(error: GenotypeError): string | undefined {

@@ -359,9 +359,10 @@ export class SubseqExtractor {
     }
 
     // Allow start > end for circular sequences (will be handled in extraction)
-    if (start >= end) {
-      // For now, still enforce this until circular handling is complete
-      throw new Error(`Invalid region: start (${start + (oneBased ? 1 : 0)}) >= end (${end})`);
+    // Only throw error if not potentially circular
+    if (start >= end && end !== 0) {
+      // Don't throw error - let the extraction method handle circular logic
+      // throw new Error(`Invalid region: start (${start + (oneBased ? 1 : 0)}) >= end (${end})`);
     }
 
     return {
@@ -452,11 +453,25 @@ export class SubseqExtractor {
     let end = region.end;
 
     if (options.upstream) {
-      start = Math.max(0, start - options.upstream);
+      if (options.circular) {
+        start = start - options.upstream;
+        if (start < 0) {
+          start = sequence.length + start; // Wrap around
+        }
+      } else {
+        start = Math.max(0, start - options.upstream);
+      }
     }
 
     if (options.downstream) {
-      end = Math.min(sequence.length, end + options.downstream);
+      if (options.circular) {
+        end = end + options.downstream;
+        if (end > sequence.length) {
+          end = end % sequence.length; // Wrap around
+        }
+      } else {
+        end = Math.min(sequence.length, end + options.downstream);
+      }
     }
 
     if (options.onlyFlank) {
@@ -480,7 +495,7 @@ export class SubseqExtractor {
 
     // Handle circular sequences
     let subseq: string;
-    if (options.circular && start > end) {
+    if (options.circular && start >= end) {
       // Wrap around for circular sequences
       subseq = sequence.sequence.substring(start) + sequence.sequence.substring(0, end);
     } else {

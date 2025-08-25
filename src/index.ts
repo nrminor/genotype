@@ -29,6 +29,7 @@ export {
   FormatDetectionError,
   GenotypeError,
   getErrorSuggestion,
+  GrepError,
   MemoryError,
   ParseError,
   QualityError,

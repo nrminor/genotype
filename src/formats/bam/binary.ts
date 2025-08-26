@@ -469,7 +469,11 @@ export function parseOptionalTags(
         value: valueResult.value,
       });
     } catch (error) {
-      // Stop parsing tags on error
+      // Log tag parsing error with context for debugging
+      const errorContext = qname ? ` for read ${qname}` : '';
+      console.warn(
+        `BAM tag parsing failed at offset ${offset}${errorContext}: ${error instanceof Error ? error.message : String(error)}`
+      );
       break;
     }
   }

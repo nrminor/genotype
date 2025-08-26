@@ -1,4 +1,4 @@
-import { dlopen, type Pointer, suffix, toArrayBuffer } from 'bun:ffi';
+import { dlopen } from 'bun:ffi';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import os from 'os';
@@ -67,7 +67,7 @@ function findLibrary(): string {
   }
 
   // First try target-specific directory
-  const [arch, os] = target.split('-');
+  const [_arch, os] = target.split('-');
 
   // Complete library name logic following OpenTUI pattern
   const getLibraryName = (platform: string): string => {

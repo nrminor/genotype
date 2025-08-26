@@ -11,15 +11,15 @@
  */
 
 import { type } from 'arktype';
-import type { FastaSequence, ParserOptions } from '../types';
-import { FastaSequenceSchema, SequenceIdSchema, SequenceSchema } from '../types';
 import {
-  ValidationError,
-  ParseError,
-  SequenceError,
   FileError,
   getErrorSuggestion,
+  ParseError,
+  SequenceError,
+  ValidationError,
 } from '../errors';
+import type { FastaSequence, ParserOptions } from '../types';
+import { FastaSequenceSchema, SequenceIdSchema, SequenceSchema } from '../types';
 
 /**
  * Streaming FASTA parser with comprehensive validation

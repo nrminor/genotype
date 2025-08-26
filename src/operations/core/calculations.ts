@@ -146,8 +146,13 @@ export function baseComposition(sequence: string): Record<string, number> {
   // 🔥 ZIG: SIMD histogram calculation
   for (let i = 0; i < sequence.length; i++) {
     const base = sequence[i]?.toUpperCase();
-    if (base && /[A-Z\-.*]/.test(base)) {
-      composition[base] = (composition[base] || 0) + 1;
+    if (base !== undefined && base !== null && base !== '' && /[A-Z\-.*]/.test(base)) {
+      composition[base] =
+        (composition[base] !== undefined &&
+        composition[base] !== null &&
+        !Number.isNaN(composition[base])
+          ? composition[base]
+          : 0) + 1;
     }
   }
 

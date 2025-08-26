@@ -773,13 +773,17 @@ export class BAIReader {
       return chunks;
     }
 
-    // Calculate linear index interval for start position
+    // Calculate linear index intervals for start and end positions
     const startInterval = Math.floor(start / linearIndex.intervalSize);
+    const endInterval = Math.min(
+      Math.floor(end / linearIndex.intervalSize) + 1,
+      linearIndex.intervals.length
+    );
 
-    // Find minimum virtual offset from linear index
+    // Find minimum virtual offset from linear index in the query range
     let minOffset: VirtualOffset | null = null;
 
-    for (let i = startInterval; i < linearIndex.intervals.length; i++) {
+    for (let i = startInterval; i < endInterval; i++) {
       const intervalOffset = linearIndex.intervals[i];
       if (intervalOffset !== undefined && intervalOffset !== 0n) {
         minOffset = intervalOffset;
@@ -835,9 +839,27 @@ export class BAIReader {
     warnings: string[],
     errors: string[]
   ): Promise<void> {
-    // This is a placeholder for thorough cross-validation
-    // In a complete implementation, this would check that:
-    // 1. Linear index intervals point to valid chunk positions
+    // Basic validation checks
+    // Check that linear index intervals are reasonable
+    if (reference.linearIndex && reference.linearIndex.intervals.length > 0) {
+      let prevOffset = 0n;
+      for (let i = 0; i < reference.linearIndex.intervals.length; i++) {
+        const offset = reference.linearIndex.intervals[i];
+        if (offset !== undefined && offset < prevOffset) {
+          errors.push(
+            `Reference ${refId}: Linear index interval ${i} offset ${offset} is less than previous ${prevOffset}`
+          );
+        }
+        if (offset !== undefined) {
+          prevOffset = offset;
+        }
+      }
+    }
+
+    // Check bin consistency
+    if (reference.bins.size === 0) {
+      warnings.push(`Reference ${refId}: No bins found - index may be incomplete`);
+    }
     // 2. Bins cover all genomic regions referenced in linear index
     // 3. Virtual offsets are consistent across data structures
 

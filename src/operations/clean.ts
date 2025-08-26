@@ -43,7 +43,7 @@ export class CleanProcessor implements Processor<CleanOptions> {
       const cleaned = this.cleanSequence(seq, options);
 
       // Skip empty sequences if requested
-      if (options.removeEmpty && cleaned.sequence.length === 0) {
+      if (options.removeEmpty === true && cleaned.sequence.length === 0) {
         continue;
       }
 
@@ -63,22 +63,30 @@ export class CleanProcessor implements Processor<CleanOptions> {
     let description = seq.description;
 
     // Trim whitespace first
-    if (options.trimWhitespace) {
+    if (options.trimWhitespace === true) {
       sequence = sequence.trim();
-      if (description) {
+      if (description !== undefined && description !== null) {
         description = description.trim();
       }
     }
 
     // Remove gaps
-    if (options.removeGaps) {
-      const gapChars = options.gapChars || '.-*';
+    if (options.removeGaps === true) {
+      const gapChars =
+        options.gapChars !== undefined && options.gapChars !== null && options.gapChars !== ''
+          ? options.gapChars
+          : '.-*';
       sequence = this.removeGaps(sequence, gapChars);
     }
 
     // Replace ambiguous bases
-    if (options.replaceAmbiguous) {
-      const replaceChar = options.replaceChar || 'N';
+    if (options.replaceAmbiguous === true) {
+      const replaceChar =
+        options.replaceChar !== undefined &&
+        options.replaceChar !== null &&
+        options.replaceChar !== ''
+          ? options.replaceChar
+          : 'N';
       sequence = this.replaceAmbiguousBases(sequence, replaceChar);
     }
 

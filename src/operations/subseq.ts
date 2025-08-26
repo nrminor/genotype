@@ -16,9 +16,11 @@
  * @since v0.1.0
  */
 
-import type { AbstractSequence, FASTXSequence, FastqSequence } from '../types';
+import type { AbstractSequence, FastqSequence, BedInterval } from '../types';
 import { SequenceError } from '../errors';
 import { reverseComplement } from './core/sequence-manipulation';
+import { BedParser } from '../formats/bed';
+import { GtfParser, type GtfFeature } from '../formats/gtf';
 
 // =============================================================================
 // TYPES AND INTERFACES
@@ -42,9 +44,13 @@ export interface SubseqOptions {
   end?: number;
 
   // File-based regions (in-memory for now)
-  /** BED regions to extract */
+  /** BED file path to load regions from */
+  bedFile?: string;
+  /** BED regions to extract (alternative to bedFile) */
   bedRegions?: Array<{ chromosome: string; chromStart: number; chromEnd: number }>;
-  /** GTF features to extract */
+  /** GTF file path to load features from */
+  gtfFile?: string;
+  /** GTF features to extract (alternative to gtfFile) */
   gtfFeatures?: Array<{ seqname: string; start: number; end: number; feature: string }>;
   /** Feature type to filter (for GTF) */
   featureType?: string;
@@ -173,93 +179,11 @@ export class SubseqExtractor {
     sequences: AsyncIterable<T>,
     options: SubseqOptions
   ): AsyncIterable<T> {
-    // Tiger Style: Validate options
     this.validateOptions(options);
 
     try {
       for await (const sequence of sequences) {
-        // Check ID-based filtering first
-        if (options.idPattern || options.idList) {
-          if (!this.matchesIdFilter(sequence.id, options)) {
-            continue;
-          }
-        }
-
-        // Collect all regions to extract
-        const extractedRegions: T[] = [];
-
-        // Determine regions to extract
-        const regions: string[] = [];
-        if (options.region) {
-          regions.push(options.region);
-        }
-        if (options.regions) {
-          regions.push(...options.regions);
-        }
-
-        // Extract regions or entire sequence with flanking
-        if (regions.length > 0) {
-          for (const regionStr of regions) {
-            const extracted = this.extractRegion(sequence, regionStr, options);
-            if (extracted) {
-              if (options.concatenate) {
-                extractedRegions.push(extracted);
-              } else {
-                yield extracted;
-              }
-            }
-          }
-        } else if (options.upstream || options.downstream || options.start || options.end) {
-          // Extract with start/end or flanking
-          const extracted = this.extractWithCoordinates(sequence, options);
-          if (extracted) {
-            yield extracted;
-          }
-        } else if (options.bedRegions) {
-          // Extract BED regions
-          for (const bed of options.bedRegions) {
-            if (bed.chromosome === sequence.id) {
-              const extracted = this.extractBedRegion(sequence, bed, options);
-              if (extracted) {
-                if (options.concatenate) {
-                  extractedRegions.push(extracted);
-                } else {
-                  yield extracted;
-                }
-              }
-            }
-          }
-        } else if (options.gtfFeatures) {
-          // Extract GTF features
-          for (const feature of options.gtfFeatures) {
-            if (
-              feature.seqname === sequence.id &&
-              (!options.featureType || feature.feature === options.featureType)
-            ) {
-              const extracted = this.extractGtfFeature(sequence, feature, options);
-              if (extracted) {
-                if (options.concatenate) {
-                  extractedRegions.push(extracted);
-                } else {
-                  yield extracted;
-                }
-              }
-            }
-          }
-        } else if (options.idPattern || options.idList) {
-          // Just filtering by ID, return whole sequence
-          yield sequence;
-        } else {
-          throw new Error('No extraction criteria specified');
-        }
-
-        // If concatenating, combine all extracted regions
-        if (options.concatenate && extractedRegions.length > 0) {
-          const concatenated = this.concatenateSequences(extractedRegions, options);
-          if (concatenated) {
-            yield concatenated;
-          }
-        }
+        yield* this.processSequence(sequence, options);
       }
     } catch (error) {
       throw new SequenceError(
@@ -269,6 +193,155 @@ export class SubseqExtractor {
         'Check region specifications and sequence lengths'
       );
     }
+  }
+
+  /**
+   * Process a single sequence with extraction options
+   * @private
+   */
+  private async *processSequence<T extends AbstractSequence>(
+    sequence: T,
+    options: SubseqOptions
+  ): AsyncIterable<T> {
+    // Early return for sequences that don't match ID filters
+    if (!this.shouldProcessSequence(sequence.id, options)) {
+      return;
+    }
+
+    // Handle ID-only filtering (return whole sequence)
+    if (this.isIdOnlyFiltering(options)) {
+      yield sequence;
+      return;
+    }
+
+    // Process regions and handle results
+    yield* this.processSequenceRegions(sequence, options);
+  }
+
+  /**
+   * Check if sequence should be processed based on ID filters
+   * @private
+   */
+  private shouldProcessSequence(sequenceId: string, options: SubseqOptions): boolean {
+    if (options.idPattern !== undefined || options.idList !== undefined) {
+      return this.matchesIdFilter(sequenceId, options);
+    }
+    return true;
+  }
+
+  /**
+   * Check if this is ID-only filtering (no region extraction)
+   * @private
+   */
+  private isIdOnlyFiltering(options: SubseqOptions): boolean {
+    const hasIdFilter = options.idPattern !== undefined || options.idList !== undefined;
+    const hasRegions = this.hasRegionSpecifications(options);
+    return hasIdFilter && !hasRegions;
+  }
+
+  /**
+   * Check if options contain any region specifications
+   * @private
+   */
+  private hasRegionSpecifications(options: SubseqOptions): boolean {
+    return (
+      options.region !== undefined ||
+      options.regions !== undefined ||
+      options.start !== undefined ||
+      options.end !== undefined ||
+      options.upstream !== undefined ||
+      options.downstream !== undefined ||
+      options.bedRegions !== undefined ||
+      options.gtfFeatures !== undefined ||
+      options.bedFile !== undefined ||
+      options.gtfFile !== undefined
+    );
+  }
+
+  /**
+   * Process sequence regions with concatenation support
+   * @private
+   */
+  private async *processSequenceRegions<T extends AbstractSequence>(
+    sequence: T,
+    options: SubseqOptions
+  ): AsyncIterable<T> {
+    if (!this.hasRegionSpecifications(options)) {
+      throw new Error('No extraction criteria specified');
+    }
+
+    const extractedRegions: T[] = [];
+
+    // Process different extraction types
+    yield* this.extractBySpecifications(sequence, options, extractedRegions);
+
+    // Handle concatenation if requested
+    if (options.concatenate === true && extractedRegions.length > 0) {
+      const concatenated = this.concatenateSequences(extractedRegions);
+      if (concatenated !== null) {
+        yield concatenated;
+      }
+    }
+  }
+
+  /**
+   * Extract sequences by various specification types
+   * @private
+   */
+  private async *extractBySpecifications<T extends AbstractSequence>(
+    sequence: T,
+    options: SubseqOptions,
+    extractedRegions: T[]
+  ): AsyncIterable<T> {
+    // Extract by region strings
+    if (this.hasRegionStrings(options)) {
+      yield* this.extractByRegionStrings(sequence, options, extractedRegions);
+      return;
+    }
+
+    // Extract by coordinates with flanking
+    if (this.hasCoordinateSpec(options)) {
+      const extracted = this.extractWithCoordinates(sequence, options);
+      if (extracted !== null) {
+        yield extracted;
+      }
+      return;
+    }
+
+    // Extract by BED file or regions
+    if (options.bedFile !== undefined || options.bedRegions !== undefined) {
+      yield* this.extractByBedData(sequence, options, extractedRegions);
+      return;
+    }
+
+    // Extract by GTF file or features
+    if (options.gtfFile !== undefined || options.gtfFeatures !== undefined) {
+      yield* this.extractByGtfData(sequence, options, extractedRegions);
+      return;
+    }
+
+    throw new Error('No extraction criteria specified');
+  }
+
+  /**
+   * Check if options have region strings
+   * @private
+   */
+  private hasRegionStrings(options: SubseqOptions): boolean {
+    return options.region !== undefined || options.regions !== undefined;
+  }
+
+  /**
+   * Check if options have coordinate specifications
+   * @private
+   */
+  private hasCoordinateSpec(options: SubseqOptions): boolean {
+    return (
+      options.start !== undefined ||
+      options.end !== undefined ||
+      options.upstream !== undefined ||
+      options.downstream !== undefined
+    );
   }
 
   /**
@@ -298,10 +371,8 @@ export class SubseqExtractor {
    * - Expected speedup: 5-10x
    */
   parseRegion(region: string, sequenceLength: number, oneBased: boolean = true): ParsedRegion {
-    // Tiger Style: Validate input
-    if (!region || region.trim() === '') {
-      throw new Error('Region string cannot be empty');
-    }
+    // Tiger Style: Validate input early
+    this.validateRegionString(region);
 
     const parts = region.split(':');
     if (parts.length !== 2) {
@@ -309,68 +380,152 @@ export class SubseqExtractor {
     }
 
     const [startStr, endStr] = parts;
+    this.validateRegionParts(startStr, endStr, region);
+
+    // After validation, we know these are defined
+    const validStartStr = startStr!;
+    const validEndStr = endStr!;
+
     let hasNegativeIndices = false;
+    const start = this.parseStartPosition(
+      validStartStr,
+      sequenceLength,
+      oneBased,
+      hasNegativeIndices
+    );
+    const end = this.parseEndPosition(validEndStr, sequenceLength, oneBased, hasNegativeIndices);
 
-    // Parse start position
-    let start: number;
-    if (!startStr || startStr === '') {
-      start = 0;
-    } else {
-      start = parseInt(startStr, 10);
-      if (isNaN(start)) {
-        throw new Error(`Invalid start position: ${startStr}`);
-      }
-      if (start < 0) {
-        hasNegativeIndices = true;
-        start = Math.max(0, sequenceLength + start);
-      } else if (oneBased && start > 0) {
-        start = start - 1; // Convert to 0-based
-      }
-    }
+    hasNegativeIndices = start.hasNegative || end.hasNegative;
 
-    // Parse end position
-    let end: number;
-    if (!endStr || endStr === '' || endStr === '-1') {
-      end = sequenceLength;
-    } else {
-      end = parseInt(endStr, 10);
-      if (isNaN(end)) {
-        throw new Error(`Invalid end position: ${endStr}`);
-      }
-      if (end < 0) {
-        hasNegativeIndices = true;
-        end = sequenceLength + end + 1;
-      } else if (!oneBased) {
-        // Already 0-based, end is exclusive (no adjustment needed)
-      } else {
-        // For 1-based, end is inclusive, keep as-is (becomes exclusive in 0-based)
-      }
-    }
+    const finalStart = this.clampCoordinate(start.value, 0, sequenceLength);
+    const finalEnd = this.clampCoordinate(end.value, 0, sequenceLength);
 
-    // Validate coordinates
-    if (start < 0) start = 0;
-    if (end > sequenceLength) end = sequenceLength;
-
-    // Check for invalid ranges
-    if (start > sequenceLength) {
-      throw new Error(
-        `Start position (${start + (oneBased ? 1 : 0)}) exceeds sequence length (${sequenceLength})`
-      );
-    }
-
-    // Allow start > end for circular sequences (will be handled in extraction)
-    // Only throw error if not potentially circular
-    if (start >= end && end !== 0) {
-      // Don't throw error - let the extraction method handle circular logic
-      // throw new Error(`Invalid region: start (${start + (oneBased ? 1 : 0)}) >= end (${end})`);
-    }
+    this.validateFinalCoordinates(finalStart, finalEnd, sequenceLength, oneBased);
 
     return {
-      start,
-      end,
+      start: finalStart,
+      end: finalEnd,
       original: region,
       hasNegativeIndices,
     };
+  }
+
+  /**
+   * Validate region string format
+   * @private
+   */
+  private validateRegionString(region: string): void {
+    if (region.length === 0 || region.trim() === '') {
+      throw new Error('Region string cannot be empty');
+    }
+  }
+
+  /**
+   * Validate region parts after splitting
+   * @private
+   */
+  private validateRegionParts(
+    startStr: string | undefined,
+    endStr: string | undefined,
+    region: string
+  ): void {
+    if (startStr === undefined || endStr === undefined) {
+      throw new Error(`Invalid region format: ${region} (missing start or end)`);
+    }
+  }
+
+  /**
+   * Parse start position with negative index handling
+   * @private
+   */
+  private parseStartPosition(
+    startStr: string,
+    sequenceLength: number,
+    oneBased: boolean,
+    hasNegativeIndices: boolean
+  ): { value: number; hasNegative: boolean } {
+    if (startStr.length === 0 || startStr === '') {
+      return { value: 0, hasNegative: false };
+    }
+
+    const parsed = parseInt(startStr, 10);
+    if (isNaN(parsed)) {
+      throw new Error(`Invalid start position: ${startStr}`);
+    }
+
+    if (parsed < 0) {
+      return {
+        value: Math.max(0, sequenceLength + parsed),
+        hasNegative: true,
+      };
+    }
+
+    if (oneBased && parsed > 0) {
+      return { value: parsed - 1, hasNegative: false }; // Convert to 0-based
+    }
+
+    return { value: parsed, hasNegative: false };
+  }
+
+  /**
+   * Parse end position with negative index handling
+   * @private
+   */
+  private parseEndPosition(
+    endStr: string,
+    sequenceLength: number,
+    oneBased: boolean,
+    hasNegativeIndices: boolean
+  ): { value: number; hasNegative: boolean } {
+    if (endStr.length === 0 || endStr === '' || endStr === '-1') {
+      return { value: sequenceLength, hasNegative: false };
+    }
+
+    const parsed = parseInt(endStr, 10);
+    if (isNaN(parsed)) {
+      throw new Error(`Invalid end position: ${endStr}`);
+    }
+
+    if (parsed < 0) {
+      return {
+        value: sequenceLength + parsed + 1,
+        hasNegative: true,
+      };
+    }
+
+    // For 1-based, end is inclusive, keep as-is (becomes exclusive in 0-based)
+    // For 0-based, end is already exclusive
+    return { value: parsed, hasNegative: false };
+  }
+
+  /**
+   * Clamp coordinate to valid range
+   * @private
+   */
+  private clampCoordinate(value: number, min: number, max: number): number {
+    if (value < min) return min;
+    if (value > max) return max;
+    return value;
+  }
+
+  /**
+   * Validate final coordinates
+   * @private
+   */
+  private validateFinalCoordinates(
+    start: number,
+    end: number,
+    sequenceLength: number,
+    oneBased: boolean
+  ): void {
+    // Check if start position is beyond sequence length
+    const displayStart = oneBased ? start + 1 : start;
+    if (displayStart > sequenceLength) {
+      throw new Error(
+        `Start position (${displayStart}) exceeds sequence length (${sequenceLength})`
+      );
+    }
+    // Note: Allow start >= end for circular sequences (handled in extraction)
   }
 
   // =============================================================================
@@ -390,12 +545,27 @@ export class SubseqExtractor {
       throw new Error('Downstream value must be non-negative');
     }
 
-    if (options.onlyFlank && !options.upstream && !options.downstream) {
+    if (
+      options.onlyFlank === true &&
+      options.upstream === undefined &&
+      options.downstream === undefined
+    ) {
       throw new Error('onlyFlank requires upstream or downstream to be specified');
     }
 
-    if (options.region && options.bedRegions) {
-      throw new Error('Cannot specify both region and bedRegions');
+    // Validate mutually exclusive region specifications
+    const regionSpecs = [
+      options.region !== undefined,
+      options.bedRegions !== undefined,
+      options.bedFile !== undefined,
+      options.gtfFeatures !== undefined,
+      options.gtfFile !== undefined,
+    ].filter(Boolean).length;
+
+    if (regionSpecs > 1) {
+      throw new Error(
+        'Cannot specify multiple region sources (region, bedRegions, bedFile, gtfFeatures, gtfFile)'
+      );
     }
 
     if (options.start !== undefined && options.end !== undefined && options.start > options.end) {
@@ -408,10 +578,10 @@ export class SubseqExtractor {
    * @private
    */
   private matchesIdFilter(id: string, options: SubseqOptions): boolean {
-    if (options.idPattern) {
+    if (options.idPattern !== undefined) {
       return options.idPattern.test(id);
     }
-    if (options.idList) {
+    if (options.idList !== undefined) {
       return options.idList.includes(id);
     }
     return true;
@@ -448,63 +618,105 @@ export class SubseqExtractor {
         ? this.parseRegion(regionStr, sequence.length, options.oneBased !== false)
         : regionStr;
 
-    // Apply flanking if specified
+    // Apply flanking adjustments
+    const coords = this.applyFlankingAdjustments(region, sequence.length, options);
+
+    // Handle special extraction modes
+    if (options.onlyFlank === true) {
+      return this.extractOnlyFlanks(sequence, region, options);
+    }
+
+    // Extract the subsequence
+    const subseq = this.extractSubsequence(sequence, coords, options);
+    if (subseq.length === 0) {
+      return null;
+    }
+
+    return this.createExtractedSequence(sequence, subseq, coords, options);
+  }
+
+  /**
+   * Apply flanking adjustments to region coordinates
+   * @private
+   */
+  private applyFlankingAdjustments(
+    region: ParsedRegion,
+    sequenceLength: number,
+    options: SubseqOptions
+  ): ParsedRegion {
     let start = region.start;
     let end = region.end;
 
-    if (options.upstream) {
-      if (options.circular) {
+    if (options.upstream !== undefined) {
+      if (options.circular === true) {
         start = start - options.upstream;
         if (start < 0) {
-          start = sequence.length + start; // Wrap around
+          start = sequenceLength + start; // Wrap around
         }
       } else {
         start = Math.max(0, start - options.upstream);
       }
     }
 
-    if (options.downstream) {
-      if (options.circular) {
+    if (options.downstream !== undefined) {
+      if (options.circular === true) {
         end = end + options.downstream;
-        if (end > sequence.length) {
-          end = end % sequence.length; // Wrap around
+        if (end > sequenceLength) {
+          end = end % sequenceLength; // Wrap around
         }
       } else {
-        end = Math.min(sequence.length, end + options.downstream);
+        end = Math.min(sequenceLength, end + options.downstream);
       }
     }
 
-    if (options.onlyFlank) {
-      // Extract only the flanking regions, not the core region
-      const upstreamSeq = sequence.sequence.substring(
-        Math.max(0, region.start - (options.upstream || 0)),
-        region.start
-      );
-      const downstreamSeq = sequence.sequence.substring(
-        region.end,
-        Math.min(sequence.length, region.end + (options.downstream || 0))
-      );
+    return { ...region, start, end };
+  }
 
-      const subseq = upstreamSeq + downstreamSeq;
-      if (subseq.length === 0) {
-        return null;
-      }
+  /**
+   * Extract only flanking regions (not the core region)
+   * @private
+   */
+  private extractOnlyFlanks<T extends AbstractSequence>(
+    sequence: T,
+    region: ParsedRegion,
+    options: SubseqOptions
+  ): T | null {
+    const upstreamSeq = sequence.sequence.substring(
+      Math.max(0, region.start - (options.upstream ?? 0)),
+      region.start
+    );
+    const downstreamSeq = sequence.sequence.substring(
+      region.end,
+      Math.min(sequence.length, region.end + (options.downstream ?? 0))
+    );
 
-      return this.createExtractedSequence(sequence, subseq, { ...region, start, end }, options);
-    }
-
-    // Handle circular sequences
-    let subseq: string;
-    if (options.circular && start >= end) {
-      // Wrap around for circular sequences
-      subseq = sequence.sequence.substring(start) + sequence.sequence.substring(0, end);
-    } else {
-      // Normal extraction
-      subseq = sequence.sequence.substring(start, end);
-    }
-
+    const subseq = upstreamSeq + downstreamSeq;
     if (subseq.length === 0) {
       return null;
+    }
+
+    const coords = this.applyFlankingAdjustments(region, sequence.length, options);
+    return this.createExtractedSequence(sequence, subseq, coords, options);
+  }
+
+  /**
+   * Extract subsequence with circular handling and strand processing
+   * @private
+   */
+  private extractSubsequence<T extends AbstractSequence>(
+    sequence: T,
+    coords: ParsedRegion,
+    options: SubseqOptions
+  ): string {
+    // Handle circular sequences
+    let subseq: string;
+    if (options.circular === true && coords.start >= coords.end) {
+      // Wrap around for circular sequences
+      subseq =
+        sequence.sequence.substring(coords.start) + sequence.sequence.substring(0, coords.end);
+    } else {
+      // Normal extraction
+      subseq = sequence.sequence.substring(coords.start, coords.end);
     }
 
     // Handle strand if specified
@@ -512,7 +724,7 @@ export class SubseqExtractor {
       subseq = reverseComplement(subseq);
     }
 
-    return this.createExtractedSequence(sequence, subseq, { ...region, start, end }, options);
+    return subseq;
   }
 
   /**
@@ -544,44 +756,66 @@ export class SubseqExtractor {
     region: ParsedRegion,
     options: SubseqOptions
   ): T {
-    // Update ID with coordinates if requested
-    let newId = original.id;
-    if (options.includeCoordinates) {
-      const sep = options.coordinateSeparator || ':';
-      const coordStr =
-        options.oneBased !== false
-          ? `${region.start + 1}${sep}${region.end}`
-          : `${region.start}${sep}${region.end}`;
-      newId = `${original.id}${sep}${coordStr}`;
-    }
+    const newId = this.buildSequenceId(original.id, region, options);
+    const quality = this.extractQualityScores(original, region, options);
 
-    // Handle quality scores for FASTQ
-    let quality: string | undefined;
-    if (this.isFastqSequence(original)) {
-      // Extract corresponding quality substring
-      const qualStart = region.start - (options.upstream || 0);
-      const qualEnd = region.end + (options.downstream || 0);
-      quality = original.quality.substring(
-        Math.max(0, qualStart),
-        Math.min(original.quality.length, qualEnd)
-      );
-
-      // Reverse quality if sequence was reverse complemented
-      if (options.strand === '-' && options.reverseComplementMinus !== false) {
-        quality = quality.split('').reverse().join('');
-      }
-    }
-
-    // Create new sequence object preserving type
-    const result = {
+    return {
       ...original,
       id: newId,
       sequence: subseq,
       length: subseq.length,
       ...(quality !== undefined && { quality }),
     } as T;
+  }
 
-    return result;
+  /**
+   * Build sequence ID with optional coordinate suffix
+   * @private
+   */
+  private buildSequenceId(
+    originalId: string,
+    region: ParsedRegion,
+    options: SubseqOptions
+  ): string {
+    if (options.includeCoordinates !== true) {
+      return originalId;
+    }
+
+    const sep = options.coordinateSeparator ?? ':';
+    const coordStr =
+      options.oneBased !== false
+        ? `${region.start + 1}${sep}${region.end}`
+        : `${region.start}${sep}${region.end}`;
+
+    return `${originalId}${sep}${coordStr}`;
+  }
+
+  /**
+   * Extract quality scores for FASTQ sequences
+   * @private
+   */
+  private extractQualityScores<T extends AbstractSequence>(
+    original: T,
+    region: ParsedRegion,
+    options: SubseqOptions
+  ): string | undefined {
+    if (!this.isFastqSequence(original)) {
+      return undefined;
+    }
+
+    const qualStart = region.start - (options.upstream ?? 0);
+    const qualEnd = region.end + (options.downstream ?? 0);
+    let quality = original.quality.substring(
+      Math.max(0, qualStart),
+      Math.min(original.quality.length, qualEnd)
+    );
+
+    // Reverse quality if sequence was reverse complemented
+    if (options.strand === '-' && options.reverseComplementMinus !== false) {
+      quality = quality.split('').reverse().join('');
+    }
+
+    return quality;
   }
 
   /**
@@ -609,42 +843,46 @@ export class SubseqExtractor {
     }
 
     // Apply upstream/downstream
-    if (options.upstream) {
+    if (options.upstream !== undefined) {
       start = Math.max(0, start - options.upstream);
     }
-    if (options.downstream) {
+    if (options.downstream !== undefined) {
       end = Math.min(sequence.length, end + options.downstream);
     }
 
-    // Handle circular sequences
-    if (options.circular && start > end) {
-      const subseq = sequence.sequence.substring(start) + sequence.sequence.substring(0, end);
-      return this.createExtractedSequence(
-        sequence,
-        subseq,
-        { start, end, original: `${start}:${end}`, hasNegativeIndices: false },
-        options
-      );
-    }
+    const region: ParsedRegion = {
+      start,
+      end,
+      original: `${start}:${end}`,
+      hasNegativeIndices: false,
+    };
 
-    const subseq = sequence.sequence.substring(start, end);
+    const subseq = this.extractSubsequence(sequence, region, options);
 
-    // Apply strand operations
-    let finalSeq = subseq;
-    if (options.strand === '-') {
-      finalSeq = reverseComplement(subseq);
-    }
-
-    return this.createExtractedSequence(
-      sequence,
-      finalSeq,
-      { start, end, original: `${start}:${end}`, hasNegativeIndices: false },
-      options
-    );
+    return this.createExtractedSequence(sequence, subseq, region, options);
   }
 
   /**
-   * Extract BED region
+   * Extract BED interval (from parsed BedInterval)
+   * @private
+   */
+  private extractBedInterval<T extends AbstractSequence>(
+    sequence: T,
+    interval: BedInterval,
+    options: SubseqOptions
+  ): T | null {
+    const region: ParsedRegion = {
+      start: interval.start,
+      end: interval.end,
+      original: `${interval.start}:${interval.end}`,
+      hasNegativeIndices: false,
+    };
+
+    return this.extractRegion(sequence, region, options);
+  }
+
+  /**
+   * Extract BED region (from simple region object)
    * @private
    */
   private extractBedRegion<T extends AbstractSequence>(
@@ -652,22 +890,55 @@ export class SubseqExtractor {
     bed: { chromosome: string; chromStart: number; chromEnd: number },
     options: SubseqOptions
   ): T | null {
-    // BED format is 0-based, half-open
-    const start = bed.chromStart;
-    const end = bed.chromEnd;
+    const region: ParsedRegion = {
+      start: bed.chromStart,
+      end: bed.chromEnd,
+      original: `${bed.chromStart}:${bed.chromEnd}`,
+      hasNegativeIndices: false,
+    };
 
-    const subseq = sequence.sequence.substring(start, end);
-
-    return this.createExtractedSequence(
-      sequence,
-      subseq,
-      { start, end, original: `${bed.chromStart}:${bed.chromEnd}`, hasNegativeIndices: false },
-      options
-    );
+    return this.extractRegion(sequence, region, options);
   }
 
   /**
-   * Extract GTF feature
+   * Extract GTF feature (from parsed GtfFeature)
+   * @private
+   */
+  private extractGtfFeatureData<T extends AbstractSequence>(
+    sequence: T,
+    feature: GtfFeature,
+    options: SubseqOptions
+  ): T | null {
+    // GTF format is 1-based, inclusive
+    const region: ParsedRegion = {
+      start: feature.start - 1, // Convert to 0-based
+      end: feature.end,
+      original: `${feature.start}:${feature.end}`,
+      hasNegativeIndices: false,
+    };
+
+    // Handle strand if specified
+    const extractedRegion = this.extractRegion(sequence, region, options);
+
+    // Apply strand-specific reverse complement if needed
+    if (
+      extractedRegion !== null &&
+      feature.strand === '-' &&
+      options.reverseComplementMinus !== false
+    ) {
+      const rcSeq = reverseComplement(extractedRegion.sequence);
+      return {
+        ...extractedRegion,
+        sequence: rcSeq,
+        length: rcSeq.length,
+      };
+    }
+
+    return extractedRegion;
+  }
+
+  /**
+   * Extract GTF feature (from simple feature object)
    * @private
    */
   private extractGtfFeature<T extends AbstractSequence>(
@@ -676,27 +947,225 @@ export class SubseqExtractor {
     options: SubseqOptions
   ): T | null {
     // GTF format is 1-based, inclusive
-    const start = feature.start - 1;
-    const end = feature.end;
+    const region: ParsedRegion = {
+      start: feature.start - 1, // Convert to 0-based
+      end: feature.end,
+      original: `${feature.start}:${feature.end}`,
+      hasNegativeIndices: false,
+    };
 
-    const subseq = sequence.sequence.substring(start, end);
+    return this.extractRegion(sequence, region, options);
+  }
 
-    return this.createExtractedSequence(
-      sequence,
-      subseq,
-      { start, end, original: `${feature.start}:${feature.end}`, hasNegativeIndices: false },
-      options
-    );
+  /**
+   * Extract sequences by region strings
+   * @private
+   */
+  private async *extractByRegionStrings<T extends AbstractSequence>(
+    sequence: T,
+    options: SubseqOptions,
+    extractedRegions: T[]
+  ): AsyncIterable<T> {
+    const regions: string[] = [];
+    if (options.region !== undefined) {
+      regions.push(options.region);
+    }
+    if (options.regions !== undefined) {
+      regions.push(...options.regions);
+    }
+
+    for (const regionStr of regions) {
+      const extracted = this.extractRegion(sequence, regionStr, options);
+      if (extracted !== null) {
+        if (options.concatenate === true) {
+          extractedRegions.push(extracted);
+        } else {
+          yield extracted;
+        }
+      }
+    }
+  }
+
+  /**
+   * Extract sequences by BED file or regions
+   * @private
+   */
+  private async *extractByBedData<T extends AbstractSequence>(
+    sequence: T,
+    options: SubseqOptions,
+    extractedRegions: T[]
+  ): AsyncIterable<T> {
+    // Load regions from file if specified
+    if (options.bedFile !== undefined) {
+      yield* this.extractByBedFile(sequence, options, extractedRegions);
+      return;
+    }
+
+    // Use provided regions
+    if (options.bedRegions !== undefined) {
+      yield* this.extractByBedRegions(sequence, options, extractedRegions);
+      return;
+    }
+  }
+
+  /**
+   * Extract sequences by BED file
+   * @private
+   */
+  private async *extractByBedFile<T extends AbstractSequence>(
+    sequence: T,
+    options: SubseqOptions,
+    extractedRegions: T[]
+  ): AsyncIterable<T> {
+    if (options.bedFile === undefined) return;
+
+    const parser = new BedParser({ skipValidation: false });
+
+    try {
+      for await (const interval of parser.parseFile(options.bedFile)) {
+        if (interval.chromosome === sequence.id) {
+          const extracted = this.extractBedInterval(sequence, interval, options);
+          if (extracted !== null) {
+            if (options.concatenate === true) {
+              extractedRegions.push(extracted);
+            } else {
+              yield extracted;
+            }
+          }
+        }
+      }
+    } catch (error) {
+      throw new SequenceError(
+        `Failed to parse BED file: ${error instanceof Error ? error.message : String(error)}`,
+        options.bedFile,
+        undefined,
+        'Check BED file format and accessibility'
+      );
+    }
+  }
+
+  /**
+   * Extract sequences by BED regions
+   * @private
+   */
+  private async *extractByBedRegions<T extends AbstractSequence>(
+    sequence: T,
+    options: SubseqOptions,
+    extractedRegions: T[]
+  ): AsyncIterable<T> {
+    if (options.bedRegions === undefined) return;
+
+    for (const bed of options.bedRegions) {
+      if (bed.chromosome === sequence.id) {
+        const extracted = this.extractBedRegion(sequence, bed, options);
+        if (extracted !== null) {
+          if (options.concatenate === true) {
+            extractedRegions.push(extracted);
+          } else {
+            yield extracted;
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Extract sequences by GTF file or features
+   * @private
+   */
+  private async *extractByGtfData<T extends AbstractSequence>(
+    sequence: T,
+    options: SubseqOptions,
+    extractedRegions: T[]
+  ): AsyncIterable<T> {
+    // Load features from file if specified
+    if (options.gtfFile !== undefined) {
+      yield* this.extractByGtfFile(sequence, options, extractedRegions);
+      return;
+    }
+
+    // Use provided features
+    if (options.gtfFeatures !== undefined) {
+      yield* this.extractByGtfFeatures(sequence, options, extractedRegions);
+      return;
+    }
+  }
+
+  /**
+   * Extract sequences by GTF file
+   * @private
+   */
+  private async *extractByGtfFile<T extends AbstractSequence>(
+    sequence: T,
+    options: SubseqOptions,
+    extractedRegions: T[]
+  ): AsyncIterable<T> {
+    if (options.gtfFile === undefined) return;
+
+    const parserOptions: any = {
+      skipValidation: false,
+    };
+    if (options.featureType !== undefined) {
+      parserOptions.includeFeatures = [options.featureType];
+    }
+    const parser = new GtfParser(parserOptions);
+
+    try {
+      for await (const feature of parser.parseFile(options.gtfFile)) {
+        if (feature.seqname === sequence.id) {
+          const extracted = this.extractGtfFeatureData(sequence, feature, options);
+          if (extracted !== null) {
+            if (options.concatenate === true) {
+              extractedRegions.push(extracted);
+            } else {
+              yield extracted;
+            }
+          }
+        }
+      }
+    } catch (error) {
+      throw new SequenceError(
+        `Failed to parse GTF file: ${error instanceof Error ? error.message : String(error)}`,
+        options.gtfFile,
+        undefined,
+        'Check GTF file format and accessibility'
+      );
+    }
+  }
+
+  /**
+   * Extract sequences by GTF features
+   * @private
+   */
+  private async *extractByGtfFeatures<T extends AbstractSequence>(
+    sequence: T,
+    options: SubseqOptions,
+    extractedRegions: T[]
+  ): AsyncIterable<T> {
+    if (options.gtfFeatures === undefined) return;
+
+    for (const feature of options.gtfFeatures) {
+      if (
+        feature.seqname === sequence.id &&
+        (options.featureType === undefined || feature.feature === options.featureType)
+      ) {
+        const extracted = this.extractGtfFeature(sequence, feature, options);
+        if (extracted !== null) {
+          if (options.concatenate === true) {
+            extractedRegions.push(extracted);
+          } else {
+            yield extracted;
+          }
+        }
+      }
+    }
   }
 
   /**
    * Concatenate multiple extracted sequences into one
    * @private
    */
-  private concatenateSequences<T extends AbstractSequence>(
-    sequences: T[],
-    options: SubseqOptions
-  ): T | null {
+  private concatenateSequences<T extends AbstractSequence>(sequences: T[]): T | null {
     if (sequences.length === 0) {
       return null;
     }
@@ -800,7 +1269,6 @@ export async function extractSingleRegion<T extends AbstractSequence>(
   options: SubseqOptions = {}
 ): Promise<T | null> {
   const extractor = new SubseqExtractor();
-  const parsed = extractor.parseRegion(region, sequence.length, options.oneBased !== false);
 
   // Create async iterable from single sequence
   async function* singleSequence(): AsyncIterable<T> {
@@ -813,5 +1281,5 @@ export async function extractSingleRegion<T extends AbstractSequence>(
   const result = await iterator.next();
 
   // Return the extracted value or null
-  return result.done ? null : result.value;
+  return result.done === true ? null : result.value;
 }

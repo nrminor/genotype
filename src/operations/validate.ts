@@ -477,7 +477,12 @@ export class ValidateProcessor implements Processor<ValidateOptions> {
       case 'fix': {
         // Fix invalid sequences
         // ZIG_CANDIDATE: clean() replaces invalid characters
-        const fixed = validator.clean(validSequence, options.fixChar || 'N');
+        const fixed = validator.clean(
+          validSequence,
+          options.fixChar !== undefined && options.fixChar !== null && options.fixChar !== ''
+            ? options.fixChar
+            : 'N'
+        );
         return {
           ...seq,
           sequence: fixed,

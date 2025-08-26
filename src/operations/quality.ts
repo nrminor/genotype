@@ -80,12 +80,20 @@ export class QualityProcessor implements Processor<QualityOptions> {
     const encoding = options.encoding || 'phred33';
 
     // Quality trimming
-    if (options.trim) {
+    if (options.trim === true) {
       const trimmed = this.qualityTrim(
         sequence,
         quality,
-        options.trimThreshold || 20,
-        options.trimWindow || 4,
+        options.trimThreshold !== undefined &&
+          options.trimThreshold !== null &&
+          !Number.isNaN(options.trimThreshold)
+          ? options.trimThreshold
+          : 20,
+        options.trimWindow !== undefined &&
+          options.trimWindow !== null &&
+          !Number.isNaN(options.trimWindow)
+          ? options.trimWindow
+          : 4,
         encoding,
         options.trimFromStart,
         options.trimFromEnd

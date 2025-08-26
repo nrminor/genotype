@@ -29,7 +29,7 @@ import {
   MAPQScoreSchema,
   SAMTagSchema,
 } from '../types';
-import { SamError, ValidationError, getErrorSuggestion } from '../errors';
+import { SamError, ValidationError } from '../errors';
 
 /**
  * Streaming SAM parser with comprehensive validation

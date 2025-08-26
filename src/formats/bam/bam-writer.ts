@@ -244,7 +244,23 @@ export class BAMWriter {
 
     return new WritableStream({
       start: async (controller): Promise<void> => {
-        // Stream is ready
+        // Stream initialization - controller available for error signaling if needed
+        try {
+          // Validate BGZF stream is ready
+          if (!bgzfStream || !bgzfStream.writable) {
+            controller.error(
+              new BamError('BGZF compression stream failed to initialize', undefined, 'stream')
+            );
+          }
+        } catch (error) {
+          controller.error(
+            new BamError(
+              `Stream initialization failed: ${error instanceof Error ? error.message : String(error)}`,
+              undefined,
+              'stream'
+            )
+          );
+        }
       },
 
       write: async (chunk, controller): Promise<void> => {
@@ -257,11 +273,13 @@ export class BAMWriter {
           await writer.write(chunk);
           writer.releaseLock();
         } catch (error) {
-          throw new BamError(
+          const bamError = new BamError(
             `Stream write failed: ${error instanceof Error ? error.message : String(error)}`,
             undefined,
             'stream'
           );
+          controller.error(bamError);
+          throw bamError;
         }
       },
 

@@ -20,7 +20,7 @@
 import { type } from 'arktype';
 import type { BedInterval, Strand, ParserOptions } from '../types';
 import { BedIntervalSchema } from '../types';
-import { ValidationError, ParseError, BedError, getErrorSuggestion } from '../errors';
+import { ValidationError, ParseError, BedError } from '../errors';
 
 /**
  * Detect BED format variant from number of fields
@@ -135,7 +135,7 @@ export class BedParser {
         throw new ParseError(error, 'BED', lineNumber);
       },
       onWarning: (warning: string, lineNumber?: number): void => {
-        // Note: Removed console.warn to follow project rules
+        console.warn(`BED Warning (line ${lineNumber ?? 'unknown'}): ${warning}`);
       },
       ...options,
     };

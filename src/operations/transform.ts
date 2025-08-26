@@ -64,35 +64,35 @@ export class TransformProcessor implements Processor<TransformOptions> {
     // Apply transformations in logical order
 
     // 1. Reverse complement (combines reverse + complement)
-    if (options.reverseComplement) {
+    if (options.reverseComplement === true) {
       // ZIG_CANDIDATE: reverseComplement is called from transforms module
       // which already has ZIG_CANDIDATE markers
       sequence = seqManip.reverseComplement(sequence);
     } else {
       // 2. Individual reverse or complement
-      if (options.complement) {
+      if (options.complement === true) {
         // ZIG_CANDIDATE: complement mapping is CPU-intensive
         sequence = seqManip.complement(sequence);
       }
-      if (options.reverse) {
+      if (options.reverse === true) {
         // ZIG_CANDIDATE: string reversal allocates new string
         sequence = seqManip.reverse(sequence);
       }
     }
 
     // 3. RNA/DNA conversion
-    if (options.toRNA) {
+    if (options.toRNA === true) {
       // ZIG_CANDIDATE: Character replacement loop
       sequence = seqManip.toRNA(sequence);
-    } else if (options.toDNA) {
+    } else if (options.toDNA === true) {
       // ZIG_CANDIDATE: Character replacement loop
       sequence = seqManip.toDNA(sequence);
     }
 
     // 4. Case transformation (last to preserve user preference)
-    if (options.upperCase) {
+    if (options.upperCase === true) {
       sequence = sequence.toUpperCase();
-    } else if (options.lowerCase) {
+    } else if (options.lowerCase === true) {
       sequence = sequence.toLowerCase();
     }
 

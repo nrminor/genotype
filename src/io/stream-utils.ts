@@ -6,7 +6,7 @@
  * cross-platform compatibility.
  */
 
-import type { StreamChunk, LineProcessingResult, StreamStats, FileReaderOptions } from '../types';
+import type { StreamChunk, LineProcessingResult, StreamStats } from '../types';
 import { StreamError, BufferError, MemoryError } from '../errors';
 import { detectRuntime } from './runtime';
 

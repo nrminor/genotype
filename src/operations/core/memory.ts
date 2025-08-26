@@ -294,11 +294,9 @@ class MinHeap<T> {
 
   private swap(i: number, j: number): void {
     const temp = this.heap[i];
-    const val1 = this.heap[i];
-    const val2 = this.heap[j];
-    if (val1 !== undefined && val2 !== undefined) {
-      this.heap[i] = val2;
-      this.heap[j] = val1;
+    if (temp !== undefined && this.heap[j] !== undefined) {
+      this.heap[i] = this.heap[j];
+      this.heap[j] = temp;
     }
   }
 }
@@ -439,8 +437,11 @@ export class DiskCache<T> {
     for (const [key, fileName] of this.cacheFiles) {
       try {
         await Bun.file(fileName).unlink();
-      } catch {
-        // Ignore cleanup errors
+      } catch (error) {
+        // Log cleanup errors for debugging cache issues
+        console.warn(
+          `Failed to cleanup cache file ${fileName} for key ${key}: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
     this.cacheFiles.clear();

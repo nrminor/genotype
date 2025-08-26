@@ -619,7 +619,12 @@ export async function createStream(
     return stream;
   } catch (error) {
     if (error instanceof CompatibilityError) throw error;
-    throw FileError.fromSystemError('open', validatedPath, error);
+
+    // Enhanced error with context for debugging
+    const elapsed = Date.now() - context.startTime;
+    const enhanced = FileError.fromSystemError('open', validatedPath, error);
+    enhanced.message += ` (failed after ${elapsed}ms, runtime: ${context.runtime}, bufferSize: ${context.bufferSize})`;
+    throw enhanced;
   }
 }
 

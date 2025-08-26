@@ -49,7 +49,7 @@ async function main() {
     // Output results in FASTA format
     let matchCount = 0;
     for await (const seq of matches) {
-      console.log(`>${seq.id}${seq.description ? ' ' + seq.description : ''}`);
+      console.log(`>${seq.id}${seq.description ? ` ${seq.description}` : ''}`);
       console.log(seq.sequence);
       matchCount++;
     }

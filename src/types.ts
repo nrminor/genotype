@@ -290,6 +290,38 @@ export interface BedInterval {
 }
 
 /**
+ * Motif location result from pattern search operations
+ *
+ * Represents a found pattern within a sequence with detailed biological
+ * context including strand information and match quality.
+ */
+export interface MotifLocation {
+  /** Sequence ID where match was found */
+  readonly sequenceId: string;
+  /** Start position (0-based) */
+  readonly start: number;
+  /** End position (exclusive, 0-based) */
+  readonly end: number;
+  /** Length of the match */
+  readonly length: number;
+  /** Strand where match was found */
+  readonly strand: '+' | '-';
+  /** Matched sequence content */
+  readonly matchedSequence: string;
+  /** Number of mismatches (for fuzzy matching) */
+  readonly mismatches: number;
+  /** Score/confidence of match (0-1) */
+  readonly score: number;
+  /** Original pattern that was searched */
+  readonly pattern: string;
+  /** Additional context sequence around the match */
+  readonly context?: {
+    readonly upstream: string;
+    readonly downstream: string;
+  };
+}
+
+/**
  * Generic parsing result that can represent success or failure
  */
 export type ParseResult<T> =
@@ -1207,6 +1239,9 @@ export const FileReaderOptionsSchema = type({
       DecompressorOptionsSchema(options.decompressionOptions);
     } catch (error) {
       // Invalid decompression options detected - continuing with defaults
+      console.warn(
+        `Invalid decompression options: ${error instanceof Error ? error.message : String(error)}. Using defaults.`
+      );
     }
   }
 

@@ -697,7 +697,13 @@ export class SequenceStatsCalculator {
  * ```
  */
 export function createStatsCalculator(options: StatsOptions = {}): SequenceStatsCalculator {
-  return new SequenceStatsCalculator();
+  const calculator = new SequenceStatsCalculator();
+  // Note: Options would be used to configure calculator behavior
+  // Currently calculator is stateless but could be enhanced to use options
+  if (options.detailed !== undefined) {
+    console.debug(`Stats calculator created with detailed=${options.detailed} mode`);
+  }
+  return calculator;
 }
 
 /**

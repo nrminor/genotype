@@ -31,7 +31,6 @@ import {
   isValidBAMMagic,
   readInt32LE,
   readCString,
-  readFixedString,
   parseAlignmentRecord,
   parseOptionalTags,
   isBunOptimized,
@@ -179,6 +178,9 @@ export class BAMParser {
       throw new ValidationError('stream must be a ReadableStream');
     }
 
+    // Track bytes processed for error reporting
+    let totalBytesProcessed = 0;
+
     try {
       // Set up BGZF decompression with proper buffer management
       const bgzfStream = stream.pipeThrough(createStream());
@@ -189,7 +191,6 @@ export class BAMParser {
       let headerParsed = false;
       let references: string[] = [];
       let currentOffset = 0;
-      let totalBytesProcessed = 0;
 
       try {
         while (true) {
@@ -243,7 +244,9 @@ export class BAMParser {
           // Memory management: prevent buffer from growing too large
           if (buffer.length > 10 * 1024 * 1024) {
             // 10MB limit
-            this.options.onWarning('Large buffer detected, consider increasing processing speed');
+            this.options.onWarning(
+              `Large buffer detected (${(buffer.length / 1024 / 1024).toFixed(1)}MB) at ${totalBytesProcessed} bytes processed, consider increasing processing speed`
+            );
           }
         }
       } finally {
@@ -255,7 +258,7 @@ export class BAMParser {
       }
 
       throw new BamError(
-        `BAM parsing failed: ${error instanceof Error ? error.message : String(error)}`,
+        `BAM parsing failed after processing ${totalBytesProcessed} bytes: ${error instanceof Error ? error.message : String(error)}`,
         undefined,
         'parsing',
         undefined,
@@ -373,6 +376,7 @@ export class BAMParser {
     header: SAMHeader;
     bytesConsumed: number;
     refNames: string[];
+    references: Array<{ name: string; length: number }>;
   } | null {
     // Tiger Style: Assert function arguments
     if (!(buffer instanceof Uint8Array)) {
@@ -498,6 +502,7 @@ export class BAMParser {
         header,
         bytesConsumed: offset,
         refNames: referenceNames,
+        references,
       };
     } catch (error) {
       if (error instanceof BamError) {
@@ -1168,7 +1173,12 @@ export class BAMParser {
         ? options.bufferSize
         : 256 * 1024; // 256KB default for Bun
     const stream = file.stream();
-    // Note: bufferSize calculated but Bun file.stream() doesn't accept options
+    // Note: Requested buffer size ${bufferSize} bytes, but Bun file.stream() uses internal buffering
+    if (options?.bufferSize !== undefined && options.bufferSize !== 256 * 1024) {
+      console.warn(
+        `BAM: Custom buffer size ${bufferSize} requested but Bun uses internal buffering`
+      );
+    }
 
     // Parse BAM from stream
     yield* this.parse(stream);
@@ -1211,9 +1221,10 @@ export class BAMParser {
   /**
    * Calculate how many bytes were consumed from buffer during parsing
    */
-  private getConsumedBytes(buffer: Uint8Array, references: string[]): number {
+  private getConsumedBytes(buffer: Uint8Array, _references: string[]): number {
     // This is a simplified implementation
     // In practice, would track consumed bytes during parsing
+    // Note: references array not used in current chunked processing strategy
     return Math.min(buffer.length, 65536); // Process in chunks
   }
 
@@ -1644,58 +1655,14 @@ export const BAMUtils = {
       throw new ValidationError('bamData must be Uint8Array');
     }
 
-    // Parse BAM header to extract reference sequences
+    // Parse BAM header using parser instance
     const parser = new BAMParser();
-    const references: Array<{ name: string; length: number }> = [];
-
-    const stream = new ReadableStream({
-      start(controller): void {
-        controller.enqueue(bamData);
-        controller.close();
-      },
-    });
-
-    // Read only the header
-    const reader = stream.getReader();
-    const { value } = await reader.read();
-    reader.releaseLock();
-
-    if (value === undefined || value === null || value.length < 8) {
+    const headerResult = (parser as any).parseHeaderFromBuffer(bamData);
+    if (!headerResult) {
       return [];
     }
 
-    // Parse BAM header
-    const view = new DataView(value.buffer, value.byteOffset, value.byteLength);
-
-    // Skip magic bytes (4) and header text length (4)
-    let offset = 8;
-    const headerLength = view.getInt32(4, true);
-    offset += headerLength;
-
-    // Read number of references
-    if (offset + 4 > value.length) return references;
-    const numRefs = view.getInt32(offset, true);
-    offset += 4;
-
-    // Parse each reference
-    for (let i = 0; i < numRefs && offset < value.length; i++) {
-      // Read name length
-      const nameLength = view.getInt32(offset, true);
-      offset += 4;
-
-      // Read name (null-terminated)
-      const nameBytes = new Uint8Array(value.buffer, value.byteOffset + offset, nameLength);
-      const name = new TextDecoder().decode(nameBytes).replace(/\0/g, '');
-      offset += nameLength;
-
-      // Read sequence length
-      const length = view.getInt32(offset, true);
-      offset += 4;
-
-      references.push({ name, length });
-    }
-
-    return references;
+    return headerResult.references;
   },
 };
 

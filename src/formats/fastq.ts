@@ -494,7 +494,7 @@ export class FastqParser {
       return detectEncoding(quality);
     } catch (error) {
       this.options.onWarning(
-        `Could not detect quality encoding for sequence '${sequenceId}', using phred33`,
+        `Could not detect quality encoding for sequence '${sequenceId}': ${error instanceof Error ? error.message : String(error)}. Using phred33 as fallback`,
         undefined
       );
       return 'phred33';

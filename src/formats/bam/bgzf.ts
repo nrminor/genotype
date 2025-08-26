@@ -454,8 +454,10 @@ export function createStream(): TransformStream<Uint8Array, Uint8Array> {
             controller.enqueue(decompressed);
           }
         } catch (error) {
-          // Ignore errors during flush - might be incomplete data
-          // Note: Removed console.warn to follow project rules
+          // Log incomplete data errors for debugging - helps with corrupted files
+          console.warn(
+            `BGZF flush warning: ${error instanceof Error ? error.message : String(error)} - possibly incomplete block data`
+          );
         }
       }
     },

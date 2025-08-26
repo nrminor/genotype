@@ -12,33 +12,42 @@
  * @since v0.1.0
  */
 
-import type { AbstractSequence, FASTXSequence, FastaSequence, FastqSequence } from '../types';
-import { SequenceStatsCalculator, type SequenceStats, type StatsOptions } from './stats';
-import { SubseqExtractor, type SubseqOptions } from './subseq';
 import { FastaWriter } from '../formats/fasta';
 import { FastqWriter } from '../formats/fastq';
-
+import type {
+  AbstractSequence,
+  FASTXSequence,
+  FastaSequence,
+  FastqSequence,
+  MotifLocation,
+} from '../types';
 // Import processors
-import { FilterProcessor } from './filter';
-import { TransformProcessor } from './transform';
 import { CleanProcessor } from './clean';
-import { QualityProcessor } from './quality';
-import { ValidateProcessor } from './validate';
+import { FilterProcessor } from './filter';
 import { GrepProcessor } from './grep';
+import { LocateProcessor } from './locate';
+import { QualityProcessor } from './quality';
+import { RmdupProcessor } from './rmdup';
 import { SampleProcessor } from './sample';
 import { SortProcessor } from './sort';
-import { RmdupProcessor } from './rmdup';
+import { type SequenceStats, SequenceStatsCalculator, type StatsOptions } from './stats';
+import { SubseqExtractor, type SubseqOptions } from './subseq';
+import { TransformProcessor } from './transform';
+import { TranslateProcessor } from './translate';
 import type {
-  FilterOptions,
-  TransformOptions,
   CleanOptions,
-  QualityOptions,
-  ValidateOptions,
+  FilterOptions,
   GrepOptions,
+  LocateOptions,
+  QualityOptions,
+  RmdupOptions,
   SampleOptions,
   SortOptions,
-  RmdupOptions,
+  TransformOptions,
+  TranslateOptions,
+  ValidateOptions,
 } from './types';
+import { ValidateProcessor } from './validate';
 
 /**
  * Main SeqOps class providing fluent interface for sequence operations
@@ -468,6 +477,102 @@ export class SeqOps {
     return this.rmdup({ by: 'id', exact });
   }
 
+  /**
+   * Translate DNA/RNA sequences to proteins
+   *
+   * High-performance protein translation supporting all 31 NCBI genetic codes
+   * with progressive disclosure for optimal developer experience.
+   *
+   * @param geneticCode - Genetic code number (1-33) or full options object
+   * @returns New SeqOps instance for chaining
+   *
+   * @example
+   * ```typescript
+   * // Simple cases (90% of usage)
+   * seqops(sequences)
+   *   .translate()                     // Standard genetic code, frame +1
+   *   .translate(2)                    // Vertebrate mitochondrial code
+   *
+   * // Advanced options (10% of usage)
+   * seqops(sequences)
+   *   .translate({
+   *     geneticCode: 1,
+   *     orfsOnly: true,
+   *     minOrfLength: 30
+   *   })
+   * ```
+   */
+  translate(geneticCode?: number | TranslateOptions): SeqOps {
+    const processor = new TranslateProcessor();
+
+    // Handle progressive disclosure for better DX
+    const options: TranslateOptions =
+      typeof geneticCode === 'number'
+        ? { geneticCode } // Simple: just genetic code, use defaults
+        : geneticCode || {}; // Full options object or empty defaults
+
+    return new SeqOps(processor.process(this.source, options));
+  }
+
+  /**
+   * Translate using mitochondrial genetic code (convenience method)
+   *
+   * @returns New SeqOps instance for chaining
+   *
+   * @example
+   * ```typescript
+   * seqops(sequences)
+   *   .translateMito()  // Genetic code 2 - Vertebrate Mitochondrial
+   * ```
+   */
+  translateMito(): SeqOps {
+    return this.translate({ geneticCode: 2 });
+  }
+
+  /**
+   * Translate all 6 reading frames (convenience method)
+   *
+   * @param geneticCode - Genetic code to use (default: 1 = Standard)
+   * @returns New SeqOps instance for chaining
+   *
+   * @example
+   * ```typescript
+   * seqops(sequences)
+   *   .translateAllFrames()    // All frames with standard code
+   *   .translateAllFrames(2)   // All frames with mito code
+   * ```
+   */
+  translateAllFrames(geneticCode: number = 1): SeqOps {
+    return this.translate({
+      geneticCode,
+      allFrames: true,
+    });
+  }
+
+  /**
+   * Find and translate open reading frames (convenience method)
+   *
+   * @param minLength - Minimum ORF length in amino acids (default: 30)
+   * @param geneticCode - Genetic code to use (default: 1 = Standard)
+   * @returns New SeqOps instance for chaining
+   *
+   * @example
+   * ```typescript
+   * seqops(sequences)
+   *   .translateOrf()          // Default: 30 aa minimum
+   *   .translateOrf(100)       // 100 aa minimum
+   *   .translateOrf(50, 2)     // 50 aa minimum, mito code
+   * ```
+   */
+  translateOrf(minLength: number = 30, geneticCode: number = 1): SeqOps {
+    return this.translate({
+      geneticCode,
+      orfsOnly: true,
+      minOrfLength: minLength,
+      convertStartCodons: true,
+    });
+  }
+
   // =============================================================================
   // TERMINAL OPERATIONS (trigger execution)
   // =============================================================================
@@ -525,7 +630,9 @@ export class SeqOps {
           id: seq.id,
           sequence: seq.sequence,
           length: seq.length,
-          ...(seq.description !== undefined && { description: seq.description }),
+          ...(seq.description !== undefined && {
+            description: seq.description,
+          }),
         };
         const formatted = writer.formatSequence(fastaSeq);
         // Add line ending after each sequence to separate them
@@ -573,7 +680,9 @@ export class SeqOps {
             quality: qualityString,
             qualityEncoding: 'phred33',
             length: seq.length,
-            ...(seq.description !== undefined && { description: seq.description }),
+            ...(seq.description !== undefined && {
+              description: seq.description,
+            }),
           };
         }
 
@@ -652,6 +761,56 @@ export class SeqOps {
   }
 
   /**
+   * Find pattern locations in sequences
+   *
+   * Terminal operation that finds all occurrences of patterns within sequences
+   * with support for fuzzy matching, strand searching, and various output formats.
+   * Mirrors `seqkit locate` functionality.
+   *
+   * @param pattern - Pattern to locate (string, regex) or full options object
+   * @param mismatches - Number of allowed mismatches (for simple pattern only)
+   * @returns AsyncIterable of motif locations
+   *
+   * @example
+   * ```typescript
+   * // Simple cases (most common)
+   * const locations = seqops(sequences)
+   *   .locate('ATCG')                    // Exact string match
+   *   .locate(/ATG...TAA/)               // Regex pattern
+   *   .locate('ATCG', 2);                // Allow 2 mismatches
+   *
+   * // Advanced options for complex scenarios
+   * const locations = seqops(sequences).locate({
+   *   pattern: 'ATCG',
+   *   allowMismatches: 1,
+   *   searchBothStrands: true,
+   *   outputFormat: 'bed'
+   * });
+   *
+   * for await (const location of locations) {
+   *   console.log(`Found at ${location.start}-${location.end} on ${location.strand}`);
+   * }
+   * ```
+   */
+  locate(
+    pattern: string | RegExp | LocateOptions,
+    mismatches: number = 0
+  ): AsyncIterable<MotifLocation> {
+    const processor = new LocateProcessor();
+
+    // Handle overloaded parameters for better DX
+    const options: LocateOptions =
+      typeof pattern === 'object' && pattern !== null && 'pattern' in pattern
+        ? (pattern as LocateOptions) // Full options object provided
+        : {
+            pattern: pattern as string | RegExp,
+            allowMismatches: mismatches,
+          }; // Simple pattern with optional mismatch count
+
+    return processor.locate(this.source, options);
+  }
+
+  /**
    * Enable direct iteration over the pipeline
    *
    * @returns Async iterator for sequences
@@ -700,21 +859,54 @@ export function seqops(sequences: AsyncIterable<AbstractSequence | FASTXSequence
   return new SeqOps(sequences as AsyncIterable<AbstractSequence>);
 }
 
+/**
+ * Create SeqOps pipeline from array of sequences
+ *
+ * Convenient method to convert arrays to SeqOps pipelines.
+ * Most common use case for examples and small datasets.
+ *
+ * @param sequences - Array of sequences
+ * @returns New SeqOps instance
+ *
+ * @example
+ * ```typescript
+ * const sequences = [
+ *   { id: 'seq1', sequence: 'ATCG', length: 4 },
+ *   { id: 'seq2', sequence: 'GCTA', length: 4 }
+ * ];
+ *
+ * const result = await seqops.from(sequences)
+ *   .translate()
+ *   .writeFasta('proteins.fasta');
+ * ```
+ */
+seqops.from = <T extends AbstractSequence | FASTXSequence>(sequences: T[]): SeqOps => {
+  async function* arrayToAsyncIterable(): AsyncIterable<AbstractSequence> {
+    for (const seq of sequences) {
+      yield seq as AbstractSequence;
+    }
+  }
+  return new SeqOps(arrayToAsyncIterable());
+};
+
 // Re-export types and classes for convenience
-export { SequenceStatsCalculator, type SequenceStats, type StatsOptions } from './stats';
+export { type SequenceStats, SequenceStatsCalculator, type StatsOptions } from './stats';
 export { SubseqExtractor, type SubseqOptions } from './subseq';
+export { TranslateProcessor } from './translate';
 
 // Export new semantic API types
 export type {
-  FilterOptions,
-  TransformOptions,
+  AnnotateOptions,
   CleanOptions,
-  QualityOptions,
-  ValidateOptions,
+  FilterOptions,
   GrepOptions,
+  GroupOptions,
+  LocateOptions,
+  QualityOptions,
+  RmdupOptions,
   SampleOptions,
   SortOptions,
-  RmdupOptions,
-  AnnotateOptions,
-  GroupOptions,
+  TransformOptions,
+  TranslateOptions,
+  ValidateOptions,
 } from './types';

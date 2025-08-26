@@ -252,6 +252,40 @@ export interface GroupOptions {
 }
 
 /**
+ * Options for motif location finding operations
+ *
+ * Comprehensive interface for finding patterns within sequences with
+ * bioinformatics-specific features like strand searching and fuzzy matching.
+ */
+export interface LocateOptions {
+  /** Pattern to locate (string or regex) */
+  pattern: string | RegExp;
+
+  /** Case-insensitive matching */
+  ignoreCase?: boolean;
+
+  /** Allow mismatches in sequence patterns (bioinformatics-specific) */
+  allowMismatches?: number;
+
+  /** Search both strands for sequence patterns */
+  searchBothStrands?: boolean;
+
+  /** Output format for results */
+  outputFormat?: 'default' | 'bed' | 'custom';
+
+  /** Include overlap regions when finding multiple matches */
+  allowOverlaps?: boolean;
+
+  /** Minimum match length (for fuzzy matching) */
+  minLength?: number;
+
+  /** Maximum number of matches to return per sequence */
+  maxMatches?: number;
+}
+
+// MotifLocation moved to main types module (src/types.ts) for better DX
+
+/**
  * Options for pattern search operations
  *
  * Focused single-responsibility interface for grep-style pattern matching.
@@ -281,6 +315,41 @@ export interface GrepOptions {
 }
 
 /**
+ * Options for DNA/RNA to protein translation
+ *
+ * Comprehensive translation options supporting all NCBI genetic codes,
+ * multiple reading frames, and various output formats.
+ */
+/**
+ * Options for DNA/RNA to protein translation
+ *
+ * Simplified interface focused on the most common use cases.
+ * Advanced biological features are exposed through specific modes.
+ */
+export interface TranslateOptions {
+  /** Genetic code table ID (1-33, default: 1 = Standard) */
+  geneticCode?: number;
+
+  /** Reading frames to translate (default: [1]) */
+  frames?: Array<1 | 2 | 3 | -1 | -2 | -3>;
+
+  /** Translate all 6 reading frames */
+  allFrames?: boolean;
+
+  /** Find and translate only open reading frames (ORFs) */
+  orfsOnly?: boolean;
+
+  /** Minimum ORF length in amino acids (default: 30, used with orfsOnly) */
+  minOrfLength?: number;
+
+  /** Convert start codons to methionine (M) */
+  convertStartCodons?: boolean;
+
+  /** Include frame information in sequence IDs */
+  includeFrameInId?: boolean;
+}
+
+/**
  * Base interface for all processor classes
  *
  * Each processor implements a single operation type and
@@ -299,3 +368,6 @@ export interface Processor<TOptions> {
     options: TOptions
   ): AsyncIterable<AbstractSequence>;
 }
+
+// Note: Terminal operations like locate() and stats() don't need special interfaces
+// They simply return different result types from their methods

@@ -98,6 +98,127 @@ export class BAIReader {
   }
 
   /**
+   * Validate BAI file size and setup
+   */
+  private validateFileData(fileData: Uint8Array): void {
+    const totalBytes = fileData.length;
+    if (totalBytes < 8) {
+      throw new BamError(
+        `BAI file too small: ${totalBytes} bytes (minimum 8 for header)`,
+        undefined,
+        'file_format',
+        undefined,
+        `File: ${this.filePath}`
+      );
+    }
+  }
+
+  /**
+   * Parse BAI header and return parsed data with offset
+   */
+  private parseBAIHeader(view: DataView): { referenceCount: number; offset: number } {
+    let offset = 0;
+
+    // Read and validate BAI magic bytes
+    const magic = new Uint8Array(view.buffer, view.byteOffset, 4);
+    if (!this.isValidBAIMagic(magic)) {
+      throw new BamError(
+        'Invalid BAI magic bytes - file may be corrupted or not a BAI file',
+        undefined,
+        'file_format',
+        undefined,
+        `Expected: "BAI\\1", Found: ${Array.from(magic)
+          .map((b) => `0x${b.toString(16).padStart(2, '0')}`)
+          .join(' ')}`
+      );
+    }
+    offset += 4;
+
+    // Read number of reference sequences
+    const referenceCount = readInt32LE(view, offset);
+    offset += 4;
+
+    if (referenceCount < 0) {
+      throw new BamError(`Invalid reference count: ${referenceCount}`, undefined, 'file_format');
+    }
+
+    if (referenceCount > 100000) {
+      console.warn(`Very large reference count: ${referenceCount}`);
+    }
+
+    return { referenceCount, offset };
+  }
+
+  /**
+   * Parse all reference sequences from BAI data
+   */
+  private parseAllReferences(
+    view: DataView,
+    startOffset: number,
+    referenceCount: number,
+    totalBytes: number,
+    reportProgress?: (bytesRead: number, totalBytes: number) => void
+  ): { references: BAIReference[]; finalOffset: number } {
+    const references: BAIReference[] = [];
+    let offset = startOffset;
+    let bytesRead = startOffset;
+
+    for (let refId = 0; refId < referenceCount; refId++) {
+      try {
+        if (offset >= totalBytes) {
+          throw new BamError(
+            `Unexpected end of file while reading reference ${refId}`,
+            undefined,
+            'file_format'
+          );
+        }
+
+        const reference = this.parseReference(view, offset, refId);
+        references.push(reference.data);
+        offset += reference.bytesConsumed;
+        bytesRead += reference.bytesConsumed;
+
+        // Progress reporting
+        if (reportProgress !== undefined && reportProgress !== null && refId % 100 === 0) {
+          reportProgress(bytesRead, totalBytes);
+        }
+      } catch (error) {
+        throw new BamError(
+          `Failed to parse reference ${refId}: ${error instanceof Error ? error.message : String(error)}`,
+          undefined,
+          'reference_parsing',
+          offset,
+          `Reference ID: ${refId}, Offset: ${offset}`
+        );
+      }
+    }
+
+    return { references, finalOffset: offset };
+  }
+
+  /**
+   * Create and validate the final BAI index
+   */
+  private createBAIIndex(referenceCount: number, references: BAIReference[]): BAIIndex {
+    const index: BAIIndex = {
+      referenceCount,
+      references,
+      version: '1.0',
+      createdAt: new Date(),
+      sourceFile: this.filePath,
+    };
+
+    // Tiger Style: Assert postconditions
+    console.assert(index.referenceCount === referenceCount, 'reference count must match');
+    console.assert(
+      index.references.length === referenceCount,
+      'references array length must match'
+    );
+
+    return index;
+  }
+
+  /**
    * Read and parse the complete BAI index from file
    * @returns Promise resolving to parsed BAI index
    * @throws {BamError} If file cannot be read or index is invalid
@@ -118,21 +239,10 @@ export class BAIReader {
       console.assert(this.filePath.length > 0, 'file path must be valid');
 
       const startTime = Date.now();
-      let bytesRead = 0;
-
-      // Open file with runtime-specific optimizations
       const fileData = await this.readFileData();
       const totalBytes = fileData.length;
 
-      if (totalBytes < 8) {
-        throw new BamError(
-          `BAI file too small: ${totalBytes} bytes (minimum 8 for header)`,
-          undefined,
-          'file_format',
-          undefined,
-          `File: ${this.filePath}`
-        );
-      }
+      this.validateFileData(fileData);
 
       // Progress reporting setup
       const reportProgress = this.options.onProgress;
@@ -142,85 +252,24 @@ export class BAIReader {
 
       // Parse BAI header
       const view = new DataView(fileData.buffer, fileData.byteOffset, fileData.byteLength);
-      let offset = 0;
+      const headerData = this.parseBAIHeader(view);
 
-      // Read and validate BAI magic bytes
-      const magic = new Uint8Array(fileData.buffer, fileData.byteOffset, 4);
-      if (!this.isValidBAIMagic(magic)) {
-        throw new BamError(
-          'Invalid BAI magic bytes - file may be corrupted or not a BAI file',
-          undefined,
-          'file_format',
-          undefined,
-          `Expected: "BAI\\1", Found: ${Array.from(magic)
-            .map((b) => `0x${b.toString(16).padStart(2, '0')}`)
-            .join(' ')}`
-        );
-      }
-      offset += 4;
-      bytesRead += 4;
-
-      // Read number of reference sequences
-      const referenceCount = readInt32LE(view, offset);
-      offset += 4;
-      bytesRead += 4;
-
-      if (referenceCount < 0) {
-        throw new BamError(`Invalid reference count: ${referenceCount}`, undefined, 'file_format');
-      }
-
-      if (referenceCount > 100000) {
-        console.warn(`Very large reference count: ${referenceCount}`);
-      }
-
-      // Parse reference indexes
-      const references: BAIReference[] = [];
-
-      for (let refId = 0; refId < referenceCount; refId++) {
-        try {
-          if (offset >= totalBytes) {
-            throw new BamError(
-              `Unexpected end of file while reading reference ${refId}`,
-              undefined,
-              'file_format'
-            );
-          }
-
-          const reference = this.parseReference(view, offset, refId);
-          references.push(reference.data);
-          offset += reference.bytesConsumed;
-          bytesRead += reference.bytesConsumed;
-
-          // Progress reporting
-          if (reportProgress !== undefined && reportProgress !== null && refId % 100 === 0) {
-            reportProgress(bytesRead, totalBytes);
-          }
-        } catch (error) {
-          throw new BamError(
-            `Failed to parse reference ${refId}: ${error instanceof Error ? error.message : String(error)}`,
-            undefined,
-            'reference_parsing',
-            offset,
-            `Reference ID: ${refId}, Offset: ${offset}`
-          );
-        }
-      }
+      // Parse all references
+      const referencesData = this.parseAllReferences(
+        view,
+        headerData.offset,
+        headerData.referenceCount,
+        totalBytes,
+        reportProgress
+      );
 
       // Validate we consumed all data
-      if (offset !== totalBytes) {
-        console.warn(`BAI file has ${totalBytes - offset} unused bytes at end`);
+      if (referencesData.finalOffset !== totalBytes) {
+        console.warn(`BAI file has ${totalBytes - referencesData.finalOffset} unused bytes at end`);
       }
 
-      // Create and validate index
-      const index: BAIIndex = {
-        referenceCount,
-        references,
-        version: '1.0',
-        createdAt: new Date(),
-        sourceFile: this.filePath,
-      };
-
-      // Store index (skip schema validation for now due to ArkType complexity)
+      // Create and store index
+      const index = this.createBAIIndex(headerData.referenceCount, referencesData.references);
       this.cachedIndex = index;
 
       // Final progress report
@@ -230,17 +279,7 @@ export class BAIReader {
 
       const loadTime = Date.now() - startTime;
       console.log(
-        `Loaded BAI index: ${referenceCount} references, ${loadTime}ms, ${(totalBytes / 1024).toFixed(1)}KB`
-      );
-
-      // Tiger Style: Assert postconditions
-      console.assert(
-        this.cachedIndex!.referenceCount === referenceCount,
-        'reference count must match'
-      );
-      console.assert(
-        this.cachedIndex!.references.length === referenceCount,
-        'references array length must match'
+        `Loaded BAI index: ${headerData.referenceCount} references, ${loadTime}ms, ${(totalBytes / 1024).toFixed(1)}KB`
       );
 
       return this.cachedIndex!;
@@ -336,7 +375,7 @@ export class BAIReader {
 
       const result: BAIQueryResult = {
         chunks: mergedChunks,
-        ...(minOffset && { minOffset }),
+        ...(minOffset !== undefined ? { minOffset } : {}),
         referenceId,
         region: { start, end },
       };
@@ -841,7 +880,11 @@ export class BAIReader {
   ): Promise<void> {
     // Basic validation checks
     // Check that linear index intervals are reasonable
-    if (reference.linearIndex && reference.linearIndex.intervals.length > 0) {
+    if (
+      reference.linearIndex !== null &&
+      reference.linearIndex !== undefined &&
+      reference.linearIndex.intervals.length > 0
+    ) {
       let prevOffset = 0n;
       for (let i = 0; i < reference.linearIndex.intervals.length; i++) {
         const offset = reference.linearIndex.intervals[i];

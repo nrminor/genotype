@@ -107,6 +107,7 @@ interface GeneticCodeDefinition {
  * - No instance would ever have different genetic codes
  */
 // biome-ignore lint/complexity/noStaticOnlyClass: <explanation>
+// eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class GeneticCodeTable {
   /**
    * Base codon mappings (shared by many codes)
@@ -658,7 +659,7 @@ export class GeneticCodeTable {
    * @param frame - Reading frame: 0, 1, or 2 (molecular biology convention)
    * @returns Amino acid sequence using single-letter codes
    *
-   * 🔥 ZIG CRITICAL: Translation is heavily used and should be optimized
+   * 🔥 NATIVE CRITICAL: Translation is heavily used and should be optimized
    */
   static translate(
     sequence: string,
@@ -734,6 +735,8 @@ export class GeneticCodeTable {
     codeId: GeneticCode = GeneticCode.STANDARD,
     minLength: number = 20
   ): Array<{
+    id?: string;
+    sequence?: string;
     start: number;
     end: number;
     frame: number;
@@ -774,57 +777,101 @@ export class GeneticCodeTable {
 
       // Check all three frames
       for (let frame = 0; frame < 3; frame++) {
-        let inOrf = false;
-        let orfStart = -1;
-        let orfProtein = '';
-
-        for (let i = frame; i + 2 < dna.length; i += 3) {
-          const codon = dna.substring(i, i + 3);
-          const aa = code.codons[codon];
-
-          if (aa === undefined || aa === null || aa === '') continue;
-
-          // Check for start codon
-          if (!inOrf && code.startCodons.includes(codon)) {
-            inOrf = true;
-            orfStart = i;
-            orfProtein = aa;
-          } else if (inOrf) {
-            if (aa === '*') {
-              // Stop codon found
-              if (orfProtein.length >= minLength) {
-                orfs.push({
-                  start: strand === '+' ? orfStart : sequence.length - i - 3,
-                  end: strand === '+' ? i + 2 : sequence.length - orfStart - 1,
-                  frame: strand === '+' ? frame : -(frame + 1),
-                  strand: strand as '+' | '-',
-                  length: orfProtein.length,
-                  protein: orfProtein,
-                });
-              }
-              inOrf = false;
-              orfProtein = '';
-            } else {
-              orfProtein += aa;
-            }
-          }
-        }
-
-        // Handle ORF that extends to end of sequence
-        if (inOrf && orfProtein.length >= minLength) {
-          orfs.push({
-            start: strand === '+' ? orfStart : 0,
-            end: strand === '+' ? dna.length - 1 : sequence.length - orfStart - 1,
-            frame: strand === '+' ? frame : -(frame + 1),
-            strand: strand as '+' | '-',
-            length: orfProtein.length,
-            protein: orfProtein,
-          });
-        }
+        const frameResult = this.processFrameForORFs(
+          dna,
+          frame,
+          strand as '+' | '-',
+          code,
+          minLength
+        );
+        orfs.push(...frameResult);
       }
     }
 
     return orfs;
+  }
+
+  /**
+   * Process a single frame for ORF detection
+   * Helper method to reduce complexity and nesting in findORFs
+   */
+  private static processFrameForORFs(
+    dna: string,
+    frame: number,
+    strand: '+' | '-',
+    code: GeneticCodeDefinition,
+    minLength: number
+  ): Array<{
+    start: number;
+    end: number;
+    frame: number;
+    strand: '+' | '-';
+    length: number;
+    protein: string;
+  }> {
+    const frameOrfs: Array<{
+      start: number;
+      end: number;
+      frame: number;
+      strand: '+' | '-';
+      length: number;
+      protein: string;
+    }> = [];
+
+    let inOrf = false;
+    let orfStart = -1;
+    let orfProtein = '';
+
+    for (let i = frame; i + 2 < dna.length; i += 3) {
+      const codon = dna.substring(i, i + 3);
+      const aa = code.codons[codon];
+
+      if (aa === undefined || aa === null || aa === '') continue;
+
+      // Check for start codon
+      if (!inOrf && code.startCodons.includes(codon)) {
+        inOrf = true;
+        orfStart = i;
+        orfProtein = aa;
+        continue;
+      }
+
+      if (!inOrf) continue;
+
+      // Handle stop codon
+      if (code.codons[codon] === '*') {
+        if (orfProtein.length >= minLength) {
+          frameOrfs.push({
+            start: orfStart,
+            end: i + 1,
+            frame: strand === '+' ? frame + 1 : -(frame + 1),
+            strand,
+            length: orfProtein.length,
+            protein: orfProtein,
+          });
+        }
+        inOrf = false;
+        orfProtein = '';
+        continue;
+      }
+
+      // Extend ORF
+      orfProtein += aa;
+    }
+
+    // Handle ORF that extends to end of sequence
+    if (inOrf && orfProtein.length >= minLength) {
+      frameOrfs.push({
+        start: orfStart,
+        end: dna.length - 1,
+        frame: strand === '+' ? frame + 1 : -(frame + 1),
+        strand,
+        length: orfProtein.length,
+        protein: orfProtein,
+      });
+    }
+
+    return frameOrfs;
   }
 
   /**

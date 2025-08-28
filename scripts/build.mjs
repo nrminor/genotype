@@ -233,6 +233,7 @@ if (buildLib) {
       "src/examples/**/*",
       "src/benchmark/**/*",
       "src/zig/**/*",
+      "src/native/**/*",
     ],
   };
 

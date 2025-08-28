@@ -289,7 +289,8 @@ export class SequenceStatsCalculator {
       }
     }
 
-    return sorted[sorted.length - 1] || 0;
+    const lastValue = sorted[sorted.length - 1];
+    return lastValue !== undefined && lastValue !== null ? lastValue : 0;
   }
 
   /**
@@ -394,7 +395,7 @@ export class SequenceStatsCalculator {
    * Process a single sequence and update accumulator
    * @private
    *
-   * @optimize ZIG_CANDIDATE - HOT LOOP FOR BASE COMPOSITION
+   * @optimize NATIVE_CANDIDATE - HOT LOOP FOR BASE COMPOSITION
    * - Character-by-character iteration for counting
    * - SIMD: Population count instructions for base composition
    * - Parallel accumulation of multiple statistics
@@ -572,18 +573,21 @@ export class SequenceStatsCalculator {
         accumulator.lengths.length > 0 && {
           n50: this.calculateNX(accumulator.lengths, 50),
           n90: this.calculateNX(accumulator.lengths, 90),
-          q1Length:
-            [...accumulator.lengths].sort((a, b) => a - b)[
-              Math.floor(accumulator.lengths.length * 0.25)
-            ] || 0,
-          q2Length:
-            [...accumulator.lengths].sort((a, b) => a - b)[
-              Math.floor(accumulator.lengths.length * 0.5)
-            ] || 0,
-          q3Length:
-            [...accumulator.lengths].sort((a, b) => a - b)[
-              Math.floor(accumulator.lengths.length * 0.75)
-            ] || 0,
+          q1Length: (() => {
+            const sorted = [...accumulator.lengths].sort((a, b) => a - b);
+            const value = sorted[Math.floor(accumulator.lengths.length * 0.25)];
+            return value !== undefined && value !== null ? value : 0;
+          })(),
+          q2Length: (() => {
+            const sorted = [...accumulator.lengths].sort((a, b) => a - b);
+            const value = sorted[Math.floor(accumulator.lengths.length * 0.5)];
+            return value !== undefined && value !== null ? value : 0;
+          })(),
+          q3Length: (() => {
+            const sorted = [...accumulator.lengths].sort((a, b) => a - b);
+            const value = sorted[Math.floor(accumulator.lengths.length * 0.75)];
+            return value !== undefined && value !== null ? value : 0;
+          })(),
         }),
 
       // Add composition statistics
@@ -748,7 +752,7 @@ export function formatStatsTable(stats: SequenceStats): string {
   lines.push('File\tFormat\tType\tNum_seqs\tSum_len\tMin_len\tMax_len\tAvg_len');
 
   const row = [
-    stats.file || '-',
+    stats.file !== undefined && stats.file !== null && stats.file !== '' ? stats.file : '-',
     stats.format,
     stats.type,
     stats.numSequences.toString(),

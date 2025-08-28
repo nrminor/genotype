@@ -238,7 +238,12 @@ export async function* pipe<T, U>(
   transform: (item: T, index: number) => U | Promise<U>
 ): AsyncIterable<U> {
   // Tiger Style: Validate function arguments
-  if (!input || typeof input !== 'object' || !(Symbol.asyncIterator in input)) {
+  if (
+    input === null ||
+    input === undefined ||
+    typeof input !== 'object' ||
+    !(Symbol.asyncIterator in input)
+  ) {
     throw new StreamError('input must be async iterable', 'read');
   }
   if (typeof transform !== 'function') {
@@ -381,7 +386,12 @@ export async function* batchLines(
   batchSize: number = 1000
 ): AsyncIterable<string[]> {
   // Tiger Style: Validate function arguments
-  if (!lines || typeof lines !== 'object' || !(Symbol.asyncIterator in lines)) {
+  if (
+    lines === null ||
+    lines === undefined ||
+    typeof lines !== 'object' ||
+    !(Symbol.asyncIterator in lines)
+  ) {
     throw new StreamError('lines must be async iterable', 'read');
   }
   if (!Number.isInteger(batchSize) || batchSize <= 0) {

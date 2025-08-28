@@ -31,12 +31,12 @@ describe('GzipDecompressor', () => {
     });
 
     test('should reject non-Uint8Array input', async () => {
-      await expect(GzipDecompressor.decompress([0x1f, 0x8b] as any)).rejects.toThrow(
-        CompressionError
-      );
-      await expect(GzipDecompressor.decompress('gzip data' as any)).rejects.toThrow(
-        CompressionError
-      );
+      await expect(
+        GzipDecompressor.decompress([0x1f, 0x8b] as unknown as Uint8Array)
+      ).rejects.toThrow(CompressionError);
+      await expect(
+        GzipDecompressor.decompress('gzip data' as unknown as Uint8Array)
+      ).rejects.toThrow(CompressionError);
     });
 
     test('should handle size limits', async () => {
@@ -125,7 +125,7 @@ describe('GzipDecompressor', () => {
     test('should validate options schema', () => {
       const invalidOptions = {
         bufferSize: -1,
-        maxOutputSize: 'invalid' as any,
+        maxOutputSize: 'invalid' as unknown as number,
       };
 
       expect(() => GzipDecompressor.createStream(invalidOptions)).toThrow();
@@ -170,8 +170,12 @@ describe('GzipDecompressor', () => {
     });
 
     test('should reject invalid input', () => {
-      expect(() => GzipDecompressor.wrapStream(null as any)).toThrow(CompressionError);
-      expect(() => GzipDecompressor.wrapStream('not a stream' as any)).toThrow(CompressionError);
+      expect(() => GzipDecompressor.wrapStream(null as unknown as ReadableStream)).toThrow(
+        CompressionError
+      );
+      expect(() =>
+        GzipDecompressor.wrapStream('not a stream' as unknown as ReadableStream)
+      ).toThrow(CompressionError);
     });
 
     test('should apply custom options', () => {

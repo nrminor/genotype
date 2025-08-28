@@ -48,7 +48,7 @@ function getPlatformTarget(): string {
 
 /**
  * Locate the native genomic processing library for the current platform
- * Searches in zig build output directory with platform-specific subdirectories
+ * Searches in Cargo target directory for platform-specific libraries
  * Following OpenTUI's library discovery pattern
  *
  * @returns Absolute path to the native library
@@ -56,28 +56,25 @@ function getPlatformTarget(): string {
  */
 function findLibrary(): string {
   const target = getPlatformTarget();
-  const libDir = join(__dirname, 'zig/lib');
 
   // Tiger Style: Assert function preconditions
   if (typeof target !== 'string' || !target.includes('-')) {
     throw new Error('target must be valid platform-arch string');
   }
-  if (typeof libDir !== 'string' || libDir.length === 0) {
-    throw new Error('libDir must be non-empty string');
-  }
 
-  // First try target-specific directory
+  // Use Rust's conventional target directory structure
+  const cargoTargetDir = join(__dirname, '..', 'target', 'release');
+
+  // Complete library name logic following Rust conventions
   const [_arch, os] = target.split('-');
-
-  // Complete library name logic following OpenTUI pattern
   const getLibraryName = (platform: string): string => {
     const prefix = platform === 'windows' ? '' : 'lib';
     const extension = platform === 'windows' ? '.dll' : platform === 'macos' ? '.dylib' : '.so';
-    return `${prefix}genotype_native${extension}`;
+    return `${prefix}genotype${extension}`; // Matches Cargo.toml [lib] name
   };
 
   const libraryName = getLibraryName(os !== undefined && os !== null && os !== '' ? os : 'linux');
-  const targetLibPath = join(libDir, target, libraryName);
+  const targetLibPath = join(cargoTargetDir, libraryName);
 
   if (existsSync(targetLibPath)) {
     return targetLibPath;
@@ -86,12 +83,12 @@ function findLibrary(): string {
   // Tiger Style: Provide actionable error message
   throw new Error(
     `Could not find genotype native library for platform: ${target}. ` +
-      `Expected at: ${targetLibPath}. Run 'bun run build:zig:prod' to build the native library.`
+      `Expected at: ${targetLibPath}. Run 'cargo build --release' to build the native library.`
   );
 }
 
 /**
- * Load the native Zig library with FFI bindings
+ * Load the native Rust library with FFI bindings
  * Defines all exported function signatures for genomic data processing
  * Following OpenTUI's dlopen pattern
  *
@@ -100,48 +97,16 @@ function findLibrary(): string {
  */
 function getGenotypeLib(libPath?: string): {
   symbols: {
-    decompress_bgzf_block: (
-      compressedData: Uint8Array,
-      compressedSize: number,
-      outputBuffer: Uint8Array,
-      outputSize: number
-    ) => number;
-    decode_packed_sequence: (
-      packedData: Uint8Array,
-      sequenceLength: number,
-      outputBuffer: Uint8Array
-    ) => number;
-    convert_quality_scores: (
-      inputData: Uint8Array,
-      inputSize: number,
-      outputBuffer: Float32Array
-    ) => number;
     calculate_gc_content: (sequenceData: Uint8Array, sequenceLength: number) => number;
+    // TODO: Add other functions as they're implemented in Rust:
+    // decompress_bgzf_block, decode_packed_sequence, convert_quality_scores
   };
 } {
   const resolvedLibPath =
     libPath !== undefined && libPath !== null && libPath !== '' ? libPath : findLibrary();
 
+  // Only expose what we actually implement - honest interface
   return dlopen(resolvedLibPath, {
-    // BGZF decompression
-    decompress_bgzf_block: {
-      args: ['ptr', 'usize', 'ptr', 'usize'],
-      returns: 'i32',
-    },
-
-    // Sequence decoding
-    decode_packed_sequence: {
-      args: ['ptr', 'usize', 'ptr'],
-      returns: 'i32',
-    },
-
-    // Quality score conversion
-    convert_quality_scores: {
-      args: ['ptr', 'usize', 'ptr'],
-      returns: 'i32',
-    },
-
-    // GC content calculation
     calculate_gc_content: {
       args: ['ptr', 'usize'],
       returns: 'f64',
@@ -156,14 +121,24 @@ function getGenotypeLib(libPath?: string): {
  */
 export interface LibGenotype {
   /**
-   * Decompress a BGZF block using optimized Zig implementation
+   * Calculate GC content for a nucleotide sequence
+   * Optimized Rust implementation for large genomic sequences
+   *
+   * @param sequence Input nucleotide sequence string (IUPAC codes)
+   * @returns GC content as ratio (0.0 to 1.0), ignoring ambiguous bases
+   */
+  calculateGCContent(sequence: string): number;
+
+  // TODO: Implement these functions in Rust
+  /**
+   * Decompress a BGZF block using optimized native implementation
    * BGZF is the block-compressed gzip format used in BAM files
    *
    * @param compressedData Input compressed data buffer
    * @param outputBuffer Output buffer for decompressed data (must be pre-allocated)
    * @returns Number of bytes written to output buffer, or -1 on error
    */
-  decompressBGZFBlock(compressedData: Uint8Array, outputBuffer: Uint8Array): number;
+  decompressBGZFBlock?(compressedData: Uint8Array, outputBuffer: Uint8Array): number;
 
   /**
    * Decode 4-bit packed nucleotide sequence to ASCII string
@@ -174,7 +149,7 @@ export interface LibGenotype {
    * @returns Decoded nucleotide sequence string using IUPAC codes
    * @throws Error if packed data is insufficient for sequence length
    */
-  decodePackedSequence(packedData: Uint8Array, sequenceLength: number): string;
+  decodePackedSequence?(packedData: Uint8Array, sequenceLength: number): string;
 
   /**
    * Convert quality string to numeric scores array
@@ -184,16 +159,7 @@ export interface LibGenotype {
    * @returns Array of numeric quality scores (0-93 for Phred+33)
    * @throws Error if quality string contains invalid characters
    */
-  convertQualityScores(qualityString: string): number[];
-
-  /**
-   * Calculate GC content for a nucleotide sequence
-   * Optimized algorithm for large genomic sequences
-   *
-   * @param sequence Input nucleotide sequence string (IUPAC codes)
-   * @returns GC content as ratio (0.0 to 1.0), ignoring ambiguous bases
-   */
-  calculateGCContent(sequence: string): number;
+  convertQualityScores?(qualityString: string): number[];
 }
 
 /**
@@ -210,102 +176,7 @@ class FFIGenotypeLib implements LibGenotype {
     this.genotype = getGenotypeLib(libPath);
   }
 
-  public decompressBGZFBlock(compressedData: Uint8Array, outputBuffer: Uint8Array): number {
-    // Tiger Style: Assert function arguments
-    if (!(compressedData instanceof Uint8Array)) {
-      throw new Error('compressedData must be Uint8Array');
-    }
-    if (!(outputBuffer instanceof Uint8Array)) {
-      throw new Error('outputBuffer must be Uint8Array');
-    }
-    if (compressedData.length === 0) {
-      throw new Error('compressedData must not be empty');
-    }
-    if (outputBuffer.length === 0) {
-      throw new Error('outputBuffer must not be empty');
-    }
-
-    return this.genotype.symbols.decompress_bgzf_block(
-      compressedData,
-      compressedData.length,
-      outputBuffer,
-      outputBuffer.length
-    );
-  }
-
-  public decodePackedSequence(packedData: Uint8Array, sequenceLength: number): string {
-    // Tiger Style: Assert function arguments
-    if (!(packedData instanceof Uint8Array)) {
-      throw new Error('packedData must be Uint8Array');
-    }
-    if (!Number.isInteger(sequenceLength) || sequenceLength < 0) {
-      throw new Error('sequenceLength must be non-negative integer');
-    }
-
-    if (sequenceLength === 0) return '';
-
-    // Verify packed data has sufficient bytes for sequence length
-    const requiredBytes = Math.ceil(sequenceLength / 2);
-    if (packedData.length < requiredBytes) {
-      throw new Error(
-        `packedData too short: need ${requiredBytes} bytes for ${sequenceLength} bases`
-      );
-    }
-
-    const outputBuffer = new Uint8Array(sequenceLength);
-    const result = this.genotype.symbols.decode_packed_sequence(
-      packedData,
-      sequenceLength,
-      outputBuffer
-    );
-
-    if (result < 0) {
-      throw new Error(
-        `Failed to decode packed sequence: error code ${result}. ` +
-          `Input: ${packedData.length} bytes, expected ${sequenceLength} bases`
-      );
-    }
-
-    return this.decoder.decode(outputBuffer.subarray(0, result));
-  }
-
-  public convertQualityScores(qualityString: string): number[] {
-    // Tiger Style: Assert function arguments
-    if (typeof qualityString !== 'string') {
-      throw new Error('qualityString must be string');
-    }
-    if (qualityString.length > 10000) {
-      throw new Error('qualityString too long (max 10,000 chars for safety)');
-    }
-
-    if (qualityString.length === 0) return [];
-
-    // Validate quality string contains only printable ASCII (Phred+33 range: 33-126)
-    for (let i = 0; i < qualityString.length; i++) {
-      const charCode = qualityString.charCodeAt(i);
-      if (charCode < 33 || charCode > 126) {
-        throw new Error(`Invalid quality character at position ${i}: ${charCode}`);
-      }
-    }
-
-    const inputBytes = this.encoder.encode(qualityString);
-    const outputScores = new Float32Array(qualityString.length);
-
-    const result = this.genotype.symbols.convert_quality_scores(
-      inputBytes,
-      inputBytes.length,
-      outputScores
-    );
-
-    if (result < 0) {
-      throw new Error(
-        `Failed to convert quality scores: error code ${result}. ` +
-          `Input length: ${qualityString.length} characters`
-      );
-    }
-
-    return Array.from(outputScores.subarray(0, result));
-  }
+  // TODO: Implement these when Rust functions are ready
 
   public calculateGCContent(sequence: string): number {
     // Tiger Style: Assert function arguments
@@ -359,7 +230,7 @@ export function setGenotypeLibPath(libPath: string): void {
 
 /**
  * Get the singleton instance of the native genomic processing library
- * Lazy-loads the library on first access for performance
+ * Lazy-loads the Rust library on first access for performance
  * Following OpenTUI's singleton management pattern
  *
  * @returns Singleton LibGenotype instance

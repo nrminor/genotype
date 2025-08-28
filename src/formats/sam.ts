@@ -220,7 +220,16 @@ export class SAMParser {
    * @returns SAMHeader object with validated structure
    */
   private parseHeader(headerLine: string, lineNumber: number): SAMHeader {
-    // Tiger Style: Assert function arguments
+    this.validateHeaderInputs(headerLine, lineNumber);
+    const { headerType, parts } = this.parseHeaderParts(headerLine, lineNumber);
+    const fields = this.parseHeaderFields(parts, headerType, lineNumber, headerLine);
+    const header = this.buildHeader(headerType, fields, lineNumber);
+    this.validateHeaderResult(header, lineNumber, headerLine);
+    this.assertHeaderPostconditions(header, lineNumber, headerLine);
+    return header;
+  }
+
+  private validateHeaderInputs(headerLine: string, lineNumber: number): void {
     if (typeof headerLine !== 'string') {
       throw new ValidationError('headerLine must be a string');
     }
@@ -230,16 +239,21 @@ export class SAMParser {
     if (!Number.isInteger(lineNumber) || lineNumber <= 0) {
       throw new ValidationError('lineNumber must be positive integer');
     }
+  }
 
-    // Remove '@' prefix and split on tabs
+  private parseHeaderParts(
+    headerLine: string,
+    lineNumber: number
+  ): {
+    headerType: 'HD' | 'SQ' | 'RG' | 'PG' | 'CO';
+    parts: string[];
+  } {
     const parts = headerLine.slice(1).split('\t');
     if (parts.length === 0) {
       throw new SamError('Empty header line', undefined, 'header', lineNumber, headerLine);
     }
 
     const headerType = parts[0] as 'HD' | 'SQ' | 'RG' | 'PG' | 'CO';
-
-    // Validate header type
     if (!['HD', 'SQ', 'RG', 'PG', 'CO'].includes(headerType)) {
       throw new SamError(
         `Invalid header type: ${headerType}`,
@@ -250,66 +264,91 @@ export class SAMParser {
       );
     }
 
-    // Parse fields for non-comment headers
-    const fields: Record<string, string> = {};
-    if (headerType !== 'CO') {
-      for (let i = 1; i < parts.length; i++) {
-        const field = parts[i]!;
-        const colonIndex = field.indexOf(':');
-        if (colonIndex === -1) {
-          throw new SamError(
-            `Invalid header field format: ${field}`,
-            undefined,
-            'header',
-            lineNumber,
-            headerLine
-          );
-        }
+    return { headerType, parts };
+  }
 
-        const key = field.slice(0, colonIndex);
-        const value = field.slice(colonIndex + 1);
-        fields[key] = value;
-      }
-    } else {
-      // For comment headers, store the entire comment
+  private parseHeaderFields(
+    parts: string[],
+    headerType: 'HD' | 'SQ' | 'RG' | 'PG' | 'CO',
+    lineNumber: number,
+    headerLine: string
+  ): Record<string, string> {
+    const fields: Record<string, string> = {};
+
+    if (headerType === 'CO') {
       fields.comment = parts.slice(1).join('\t');
+      return fields;
     }
 
-    const header: SAMHeader = {
-      format: 'sam-header',
-      type: headerType,
-      fields,
-      ...(this.options.trackLineNumbers && { lineNumber }),
-    };
-
-    // Validate header if not skipping validation
-    if (!this.options.skipValidation) {
-      try {
-        const validation = SAMHeaderSchema(header);
-        if (validation instanceof type.errors) {
-          throw new SamError(
-            `Invalid SAM header: ${validation.summary}`,
-            undefined,
-            'header',
-            lineNumber,
-            headerLine
-          );
-        }
-      } catch (error) {
-        if (error instanceof SamError) {
-          throw error;
-        }
+    for (let i = 1; i < parts.length; i++) {
+      const field = parts[i]!;
+      const colonIndex = field.indexOf(':');
+      if (colonIndex === -1) {
         throw new SamError(
-          `Header validation failed: ${error instanceof Error ? error.message : String(error)}`,
+          `Invalid header field format: ${field}`,
           undefined,
           'header',
           lineNumber,
           headerLine
         );
       }
+
+      const key = field.slice(0, colonIndex);
+      const value = field.slice(colonIndex + 1);
+      fields[key] = value;
     }
 
-    // Tiger Style: Assert postconditions
+    return fields;
+  }
+
+  private buildHeader(
+    headerType: 'HD' | 'SQ' | 'RG' | 'PG' | 'CO',
+    fields: Record<string, string>,
+    lineNumber: number
+  ): SAMHeader {
+    return {
+      format: 'sam-header',
+      type: headerType,
+      fields,
+      ...(this.options.trackLineNumbers && { lineNumber }),
+    };
+  }
+
+  private validateHeaderResult(header: SAMHeader, lineNumber: number, headerLine: string): void {
+    if (this.options.skipValidation) {
+      return;
+    }
+
+    try {
+      const validation = SAMHeaderSchema(header);
+      if (validation instanceof type.errors) {
+        throw new SamError(
+          `Invalid SAM header: ${validation.summary}`,
+          undefined,
+          'header',
+          lineNumber,
+          headerLine
+        );
+      }
+    } catch (error) {
+      if (error instanceof SamError) {
+        throw error;
+      }
+      throw new SamError(
+        `Header validation failed: ${error instanceof Error ? error.message : String(error)}`,
+        undefined,
+        'header',
+        lineNumber,
+        headerLine
+      );
+    }
+  }
+
+  private assertHeaderPostconditions(
+    header: SAMHeader,
+    lineNumber: number,
+    headerLine: string
+  ): void {
     if (header.format !== 'sam-header') {
       throw new SamError(
         'result format must be sam-header',
@@ -322,8 +361,6 @@ export class SAMParser {
     if (!['HD', 'SQ', 'RG', 'PG', 'CO'].includes(header.type)) {
       throw new SamError('header type must be valid', undefined, 'header', lineNumber, headerLine);
     }
-
-    return header;
   }
 
   /**
@@ -333,7 +370,15 @@ export class SAMParser {
    * @returns SAMAlignment object with validated fields
    */
   private parseAlignment(alignmentLine: string, lineNumber: number): SAMAlignment {
-    // Tiger Style: Assert function arguments
+    this.validateAlignmentInputs(alignmentLine, lineNumber);
+    const fields = this.parseAlignmentFields(alignmentLine, lineNumber);
+    const alignment = this.buildAlignmentFromFields(fields, lineNumber);
+    this.validateAlignment(alignment, alignmentLine, lineNumber);
+    this.assertAlignmentPostconditions(alignment, alignmentLine, lineNumber);
+    return alignment;
+  }
+
+  private validateAlignmentInputs(alignmentLine: string, lineNumber: number): void {
     if (typeof alignmentLine !== 'string') {
       throw new ValidationError('alignmentLine must be a string');
     }
@@ -343,7 +388,9 @@ export class SAMParser {
     if (!Number.isInteger(lineNumber) || lineNumber <= 0) {
       throw new ValidationError('lineNumber must be positive integer');
     }
+  }
 
+  private parseAlignmentFields(alignmentLine: string, lineNumber: number): string[] {
     const fields = alignmentLine.split('\t');
     if (fields.length < 11) {
       throw new SamError(
@@ -354,9 +401,14 @@ export class SAMParser {
         alignmentLine
       );
     }
+    return fields;
+  }
+
+  private buildAlignmentFromFields(fields: string[], lineNumber: number): SAMAlignment {
+    const qname = fields[0]!;
+    const alignmentLine = fields.join('\t');
 
     // Parse mandatory fields
-    const qname = fields[0]!;
     const flag = this.parseFlag(fields[1]!, lineNumber);
     const rname = fields[2]!;
     const pos = parseInt(fields[3]!);
@@ -368,7 +420,38 @@ export class SAMParser {
     const seq = fields[9]!;
     const qual = fields[10]!;
 
-    // Validate numeric fields
+    this.validateNumericFields(pos, pnext, tlen, qname, fields, lineNumber, alignmentLine);
+
+    // Parse optional tags
+    const tags = fields.length > 11 ? this.parseTags(fields.slice(11), lineNumber) : undefined;
+
+    return {
+      format: 'sam',
+      qname,
+      flag,
+      rname,
+      pos,
+      mapq,
+      cigar,
+      rnext,
+      pnext,
+      tlen,
+      seq,
+      qual,
+      ...(tags && { tags }),
+      ...(this.options.trackLineNumbers && { lineNumber }),
+    };
+  }
+
+  private validateNumericFields(
+    pos: number,
+    pnext: number,
+    tlen: number,
+    qname: string,
+    fields: string[],
+    lineNumber: number,
+    alignmentLine: string
+  ): void {
     if (isNaN(pos) || pos < 0) {
       throw new SamError(`Invalid position: ${fields[3]}`, qname, 'pos', lineNumber, alignmentLine);
     }
@@ -390,55 +473,49 @@ export class SAMParser {
         alignmentLine
       );
     }
+  }
 
-    // Parse optional tags
-    const tags = fields.length > 11 ? this.parseTags(fields.slice(11), lineNumber) : undefined;
+  private validateAlignment(
+    alignment: SAMAlignment,
+    alignmentLine: string,
+    lineNumber: number
+  ): void {
+    if (this.options.skipValidation) {
+      return;
+    }
 
-    const alignment: SAMAlignment = {
-      format: 'sam',
-      qname,
-      flag,
-      rname,
-      pos,
-      mapq,
-      cigar,
-      rnext,
-      pnext,
-      tlen,
-      seq,
-      qual,
-      ...(tags && { tags }),
-      ...(this.options.trackLineNumbers && { lineNumber }),
-    };
-
-    // Validate alignment if not skipping validation
-    if (!this.options.skipValidation) {
-      try {
-        const validation = SAMAlignmentSchema(alignment);
-        if (validation instanceof type.errors) {
-          throw new SamError(
-            `Invalid SAM alignment: ${validation.summary}`,
-            qname,
-            'alignment',
-            lineNumber,
-            alignmentLine
-          );
-        }
-      } catch (error) {
-        if (error instanceof SamError) {
-          throw error;
-        }
+    try {
+      const validation = SAMAlignmentSchema(alignment);
+      if (validation instanceof type.errors) {
         throw new SamError(
-          `Alignment validation failed: ${error instanceof Error ? error.message : String(error)}`,
-          qname,
+          `Invalid SAM alignment: ${validation.summary}`,
+          alignment.qname,
           'alignment',
           lineNumber,
           alignmentLine
         );
       }
+    } catch (error) {
+      if (error instanceof SamError) {
+        throw error;
+      }
+      throw new SamError(
+        `Alignment validation failed: ${error instanceof Error ? error.message : String(error)}`,
+        alignment.qname,
+        'alignment',
+        lineNumber,
+        alignmentLine
+      );
     }
+  }
 
-    // Tiger Style: Assert postconditions
+  private assertAlignmentPostconditions(
+    alignment: SAMAlignment,
+    alignmentLine: string,
+    lineNumber: number
+  ): void {
+    const qname = alignment.qname;
+
     if (alignment.format !== 'sam') {
       throw new SamError(
         'result format must be sam',
@@ -460,8 +537,6 @@ export class SAMParser {
         alignmentLine
       );
     }
-
-    return alignment;
   }
 
   /**
@@ -564,92 +639,110 @@ export class SAMParser {
    * @returns Array of validated SAMTag objects
    */
   private parseTags(tagFields: string[], lineNumber: number): SAMTag[] {
-    // Tiger Style: Assert function arguments
+    this.validateTagInputs(tagFields, lineNumber);
+
+    const tags: SAMTag[] = [];
+    for (const tagField of tagFields) {
+      if (!tagField) continue;
+      const tag = this.parseTagField(tagField, lineNumber);
+      tags.push(tag);
+    }
+
+    this.assertTagPostconditions(tags, tagFields, lineNumber);
+    return tags;
+  }
+
+  private validateTagInputs(tagFields: string[], lineNumber: number): void {
     if (!Array.isArray(tagFields)) {
       throw new ValidationError('tagFields must be an array');
     }
     if (!Number.isInteger(lineNumber) || lineNumber <= 0) {
       throw new ValidationError('lineNumber must be positive integer');
     }
+  }
 
-    const tags: SAMTag[] = [];
-
-    for (const tagField of tagFields) {
-      if (!tagField) continue;
-
-      const parts = tagField.split(':');
-      if (parts.length < 3) {
-        throw new SamError(
-          `Invalid tag format: ${tagField} (expected TAG:TYPE:VALUE)`,
-          undefined,
-          'tag',
-          lineNumber
-        );
-      }
-
-      const tag = parts[0];
-      const type = (parts[1] ?? '') as 'A' | 'i' | 'f' | 'Z' | 'H' | 'B';
-      const valueStr = parts.slice(2).join(':'); // Rejoin in case value contains colons
-
-      // Parse value based on type
-      let value: string | number;
-      try {
-        switch (type) {
-          case 'A':
-            value = valueStr;
-            break;
-          case 'i':
-            value = parseInt(valueStr);
-            if (isNaN(value)) {
-              throw new Error(`Invalid integer value: ${valueStr}`);
-            }
-            break;
-          case 'f':
-            value = parseFloat(valueStr);
-            if (isNaN(value)) {
-              throw new Error(`Invalid float value: ${valueStr}`);
-            }
-            break;
-          case 'Z':
-          case 'H':
-          case 'B':
-            value = valueStr;
-            break;
-          default:
-            throw new Error(`Unsupported tag type: ${type}`);
-        }
-      } catch (error) {
-        throw new SamError(
-          `Invalid tag value for ${tag}: ${error instanceof Error ? error.message : String(error)}`,
-          undefined,
-          'tag',
-          lineNumber
-        );
-      }
-
-      const samTag: SAMTag = {
-        tag: tag ?? '',
-        type: type as 'A' | 'i' | 'f' | 'Z' | 'H' | 'B',
-        value,
-      };
-
-      // Validate tag if not skipping validation
-      if (!this.options.skipValidation) {
-        // Basic validation without ArkType for now to avoid instanceof issues
-        if (samTag.tag.length !== 2 || !/^[A-Za-z0-9]{2}$/.test(samTag.tag)) {
-          throw new SamError(
-            `SAM tag must be 2 alphanumeric characters: ${samTag.tag}`,
-            undefined,
-            'tag',
-            lineNumber
-          );
-        }
-      }
-
-      tags.push(samTag);
+  private parseTagField(tagField: string, lineNumber: number): SAMTag {
+    const parts = tagField.split(':');
+    if (parts.length < 3) {
+      throw new SamError(
+        `Invalid tag format: ${tagField} (expected TAG:TYPE:VALUE)`,
+        undefined,
+        'tag',
+        lineNumber
+      );
     }
 
-    // Tiger Style: Assert postconditions
+    const tag = parts[0];
+    const type = (parts[1] ?? '') as 'A' | 'i' | 'f' | 'Z' | 'H' | 'B';
+    const valueStr = parts.slice(2).join(':'); // Rejoin in case value contains colons
+
+    const value = this.parseTagValue(type, valueStr, tag, lineNumber);
+    const samTag: SAMTag = {
+      tag: tag ?? '',
+      type: type as 'A' | 'i' | 'f' | 'Z' | 'H' | 'B',
+      value,
+    };
+
+    this.validateTag(samTag, lineNumber);
+    return samTag;
+  }
+
+  private parseTagValue(
+    type: 'A' | 'i' | 'f' | 'Z' | 'H' | 'B',
+    valueStr: string,
+    tag: string | undefined,
+    lineNumber: number
+  ): string | number {
+    try {
+      switch (type) {
+        case 'A':
+        case 'Z':
+        case 'H':
+        case 'B':
+          return valueStr;
+        case 'i': {
+          const value = parseInt(valueStr);
+          if (isNaN(value)) {
+            throw new Error(`Invalid integer value: ${valueStr}`);
+          }
+          return value;
+        }
+        case 'f': {
+          const value = parseFloat(valueStr);
+          if (isNaN(value)) {
+            throw new Error(`Invalid float value: ${valueStr}`);
+          }
+          return value;
+        }
+        default:
+          throw new Error(`Unsupported tag type: ${type}`);
+      }
+    } catch (error) {
+      throw new SamError(
+        `Invalid tag value for ${tag}: ${error instanceof Error ? error.message : String(error)}`,
+        undefined,
+        'tag',
+        lineNumber
+      );
+    }
+  }
+
+  private validateTag(samTag: SAMTag, lineNumber: number): void {
+    if (this.options.skipValidation) {
+      return;
+    }
+
+    if (samTag.tag.length !== 2 || !/^[A-Za-z0-9]{2}$/.test(samTag.tag)) {
+      throw new SamError(
+        `SAM tag must be 2 alphanumeric characters: ${samTag.tag}`,
+        undefined,
+        'tag',
+        lineNumber
+      );
+    }
+  }
+
+  private assertTagPostconditions(tags: SAMTag[], tagFields: string[], lineNumber: number): void {
     if (!Array.isArray(tags)) {
       throw new SamError('result must be an array', undefined, 'tag', lineNumber);
     }
@@ -661,8 +754,6 @@ export class SAMParser {
         lineNumber
       );
     }
-
-    return tags;
   }
 
   /**

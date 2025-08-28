@@ -37,7 +37,7 @@ export class TransformProcessor implements Processor<TransformOptions> {
     source: AsyncIterable<AbstractSequence>,
     options: TransformOptions
   ): AsyncIterable<AbstractSequence> {
-    // ZIG_CANDIDATE: Hot loop processing every sequence
+    // NATIVE_CANDIDATE: Hot loop processing every sequence
     // Batch processing in native code would improve throughput
     for await (const seq of source) {
       yield this.transformSequence(seq, options);
@@ -50,7 +50,7 @@ export class TransformProcessor implements Processor<TransformOptions> {
    * Transformations are applied in a specific order to ensure
    * predictable results.
    *
-   * ZIG_CANDIDATE: String transformations (reverse, complement)
+   * NATIVE_CANDIDATE: String transformations (reverse, complement)
    * are CPU-intensive for large sequences. Native implementation
    * would provide significant performance gains.
    *
@@ -65,27 +65,27 @@ export class TransformProcessor implements Processor<TransformOptions> {
 
     // 1. Reverse complement (combines reverse + complement)
     if (options.reverseComplement === true) {
-      // ZIG_CANDIDATE: reverseComplement is called from transforms module
-      // which already has ZIG_CANDIDATE markers
+      // NATIVE_CANDIDATE: reverseComplement is called from transforms module
+      // which already has NATIVE_CANDIDATE markers
       sequence = seqManip.reverseComplement(sequence);
     } else {
       // 2. Individual reverse or complement
       if (options.complement === true) {
-        // ZIG_CANDIDATE: complement mapping is CPU-intensive
+        // NATIVE_CANDIDATE: complement mapping is CPU-intensive
         sequence = seqManip.complement(sequence);
       }
       if (options.reverse === true) {
-        // ZIG_CANDIDATE: string reversal allocates new string
+        // NATIVE_CANDIDATE: string reversal allocates new string
         sequence = seqManip.reverse(sequence);
       }
     }
 
     // 3. RNA/DNA conversion
     if (options.toRNA === true) {
-      // ZIG_CANDIDATE: Character replacement loop
+      // NATIVE_CANDIDATE: Character replacement loop
       sequence = seqManip.toRNA(sequence);
     } else if (options.toDNA === true) {
-      // ZIG_CANDIDATE: Character replacement loop
+      // NATIVE_CANDIDATE: Character replacement loop
       sequence = seqManip.toDNA(sequence);
     }
 

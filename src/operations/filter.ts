@@ -37,7 +37,7 @@ export class FilterProcessor implements Processor<FilterOptions> {
     source: AsyncIterable<AbstractSequence>,
     options: FilterOptions
   ): AsyncIterable<AbstractSequence> {
-    // ZIG_CANDIDATE: Hot loop - processes every sequence
+    // NATIVE_CANDIDATE: Hot loop - processes every sequence
     // Native filtering could batch process sequences
     for await (const seq of source) {
       if (this.passesFilter(seq, options)) {
@@ -94,7 +94,7 @@ export class FilterProcessor implements Processor<FilterOptions> {
 
     // Ambiguous base filter
     if (options.hasAmbiguous !== undefined) {
-      // ZIG_CANDIDATE: Character validation loop
+      // NATIVE_CANDIDATE: Character validation loop
       // Native implementation would be faster than regex
       const hasAmbiguous = /[^ACGTU]/i.test(seq.sequence);
       if (options.hasAmbiguous !== hasAmbiguous) {
@@ -113,7 +113,7 @@ export class FilterProcessor implements Processor<FilterOptions> {
   /**
    * Calculate GC content percentage
    *
-   * ZIG_CANDIDATE: Character counting loop for GC bases.
+   * NATIVE_CANDIDATE: Character counting loop for GC bases.
    * Native implementation would provide significant speedup
    * for large sequences by avoiding regex overhead.
    *
@@ -123,7 +123,7 @@ export class FilterProcessor implements Processor<FilterOptions> {
   private calculateGC(sequence: string): number {
     if (sequence.length === 0) return 0;
 
-    // ZIG_CANDIDATE: This regex match creates intermediate array
+    // NATIVE_CANDIDATE: This regex match creates intermediate array
     // Native loop would be more efficient for counting
     const gcCount = (sequence.match(/[GC]/gi) || []).length;
     return (gcCount / sequence.length) * 100;

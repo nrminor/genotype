@@ -15,7 +15,6 @@
  * - Missing attributes
  */
 
-import { type } from 'arktype';
 import type { Strand, ParserOptions } from '../types';
 import { ValidationError, ParseError, GenotypeError } from '../errors';
 
@@ -117,7 +116,7 @@ export function parseGtfAttributes(attributeString: string): Record<string, stri
     const key = match[1]?.trim();
     let value = match[2]?.trim();
 
-    if (!key || !value) continue;
+    if (key === undefined || key === '' || value === undefined || value === '') continue;
 
     // Remove quotes if present
     if (value.startsWith('"') && value.endsWith('"')) {
@@ -315,7 +314,20 @@ export class GtfParser {
     ] = fields;
 
     // Validate required fields
-    if (!seqname || !source || !feature || !startStr || !endStr || !strandStr) {
+    if (
+      seqname === undefined ||
+      seqname === '' ||
+      source === undefined ||
+      source === '' ||
+      feature === undefined ||
+      feature === '' ||
+      startStr === undefined ||
+      startStr === '' ||
+      endStr === undefined ||
+      endStr === '' ||
+      strandStr === undefined ||
+      strandStr === ''
+    ) {
       throw new GenotypeError('Missing required GTF fields', 'GTF_MISSING_FIELDS', lineNumber);
     }
 
@@ -330,11 +342,11 @@ export class GtfParser {
     }
 
     // Parse optional fields
-    const score = scoreStr ? parseGtfScore(scoreStr) : null;
-    const frame = frameStr ? parseGtfFrame(frameStr) : null;
+    const score = scoreStr !== undefined && scoreStr !== '' ? parseGtfScore(scoreStr) : null;
+    const frame = frameStr !== undefined && frameStr !== '' ? parseGtfFrame(frameStr) : null;
 
     // Validate strand
-    if (!validateGtfStrand(strandStr)) {
+    if (validateGtfStrand(strandStr) === false) {
       throw new GenotypeError(
         `Invalid strand '${strandStr}', must be '+', '-', or '.'`,
         'GTF_STRAND_ERROR',
@@ -343,7 +355,7 @@ export class GtfParser {
     }
 
     // Parse attributes
-    const attributes = parseGtfAttributes(attributeStr || '');
+    const attributes = parseGtfAttributes(attributeStr !== undefined ? attributeStr : '');
 
     // Check required attributes
     if (this.options.requiredAttributes) {
@@ -547,21 +559,21 @@ export function detectGtfFormat(data: string): boolean {
   // Check first few data lines
   for (let i = 0; i < Math.min(3, lines.length); i++) {
     const line = lines[i];
-    if (!line) return false;
+    if (line === undefined || line === '') return false;
 
     const fields = line.split('\t');
     if (fields.length !== 9) return false;
 
     // Check if coordinates are valid integers
-    const start = parseInt(fields[3] || '', 10);
-    const end = parseInt(fields[4] || '', 10);
+    const start = parseInt(fields[3] !== undefined ? fields[3] : '', 10);
+    const end = parseInt(fields[4] !== undefined ? fields[4] : '', 10);
     if (isNaN(start) || isNaN(end) || start < 1 || end < start) {
       return false;
     }
 
     // Check strand
     const strand = fields[6];
-    if (!strand || !validateGtfStrand(strand)) {
+    if (strand === undefined || strand === '' || validateGtfStrand(strand) === false) {
       return false;
     }
   }

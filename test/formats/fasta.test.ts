@@ -95,14 +95,20 @@ describe('FastaParser', () => {
     expect(sequences).toHaveLength(2);
   });
 
-  test('should handle empty sequence ID with validation error', async () => {
-    const fasta = '>\nATCG';
+  test('should throw ParseError for empty FASTA header by default', async () => {
+    const fasta = '>\nATCG'; // Empty header after '>'
 
     await expect(async () => {
       for await (const seq of parser.parseString(fasta)) {
-        // Should not reach here with validation enabled
+        // Should throw before yielding any sequences
       }
-    }).toThrow('Invalid FASTA sequence');
+    }).toThrow(ParseError);
+
+    await expect(async () => {
+      for await (const seq of parser.parseString(fasta)) {
+        // Should throw before yielding any sequences  
+      }
+    }).toThrow(/Empty FASTA header.*identifier/);
   });
 
   test('should handle empty sequence ID with warning when validation skipped', async () => {

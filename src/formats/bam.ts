@@ -372,139 +372,210 @@ export class BAMParser {
    * @param buffer Binary data buffer
    * @returns Header parse result or null if incomplete
    */
+  /**
+   * Validate BAM header buffer and magic bytes
+   */
+  private validateBAMHeaderBuffer(buffer: Uint8Array): { view: DataView; offset: number } {
+    if (!(buffer instanceof Uint8Array)) {
+      throw new ValidationError('buffer must be Uint8Array');
+    }
+
+    if (buffer.length < 12) {
+      throw new Error('INCOMPLETE_DATA'); // Signal incomplete data
+    }
+
+    const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+    const magic = buffer.slice(0, 4);
+    if (!isValidBAMMagic(magic)) {
+      throw new BamError(
+        'Invalid BAM magic bytes - file may be corrupted or not a BAM file',
+        undefined,
+        'header'
+      );
+    }
+
+    return { view, offset: 4 };
+  }
+
+  /**
+   * Parse SAM header text section
+   */
+  private parseBAMHeaderText(
+    view: DataView,
+    buffer: Uint8Array,
+    startOffset: number
+  ): { offset: number } {
+    const headerLength = readInt32LE(view, startOffset);
+    const offset = startOffset + 4;
+
+    if (headerLength < 0) {
+      throw new BamError(`Invalid SAM header length: ${headerLength}`, undefined, 'header');
+    }
+
+    // Check if we have complete SAM header text
+    if (buffer.length < offset + headerLength + 4) {
+      throw new Error('INCOMPLETE_DATA'); // Need more data
+    }
+
+    // Skip SAM header text for now
+    // TODO: Parse SAM header text to extract @HD, @SQ, @RG, @PG lines
+    return { offset: offset + headerLength };
+  }
+
+  /**
+   * Parse single reference sequence from BAM header
+   */
+  private parseBAMReference(
+    view: DataView,
+    buffer: Uint8Array,
+    startOffset: number,
+    refIndex: number
+  ): { reference: { name: string; length: number }; offset: number } {
+    // Check if we have enough data for reference name length
+    if (buffer.length < startOffset + 4) {
+      throw new Error('INCOMPLETE_DATA');
+    }
+
+    const nameLength = readInt32LE(view, startOffset);
+    let offset = startOffset + 4;
+
+    if (nameLength <= 0) {
+      throw new BamError(
+        `Invalid reference name length: ${nameLength} for reference ${refIndex}`,
+        undefined,
+        'header'
+      );
+    }
+
+    // Check if we have complete reference data
+    if (buffer.length < offset + nameLength + 4) {
+      throw new Error('INCOMPLETE_DATA');
+    }
+
+    // Read reference name (null-terminated)
+    const nameResult = readCString(view, offset, nameLength);
+    const refName = nameResult.value;
+    offset += nameLength;
+
+    // Read reference length
+    const refLength = readInt32LE(view, offset);
+    offset += 4;
+
+    if (refLength < 0) {
+      throw new BamError(
+        `Invalid reference length: ${refLength} for reference '${refName}'`,
+        undefined,
+        'header'
+      );
+    }
+
+    return {
+      reference: { name: refName, length: refLength },
+      offset,
+    };
+  }
+
+  /**
+   * Parse all reference sequences from BAM header
+   */
+  private parseBAMReferences(
+    view: DataView,
+    buffer: Uint8Array,
+    startOffset: number
+  ): {
+    references: Array<{ name: string; length: number }>;
+    referenceNames: string[];
+    offset: number;
+  } {
+    const numRefs = readInt32LE(view, startOffset);
+    let offset = startOffset + 4;
+
+    if (numRefs < 0) {
+      throw new BamError(`Invalid reference count: ${numRefs}`, undefined, 'header');
+    }
+
+    const references: Array<{ name: string; length: number }> = [];
+    const referenceNames: string[] = [];
+
+    for (let i = 0; i < numRefs; i++) {
+      const refResult = this.parseBAMReference(view, buffer, offset, i);
+      references.push(refResult.reference);
+      referenceNames.push(refResult.reference.name);
+      offset = refResult.offset;
+    }
+
+    return { references, referenceNames, offset };
+  }
+
+  /**
+   * Create final header object and validate results
+   */
+  private createBAMHeaderResult(
+    referenceNames: string[],
+    references: Array<{ name: string; length: number }>,
+    bytesConsumed: number,
+    expectedRefCount: number
+  ): {
+    header: SAMHeader;
+    bytesConsumed: number;
+    refNames: string[];
+    references: Array<{ name: string; length: number }>;
+  } {
+    // Create header object (convert to SAMHeader format for compatibility)
+    const header: SAMHeader = {
+      format: 'sam-header',
+      type: 'HD',
+      fields: {
+        VN: '1.0',
+        SO: 'coordinate',
+      },
+    };
+
+    // Tiger Style: Assert postconditions
+    if (bytesConsumed <= 12) {
+      throw new BamError(
+        'bytes consumed must be greater than minimum header size',
+        undefined,
+        'header'
+      );
+    }
+    if (referenceNames.length !== expectedRefCount) {
+      throw new BamError('reference names count must match header', undefined, 'header');
+    }
+
+    return {
+      header,
+      bytesConsumed,
+      refNames: referenceNames,
+      references,
+    };
+  }
+
   private parseHeaderFromBuffer(buffer: Uint8Array): {
     header: SAMHeader;
     bytesConsumed: number;
     refNames: string[];
     references: Array<{ name: string; length: number }>;
   } | null {
-    // Tiger Style: Assert function arguments
-    if (!(buffer instanceof Uint8Array)) {
-      throw new ValidationError('buffer must be Uint8Array');
-    }
-
-    if (buffer.length < 12) {
-      return null; // Not enough data for minimum header
-    }
-
     try {
-      const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
-      let offset = 0;
+      const validation = this.validateBAMHeaderBuffer(buffer);
+      const headerTextResult = this.parseBAMHeaderText(validation.view, buffer, validation.offset);
+      const referencesResult = this.parseBAMReferences(
+        validation.view,
+        buffer,
+        headerTextResult.offset
+      );
 
-      // Check BAM magic bytes
-      const magic = buffer.slice(0, 4);
-      if (!isValidBAMMagic(magic)) {
-        throw new BamError(
-          'Invalid BAM magic bytes - file may be corrupted or not a BAM file',
-          undefined,
-          'header'
-        );
-      }
-      offset += 4;
-
-      // Read SAM header text length
-      const headerLength = readInt32LE(view, offset);
-      offset += 4;
-
-      if (headerLength < 0) {
-        throw new BamError(`Invalid SAM header length: ${headerLength}`, undefined, 'header');
-      }
-
-      // Check if we have complete SAM header text
-      if (buffer.length < offset + headerLength + 4) {
-        return null; // Need more data
-      }
-
-      // Read SAM header text (currently not parsed, skip over it)
-      // TODO: Parse SAM header text to extract @HD, @SQ, @RG, @PG lines
-      // const samHeaderText =
-      //   headerLength > 0 ? readFixedString(view, offset, headerLength) : '';
-      offset += headerLength;
-
-      // Read number of reference sequences
-      const numRefs = readInt32LE(view, offset);
-      offset += 4;
-
-      if (numRefs < 0) {
-        throw new BamError(`Invalid reference count: ${numRefs}`, undefined, 'header');
-      }
-
-      // Parse reference sequences
-      const references: Array<{ name: string; length: number }> = [];
-      const referenceNames: string[] = [];
-
-      for (let i = 0; i < numRefs; i++) {
-        // Check if we have enough data for reference name length
-        if (buffer.length < offset + 4) {
-          return null;
-        }
-
-        const nameLength = readInt32LE(view, offset);
-        offset += 4;
-
-        if (nameLength <= 0) {
-          throw new BamError(
-            `Invalid reference name length: ${nameLength} for reference ${i}`,
-            undefined,
-            'header'
-          );
-        }
-
-        // Check if we have complete reference data
-        if (buffer.length < offset + nameLength + 4) {
-          return null;
-        }
-
-        // Read reference name (null-terminated)
-        const nameResult = readCString(view, offset, nameLength);
-        const refName = nameResult.value;
-        offset += nameLength;
-
-        // Read reference length
-        const refLength = readInt32LE(view, offset);
-        offset += 4;
-
-        if (refLength < 0) {
-          throw new BamError(
-            `Invalid reference length: ${refLength} for reference '${refName}'`,
-            undefined,
-            'header'
-          );
-        }
-
-        references.push({ name: refName, length: refLength });
-        referenceNames.push(refName);
-      }
-
-      // Create header object (convert to SAMHeader format for compatibility)
-      const header: SAMHeader = {
-        format: 'sam-header',
-        type: 'HD',
-        fields: {
-          VN: '1.0',
-          SO: 'coordinate',
-        },
-      };
-
-      // Tiger Style: Assert postconditions
-      if (offset <= 12) {
-        throw new BamError(
-          'bytes consumed must be greater than minimum header size',
-          undefined,
-          'header'
-        );
-      }
-      if (referenceNames.length !== numRefs) {
-        throw new BamError('reference names count must match header', undefined, 'header');
-      }
-
-      return {
-        header,
-        bytesConsumed: offset,
-        refNames: referenceNames,
-        references,
-      };
+      return this.createBAMHeaderResult(
+        referencesResult.referenceNames,
+        referencesResult.references,
+        referencesResult.offset,
+        referencesResult.references.length
+      );
     } catch (error) {
+      if (error instanceof Error && error.message === 'INCOMPLETE_DATA') {
+        return null; // Not enough data, try again later
+      }
       if (error instanceof BamError) {
         throw error;
       }
@@ -1658,7 +1729,7 @@ export const BAMUtils = {
     // Parse BAM header using parser instance
     const parser = new BAMParser();
     const headerResult = (parser as any).parseHeaderFromBuffer(bamData);
-    if (!headerResult) {
+    if (headerResult === null || headerResult === undefined) {
       return [];
     }
 

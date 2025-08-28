@@ -292,9 +292,21 @@ export class BedParser {
    * Parse a single BED line into an interval
    */
   private parseLine(line: string, lineNumber: number): BedInterval | null {
-    // Split on whitespace (tabs or spaces)
-    const fields = line.split(/\s+/);
+    const fields = this.splitAndValidateFields(line, lineNumber);
+    const { chromosome, start, end, optionalFields } = this.parseRequiredFields(
+      fields,
+      lineNumber,
+      line
+    );
+    const mutableInterval = this.buildBaseInterval(chromosome, start, end, lineNumber);
+    this.parseOptionalFieldsIfPresent(mutableInterval, optionalFields, lineNumber, line);
+    this.calculateIntervalStats(mutableInterval, optionalFields.length);
+    this.validateFinalInterval(mutableInterval, chromosome, start, end, lineNumber, line);
+    return mutableInterval as BedInterval;
+  }
 
+  private splitAndValidateFields(line: string, lineNumber: number): string[] {
+    const fields = line.split(/\s+/);
     if (fields.length < 3) {
       throw new BedError(
         `BED format requires at least 3 fields, got ${fields.length}`,
@@ -305,10 +317,41 @@ export class BedParser {
         line
       );
     }
+    return fields;
+  }
 
+  private parseRequiredFields(
+    fields: string[],
+    lineNumber: number,
+    line: string
+  ): {
+    chromosome: string;
+    start: number;
+    end: number;
+    optionalFields: string[];
+  } {
     const [chromosome, startStr, endStr, ...optionalFields] = fields;
 
-    // Parse required fields with validation
+    this.validateRequiredFields(chromosome, startStr, endStr, lineNumber, line);
+
+    const start = this.parseInteger(startStr!, 'start', lineNumber, line);
+    const end = this.parseInteger(endStr!, 'end', lineNumber, line);
+
+    const coordValidation = validateCoordinates(start, end);
+    if (!coordValidation.valid) {
+      throw new BedError(coordValidation.error!, chromosome, start, end, lineNumber, line);
+    }
+
+    return { chromosome: chromosome!, start, end, optionalFields };
+  }
+
+  private validateRequiredFields(
+    chromosome: string | undefined,
+    startStr: string | undefined,
+    endStr: string | undefined,
+    lineNumber: number,
+    line: string
+  ): void {
     if (chromosome === undefined) {
       throw new BedError(
         'chromosome field is required',
@@ -339,23 +382,20 @@ export class BedParser {
         line
       );
     }
+  }
 
-    const start = this.parseInteger(startStr!, 'start', lineNumber, line);
-    const end = this.parseInteger(endStr!, 'end', lineNumber, line);
-
-    // Validate basic coordinates
-    const coordValidation = validateCoordinates(start, end);
-    if (!coordValidation.valid) {
-      throw new BedError(coordValidation.error!, chromosome, start, end, lineNumber, line);
-    }
-
-    // Build mutable interval data
+  private buildBaseInterval(
+    chromosome: string,
+    start: number,
+    end: number,
+    lineNumber: number
+  ): any {
     type MutableBedInterval = {
       -readonly [K in keyof BedInterval]: BedInterval[K];
     };
 
     const intervalData: Partial<MutableBedInterval> = {
-      chromosome: chromosome!,
+      chromosome,
       start,
       end,
       length: end - start,
@@ -366,14 +406,21 @@ export class BedParser {
       intervalData.lineNumber = lineNumber;
     }
 
-    const mutableInterval = intervalData as MutableBedInterval;
+    return intervalData as MutableBedInterval;
+  }
 
-    // Parse optional fields based on BED variant
+  private parseOptionalFieldsIfPresent(
+    mutableInterval: any,
+    optionalFields: string[],
+    lineNumber: number,
+    line: string
+  ): void {
     if (optionalFields.length > 0) {
       this.parseOptionalFields(mutableInterval as BedInterval, optionalFields, lineNumber, line);
     }
+  }
 
-    // Calculate stats after all fields are parsed
+  private calculateIntervalStats(mutableInterval: any, optionalFieldCount: number): void {
     mutableInterval.stats = {
       length: mutableInterval.length!,
       hasThickRegion: Boolean(
@@ -384,25 +431,33 @@ export class BedParser {
           mutableInterval.blockCount !== null &&
           mutableInterval.blockCount > 1
       ),
-      bedType: this.determineBedType(optionalFields.length),
+      bedType: this.determineBedType(optionalFieldCount),
     };
+  }
 
-    // Final validation
-    if (!this.options.skipValidation) {
-      const validation = BedIntervalSchema(mutableInterval as BedInterval);
-      if (validation instanceof type.errors) {
-        throw new BedError(
-          `Invalid BED interval: ${validation.summary}`,
-          chromosome,
-          start,
-          end,
-          lineNumber,
-          line
-        );
-      }
+  private validateFinalInterval(
+    mutableInterval: any,
+    chromosome: string,
+    start: number,
+    end: number,
+    lineNumber: number,
+    line: string
+  ): void {
+    if (this.options.skipValidation) {
+      return;
     }
 
-    return mutableInterval as BedInterval;
+    const validation = BedIntervalSchema(mutableInterval as BedInterval);
+    if (validation instanceof type.errors) {
+      throw new BedError(
+        `Invalid BED interval: ${validation.summary}`,
+        chromosome,
+        start,
+        end,
+        lineNumber,
+        line
+      );
+    }
   }
 
   /**

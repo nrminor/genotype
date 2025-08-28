@@ -39,7 +39,7 @@ export class QualityProcessor implements Processor<QualityOptions> {
     source: AsyncIterable<AbstractSequence>,
     options: QualityOptions
   ): AsyncIterable<AbstractSequence> {
-    // ZIG_CANDIDATE: Hot loop processing FASTQ sequences
+    // NATIVE_CANDIDATE: Hot loop processing FASTQ sequences
     // Quality score calculations are CPU-intensive
     for await (const seq of source) {
       // Skip non-FASTQ sequences
@@ -109,7 +109,7 @@ export class QualityProcessor implements Processor<QualityOptions> {
 
     // Average quality filtering
     if (options.minScore !== undefined || options.maxScore !== undefined) {
-      // ZIG_CANDIDATE: Quality score conversion and averaging
+      // NATIVE_CANDIDATE: Quality score conversion and averaging
       // Native implementation would be more efficient
       const avgQuality = qualityUtils.averageQuality(quality, encoding);
 
@@ -187,7 +187,7 @@ export class QualityProcessor implements Processor<QualityOptions> {
   /**
    * Find trim position from start of sequence
    *
-   * ZIG_CANDIDATE: Sliding window quality calculation.
+   * NATIVE_CANDIDATE: Sliding window quality calculation.
    * Native implementation would avoid string slicing
    * and repeated quality score conversions.
    *
@@ -203,7 +203,7 @@ export class QualityProcessor implements Processor<QualityOptions> {
     windowSize: number,
     encoding: 'phred33' | 'phred64'
   ): number {
-    // ZIG_CANDIDATE: Hot loop with string slicing and quality calculations
+    // NATIVE_CANDIDATE: Hot loop with string slicing and quality calculations
     for (let i = 0; i <= quality.length - windowSize; i++) {
       const window = quality.slice(i, i + windowSize);
       const avgQual = qualityUtils.averageQuality(window, encoding);
@@ -219,7 +219,7 @@ export class QualityProcessor implements Processor<QualityOptions> {
   /**
    * Find trim position from end of sequence
    *
-   * ZIG_CANDIDATE: Sliding window quality calculation.
+   * NATIVE_CANDIDATE: Sliding window quality calculation.
    * Native implementation would avoid string slicing
    * and repeated quality score conversions.
    *
@@ -237,7 +237,7 @@ export class QualityProcessor implements Processor<QualityOptions> {
     encoding: 'phred33' | 'phred64',
     start: number
   ): number {
-    // ZIG_CANDIDATE: Hot loop with string slicing and quality calculations
+    // NATIVE_CANDIDATE: Hot loop with string slicing and quality calculations
     for (let i = quality.length - windowSize; i >= start; i--) {
       const window = quality.slice(i, i + windowSize);
       const avgQual = qualityUtils.averageQuality(window, encoding);

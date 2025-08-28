@@ -10,6 +10,7 @@ test/fixtures/
 **/*.bed
 **/*.bam
 src/zig/
+src/native/
 *.zig
 bun.lockb
 CHANGELOG.md

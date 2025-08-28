@@ -320,12 +320,6 @@ export interface GrepOptions {
  * Comprehensive translation options supporting all NCBI genetic codes,
  * multiple reading frames, and various output formats.
  */
-/**
- * Options for DNA/RNA to protein translation
- *
- * Simplified interface focused on the most common use cases.
- * Advanced biological features are exposed through specific modes.
- */
 export interface TranslateOptions {
   /** Genetic code table ID (1-33, default: 1 = Standard) */
   geneticCode?: number;
@@ -333,20 +327,110 @@ export interface TranslateOptions {
   /** Reading frames to translate (default: [1]) */
   frames?: Array<1 | 2 | 3 | -1 | -2 | -3>;
 
-  /** Translate all 6 reading frames */
+  /** Translate all 6 reading frames (overrides frames option) */
   allFrames?: boolean;
+
+  /** Convert start codons to methionine (M) even if normally different amino acid */
+  convertStartCodons?: boolean;
+
+  /** Remove stop codons from output */
+  removeStopCodons?: boolean;
+
+  /** Replace stop codons with specific character (default: '*') */
+  stopCodonChar?: string;
+
+  /** Character to use for unknown/invalid codons (default: 'X') */
+  unknownCodonChar?: string;
+
+  /** Minimum ORF length when searching for ORFs (amino acids) */
+  minOrfLength?: number;
 
   /** Find and translate only open reading frames (ORFs) */
   orfsOnly?: boolean;
 
-  /** Minimum ORF length in amino acids (default: 30, used with orfsOnly) */
-  minOrfLength?: number;
-
-  /** Convert start codons to methionine (M) */
-  convertStartCodons?: boolean;
-
   /** Include frame information in sequence IDs */
   includeFrameInId?: boolean;
+
+  /** Trim sequences at first stop codon */
+  trimAtFirstStop?: boolean;
+
+  /** Allow alternative start codons (CTG, TTG, GTG) */
+  allowAlternativeStarts?: boolean;
+}
+
+/**
+ * Options for concatenating sequences from multiple sources
+ *
+ * Supports file paths and AsyncIterables with comprehensive ID conflict resolution.
+ * Maintains memory efficiency through streaming processing without loading entire datasets.
+ */
+export interface ConcatOptions {
+  /** Multiple source paths or AsyncIterables to concatenate */
+  sources: Array<string | AsyncIterable<AbstractSequence>>;
+
+  /** Strategy for handling ID conflicts between sources */
+  idConflictResolution?: 'error' | 'rename' | 'ignore' | 'suffix';
+
+  /** Suffix to append when using 'suffix' conflict resolution (default: source index) */
+  renameSuffix?: string;
+
+  /** Validate that all sources have compatible formats (default: true) */
+  validateFormats?: boolean;
+
+  /** Preserve original source order in output (default: true) */
+  preserveOrder?: boolean;
+
+  /** Skip empty sequences during concatenation (default: false) */
+  skipEmpty?: boolean;
+
+  /** Human-readable labels for sources (used in error messages and suffixes) */
+  sourceLabels?: string[];
+
+  /** Maximum memory usage in bytes before switching to disk-based processing */
+  maxMemory?: number;
+
+  /** Progress callback for tracking concatenation progress */
+  onProgress?: (processed: number, total?: number, currentSource?: string) => void;
+}
+
+/**
+ * Options for splitting sequences into multiple files
+ *
+ * Supports multiple splitting strategies with memory-efficient processing.
+ */
+export interface SplitOptions {
+  /** Splitting strategy to use */
+  mode: 'by-size' | 'by-parts' | 'by-length' | 'by-id' | 'by-region';
+
+  // Mode-specific options
+  /** Number of sequences per output file (for by-size) */
+  sequencesPerFile?: number;
+  /** Number of output parts to create (for by-parts) */
+  numParts?: number;
+  /** Number of bases per output file (for by-length) */
+  basesPerFile?: number;
+  /** Regular expression to extract ID groups (for by-id) */
+  idRegex?: string;
+  /** Genomic region to extract (for by-region, format: chr:start-end) */
+  region?: string;
+
+  // Output control
+  /** Directory for output files (default: current directory) */
+  outputDir?: string;
+  /** Prefix for output filenames (default: 'part') */
+  filePrefix?: string;
+  /** File extension for outputs (default: '.fasta') */
+  fileExtension?: string;
+  /** Whether to preserve sequence order within parts */
+  keepOrder?: boolean;
+
+  // Memory management
+  /** Use streaming mode for large files (default: true) */
+  useStreaming?: boolean;
+  /** Maximum memory usage in MB (default: 100) */
+  maxMemoryMB?: number;
+  /** Buffer size for file operations (default: 64KB) */
+  bufferSize?: number;
 }
 
 /**

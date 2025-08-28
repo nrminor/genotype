@@ -21,7 +21,7 @@ validate:
 
 alias v := validate
 
-# 🚨 Full validation including Zig native code
+# 🚨 Full validation including Rust native code
 [group('validation')]
 validate-full:
     bun run validate:full
@@ -47,26 +47,26 @@ build:
 
 alias b := build
 
-# Build with Zig native optimizations
+# Build with Rust native optimizations
 [group('build')]
 build-native:
     bun run build:with-native
 
 alias bn := build-native
 
-# Build Zig components only (debug mode)
+# Build Rust native library (debug mode)
 [group('build')]
-build-zig-dev:
-    cd src/zig && zig build -Doptimize=Debug
+build-rust-dev:
+    cargo build
 
-alias bzd := build-zig-dev
+alias brd := build-rust-dev
 
-# Build Zig components only (release mode)
+# Build Rust native library (release mode)
 [group('build')]
-build-zig:
-    cd src/zig && zig build -Doptimize=ReleaseFast
+build-rust:
+    cargo build --release
 
-alias bz := build-zig
+alias br := build-rust
 
 # Watch mode for development
 [group('build')]
@@ -81,6 +81,13 @@ clean:
     bun run clean
 
 alias c := clean
+
+# Clean Rust build artifacts
+[group('build')]
+clean-rust:
+    cargo clean
+
+alias cr := clean-rust
 
 # ===== Testing =====
 
@@ -112,12 +119,12 @@ test-coverage:
 
 alias tc := test-coverage
 
-# Run Zig tests
+# Run Rust tests
 [group('test')]
-test-zig:
-    cd src/zig && zig build test
+test-rust:
+    cargo test
 
-alias tz := test-zig
+alias tr := test-rust
 
 # Test in Node.js environment
 [group('test')]
@@ -135,7 +142,7 @@ alias td := test-deno
 
 # Run all tests across all environments
 [group('test')]
-test-all: test test-zig test-node test-deno
+test-all: test test-rust test-node test-deno
     @echo "✓ All tests passed across all environments!"
 
 alias ta := test-all
@@ -162,6 +169,20 @@ fmt:
     bun run format
 
 alias f := fmt
+
+# Run Rust linting
+[group('lint')]
+lint-rust:
+    cargo clippy -- -D warnings
+
+alias lr := lint-rust
+
+# Format Rust code
+[group('lint')]
+fmt-rust:
+    cargo fmt
+
+alias fr := fmt-rust
 
 # Check formatting without changes
 [group('lint')]
@@ -232,7 +253,7 @@ size:
     @du -sh dist/* 2>/dev/null || echo "Run 'just build' first"
     @echo ""
     @echo "Source size:"
-    @find src -name "*.ts" -not -path "*/zig/*" | xargs wc -l | tail -1
+    @find src -name "*.ts" -not -path "*/native/*" | xargs wc -l | tail -1
 
 # ===== Performance & Benchmarks =====
 
@@ -333,11 +354,11 @@ alias pc := pre-commit
 
 # Prepare for PR (full validation)
 [group('git')]
-pr-ready: validate docs
+pr-ready: validate-full docs
     @echo "✓ Ready for PR!"
     @echo "Remember to:"
     @echo "  - Update CHANGELOG.md if needed"
-    @echo "  - Ensure PR description is complete"
+    @echo "  - Ensure PR description is complete"  
     @echo "  - Link related issues"
 
 alias pr := pr-ready
@@ -383,7 +404,7 @@ alias dc := dead-code
 
 # Verify ready for release
 [group('release')]
-release-check: validate-full test-all docs
+release-check: validate-full test-all lint-rust fmt-rust docs
     @echo "✓ All checks passed!"
     @echo "✓ Documentation generated!"
     @echo ""

@@ -9,10 +9,104 @@
  * @since v0.1.0
  */
 
-import { createContextualError, SequenceError } from '../errors';
+import { type } from 'arktype';
+import { createContextualError, SequenceError, ValidationError } from '../errors';
 import type { AbstractSequence } from '../types';
 import { GeneticCode, GeneticCodeTable } from './core/genetic-codes';
 import { reverseComplement } from './core/sequence-manipulation';
+import type { TranslateOptions } from './types';
+import { createOptionsValidator } from './core/validation-utils';
+
+/**
+ * Schema for validating TranslateOptions using ArkType
+ */
+const TranslateOptionsSchema = type({
+  'geneticCode?': 'number>=1',
+  'frames?': 'number[]',
+  'allFrames?': 'boolean',
+  'convertStartCodons?': 'boolean',
+  'removeStopCodons?': 'boolean',
+  'stopCodonChar?': 'string',
+  'unknownCodonChar?': 'string',
+  'minOrfLength?': 'number>=1',
+  'orfsOnly?': 'boolean',
+  'includeFrameInId?': 'boolean',
+  'trimAtFirstStop?': 'boolean',
+  'allowAlternativeStarts?': 'boolean',
+});
+
+/**
+ * Common validation function for translate options using the new pattern
+ */
+const validateTranslateOptions = createOptionsValidator<TranslateOptions>(TranslateOptionsSchema, [
+  // Genetic code validator
+  (options: TranslateOptions) => {
+    if (options.geneticCode !== undefined) {
+      const validCodes = [
+        1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13, 14, 16, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+        33,
+      ];
+      if (!validCodes.includes(options.geneticCode)) {
+        throw createContextualError(SequenceError, `Invalid genetic code: ${options.geneticCode}`, {
+          context: `Valid codes: ${validCodes.join(', ')}`,
+          data: { providedCode: options.geneticCode },
+        });
+      }
+    }
+  },
+  // Frames validator
+  (options: TranslateOptions) => {
+    if (options.frames !== undefined) {
+      const validFrames = [1, 2, 3, -1, -2, -3] as const;
+      for (const frame of options.frames) {
+        if (!validFrames.includes(frame)) {
+          throw createContextualError(SequenceError, `Invalid frame: ${frame}`, {
+            context: 'Valid frames: 1, 2, 3, -1, -2, -3',
+            data: { providedFrame: frame },
+          });
+        }
+      }
+      if (options.frames.length === 0) {
+        throw createContextualError(SequenceError, 'At least one frame must be specified', {
+          context: 'Provide frames like [1, 2, 3] or use allFrames: true',
+          data: { providedFrames: options.frames },
+        });
+      }
+    }
+  },
+  // ORF length validator
+  (options: TranslateOptions) => {
+    if (options.minOrfLength !== undefined && options.minOrfLength < 1) {
+      throw createContextualError(SequenceError, 'Minimum ORF length must be positive', {
+        context: 'ORF length is measured in amino acids',
+        data: { provided: options.minOrfLength },
+      });
+    }
+  },
+  // Character options validator
+  (options: TranslateOptions) => {
+    if (options.stopCodonChar !== undefined && options.stopCodonChar.length !== 1) {
+      throw createContextualError(
+        SequenceError,
+        'Stop codon replacement must be single character',
+        {
+          context: 'Use single amino acid code like "*" or "X"',
+          data: { provided: options.stopCodonChar },
+        }
+      );
+    }
+    if (options.unknownCodonChar !== undefined && options.unknownCodonChar.length !== 1) {
+      throw createContextualError(
+        SequenceError,
+        'Unknown codon replacement must be single character',
+        {
+          context: 'Use single amino acid code like "X" or "N"',
+          data: { provided: options.unknownCodonChar },
+        }
+      );
+    }
+  },
+]);
 
 /**
  * Options for DNA/RNA to protein translation
@@ -20,43 +114,6 @@ import { reverseComplement } from './core/sequence-manipulation';
  * Comprehensive translation options supporting all NCBI genetic codes,
  * multiple reading frames, and various output formats.
  */
-export interface TranslateOptions {
-  /** Genetic code table ID (1-33, default: 1 = Standard) */
-  geneticCode?: number;
-
-  /** Reading frames to translate (default: [1]) */
-  frames?: Array<1 | 2 | 3 | -1 | -2 | -3>;
-
-  /** Translate all 6 reading frames (overrides frames option) */
-  allFrames?: boolean;
-
-  /** Convert start codons to methionine (M) even if normally different amino acid */
-  convertStartCodons?: boolean;
-
-  /** Remove stop codons from output */
-  removeStopCodons?: boolean;
-
-  /** Replace stop codons with specific character (default: '*') */
-  stopCodonChar?: string;
-
-  /** Character to use for unknown/invalid codons (default: 'X') */
-  unknownCodonChar?: string;
-
-  /** Minimum ORF length when searching for ORFs (amino acids) */
-  minOrfLength?: number;
-
-  /** Find and translate only open reading frames (ORFs) */
-  orfsOnly?: boolean;
-
-  /** Include frame information in sequence IDs */
-  includeFrameInId?: boolean;
-
-  /** Trim sequences at first stop codon */
-  trimAtFirstStop?: boolean;
-
-  /** Allow alternative start codons (CTG, TTG, GTG) */
-  allowAlternativeStarts?: boolean;
-}
 
 /**
  * Processor for DNA/RNA to protein translation
@@ -88,8 +145,13 @@ export class TranslateProcessor {
     source: AsyncIterable<AbstractSequence>,
     options: TranslateOptions
   ): AsyncIterable<AbstractSequence> {
-    // Validate options before processing
-    this.validateOptions(options);
+    // Validate options before processing using common validation pattern
+    validateTranslateOptions(options);
+
+    // Additional explicit validation for minOrfLength (ArkType schema should handle this but being defensive)
+    if (options.minOrfLength !== undefined && options.minOrfLength < 1) {
+      throw new ValidationError('Minimum ORF length must be positive');
+    }
 
     for await (const seq of source) {
       yield* this.translateSequence(seq, options);
@@ -116,7 +178,9 @@ export class TranslateProcessor {
       // Always yield result, even if empty (unless ORF filtering removes it)
       if (
         translation !== null &&
-        (!options.minOrfLength || translation.length >= options.minOrfLength)
+        (options.minOrfLength === undefined ||
+          options.minOrfLength === null ||
+          translation.length >= options.minOrfLength)
       ) {
         yield this.createTranslatedSequence(seq, translation, frame, options);
       }
@@ -148,7 +212,7 @@ export class TranslateProcessor {
     geneticCode: GeneticCode,
     options: TranslateOptions
   ): string | null {
-    // ZIG_CRITICAL: String manipulation hot path - toUpperCase and character replacement
+    // NATIVE_CRITICAL: String manipulation hot path - toUpperCase and character replacement
     let sequence = seq.sequence.toUpperCase().replace(/U/g, 'T');
 
     // Handle empty sequences
@@ -158,7 +222,7 @@ export class TranslateProcessor {
 
     // Handle reverse frames
     if (frame < 0) {
-      // ZIG_CRITICAL: Reverse complement is a hot path for large sequences
+      // NATIVE_CRITICAL: Reverse complement is a hot path for large sequences
       sequence = reverseComplement(sequence);
     }
 
@@ -191,7 +255,7 @@ export class TranslateProcessor {
     let protein = '';
     let isFirstCodon = true;
 
-    // ZIG_CRITICAL: Hot loop - string slicing and codon translation for every 3 bases
+    // NATIVE_CRITICAL: Hot loop - string slicing and codon translation for every 3 bases
     // Perfect candidate for SIMD string processing and lookup table optimization
     for (let i = frameOffset; i + 2 < sequence.length; i += 3) {
       const codon = sequence.substring(i, i + 3);
@@ -261,7 +325,7 @@ export class TranslateProcessor {
 
           if (aminoAcid === '*') {
             // Found stop codon, complete ORF
-            if (!options.removeStopCodons) {
+            if (options.removeStopCodons !== true) {
               protein += options.stopCodonChar ?? '*';
             }
             return protein.length >= (options.minOrfLength ?? 1) ? protein : null;
@@ -280,16 +344,16 @@ export class TranslateProcessor {
 
   /**
    * Translate a single codon, handling ambiguity
-   * ZIG_CRITICAL: Codon lookup table - perfect for SIMD hash table optimization
+   * NATIVE_CRITICAL: Codon lookup table - perfect for SIMD hash table optimization
    */
   private translateCodon(codon: string, codonTable: { readonly [codon: string]: string }): string {
-    // ZIG_CRITICAL: Hash table lookup - hot path called for every codon
+    // NATIVE_CRITICAL: Hash table lookup - hot path called for every codon
     const directTranslation = codonTable[codon];
     if (directTranslation !== undefined) {
       return directTranslation;
     }
 
-    // ZIG_CRITICAL: Ambiguous codon expansion - branchy logic with multiple lookups
+    // NATIVE_CRITICAL: Ambiguous codon expansion - branchy logic with multiple lookups
     const possibleAminoAcids = this.getAmbiguousTranslations(codon, codonTable);
     if (possibleAminoAcids.size === 1) {
       return Array.from(possibleAminoAcids)[0] ?? 'X';
@@ -386,7 +450,10 @@ export class TranslateProcessor {
     let description = originalSeq.description;
     if (options.includeFrameInId === true) {
       const frameInfo = `frame=${frameStr}`;
-      description = description ? `${description} ${frameInfo}` : frameInfo;
+      description =
+        description !== undefined && description !== null && description !== ''
+          ? `${description} ${frameInfo}`
+          : frameInfo;
     }
 
     return {
@@ -395,98 +462,5 @@ export class TranslateProcessor {
       length: translation.length,
       ...(description !== undefined && { description }),
     };
-  }
-
-  /**
-   * Validate translation options
-   */
-  private validateOptions(options: TranslateOptions): void {
-    this.validateGeneticCode(options);
-    this.validateFrames(options);
-    this.validateOrfOptions(options);
-    this.validateCharOptions(options);
-  }
-
-  /**
-   * Validate genetic code option
-   */
-  private validateGeneticCode(options: TranslateOptions): void {
-    if (options.geneticCode !== undefined) {
-      const validCodes = [
-        1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13, 14, 16, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
-        33,
-      ];
-
-      if (!validCodes.includes(options.geneticCode)) {
-        throw createContextualError(SequenceError, `Invalid genetic code: ${options.geneticCode}`, {
-          context: `Valid codes: ${validCodes.join(', ')}`,
-          data: { providedCode: options.geneticCode },
-        });
-      }
-    }
-  }
-
-  /**
-   * Validate frames option
-   */
-  private validateFrames(options: TranslateOptions): void {
-    if (options.frames !== undefined) {
-      const validFrames = [1, 2, 3, -1, -2, -3] as const;
-
-      for (const frame of options.frames) {
-        if (!validFrames.includes(frame)) {
-          throw createContextualError(SequenceError, `Invalid frame: ${frame}`, {
-            context: 'Valid frames: 1, 2, 3, -1, -2, -3',
-            data: { providedFrame: frame },
-          });
-        }
-      }
-
-      if (options.frames.length === 0) {
-        throw createContextualError(SequenceError, 'At least one frame must be specified', {
-          context: 'Provide frames like [1, 2, 3] or use allFrames: true',
-          data: { providedFrames: options.frames },
-        });
-      }
-    }
-  }
-
-  /**
-   * Validate ORF-related options
-   */
-  private validateOrfOptions(options: TranslateOptions): void {
-    if (options.minOrfLength !== undefined && options.minOrfLength < 1) {
-      throw createContextualError(SequenceError, 'Minimum ORF length must be positive', {
-        context: 'ORF length is measured in amino acids',
-        data: { provided: options.minOrfLength },
-      });
-    }
-  }
-
-  /**
-   * Validate character replacement options
-   */
-  private validateCharOptions(options: TranslateOptions): void {
-    if (options.stopCodonChar !== undefined && options.stopCodonChar.length !== 1) {
-      throw createContextualError(
-        SequenceError,
-        'Stop codon replacement must be single character',
-        {
-          context: 'Use single amino acid code like "*" or "X"',
-          data: { provided: options.stopCodonChar },
-        }
-      );
-    }
-
-    if (options.unknownCodonChar !== undefined && options.unknownCodonChar.length !== 1) {
-      throw createContextualError(
-        SequenceError,
-        'Unknown codon replacement must be single character',
-        {
-          context: 'Use single amino acid code like "X" or "N"',
-          data: { provided: options.unknownCodonChar },
-        }
-      );
-    }
   }
 }

@@ -18,22 +18,29 @@ export {
 } from './compression';
 // Error types
 export {
+  BAIIndexError,
   BamError,
   BedError,
   BufferError,
+  ChromosomeNamingError,
+  CigarValidationError,
   CompatibilityError,
   CompressionError,
+  ConcatError,
   createContextualError,
   ERROR_SUGGESTIONS,
   FileError,
   FormatDetectionError,
+  GenomicCoordinateError,
   GenotypeError,
   GrepError,
   getErrorSuggestion,
   MemoryError,
   ParseError,
   QualityError,
+  ResourceLimitError,
   SamError,
+  SecurityPathError,
   SequenceError,
   StreamError,
   TimeoutError,
@@ -91,6 +98,8 @@ export {
 // SeqOps - Unix pipeline-style sequence operations
 export {
   type CleanOptions,
+  ConcatProcessor,
+  type ConcatOptions,
   // New semantic API types
   type FilterOptions,
   type QualityOptions,
@@ -187,19 +196,17 @@ export {
   VirtualOffsetSchema,
 } from './types';
 
-// Native performance library (Zig FFI)
+// Native performance library (FFI)
 export {
   getCurrentPlatformTarget,
   isNativeLibAvailable,
   type LibGenotype,
   resolveGenotypeLib,
   setGenotypeLibPath,
-} from './zig';
+} from './native';
 
 import { ParseError } from './errors';
-import { BedParser } from './formats/bed';
-import { FastaParser } from './formats/fasta';
-import { FastqParser } from './formats/fastq';
+import { BedParser, FastaParser, FastqParser } from './formats';
 // Import types for internal use
 import type {
   BedInterval,
@@ -343,7 +350,7 @@ export async function* parseAny(
 }
 
 // Re-export from formats for convenience
-import { detectVariant } from './formats/bed';
+import { detectVariant } from './formats';
 
 /**
  * Library version and metadata

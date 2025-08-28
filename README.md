@@ -318,14 +318,14 @@ await seqops(sequencingReads)
 
 ### Native Performance
 
-**Coming soon**: Zig optimizations for critical genomic bottlenecks!
+**Coming soon**: Native Rust optimizations for critical genomic bottlenecks!
 
 ```typescript
 // Operations marked for native acceleration:
 const results = await seqops(millionSequences)
-  .grep({ pattern: 'ATCG' }) // ZIG_BENEFICIAL: SIMD pattern matching
-  .sort({ by: 'gc' }) // ZIG_CRITICAL: Vectorized GC calculation
-  .rmdup({ by: 'sequence' }) // ZIG_CRITICAL: Optimized hash operations
+  .grep({ pattern: 'ATCG' }) // NATIVE_BENEFICIAL: SIMD pattern matching
+  .sort({ by: 'gc' }) // NATIVE_CRITICAL: Vectorized GC calculation
+  .rmdup({ by: 'sequence' }) // NATIVE_CRITICAL: Optimized hash operations
   .collect();
 ```
 
@@ -362,6 +362,6 @@ MIT
 
 ---
 
-_Built with [Bun](https://bun.sh/) • Acceleration planned with
-[Zig](https://ziglang.org/) • Validation powered by
+_Built with [Bun](https://bun.sh/) • Acceleration powered by
+[Rust](https://www.rust-lang.org/) • Validation powered by
 [ArkType](https://arktype.io/)_

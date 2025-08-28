@@ -615,13 +615,15 @@ export function packQualityScores(
  * @param offset Starting offset
  * @returns Number of bytes written
  */
-function packTagValue(
+/**
+ * Validate tag packing arguments
+ */
+function validateTagPackingArgs(
   type: string,
   value: string | number,
   buffer: Uint8Array,
   offset: number
-): number {
-  // Tiger Style: Assert function arguments
+): void {
   if (typeof type !== 'string' || type.length !== 1) {
     throw new BamError('type must be single character', undefined, 'tags');
   }
@@ -634,261 +636,381 @@ function packTagValue(
   if (!Number.isInteger(offset) || offset < 0) {
     throw new BamError('offset must be non-negative integer', undefined, 'tags');
   }
+}
+
+/**
+ * Pack character tag type 'A'
+ */
+function packCharacterTag(value: string | number, buffer: Uint8Array, offset: number): number {
+  if (typeof value !== 'string' || value.length !== 1) {
+    throw new BamError(
+      `Invalid character tag value: '${value}' (must be single character)`,
+      undefined,
+      'tags'
+    );
+  }
+  if (offset >= buffer.length) {
+    throw new BamError(`Buffer too small for character tag`, undefined, 'tags');
+  }
+  buffer[offset] = value.charCodeAt(0);
+  return 1;
+}
+
+/**
+ * Validate integer tag value
+ */
+function validateIntegerValue(value: string | number): asserts value is number {
+  if (typeof value !== 'number' || !Number.isInteger(value)) {
+    throw new BamError(`Invalid integer tag value: ${value} (must be integer)`, undefined, 'tags');
+  }
+}
+
+/**
+ * Pack 8-bit integer tags (c, C)
+ */
+function pack8BitIntegerTag(
+  type: string,
+  value: string | number,
+  buffer: Uint8Array,
+  offset: number
+): number {
+  validateIntegerValue(value);
+
+  if (offset >= buffer.length) {
+    throw new BamError(`Buffer too small for 8-bit integer tag`, undefined, 'tags');
+  }
 
   const view = new DataView(buffer.buffer, buffer.byteOffset);
 
+  if (type === 'c') {
+    // Signed 8-bit integer
+    if (value < -128 || value > 127) {
+      throw new BamError(
+        `Invalid int8 tag value: ${value} (must be -128 to 127)`,
+        undefined,
+        'tags'
+      );
+    }
+    view.setInt8(offset, value);
+  } else {
+    // Unsigned 8-bit integer
+    if (value < 0 || value > 255) {
+      throw new BamError(`Invalid uint8 tag value: ${value} (must be 0 to 255)`, undefined, 'tags');
+    }
+    buffer[offset] = value;
+  }
+
+  return 1;
+}
+
+/**
+ * Pack 16-bit integer tags (s, S)
+ */
+function pack16BitIntegerTag(
+  type: string,
+  value: string | number,
+  buffer: Uint8Array,
+  offset: number
+): number {
+  validateIntegerValue(value);
+
+  if (offset + 2 > buffer.length) {
+    throw new BamError(`Buffer too small for 16-bit integer tag`, undefined, 'tags');
+  }
+
+  const view = new DataView(buffer.buffer, buffer.byteOffset);
+
+  if (type === 's') {
+    // Signed 16-bit integer
+    if (value < -32768 || value > 32767) {
+      throw new BamError(
+        `Invalid int16 tag value: ${value} (must be -32768 to 32767)`,
+        undefined,
+        'tags'
+      );
+    }
+    view.setInt16(offset, value, true);
+  } else {
+    // Unsigned 16-bit integer
+    if (value < 0 || value > 65535) {
+      throw new BamError(
+        `Invalid uint16 tag value: ${value} (must be 0 to 65535)`,
+        undefined,
+        'tags'
+      );
+    }
+    view.setUint16(offset, value, true);
+  }
+
+  return 2;
+}
+
+/**
+ * Pack 32-bit integer tags (i, I)
+ */
+function pack32BitIntegerTag(
+  type: string,
+  value: string | number,
+  buffer: Uint8Array,
+  offset: number
+): number {
+  validateIntegerValue(value);
+
+  if (offset + 4 > buffer.length) {
+    throw new BamError(`Buffer too small for 32-bit integer tag`, undefined, 'tags');
+  }
+
+  const view = new DataView(buffer.buffer, buffer.byteOffset);
+
+  if (type === 'i') {
+    // Signed 32-bit integer
+    if (value < -2147483648 || value > 2147483647) {
+      throw new BamError(
+        `Invalid int32 tag value: ${value} (must be 32-bit signed integer)`,
+        undefined,
+        'tags'
+      );
+    }
+    view.setInt32(offset, value, true);
+  } else {
+    // Unsigned 32-bit integer
+    if (value < 0 || value > 4294967295) {
+      throw new BamError(
+        `Invalid uint32 tag value: ${value} (must be 32-bit unsigned integer)`,
+        undefined,
+        'tags'
+      );
+    }
+    view.setUint32(offset, value, true);
+  }
+
+  return 4;
+}
+
+/**
+ * Pack integer tag types (c, C, s, S, i, I)
+ */
+function packIntegerTag(
+  type: string,
+  value: string | number,
+  buffer: Uint8Array,
+  offset: number
+): number {
   switch (type) {
-    case 'A': // Character
-      if (typeof value !== 'string' || value.length !== 1) {
-        throw new BamError(
-          `Invalid character tag value: '${value}' (must be single character)`,
-          undefined,
-          'tags'
-        );
-      }
-      if (offset >= buffer.length) {
-        throw new BamError(`Buffer too small for character tag`, undefined, 'tags');
-      }
-      buffer[offset] = value.charCodeAt(0);
-      return 1;
-
     case 'c': // Signed 8-bit integer
-      if (typeof value !== 'number' || !Number.isInteger(value) || value < -128 || value > 127) {
-        throw new BamError(
-          `Invalid int8 tag value: ${value} (must be integer -128 to 127)`,
-          undefined,
-          'tags'
-        );
-      }
-      if (offset >= buffer.length) {
-        throw new BamError(`Buffer too small for int8 tag`, undefined, 'tags');
-      }
-      view.setInt8(offset, value);
-      return 1;
-
     case 'C': // Unsigned 8-bit integer
-      if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > 255) {
-        throw new BamError(
-          `Invalid uint8 tag value: ${value} (must be integer 0 to 255)`,
-          undefined,
-          'tags'
-        );
-      }
-      if (offset >= buffer.length) {
-        throw new BamError(`Buffer too small for uint8 tag`, undefined, 'tags');
-      }
-      buffer[offset] = value;
-      return 1;
+      return pack8BitIntegerTag(type, value, buffer, offset);
 
     case 's': // Signed 16-bit integer
-      if (
-        typeof value !== 'number' ||
-        !Number.isInteger(value) ||
-        value < -32768 ||
-        value > 32767
-      ) {
-        throw new BamError(
-          `Invalid int16 tag value: ${value} (must be integer -32768 to 32767)`,
-          undefined,
-          'tags'
-        );
-      }
-      if (offset + 2 > buffer.length) {
-        throw new BamError(`Buffer too small for int16 tag`, undefined, 'tags');
-      }
-      view.setInt16(offset, value, true); // little-endian
-      return 2;
-
     case 'S': // Unsigned 16-bit integer
-      if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > 65535) {
-        throw new BamError(
-          `Invalid uint16 tag value: ${value} (must be integer 0 to 65535)`,
-          undefined,
-          'tags'
-        );
-      }
-      if (offset + 2 > buffer.length) {
-        throw new BamError(`Buffer too small for uint16 tag`, undefined, 'tags');
-      }
-      view.setUint16(offset, value, true); // little-endian
-      return 2;
+      return pack16BitIntegerTag(type, value, buffer, offset);
 
     case 'i': // Signed 32-bit integer
-      if (
-        typeof value !== 'number' ||
-        !Number.isInteger(value) ||
-        value < -2147483648 ||
-        value > 2147483647
-      ) {
-        throw new BamError(
-          `Invalid int32 tag value: ${value} (must be 32-bit signed integer)`,
-          undefined,
-          'tags'
-        );
-      }
-      if (offset + 4 > buffer.length) {
-        throw new BamError(`Buffer too small for int32 tag`, undefined, 'tags');
-      }
-      view.setInt32(offset, value, true); // little-endian
-      return 4;
-
     case 'I': // Unsigned 32-bit integer
-      if (
-        typeof value !== 'number' ||
-        !Number.isInteger(value) ||
-        value < 0 ||
-        value > 4294967295
-      ) {
-        throw new BamError(
-          `Invalid uint32 tag value: ${value} (must be 32-bit unsigned integer)`,
-          undefined,
-          'tags'
-        );
-      }
-      if (offset + 4 > buffer.length) {
-        throw new BamError(`Buffer too small for uint32 tag`, undefined, 'tags');
-      }
-      view.setUint32(offset, value, true); // little-endian
+      return pack32BitIntegerTag(type, value, buffer, offset);
+
+    default:
+      throw new BamError(`Invalid integer tag type: ${type}`, undefined, 'tags');
+  }
+}
+
+/**
+ * Pack float tag type 'f'
+ */
+function packFloatTag(value: string | number, buffer: Uint8Array, offset: number): number {
+  if (typeof value !== 'number' || !isFinite(value)) {
+    throw new BamError(
+      `Invalid float tag value: ${value} (must be finite number)`,
+      undefined,
+      'tags'
+    );
+  }
+  if (offset + 4 > buffer.length) {
+    throw new BamError(`Buffer too small for float tag`, undefined, 'tags');
+  }
+  const view = new DataView(buffer.buffer, buffer.byteOffset);
+  view.setFloat32(offset, value, true);
+  return 4;
+}
+
+/**
+ * Pack string tag types ('Z', 'H')
+ */
+function packStringTag(value: string | number, buffer: Uint8Array, offset: number): number {
+  if (typeof value !== 'string') {
+    throw new BamError(`Invalid string tag value: ${value} (must be string)`, undefined, 'tags');
+  }
+  const encoder = new TextEncoder();
+  const bytes = encoder.encode(value);
+
+  if (offset + bytes.length + 1 > buffer.length) {
+    throw new BamError(
+      `Buffer too small for string tag: need ${bytes.length + 1} bytes`,
+      undefined,
+      'tags'
+    );
+  }
+
+  buffer.set(bytes, offset);
+  buffer[offset + bytes.length] = 0;
+  return bytes.length + 1;
+}
+
+/**
+ * Get element size for B-type array subtype
+ */
+function getBTypeElementSize(subtype: string): number {
+  switch (subtype) {
+    case 'c':
+    case 'C':
+      return 1;
+    case 's':
+    case 'S':
+      return 2;
+    case 'i':
+    case 'I':
+    case 'f':
       return 4;
+    default:
+      throw new BamError(`Invalid B-type subtype: ${subtype}`, undefined, 'tags');
+  }
+}
+
+/**
+ * Write B-type array elements
+ */
+function writeBTypeElements(
+  subtype: string,
+  elements: number[],
+  buffer: Uint8Array,
+  offset: number
+): number {
+  let currentOffset = offset;
+
+  for (const elem of elements) {
+    switch (subtype) {
+      case 'c': // int8
+        buffer[currentOffset++] = elem;
+        break;
+      case 'C': // uint8
+        buffer[currentOffset++] = elem & 0xff;
+        break;
+      case 's': // int16
+        writeInt16(buffer, currentOffset, elem);
+        currentOffset += 2;
+        break;
+      case 'S': // uint16
+        writeUInt16(buffer, currentOffset, elem);
+        currentOffset += 2;
+        break;
+      case 'i': // int32
+        writeInt32(buffer, currentOffset, elem);
+        currentOffset += 4;
+        break;
+      case 'I': // uint32
+        writeUInt32(buffer, currentOffset, elem);
+        currentOffset += 4;
+        break;
+      case 'f': // float32
+        writeFloat32(buffer, currentOffset, elem);
+        currentOffset += 4;
+        break;
+    }
+  }
+
+  return currentOffset - offset;
+}
+
+/**
+ * Pack array tag type 'B'
+ */
+function packArrayTag(value: string | number, buffer: Uint8Array, offset: number): number {
+  if (typeof value !== 'string') {
+    throw new BamError(
+      `B-type array tag value must be string format: "subtype,value1,value2,..."`,
+      undefined,
+      'tags'
+    );
+  }
+
+  const parts = value.split(',');
+  if (parts.length < 2) {
+    throw new BamError(`Invalid B-type array format: ${value}`, undefined, 'tags');
+  }
+
+  const subtype = parts[0];
+  if (subtype === undefined) {
+    throw new BamError(`Missing subtype in B-type array format: ${value}`, undefined, 'tags');
+  }
+
+  const elements = parts.slice(1).map((v) => {
+    if (subtype === 'f') return parseFloat(v);
+    return parseInt(v, 10);
+  });
+
+  const elementSize = getBTypeElementSize(subtype);
+  const totalSize = 1 + 4 + elements.length * elementSize;
+
+  if (offset + totalSize > buffer.length) {
+    throw new BamError(
+      `Buffer too small for B-type array: need ${totalSize} bytes`,
+      undefined,
+      'tags'
+    );
+  }
+
+  let currentOffset = offset;
+
+  // Write subtype
+  buffer[currentOffset++] = subtype.charCodeAt(0);
+
+  // Write element count
+  writeInt32(buffer, currentOffset, elements.length);
+  currentOffset += 4;
+
+  // Write elements
+  writeBTypeElements(subtype, elements, buffer, currentOffset);
+
+  return totalSize;
+}
+
+/**
+ * Pack a single tag value based on its type
+ * @param type Tag type character
+ * @param value Tag value
+ * @param buffer Buffer to write to
+ * @param offset Starting offset
+ * @returns Number of bytes written
+ */
+function packTagValue(
+  type: string,
+  value: string | number,
+  buffer: Uint8Array,
+  offset: number
+): number {
+  validateTagPackingArgs(type, value, buffer, offset);
+
+  switch (type) {
+    case 'A': // Character
+      return packCharacterTag(value, buffer, offset);
+
+    case 'c': // Signed 8-bit integer
+    case 'C': // Unsigned 8-bit integer
+    case 's': // Signed 16-bit integer
+    case 'S': // Unsigned 16-bit integer
+    case 'i': // Signed 32-bit integer
+    case 'I': // Unsigned 32-bit integer
+      return packIntegerTag(type, value, buffer, offset);
 
     case 'f': // 32-bit float
-      if (typeof value !== 'number' || !isFinite(value)) {
-        throw new BamError(
-          `Invalid float tag value: ${value} (must be finite number)`,
-          undefined,
-          'tags'
-        );
-      }
-      if (offset + 4 > buffer.length) {
-        throw new BamError(`Buffer too small for float tag`, undefined, 'tags');
-      }
-      view.setFloat32(offset, value, true); // little-endian
-      return 4;
+      return packFloatTag(value, buffer, offset);
 
     case 'Z': // Null-terminated string
-    case 'H': {
-      // Hex string
-      if (typeof value !== 'string') {
-        throw new BamError(
-          `Invalid string tag value: ${value} (must be string)`,
-          undefined,
-          'tags'
-        );
-      }
-      const encoder = new TextEncoder();
-      const bytes = encoder.encode(value);
+    case 'H': // Hex string
+      return packStringTag(value, buffer, offset);
 
-      if (offset + bytes.length + 1 > buffer.length) {
-        throw new BamError(
-          `Buffer too small for string tag: need ${bytes.length + 1} bytes`,
-          undefined,
-          'tags'
-        );
-      }
-
-      // Write string bytes
-      buffer.set(bytes, offset);
-      // Write null terminator
-      buffer[offset + bytes.length] = 0;
-
-      return bytes.length + 1;
-    }
-
-    case 'B': {
-      // Array of values
-      // Implement proper binary array encoding for 'B' type tags
-      if (typeof value !== 'string') {
-        throw new BamError(
-          `B-type array tag value must be string format: "subtype,value1,value2,..."`,
-          undefined,
-          'tags'
-        );
-      }
-
-      // Parse array format: "c,1,2,3" or "f,1.0,2.0,3.0"
-      const parts = value.split(',');
-      if (parts.length < 2) {
-        throw new BamError(`Invalid B-type array format: ${value}`, undefined, 'tags');
-      }
-
-      const subtype = parts[0];
-      const elements = parts.slice(1).map((v) => {
-        if (subtype === 'f') return parseFloat(v);
-        return parseInt(v, 10);
-      });
-
-      // Calculate required space: 1 (subtype) + 4 (count) + elements
-      let elementSize: number;
-      switch (subtype) {
-        case 'c':
-        case 'C':
-          elementSize = 1;
-          break;
-        case 's':
-        case 'S':
-          elementSize = 2;
-          break;
-        case 'i':
-        case 'I':
-        case 'f':
-          elementSize = 4;
-          break;
-        default:
-          throw new BamError(`Invalid B-type subtype: ${subtype}`, undefined, 'tags');
-      }
-
-      const totalSize = 1 + 4 + elements.length * elementSize;
-      if (offset + totalSize > buffer.length) {
-        throw new BamError(
-          `Buffer too small for B-type array: need ${totalSize} bytes`,
-          undefined,
-          'tags'
-        );
-      }
-
-      let currentOffset = offset;
-
-      // Write subtype
-      buffer[currentOffset++] = subtype.charCodeAt(0);
-
-      // Write element count
-      writeInt32(buffer, currentOffset, elements.length);
-      currentOffset += 4;
-
-      // Write elements based on subtype
-      for (const elem of elements) {
-        switch (subtype) {
-          case 'c': // int8
-            buffer[currentOffset++] = elem;
-            break;
-          case 'C': // uint8
-            buffer[currentOffset++] = elem & 0xff;
-            break;
-          case 's': // int16
-            writeInt16(buffer, currentOffset, elem);
-            currentOffset += 2;
-            break;
-          case 'S': // uint16
-            writeUInt16(buffer, currentOffset, elem);
-            currentOffset += 2;
-            break;
-          case 'i': // int32
-            writeInt32(buffer, currentOffset, elem);
-            currentOffset += 4;
-            break;
-          case 'I': // uint32
-            writeUInt32(buffer, currentOffset, elem);
-            currentOffset += 4;
-            break;
-          case 'f': // float32
-            writeFloat32(buffer, currentOffset, elem);
-            currentOffset += 4;
-            break;
-        }
-      }
-
-      return totalSize;
-    }
+    case 'B': // Array of values
+      return packArrayTag(value, buffer, offset);
 
     default:
       throw new BamError(`Unsupported tag type: '${type}'`, undefined, 'tags');

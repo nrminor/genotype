@@ -5,7 +5,7 @@
 !/package.json
 !/bun.lockb
 !/tsconfig.json
-!/deno.json
+!/Cargo.toml
 !/README.md
 !/AGENTS.md
 !/LICENSE
@@ -46,6 +46,12 @@
 !/src/zig/src/
 !/src/zig/src/*.zig
 !/src/zig.ts
+!/src/native.ts
+!/src/native/
+!/src/native/Cargo.toml
+!/src/native/src/
+!/src/native/src/*.rs
+!/src/native/lib/
 !/test/
 !/test/formats/
 !/test/formats/fasta.test.ts

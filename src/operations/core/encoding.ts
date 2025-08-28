@@ -71,7 +71,7 @@ export async function detectEncoding(
   let count = 0;
   const maxSamples = 10000;
 
-  // 🔥 ZIG OPTIMIZATION: Vectorized min/max finding
+  // 🔥 NATIVE OPTIMIZATION: Vectorized min/max finding
   for await (const seq of sequences) {
     if (!seq.quality) {
       continue;
@@ -125,7 +125,7 @@ export const detect = detectEncoding;
  * @returns Converted quality string
  * @throws Error if Solexa conversion is attempted
  *
- * 🔥 ZIG OPTIMIZATION: Bulk character code conversion
+ * 🔥 NATIVE OPTIMIZATION: Bulk character code conversion
  */
 export function convertScore(quality: string, from: QualityEncoding, to: QualityEncoding): string {
   // Tiger Style: Assert inputs
@@ -138,7 +138,7 @@ export function convertScore(quality: string, from: QualityEncoding, to: Quality
 
   if (from === to) return quality;
 
-  // 🔥 ZIG: SIMD-accelerated character arithmetic
+  // 🔥 NATIVE: SIMD-accelerated character arithmetic
   const fromOffset = from === QualityEncodingConstants.PHRED33 ? 33 : 64;
   const toOffset = to === QualityEncodingConstants.PHRED33 ? 33 : 64;
   const diff = toOffset - fromOffset;
@@ -178,7 +178,7 @@ export function convertScore(quality: string, from: QualityEncoding, to: Quality
  * @param encoding - Quality encoding (default: PHRED33)
  * @returns Average quality score as number
  *
- * 🔥 ZIG OPTIMIZATION: Vectorized sum calculation
+ * 🔥 NATIVE OPTIMIZATION: Vectorized sum calculation
  */
 export function averageQuality(
   quality: string,
@@ -196,7 +196,7 @@ export function averageQuality(
   const offset = encoding === QualityEncodingConstants.PHRED33 ? 33 : 64;
   let sum = 0;
 
-  // 🔥 ZIG: SIMD horizontal sum
+  // 🔥 NATIVE: SIMD horizontal sum
   for (let i = 0; i < quality.length; i++) {
     sum += quality.charCodeAt(i) - offset;
   }

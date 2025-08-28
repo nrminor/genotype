@@ -15,7 +15,7 @@
 
 /**
  * DNA complement mapping including IUPAC ambiguity codes
- * 🔥 ZIG OPTIMIZATION: Lookup table could be SIMD-accelerated
+ * 🔥 NATIVE OPTIMIZATION: Lookup table could be SIMD-accelerated
  */
 const DNA_COMPLEMENT_MAP: Record<string, string> = {
   A: 'T',
@@ -84,7 +84,7 @@ const RNA_COMPLEMENT_MAP: Record<string, string> = {
  * @param isRNA - Whether to use RNA complement rules (default: false)
  * @returns Complemented sequence
  *
- * 🔥 ZIG CRITICAL: Lookup table with SIMD processing
+ * 🔥 NATIVE CRITICAL: Lookup table with SIMD processing
  */
 export function complement(sequence: string, isRNA: boolean = false): string {
   // Tiger Style: Assert input
@@ -94,7 +94,7 @@ export function complement(sequence: string, isRNA: boolean = false): string {
 
   const complementMap = isRNA ? RNA_COMPLEMENT_MAP : DNA_COMPLEMENT_MAP;
 
-  // 🔥 ZIG: Vectorized lookup table operations
+  // 🔥 NATIVE: Vectorized lookup table operations
   const upper = sequence.toUpperCase();
   const result = new Array(sequence.length);
 
@@ -138,7 +138,7 @@ export function complement(sequence: string, isRNA: boolean = false): string {
  * @param sequence - Sequence to reverse
  * @returns Reversed sequence
  *
- * 🔥 ZIG CRITICAL: Simple array reversal could be SIMD-optimized
+ * 🔥 NATIVE CRITICAL: Simple array reversal could be SIMD-optimized
  */
 export function reverse(sequence: string): string {
   // Tiger Style: Assert input
@@ -146,7 +146,7 @@ export function reverse(sequence: string): string {
     throw new Error('Sequence must be a non-empty string');
   }
 
-  // 🔥 ZIG: Could use SIMD shuffle operations
+  // 🔥 NATIVE: Could use SIMD shuffle operations
   return sequence.split('').reverse().join('');
 }
 
@@ -166,7 +166,7 @@ export function reverse(sequence: string): string {
  * @param isRNA - Whether to use RNA complement rules (default: false)
  * @returns Reverse complemented sequence
  *
- * 🔥 ZIG CRITICAL: Most common operation - prime optimization target
+ * 🔥 NATIVE CRITICAL: Most common operation - prime optimization target
  */
 export function reverseComplement(sequence: string, isRNA: boolean = false): string {
   // Tiger Style: Assert input
@@ -174,7 +174,7 @@ export function reverseComplement(sequence: string, isRNA: boolean = false): str
     throw new Error('Sequence must be a non-empty string');
   }
 
-  // 🔥 ZIG: Could combine both operations in single SIMD pass
+  // 🔥 NATIVE: Could combine both operations in single SIMD pass
   return reverse(complement(sequence, isRNA));
 }
 
@@ -190,7 +190,7 @@ export function reverseComplement(sequence: string, isRNA: boolean = false): str
  * @param sequence - DNA sequence to convert
  * @returns RNA sequence
  *
- * 🔥 ZIG: Simple character replacement - vectorizable
+ * 🔥 NATIVE: Simple character replacement - vectorizable
  */
 export function toRNA(sequence: string): string {
   // Tiger Style: Assert input
@@ -198,7 +198,7 @@ export function toRNA(sequence: string): string {
     throw new Error('Sequence must be a non-empty string');
   }
 
-  // 🔥 ZIG: SIMD search and replace
+  // 🔥 NATIVE: SIMD search and replace
   return sequence.replace(/[Tt]/g, (match) => (match === 'T' ? 'U' : 'u'));
 }
 
@@ -214,7 +214,7 @@ export function toRNA(sequence: string): string {
  * @param sequence - RNA sequence to convert
  * @returns DNA sequence
  *
- * 🔥 ZIG: Simple character replacement - vectorizable
+ * 🔥 NATIVE: Simple character replacement - vectorizable
  */
 export function toDNA(sequence: string): string {
   // Tiger Style: Assert input
@@ -222,7 +222,7 @@ export function toDNA(sequence: string): string {
     throw new Error('Sequence must be a non-empty string');
   }
 
-  // 🔥 ZIG: SIMD search and replace
+  // 🔥 NATIVE: SIMD search and replace
   return sequence.replace(/[Uu]/g, (match) => (match === 'U' ? 'T' : 't'));
 }
 

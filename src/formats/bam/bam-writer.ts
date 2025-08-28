@@ -247,7 +247,7 @@ export class BAMWriter {
         // Stream initialization - controller available for error signaling if needed
         try {
           // Validate BGZF stream is ready
-          if (!bgzfStream || !bgzfStream.writable) {
+          if (bgzfStream === null || bgzfStream === undefined) {
             controller.error(
               new BamError('BGZF compression stream failed to initialize', undefined, 'stream')
             );

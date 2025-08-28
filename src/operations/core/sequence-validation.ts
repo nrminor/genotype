@@ -9,7 +9,7 @@
  * - IUPAC nucleotide ambiguity code support (R, Y, S, W, K, M, B, D, H, V, N)
  * - Multiple validation modes (STRICT, NORMAL, PERMISSIVE)
  * - Sequence cleaning with configurable replacement characters
- * - Optimized for future SIMD implementation in Zig
+ * - Optimized for future SIMD implementation in native code
  * - Zero external dependencies except arktype
  * - Tiger Style compliance with explicit error handling
  *
@@ -283,8 +283,8 @@ export class SequenceValidator {
    * This method performs pattern matching validation using the mode and type
    * configured at construction time.
    *
-   * // ZIG OPTIMIZATION: This method is a prime candidate for SIMD optimization
-   * // using vectorized character validation operations in Zig native implementation
+   * // NATIVE OPTIMIZATION: This method is a prime candidate for SIMD optimization
+   * // using vectorized character validation operations in native implementation
    *
    * @param sequence - The sequence string to validate
    * @returns True if sequence matches the pattern for the configured mode and type
@@ -327,8 +327,8 @@ export class SequenceValidator {
    * match the validation pattern for the configured mode. Invalid characters are
    * replaced with the specified replacement character (default 'N').
    *
-   * // ZIG OPTIMIZATION: Character filtering and replacement operations
-   * // are ideal for SIMD vectorization in Zig native implementation
+   * // NATIVE OPTIMIZATION: Character filtering and replacement operations
+   * // are ideal for SIMD vectorization in native implementation
    *
    * @param sequence - The sequence string to clean
    * @param replaceChar - Character to replace invalid characters with (default: 'N')

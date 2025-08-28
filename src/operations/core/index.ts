@@ -123,6 +123,14 @@ export {
   // Note: SequenceValidator and ValidationMode moved to operations/validate.ts
 } from './sequence-validation';
 
+// Common validation utilities for operations
+export {
+  createOptionsValidator,
+  createSafeOptionsValidator,
+  CommonValidators,
+  createValidationError,
+} from './validation-utils';
+
 // Re-export SequenceValidator and ValidationMode from operations for backward compatibility
 export { SequenceValidator, ValidationMode } from '../validate';
 

@@ -375,7 +375,24 @@ export class FastaParser {
    * @returns Partial sequence object with ID and description
    */
   private parseHeader(headerLine: string, lineNumber: number): Partial<FastaSequence> {
-    // Tiger Style: Assert function arguments
+    this.validateHeaderInputs(headerLine, lineNumber);
+
+    const header = headerLine.slice(1); // Remove '>'
+    if (!header) {
+      if (this.options.skipValidation) {
+        this.options.onWarning('Empty FASTA header', lineNumber);
+      } else {
+        throw new ParseError('Empty FASTA header: header must contain an identifier after ">"', 'FASTA', lineNumber, headerLine);
+      }
+    }
+
+    const { id, description } = this.extractIdAndDescription(header);
+    this.validateSequenceId(id, lineNumber, headerLine);
+
+    return this.buildHeaderResult(id, description, lineNumber);
+  }
+
+  private validateHeaderInputs(headerLine: string, lineNumber: number): void {
     if (typeof headerLine !== 'string') {
       throw new ValidationError('headerLine must be a string');
     }
@@ -385,41 +402,48 @@ export class FastaParser {
     if (!Number.isInteger(lineNumber) || lineNumber <= 0) {
       throw new ValidationError('lineNumber must be positive integer');
     }
-    const header = headerLine.slice(1); // Remove '>'
+  }
 
-    if (!header) {
-      this.options.onWarning('Empty FASTA header', lineNumber);
-    }
-
-    // Split on first whitespace to separate ID from description
+  private extractIdAndDescription(header: string): { id: string; description?: string } {
     const firstSpace = header.search(/\s/);
     const id = firstSpace === -1 ? header : header.slice(0, firstSpace);
     const description = firstSpace === -1 ? undefined : header.slice(firstSpace + 1).trim();
 
-    // Validate ID if not skipping validation
-    if (!this.options.skipValidation && id) {
-      try {
-        const idValidation = SequenceIdSchema(id);
-        if (idValidation instanceof type.errors) {
-          throw new SequenceError(
-            `Invalid sequence ID: ${idValidation.summary}`,
-            id,
-            lineNumber,
-            headerLine
-          );
-        }
-      } catch (error) {
-        // Handle ArkType validation errors gracefully
-        if (error instanceof SequenceError) {
-          throw error;
-        }
-        this.options.onWarning(
-          `Sequence ID validation warning: ${error instanceof Error ? error.message : String(error)}`,
-          lineNumber
+    if (description === undefined) {
+      return { id };
+    }
+    return { id, description };
+  }
+
+  private validateSequenceId(id: string, lineNumber: number, headerLine: string): void {
+    if (this.options.skipValidation || !id) return;
+
+    try {
+      const idValidation = SequenceIdSchema(id);
+      if (idValidation instanceof type.errors) {
+        throw new SequenceError(
+          `Invalid sequence ID: ${idValidation.summary}`,
+          id,
+          lineNumber,
+          headerLine
         );
       }
+    } catch (error) {
+      if (error instanceof SequenceError) {
+        throw error;
+      }
+      this.options.onWarning(
+        `Sequence ID validation warning: ${error instanceof Error ? error.message : String(error)}`,
+        lineNumber
+      );
     }
+  }
 
+  private buildHeaderResult(
+    id: string,
+    description: string | undefined,
+    lineNumber: number
+  ): Partial<FastaSequence> {
     const result = {
       format: 'fasta' as const,
       id,
@@ -511,7 +535,31 @@ export class FastaParser {
     sequenceBuffer: string[],
     lineNumber: number
   ): FastaSequence {
-    // Tiger Style: Assert function arguments
+    this.validateFinalizeInputs(partialSequence, sequenceBuffer, lineNumber);
+
+    const sequence = sequenceBuffer.join('');
+    const length = sequence.length;
+
+    if (length === 0) {
+      throw new SequenceError(
+        'Empty sequence found',
+        this.getSequenceIdOrDefault(partialSequence),
+        lineNumber
+      );
+    }
+
+    const fastaSequence = this.buildFastaSequence(partialSequence, sequence, length);
+    this.validateFinalSequence(fastaSequence, lineNumber);
+    this.assertSequencePostconditions(fastaSequence, lineNumber);
+
+    return fastaSequence;
+  }
+
+  private validateFinalizeInputs(
+    partialSequence: Partial<FastaSequence>,
+    sequenceBuffer: string[],
+    lineNumber: number
+  ): void {
     if (partialSequence === null) {
       throw new ValidationError('partialSequence must not be null');
     }
@@ -521,34 +569,34 @@ export class FastaParser {
     if (sequenceBuffer.length === 0) {
       throw new SequenceError(
         'Empty sequence found',
-        partialSequence.id !== null && partialSequence.id !== undefined && partialSequence.id !== ''
-          ? partialSequence.id
-          : 'unknown',
+        this.getSequenceIdOrDefault(partialSequence),
         lineNumber
       );
     }
     if (!Number.isInteger(lineNumber) || lineNumber <= 0) {
       throw new ValidationError('lineNumber must be positive integer');
     }
-    const sequence = sequenceBuffer.join('');
-    const length = sequence.length;
+  }
 
-    if (length === 0) {
-      throw new SequenceError(
-        'Empty sequence found',
-        partialSequence.id !== null && partialSequence.id !== undefined && partialSequence.id !== ''
-          ? partialSequence.id
-          : 'unknown',
-        lineNumber
-      );
-    }
+  private getSequenceIdOrDefault(partialSequence: Partial<FastaSequence>): string {
+    return partialSequence.id !== null &&
+      partialSequence.id !== undefined &&
+      partialSequence.id !== ''
+      ? partialSequence.id
+      : 'unknown';
+  }
 
-    const fastaSequence: FastaSequence = {
+  private buildFastaSequence(
+    partialSequence: Partial<FastaSequence>,
+    sequence: string,
+    length: number
+  ): FastaSequence {
+    return {
       format: 'fasta',
       id:
-        partialSequence.id !== null && partialSequence.id !== undefined && partialSequence.id !== ''
-          ? partialSequence.id
-          : '',
+        this.getSequenceIdOrDefault(partialSequence) === 'unknown'
+          ? ''
+          : this.getSequenceIdOrDefault(partialSequence),
       ...(partialSequence.description !== null &&
         partialSequence.description !== undefined &&
         partialSequence.description !== '' && {
@@ -562,33 +610,33 @@ export class FastaParser {
           lineNumber: partialSequence.lineNumber,
         }),
     };
+  }
 
-    // Final validation if not skipping
-    if (!this.options.skipValidation) {
-      try {
-        const validation = FastaSequenceSchema(fastaSequence);
-        if (validation instanceof type.errors) {
-          throw new SequenceError(
-            `Invalid FASTA sequence: ${validation.summary}`,
-            fastaSequence.id,
-            lineNumber
-          );
-        }
-      } catch (error) {
-        // Handle ArkType validation errors gracefully
-        if (error instanceof SequenceError) {
-          throw error;
-        }
-        // For other ArkType errors, provide a more user-friendly message
+  private validateFinalSequence(fastaSequence: FastaSequence, lineNumber: number): void {
+    if (this.options.skipValidation) return;
+
+    try {
+      const validation = FastaSequenceSchema(fastaSequence);
+      if (validation instanceof type.errors) {
         throw new SequenceError(
-          `Sequence validation failed: ${error instanceof Error ? error.message : String(error)}`,
+          `Invalid FASTA sequence: ${validation.summary}`,
           fastaSequence.id,
           lineNumber
         );
       }
+    } catch (error) {
+      if (error instanceof SequenceError) {
+        throw error;
+      }
+      throw new SequenceError(
+        `Sequence validation failed: ${error instanceof Error ? error.message : String(error)}`,
+        fastaSequence.id,
+        lineNumber
+      );
     }
+  }
 
-    // Tiger Style: Assert postconditions
+  private assertSequencePostconditions(fastaSequence: FastaSequence, lineNumber: number): void {
     if (fastaSequence.format !== 'fasta') {
       throw new SequenceError('result format must be fasta', fastaSequence.id, lineNumber);
     }
@@ -601,8 +649,6 @@ export class FastaParser {
     if (fastaSequence.length === 0) {
       throw new SequenceError('sequence must not be empty', fastaSequence.id, lineNumber);
     }
-
-    return fastaSequence;
   }
 
   /**

@@ -29,7 +29,7 @@ import { GeneticCodeTable } from './genetic-codes';
  * @param sequence - DNA or RNA sequence
  * @returns GC content as percentage (0-100)
  *
- * 🔥 ZIG: Base counting could use SIMD population count
+ * 🔥 NATIVE: Base counting could use SIMD population count
  */
 export function gcContent(sequence: string): number {
   // Tiger Style: Assert input
@@ -41,7 +41,7 @@ export function gcContent(sequence: string): number {
   let gcCount = 0;
   let totalBases = 0;
 
-  // 🔥 ZIG: SIMD character counting
+  // 🔥 NATIVE: SIMD character counting
   for (let i = 0; i < upper.length; i++) {
     const base = upper[i];
     if (base === 'G' || base === 'C' || base === 'S') {
@@ -81,7 +81,7 @@ export function gcContent(sequence: string): number {
  * @param sequence - DNA or RNA sequence
  * @returns AT content as percentage (0-100)
  *
- * 🔥 ZIG: Base counting could use SIMD population count
+ * 🔥 NATIVE: Base counting could use SIMD population count
  */
 export function atContent(sequence: string): number {
   // Tiger Style: Assert input
@@ -93,7 +93,7 @@ export function atContent(sequence: string): number {
   let atCount = 0;
   let totalBases = 0;
 
-  // 🔥 ZIG: SIMD character counting
+  // 🔥 NATIVE: SIMD character counting
   for (let i = 0; i < upper.length; i++) {
     const base = upper[i];
     if (base === 'A' || base === 'T' || base === 'U' || base === 'W') {
@@ -133,7 +133,7 @@ export function atContent(sequence: string): number {
  * @param sequence - DNA or RNA sequence
  * @returns Object with base counts
  *
- * 🔥 ZIG: Character histogram - perfect for SIMD
+ * 🔥 NATIVE: Character histogram - perfect for SIMD
  */
 export function baseComposition(sequence: string): Record<string, number> {
   // Tiger Style: Assert input
@@ -143,7 +143,7 @@ export function baseComposition(sequence: string): Record<string, number> {
 
   const composition: Record<string, number> = {};
 
-  // 🔥 ZIG: SIMD histogram calculation
+  // 🔥 NATIVE: SIMD histogram calculation
   for (let i = 0; i < sequence.length; i++) {
     const base = sequence[i]?.toUpperCase();
     if (base !== undefined && base !== null && base !== '' && /[A-Z\-.*]/.test(base)) {
@@ -173,7 +173,7 @@ export function baseComposition(sequence: string): Record<string, number> {
  * @param geneticCodeId - Genetic code ID to use (default: 1 for standard)
  * @returns Array of protein sequences for each reading frame
  *
- * 🔥 ZIG: Codon lookup could be optimized with perfect hashing
+ * 🔥 NATIVE: Codon lookup could be optimized with perfect hashing
  */
 export function translateSimple(sequence: string, geneticCodeId: number = 1): string[] {
   // Tiger Style: Assert input
@@ -194,13 +194,13 @@ export function translateSimple(sequence: string, geneticCodeId: number = 1): st
   for (let frame = 0; frame < 3; frame++) {
     let protein = '';
 
-    // 🔥 ZIG: Vectorized codon extraction and lookup
+    // 🔥 NATIVE: Vectorized codon extraction and lookup
     for (let i = frame; i + 2 < upper.length; i += 3) {
       const codon = upper.substring(i, i + 3);
 
       // Skip incomplete or ambiguous codons
       if (codon.length === 3 && /^[ACGT]{3}$/.test(codon)) {
-        const aa = table[codon] || 'X';
+        const aa = table[codon] !== undefined ? table[codon] : 'X';
         protein += aa;
 
         // Stop at stop codon

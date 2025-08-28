@@ -9,9 +9,82 @@
  * @since v0.1.0
  */
 
+import { type } from 'arktype';
 import type { AbstractSequence, MotifLocation } from '../types';
 import { LocateError, createContextualError } from '../errors';
 import type { LocateOptions } from './types';
+import { createOptionsValidator } from './core/validation-utils';
+
+/**
+ * Schema for validating LocateOptions using ArkType
+ */
+const LocateOptionsSchema = type({
+  pattern: 'string | RegExp',
+  'ignoreCase?': 'boolean',
+  'allowMismatches?': 'number>=0',
+  'searchBothStrands?': 'boolean',
+  'outputFormat?': "'default' | 'bed' | 'custom'",
+  'allowOverlaps?': 'boolean',
+  'minLength?': 'number>=1',
+  'maxMatches?': 'number>=1',
+});
+
+/**
+ * Common validation function for locate options using the new pattern
+ */
+const validateLocateOptions = createOptionsValidator<LocateOptions>(LocateOptionsSchema, [
+  // Pattern validation
+  (options: LocateOptions) => {
+    if (options.pattern === undefined || options.pattern === null || options.pattern === '') {
+      throw createContextualError(LocateError, 'Pattern is required for locate operation', {
+        context: 'Provide a pattern string or RegExp',
+        data: { providedOptions: Object.keys(options) },
+      });
+    }
+  },
+  // Mismatch validation
+  (options: LocateOptions) => {
+    if (options.allowMismatches !== undefined) {
+      if (options.allowMismatches < 0) {
+        throw createContextualError(LocateError, 'allowMismatches must be non-negative', {
+          context: 'Mismatch count cannot be negative',
+          data: { provided: options.allowMismatches },
+        });
+      }
+
+      if (options.pattern instanceof RegExp && options.allowMismatches > 0) {
+        throw createContextualError(
+          LocateError,
+          'allowMismatches not supported for regex patterns',
+          {
+            context: 'Use string patterns for fuzzy matching',
+            data: { patternType: 'RegExp' },
+          }
+        );
+      }
+    }
+
+    if (options.maxMatches !== undefined && options.maxMatches < 1) {
+      throw createContextualError(LocateError, 'maxMatches must be positive', {
+        context: 'Specify a positive number for maximum matches',
+        data: { provided: options.maxMatches },
+      });
+    }
+  },
+  // Output format validation
+  (options: LocateOptions) => {
+    if (options.minLength !== undefined && options.minLength < 1) {
+      throw createContextualError(LocateError, 'minLength must be positive', {
+        context: 'Minimum match length must be at least 1',
+        data: { provided: options.minLength },
+      });
+    }
+
+    if (options.outputFormat === 'custom') {
+      // Could add custom format validation here if needed
+    }
+  },
+]);
 
 /**
  * Processor for motif location operations
@@ -45,8 +118,8 @@ export class LocateProcessor {
     source: AsyncIterable<AbstractSequence>,
     options: LocateOptions
   ): AsyncIterable<MotifLocation> {
-    // Validate options before processing
-    this.validateOptions(options);
+    // Validate options before processing using common validation pattern
+    validateLocateOptions(options);
 
     let totalYielded = 0;
 
@@ -181,7 +254,7 @@ export class LocateProcessor {
     const maxMismatches = options.allowMismatches ?? 0;
     const minLength = options.minLength ?? pattern.length;
 
-    // ZIG_CRITICAL: Hot loop - sliding window pattern matching across entire sequence
+    // NATIVE_CRITICAL: Hot loop - sliding window pattern matching across entire sequence
     // Perfect candidate for SIMD string comparison and Boyer-Moore optimization
     for (let i = 0; i <= searchSequence.length - minLength; i++) {
       const window = searchSequence.substring(i, i + pattern.length);
@@ -190,7 +263,7 @@ export class LocateProcessor {
         continue;
       }
 
-      // ZIG_CRITICAL: Character-by-character comparison in tight loop
+      // NATIVE_CRITICAL: Character-by-character comparison in tight loop
       const mismatches = this.countMismatches(window, pattern);
 
       if (mismatches <= maxMismatches) {
@@ -343,78 +416,5 @@ export class LocateProcessor {
    */
   private locationsOverlap(loc1: MotifLocation, loc2: MotifLocation): boolean {
     return !(loc1.end <= loc2.start || loc2.end <= loc1.start);
-  }
-
-  /**
-   * Validate locate options
-   */
-  private validateOptions(options: LocateOptions): void {
-    this.validatePattern(options);
-    this.validateMismatchOptions(options);
-    this.validateOutputOptions(options);
-  }
-
-  /**
-   * Validate pattern requirement
-   */
-  private validatePattern(options: LocateOptions): void {
-    if (options.pattern === undefined || options.pattern === null || options.pattern === '') {
-      throw createContextualError(LocateError, 'Pattern is required for locate operation', {
-        context: 'Provide a pattern string or RegExp',
-        data: { providedOptions: Object.keys(options) },
-      });
-    }
-  }
-
-  /**
-   * Validate mismatch-related options
-   */
-  private validateMismatchOptions(options: LocateOptions): void {
-    if (options.allowMismatches !== undefined) {
-      if (options.allowMismatches < 0) {
-        throw createContextualError(LocateError, 'allowMismatches must be non-negative', {
-          context: 'Mismatch count cannot be negative',
-          data: { provided: options.allowMismatches },
-        });
-      }
-
-      if (options.pattern instanceof RegExp && options.allowMismatches > 0) {
-        throw createContextualError(
-          LocateError,
-          'allowMismatches not supported for regex patterns',
-          {
-            context: 'Use string patterns for fuzzy matching',
-            data: { patternType: 'RegExp' },
-          }
-        );
-      }
-    }
-
-    if (options.maxMatches !== undefined && options.maxMatches < 1) {
-      throw createContextualError(LocateError, 'maxMatches must be positive', {
-        context: 'Specify a positive number for maximum matches',
-        data: { provided: options.maxMatches },
-      });
-    }
-
-    if (options.minLength !== undefined && options.minLength < 1) {
-      throw createContextualError(LocateError, 'minLength must be positive', {
-        context: 'Minimum match length must be at least 1',
-        data: { provided: options.minLength },
-      });
-    }
-  }
-
-  /**
-   * Validate output-related options
-   */
-  private validateOutputOptions(options: LocateOptions): void {
-    const validFormats = ['default', 'bed', 'custom'];
-    if (options.outputFormat && !validFormats.includes(options.outputFormat)) {
-      throw createContextualError(LocateError, `Invalid output format: ${options.outputFormat}`, {
-        context: `Valid formats: ${validFormats.join(', ')}`,
-        data: { providedFormat: options.outputFormat },
-      });
-    }
   }
 }

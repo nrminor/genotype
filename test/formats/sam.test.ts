@@ -289,7 +289,7 @@ describe('SAMParser', () => {
       const flags = [0, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2047];
 
       for (const flag of flags) {
-        const sam = `read1\t${flag}\tchr1\t1000\t60\t76M\t*\t0\t0\tACGT\tIIII`;
+        const sam = `read1\t${flag}\tchr1\t1000\t60\t4M\t*\t0\t0\tACGT\tIIII`;
         const records = [];
 
         for await (const record of parser.parseString(sam)) {

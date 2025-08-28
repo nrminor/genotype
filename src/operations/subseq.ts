@@ -16,11 +16,13 @@
  * @since v0.1.0
  */
 
+import { type } from 'arktype';
 import type { AbstractSequence, FastqSequence, BedInterval } from '../types';
 import { SequenceError } from '../errors';
 import { reverseComplement } from './core/sequence-manipulation';
 import { BedParser } from '../formats/bed';
 import { GtfParser, type GtfFeature } from '../formats/gtf';
+import { createOptionsValidator } from './core/validation-utils';
 
 // =============================================================================
 // TYPES AND INTERFACES
@@ -91,6 +93,104 @@ export interface SubseqOptions {
   /** Concatenate multiple regions */
   concatenate?: boolean;
 }
+
+/**
+ * Schema for validating SubseqOptions using ArkType
+ */
+const SubseqOptionsSchema = type({
+  // Region specification
+  'region?': 'string',
+  'regions?': 'string[]',
+  'start?': 'number',
+  'end?': 'number',
+
+  // File-based regions
+  'bedFile?': 'string',
+  'bedRegions?': 'object[]',
+  'gtfFile?': 'string',
+  'gtfFeatures?': 'object[]',
+  'featureType?': 'string',
+
+  // ID-based filtering
+  'idPattern?': 'RegExp',
+  'idList?': 'string[]',
+
+  // Flanking sequences
+  'upstream?': 'number>=0',
+  'downstream?': 'number>=0',
+  'onlyFlank?': 'boolean',
+
+  // Coordinate system
+  'oneBased?': 'boolean',
+
+  // Strand handling
+  'strand?': "'+' | '-' | 'both'",
+  'reverseComplementMinus?': 'boolean',
+
+  // Circular sequences
+  'circular?': 'boolean',
+
+  // Output options
+  'includeCoordinates?': 'boolean',
+  'coordinateSeparator?': 'string',
+  'concatenate?': 'boolean',
+});
+
+/**
+ * Common validation function for subseq options using the new pattern
+ */
+const validateSubseqOptions = createOptionsValidator<SubseqOptions>(SubseqOptionsSchema, [
+  // Upstream/downstream validation
+  (options: SubseqOptions) => {
+    if (options.upstream !== undefined && options.upstream < 0) {
+      throw new Error('Upstream value must be non-negative');
+    }
+    if (options.downstream !== undefined && options.downstream < 0) {
+      throw new Error('Downstream value must be non-negative');
+    }
+    if (
+      options.onlyFlank === true &&
+      options.upstream === undefined &&
+      options.downstream === undefined
+    ) {
+      throw new Error('onlyFlank requires upstream or downstream to be specified');
+    }
+  },
+  // Mutually exclusive region specifications validator
+  (options: SubseqOptions) => {
+    const regionSpecs = [
+      options.region !== undefined,
+      options.regions !== undefined,
+      options.start !== undefined || options.end !== undefined,
+      options.bedFile !== undefined,
+      options.bedRegions !== undefined,
+      options.gtfFile !== undefined,
+      options.gtfFeatures !== undefined,
+      options.idList !== undefined,
+      // Note: idPattern is a sequence filter, not a region specification, so it's excluded here
+    ].filter(Boolean);
+
+    if (regionSpecs.length > 1) {
+      throw new Error(
+        'Only one region specification method allowed: region, regions, start/end, bedFile, bedRegions, gtfFile, gtfFeatures, or idList'
+      );
+    }
+
+    // Allow idPattern alone as a valid extraction method (extracts entire matching sequences)
+    const hasIdPatternOnly = options.idPattern !== undefined && regionSpecs.length === 0;
+    if (regionSpecs.length === 0 && !hasIdPatternOnly) {
+      throw new Error('At least one region specification is required');
+    }
+  },
+  // Start/end coordinate validation
+  (options: SubseqOptions) => {
+    if (options.start !== undefined && options.end !== undefined) {
+      if (options.start >= options.end) {
+        throw new Error('Start position must be less than end position');
+      }
+    }
+  },
+]);
 
 /**
  * Parsed region specification
@@ -179,7 +279,7 @@ export class SubseqExtractor {
     sequences: AsyncIterable<T>,
     options: SubseqOptions
   ): AsyncIterable<T> {
-    this.validateOptions(options);
+    validateSubseqOptions(options);
 
     try {
       for await (const sequence of sequences) {
@@ -364,7 +464,7 @@ export class SubseqExtractor {
    * // Returns: { start: 99, end: 200, original: "100:200", hasNegativeIndices: false }
    * ```
    *
-   * @optimize ZIG_CANDIDATE - STRING PARSING WITH BOUNDS CHECKING
+   * @optimize NATIVE_CANDIDATE - STRING PARSING WITH BOUNDS CHECKING
    * - Lots of string operations and integer parsing
    * - Boundary checking and coordinate conversion
    * - Could be optimized with pre-compiled regex or state machine
@@ -442,7 +542,7 @@ export class SubseqExtractor {
     startStr: string,
     sequenceLength: number,
     oneBased: boolean,
-    hasNegativeIndices: boolean
+    _hasNegativeIndices: boolean
   ): { value: number; hasNegative: boolean } {
     if (startStr.length === 0 || startStr === '') {
       return { value: 0, hasNegative: false };
@@ -474,8 +574,8 @@ export class SubseqExtractor {
   private parseEndPosition(
     endStr: string,
     sequenceLength: number,
-    oneBased: boolean,
-    hasNegativeIndices: boolean
+    _oneBased: boolean,
+    _hasNegativeIndices: boolean
   ): { value: number; hasNegative: boolean } {
     if (endStr.length === 0 || endStr === '' || endStr === '-1') {
       return { value: sequenceLength, hasNegative: false };
@@ -533,47 +633,6 @@ export class SubseqExtractor {
   // =============================================================================
 
   /**
-   * Validate extraction options
-   * @private
-   */
-  private validateOptions(options: SubseqOptions): void {
-    if (options.upstream !== undefined && options.upstream < 0) {
-      throw new Error('Upstream value must be non-negative');
-    }
-
-    if (options.downstream !== undefined && options.downstream < 0) {
-      throw new Error('Downstream value must be non-negative');
-    }
-
-    if (
-      options.onlyFlank === true &&
-      options.upstream === undefined &&
-      options.downstream === undefined
-    ) {
-      throw new Error('onlyFlank requires upstream or downstream to be specified');
-    }
-
-    // Validate mutually exclusive region specifications
-    const regionSpecs = [
-      options.region !== undefined,
-      options.bedRegions !== undefined,
-      options.bedFile !== undefined,
-      options.gtfFeatures !== undefined,
-      options.gtfFile !== undefined,
-    ].filter(Boolean).length;
-
-    if (regionSpecs > 1) {
-      throw new Error(
-        'Cannot specify multiple region sources (region, bedRegions, bedFile, gtfFeatures, gtfFile)'
-      );
-    }
-
-    if (options.start !== undefined && options.end !== undefined && options.start > options.end) {
-      throw new Error('Start position must be less than end position');
-    }
-  }
-
-  /**
    * Check if sequence ID matches filter criteria
    * @private
    */
@@ -601,7 +660,7 @@ export class SubseqExtractor {
    * Extract a specific region from a sequence
    * @private
    *
-   * @optimize ZIG_CANDIDATE - SUBSTRING OPERATIONS
+   * @optimize NATIVE_CANDIDATE - SUBSTRING OPERATIONS
    * - Multiple string allocations for substring extraction
    * - Memory copy operations that could be optimized
    * - Boundary checking overhead

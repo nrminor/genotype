@@ -51,7 +51,7 @@ describe('CompressionDetector', () => {
     });
 
     test('should throw error for non-string path', () => {
-      expect(() => CompressionDetector.fromExtension(null as any)).toThrow();
+      expect(() => CompressionDetector.fromExtension(null as unknown as string)).toThrow();
     });
   });
 
@@ -98,7 +98,9 @@ describe('CompressionDetector', () => {
     });
 
     test('should throw error for non-Uint8Array', () => {
-      expect(() => CompressionDetector.fromMagicBytes([0x1f, 0x8b] as any)).toThrow();
+      expect(() =>
+        CompressionDetector.fromMagicBytes([0x1f, 0x8b] as unknown as Uint8Array)
+      ).toThrow();
     });
   });
 
@@ -144,7 +146,9 @@ describe('CompressionDetector', () => {
     });
 
     test('should throw error for non-ReadableStream', async () => {
-      await expect(CompressionDetector.fromStream(null as any)).rejects.toThrow();
+      await expect(
+        CompressionDetector.fromStream(null as unknown as ReadableStream)
+      ).rejects.toThrow();
     });
   });
 

@@ -13,10 +13,54 @@
  * @since v0.1.0
  */
 
+import { type } from 'arktype';
 import type { AbstractSequence } from '../types';
 import { SequenceDeduplicator, ExactDeduplicator } from './core/sequence-deduplicator';
 import type { DeduplicationStrategy } from './core/sequence-deduplicator';
 import type { RmdupOptions } from './types';
+import { createOptionsValidator } from './core/validation-utils';
+
+/**
+ * Schema for validating RmdupOptions using ArkType
+ */
+const RmdupOptionsSchema = type({
+  by: 'string', // Let custom validator handle valid values
+  'caseSensitive?': 'boolean',
+  'exact?': 'boolean',
+  'expectedUnique?': 'number', // Let custom validator handle positive constraint
+  'falsePositiveRate?': 'number', // Let custom validator handle range constraint
+});
+
+/**
+ * Common validation function for rmdup options using the new pattern
+ */
+const validateRmdupOptions = createOptionsValidator<RmdupOptions>(RmdupOptionsSchema, [
+  // Strategy validation
+  (options: RmdupOptions) => {
+    const validStrategies = ['sequence', 'id', 'both'];
+    if (!validStrategies.includes(options.by)) {
+      throw new Error(
+        `Invalid deduplication strategy: ${options.by}. Valid options: ${validStrategies.join(', ')}`
+      );
+    }
+  },
+  // Expected unique validation
+  (options: RmdupOptions) => {
+    if (options.expectedUnique !== undefined && options.expectedUnique <= 0) {
+      throw new Error(`Expected unique count must be positive, got: ${options.expectedUnique}`);
+    }
+  },
+  // False positive rate validation
+  (options: RmdupOptions) => {
+    if (options.falsePositiveRate !== undefined) {
+      if (options.falsePositiveRate <= 0 || options.falsePositiveRate > 0.1) {
+        throw new Error(
+          `False positive rate must be between 0 and 0.1, got: ${options.falsePositiveRate}`
+        );
+      }
+    }
+  },
+]);
 
 /**
  * Processor for high-performance sequence deduplication
@@ -49,7 +93,7 @@ export class RmdupProcessor {
     source: AsyncIterable<AbstractSequence>,
     options: RmdupOptions
   ): AsyncIterable<AbstractSequence> {
-    this.validateOptions(options);
+    validateRmdupOptions(options);
 
     const deduplicationStrategy = this.mapStrategy(options.by);
     const caseSensitive = options.caseSensitive ?? true;
@@ -64,7 +108,7 @@ export class RmdupProcessor {
   /**
    * Exact deduplication using Set-based approach
    *
-   * ZIG_BENEFICIAL: Hash set operations and string hashing could be
+   * NATIVE_BENEFICIAL: Hash set operations and string hashing could be
    * optimized with native implementation for better performance on
    * large genomic datasets.
    */
@@ -82,7 +126,7 @@ export class RmdupProcessor {
   /**
    * Bloom filter-based deduplication for large datasets
    *
-   * ZIG_CRITICAL: Bloom filter operations (hash computation, bit array access)
+   * NATIVE_CRITICAL: Bloom filter operations (hash computation, bit array access)
    * are core bottlenecks for large genomic datasets. Native implementation
    * could provide dramatic performance improvements through:
    * - SIMD-optimized hashing (xxhash or similar)
@@ -123,30 +167,6 @@ export class RmdupProcessor {
         return 'both';
       default:
         throw new Error(`Invalid deduplication criterion: ${by}`);
-    }
-  }
-
-  /**
-   * Validate rmdup options
-   */
-  private validateOptions(options: RmdupOptions): void {
-    const validStrategies = ['sequence', 'id', 'both'];
-    if (!validStrategies.includes(options.by)) {
-      throw new Error(
-        `Invalid deduplication strategy: ${options.by}. Valid options: ${validStrategies.join(', ')}`
-      );
-    }
-
-    if (options.expectedUnique !== undefined && options.expectedUnique <= 0) {
-      throw new Error(`Expected unique count must be positive, got: ${options.expectedUnique}`);
-    }
-
-    if (options.falsePositiveRate !== undefined) {
-      if (options.falsePositiveRate <= 0 || options.falsePositiveRate > 0.1) {
-        throw new Error(
-          `False positive rate must be between 0 and 0.1, got: ${options.falsePositiveRate}`
-        );
-      }
     }
   }
 }

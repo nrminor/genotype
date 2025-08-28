@@ -158,126 +158,137 @@ async function createBaseStream(
   runtime: Runtime
 ): Promise<ReadableStream<Uint8Array>> {
   switch (runtime) {
-    case 'node': {
-      const { fs } = getRuntimeGlobals('node') as { fs: any };
-      if (fs === undefined || fs === null)
-        throw new CompatibilityError('Node.js fs module not available', 'node', 'filesystem');
-
-      const nodeStream = fs.createReadStream(validatedPath, {
-        highWaterMark: mergedOptions.bufferSize,
-      });
-
-      return new ReadableStream({
-        start(controller): void {
-          nodeStream.on('data', (chunk: Buffer) => {
-            controller.enqueue(new Uint8Array(chunk));
-          });
-
-          nodeStream.on('end', () => {
-            controller.close();
-          });
-
-          nodeStream.on('error', (error: Error) => {
-            controller.error(FileError.fromSystemError('read', validatedPath, error));
-          });
-
-          // Handle abort signal
-          if (mergedOptions.signal !== undefined && mergedOptions.signal !== null) {
-            mergedOptions.signal.addEventListener('abort', () => {
-              nodeStream.destroy();
-              controller.error(new Error('Read operation aborted'));
-            });
-          }
-        },
-      });
-    }
-
-    case 'deno': {
-      const { Deno } = getRuntimeGlobals('deno') as { Deno: any };
-      if (Deno === undefined || Deno === null)
-        throw new CompatibilityError('Deno global not available', 'deno', 'filesystem');
-
-      const file = await Deno.open(validatedPath, { read: true });
-
-      return new ReadableStream({
-        async start(controller): Promise<void> {
-          try {
-            const buffer = new Uint8Array(mergedOptions.bufferSize);
-
-            while (true) {
-              const bytesRead = await file.read(buffer);
-              if (bytesRead === null) break;
-
-              controller.enqueue(buffer.slice(0, bytesRead));
-
-              // Check for abort
-              if (mergedOptions.signal?.aborted) {
-                throw new Error('Read operation aborted');
-              }
-            }
-
-            controller.close();
-          } catch (error) {
-            controller.error(FileError.fromSystemError('read', validatedPath, error));
-          } finally {
-            file.close();
-          }
-        },
-      });
-    }
-
-    case 'bun': {
-      const { Bun } = getRuntimeGlobals('bun') as { Bun: any };
-      if (Bun === undefined || Bun === null || Bun.file === undefined || Bun.file === null)
-        throw new CompatibilityError('Bun.file not available', 'bun', 'filesystem');
-
-      const file = Bun.file(validatedPath);
-
-      // Use Bun's optimized streaming with custom buffer size
-      // Bun.file().stream() is highly optimized for large files
-      const stream = file.stream();
-
-      // Wrap Bun's native stream with enhanced error handling and progress tracking
-      return new ReadableStream({
-        async start(controller): Promise<void> {
-          try {
-            const reader = stream.getReader();
-            let totalBytesRead = 0;
-
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done === true) break;
-
-              totalBytesRead += value.length;
-              controller.enqueue(value);
-
-              // Progress callback for Bun (more efficient than other runtimes)
-              if (mergedOptions.onProgress !== undefined && mergedOptions.onProgress !== null) {
-                mergedOptions.onProgress(totalBytesRead, file.size);
-              }
-
-              // Check for abort signal
-              if (
-                mergedOptions.signal !== undefined &&
-                mergedOptions.signal !== null &&
-                mergedOptions.signal.aborted === true
-              ) {
-                reader.releaseLock();
-                throw new Error('Read operation aborted');
-              }
-            }
-
-            controller.close();
-          } catch (error) {
-            controller.error(FileError.fromSystemError('read', validatedPath, error));
-          }
-        },
-      });
-    }
-
+    case 'node':
+      return createNodeStream(validatedPath, mergedOptions);
+    case 'deno':
+      return createDenoStream(validatedPath, mergedOptions);
+    case 'bun':
+      return createBunStream(validatedPath, mergedOptions);
     default:
       throw new CompatibilityError(`Unsupported runtime: ${runtime}`, runtime, 'filesystem');
   }
+}
+
+function createNodeStream(
+  validatedPath: FilePath,
+  mergedOptions: Required<FileReaderOptions>
+): ReadableStream<Uint8Array> {
+  const { fs } = getRuntimeGlobals('node') as { fs: any };
+  if (fs === undefined || fs === null)
+    throw new CompatibilityError('Node.js fs module not available', 'node', 'filesystem');
+
+  const nodeStream = fs.createReadStream(validatedPath, {
+    highWaterMark: mergedOptions.bufferSize,
+  });
+
+  return new ReadableStream({
+    start(controller): void {
+      nodeStream.on('data', (chunk: Buffer) => {
+        controller.enqueue(new Uint8Array(chunk));
+      });
+
+      nodeStream.on('end', () => {
+        controller.close();
+      });
+
+      nodeStream.on('error', (error: Error) => {
+        controller.error(FileError.fromSystemError('read', validatedPath, error));
+      });
+
+      // Handle abort signal
+      if (mergedOptions.signal !== undefined && mergedOptions.signal !== null) {
+        mergedOptions.signal.addEventListener('abort', () => {
+          nodeStream.destroy();
+          controller.error(new Error('Read operation aborted'));
+        });
+      }
+    },
+  });
+}
+
+async function createDenoStream(
+  validatedPath: FilePath,
+  mergedOptions: Required<FileReaderOptions>
+): Promise<ReadableStream<Uint8Array>> {
+  const { Deno } = getRuntimeGlobals('deno') as { Deno: any };
+  if (Deno === undefined || Deno === null)
+    throw new CompatibilityError('Deno global not available', 'deno', 'filesystem');
+
+  const file = await Deno.open(validatedPath, { read: true });
+
+  return new ReadableStream({
+    async start(controller): Promise<void> {
+      try {
+        const buffer = new Uint8Array(mergedOptions.bufferSize);
+
+        while (true) {
+          const bytesRead = await file.read(buffer);
+          if (bytesRead === null) break;
+
+          controller.enqueue(buffer.slice(0, bytesRead));
+
+          // Check for abort
+          if (mergedOptions.signal?.aborted) {
+            throw new Error('Read operation aborted');
+          }
+        }
+
+        controller.close();
+      } catch (error) {
+        controller.error(FileError.fromSystemError('read', validatedPath, error));
+      } finally {
+        file.close();
+      }
+    },
+  });
+}
+
+function createBunStream(
+  validatedPath: FilePath,
+  mergedOptions: Required<FileReaderOptions>
+): ReadableStream<Uint8Array> {
+  const { Bun } = getRuntimeGlobals('bun') as { Bun: any };
+  if (Bun === undefined || Bun === null || Bun.file === undefined || Bun.file === null)
+    throw new CompatibilityError('Bun.file not available', 'bun', 'filesystem');
+
+  const file = Bun.file(validatedPath);
+  const stream = file.stream();
+
+  return new ReadableStream({
+    async start(controller): Promise<void> {
+      try {
+        const reader = stream.getReader();
+        let totalBytesRead = 0;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done === true) break;
+
+          totalBytesRead += value.length;
+          controller.enqueue(value);
+
+          // Progress callback for Bun (more efficient than other runtimes)
+          if (mergedOptions.onProgress !== undefined && mergedOptions.onProgress !== null) {
+            mergedOptions.onProgress(totalBytesRead, file.size);
+          }
+
+          // Check for abort signal
+          if (
+            mergedOptions.signal !== undefined &&
+            mergedOptions.signal !== null &&
+            mergedOptions.signal.aborted === true
+          ) {
+            reader.releaseLock();
+            throw new Error('Read operation aborted');
+          }
+        }
+
+        controller.close();
+      } catch (error) {
+        controller.error(FileError.fromSystemError('read', validatedPath, error));
+      }
+    },
+  });
 }
 
 /**
@@ -637,7 +648,26 @@ export async function createStream(
  * @throws {FileError} If file cannot be read or is too large
  */
 export async function readToString(path: string, options: FileReaderOptions = {}): Promise<string> {
-  // Tiger Style: Assert function arguments
+  validateReadToStringArgs(path, options);
+
+  const validatedPath = validatePath(path);
+  const runtime = detectRuntime();
+  const mergedOptions = mergeOptions(options, runtime);
+  const fileSize = await validateFileSize(validatedPath, mergedOptions);
+
+  // Try Bun optimization first
+  const bunResult = await tryBunOptimizedRead(runtime, validatedPath, mergedOptions);
+  if (bunResult !== null) {
+    return bunResult;
+  }
+
+  // Fallback to streaming approach
+  const result = await readViaStream(validatedPath, mergedOptions, fileSize);
+  validateReadResult(result, validatedPath, fileSize);
+  return result;
+}
+
+function validateReadToStringArgs(path: string, options: FileReaderOptions): void {
   if (typeof path !== 'string') {
     throw new FileError('path must be a string', path, 'read');
   }
@@ -647,12 +677,12 @@ export async function readToString(path: string, options: FileReaderOptions = {}
   if (typeof options !== 'object') {
     throw new FileError('options must be an object', path, 'read');
   }
+}
 
-  const validatedPath = validatePath(path);
-  const runtime = detectRuntime();
-  const mergedOptions = mergeOptions(options, runtime);
-
-  // Check file size before reading
+async function validateFileSize(
+  validatedPath: FilePath,
+  mergedOptions: Required<FileReaderOptions>
+): Promise<number> {
   const fileSize = await getSize(validatedPath);
   if (fileSize > mergedOptions.maxFileSize) {
     throw new FileError(
@@ -661,94 +691,119 @@ export async function readToString(path: string, options: FileReaderOptions = {}
       'read'
     );
   }
+  return fileSize;
+}
 
-  // Bun optimization: Use native text() method for better performance
-  if (
+async function tryBunOptimizedRead(
+  runtime: Runtime,
+  validatedPath: FilePath,
+  mergedOptions: Required<FileReaderOptions>
+): Promise<string | null> {
+  const canUseBunOptimization =
     runtime === 'bun' &&
     mergedOptions.encoding === 'utf8' &&
     (mergedOptions.signal === undefined || mergedOptions.signal === null) &&
-    (mergedOptions.onProgress === undefined || mergedOptions.onProgress === null)
-  ) {
-    try {
-      const { Bun } = getRuntimeGlobals('bun') as { Bun: any };
-      if (Bun !== undefined && Bun !== null && Bun.file !== undefined && Bun.file !== null) {
-        const file = Bun.file(validatedPath);
-        const result = await file.text();
+    (mergedOptions.onProgress === undefined || mergedOptions.onProgress === null);
 
-        // Tiger Style: Assert postconditions
-        if (typeof result !== 'string') {
-          throw new FileError('result must be a string', validatedPath, 'read');
-        }
-        return result;
-      }
-    } catch (error) {
-      // Fall back to streaming approach if Bun optimization fails
-      throw FileError.fromSystemError('read', validatedPath, error);
-    }
+  if (!canUseBunOptimization) {
+    return null;
   }
 
-  // Fallback to streaming approach for other runtimes or when options require it
+  try {
+    const { Bun } = getRuntimeGlobals('bun') as { Bun: any };
+    if (Bun !== undefined && Bun !== null && Bun.file !== undefined && Bun.file !== null) {
+      const file = Bun.file(validatedPath);
+      const result = await file.text();
+
+      if (typeof result !== 'string') {
+        throw new FileError('result must be a string', validatedPath, 'read');
+      }
+      return result;
+    }
+  } catch (error) {
+    throw FileError.fromSystemError('read', validatedPath, error);
+  }
+
+  return null;
+}
+
+async function readViaStream(
+  validatedPath: FilePath,
+  mergedOptions: Required<FileReaderOptions>,
+  fileSize: number
+): Promise<string> {
   const stream = await createStream(validatedPath, mergedOptions);
   const reader = stream.getReader();
 
-  // Handle binary encoding by reading as bytes instead of text
   if (mergedOptions.encoding === 'binary') {
-    const chunks: Uint8Array[] = [];
-    let totalLength = 0;
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        chunks.push(value);
-        totalLength += value.length;
-
-        // Progress callback
-        if (mergedOptions.onProgress !== undefined && mergedOptions.onProgress !== null) {
-          mergedOptions.onProgress(totalLength, fileSize);
-        }
-      }
-
-      // Combine chunks and convert to Latin-1 string for binary compatibility
-      const combined = new Uint8Array(totalLength);
-      let offset = 0;
-      for (const chunk of chunks) {
-        combined.set(chunk, offset);
-        offset += chunk.length;
-      }
-
-      const result = Array.from(combined, (byte) => String.fromCharCode(byte)).join('');
-      return result;
-    } finally {
-      reader.releaseLock();
-    }
+    return readBinaryStream(reader, mergedOptions, fileSize);
   }
 
-  // Standard text decoding (TextDecoder doesn't support 'ascii', use 'utf-8' for both)
+  return readTextStream(reader, mergedOptions, fileSize);
+}
+
+async function readBinaryStream(
+  reader: any,
+  mergedOptions: Required<FileReaderOptions>,
+  fileSize: number
+): Promise<string> {
+  const chunks: Uint8Array[] = [];
+  let totalLength = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done === true) break;
+
+      chunks.push(value);
+      totalLength += value.length;
+
+      if (mergedOptions.onProgress !== undefined && mergedOptions.onProgress !== null) {
+        mergedOptions.onProgress(totalLength, fileSize);
+      }
+    }
+
+    const combined = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const chunk of chunks) {
+      combined.set(chunk, offset);
+      offset += chunk.length;
+    }
+
+    return Array.from(combined, (byte) => String.fromCharCode(byte)).join('');
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+async function readTextStream(
+  reader: any,
+  mergedOptions: Required<FileReaderOptions>,
+  fileSize: number
+): Promise<string> {
   const decoder = new TextDecoder('utf-8');
   let result = '';
 
   try {
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done === true) break;
 
       result += decoder.decode(value, { stream: true });
 
-      // Progress callback
       if (mergedOptions.onProgress !== undefined && mergedOptions.onProgress !== null) {
         mergedOptions.onProgress(result.length, fileSize);
       }
     }
 
-    // Final decode call
     result += decoder.decode();
+    return result;
   } finally {
     reader.releaseLock();
   }
+}
 
-  // Tiger Style: Assert postconditions
+function validateReadResult(result: string, validatedPath: FilePath, fileSize: number): void {
   if (typeof result !== 'string') {
     throw new FileError('result must be a string', validatedPath, 'read');
   }
@@ -759,8 +814,6 @@ export async function readToString(path: string, options: FileReaderOptions = {}
       'read'
     );
   }
-
-  return result;
 }
 
 // Backward compatibility namespace export

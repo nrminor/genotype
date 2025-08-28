@@ -37,7 +37,7 @@ export class CleanProcessor implements Processor<CleanOptions> {
     source: AsyncIterable<AbstractSequence>,
     options: CleanOptions
   ): AsyncIterable<AbstractSequence> {
-    // ZIG_CANDIDATE: Hot loop processing every sequence
+    // NATIVE_CANDIDATE: Hot loop processing every sequence
     // Native batch processing would improve performance
     for await (const seq of source) {
       const cleaned = this.cleanSequence(seq, options);
@@ -106,7 +106,7 @@ export class CleanProcessor implements Processor<CleanOptions> {
   /**
    * Remove gap characters from sequence
    *
-   * ZIG_CANDIDATE: Character filtering loop.
+   * NATIVE_CANDIDATE: Character filtering loop.
    * Native implementation would avoid regex overhead
    * and intermediate string allocations.
    *
@@ -128,7 +128,7 @@ export class CleanProcessor implements Processor<CleanOptions> {
       })
       .join('');
 
-    // ZIG_CANDIDATE: Regex replace creates new string
+    // NATIVE_CANDIDATE: Regex replace creates new string
     // Native loop could build result directly
     const pattern = new RegExp(`[${escapedChars}]`, 'g');
     return sequence.replace(pattern, '');
@@ -137,7 +137,7 @@ export class CleanProcessor implements Processor<CleanOptions> {
   /**
    * Replace ambiguous bases with a standard character
    *
-   * ZIG_CANDIDATE: Character validation and replacement loop.
+   * NATIVE_CANDIDATE: Character validation and replacement loop.
    * Native implementation would be faster than regex replace.
    *
    * @param sequence - Input sequence
@@ -148,7 +148,7 @@ export class CleanProcessor implements Processor<CleanOptions> {
     // Replace any non-standard DNA/RNA bases
     // Standard bases: A, C, G, T, U
     // Everything else (including IUPAC codes) gets replaced
-    // ZIG_CANDIDATE: Regex creates new string with replacements
+    // NATIVE_CANDIDATE: Regex creates new string with replacements
     return sequence.replace(/[^ACGTU]/gi, replaceChar);
   }
 }

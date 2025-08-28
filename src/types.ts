@@ -7,6 +7,15 @@
  */
 
 import { type } from 'arktype';
+import {
+  BAIIndexError,
+  ChromosomeNamingError,
+  CigarValidationError,
+  GenomicCoordinateError,
+  ResourceLimitError,
+  SecurityPathError,
+  ValidationError,
+} from './errors';
 
 /**
  * Helper functions for validation to reduce nesting
@@ -35,7 +44,7 @@ function validateCigarSequenceConsistency(cigar: string, sequence: string): void
 
   // Check if CIGAR matches sequence length (allow some flexibility for edge cases)
   if (consumesQuery > 0 && Math.abs(consumesQuery - sequence.length) > sequence.length * 0.1) {
-    // CIGAR/sequence length mismatch detected but continuing for compatibility
+    throw CigarValidationError.withMismatchAnalysis(cigar, sequence.length, consumesQuery);
   }
 }
 
@@ -244,6 +253,119 @@ export interface SamRecord {
  * Strand orientation
  */
 export type Strand = '+' | '-' | '.';
+
+/**
+ * Parse genomic region string at compile time for type safety
+ *
+ * Extracts chromosome, start, and end from region strings like 'chr1:1000-2000'
+ * and validates coordinates at the type level for compile-time safety.
+ */
+export type ParseGenomicRegion<T extends string> =
+  T extends `${infer Chr}:${infer Start}-${infer End}`
+    ? Start extends `${number}`
+      ? End extends `${number}`
+        ? {
+            readonly chromosome: Chr;
+            readonly start: Start extends `${infer S extends number}` ? S : never;
+            readonly end: End extends `${infer E extends number}` ? E : never;
+            readonly length: End extends `${infer E extends number}`
+              ? Start extends `${infer S extends number}`
+                ? E extends S
+                  ? never // Invalid: end cannot equal start
+                  : S extends number
+                    ? E extends number
+                      ? E extends 0
+                        ? never // Invalid: end cannot be 0
+                        : S extends 0
+                          ? E // Valid: start=0, end>0
+                          : never // Simplified for now
+                      : never
+                    : never
+                : never
+              : never;
+          }
+        : never
+      : never
+    : never;
+
+/**
+ * Extract coordinates from genomic region string at compile time
+ *
+ * Enables compile-time coordinate arithmetic and validation.
+ *
+ * @example
+ * ```typescript
+ * type Coords = ExtractCoordinates<'chr1:1000-2000'>;
+ * // Result: { chr: 'chr1'; start: 1000; end: 2000; length: 1000 }
+ *
+ * // Enable compile-time coordinate validation
+ * function validateRegion<T extends string>(
+ *   region: T
+ * ): ExtractCoordinates<T> extends { length: number } ? T : never;
+ * ```
+ */
+export type ExtractCoordinates<T extends string> =
+  ParseGenomicRegion<T> extends {
+    chromosome: infer Chr;
+    start: infer Start;
+    end: infer End;
+  }
+    ? {
+        readonly chr: Chr;
+        readonly start: Start;
+        readonly end: End;
+        readonly length: Start extends number
+          ? End extends number
+            ? End extends 0
+              ? never
+              : Start extends 0
+                ? End
+                : never // Simplified arithmetic for template literals
+            : never
+          : never;
+      }
+    : never;
+
+/**
+ * Validate genomic region format and coordinates at compile time
+ *
+ * Ensures proper format (chr:start-end) and validates that end > start.
+ * Prevents entire categories of genomic coordinate bugs at compile time.
+ */
+export type ValidGenomicRegion<T extends string> = T extends `${string}:${number}-${number}`
+  ? ParseGenomicRegion<T> extends { start: infer S; end: infer E }
+    ? S extends number
+      ? E extends number
+        ? E extends S
+          ? never // end cannot equal start
+          : S extends 0
+            ? T // 0-based coordinates allowed
+            : T // 1-based coordinates allowed
+        : never
+      : never
+    : never
+  : never;
+
+/**
+ * Genomic region type with comprehensive compile-time validation
+ *
+ * Prevents malformed region strings and invalid coordinate ranges at compile time.
+ *
+ * @example
+ * ```typescript
+ * // ✅ Valid regions compile successfully
+ * type Valid1 = GenomicRegion<'chr1:1000-2000'>;
+ * type Valid2 = GenomicRegion<'scaffold_1:0-500'>;
+ * type Valid3 = GenomicRegion<'chrX:100-999'>;
+ *
+ * // ❌ Invalid regions cause compile errors
+ * type Invalid1 = GenomicRegion<'chr1:2000-1000'>; // end < start
+ * type Invalid2 = GenomicRegion<'chr1:1000-1000'>; // end = start
+ * type Invalid3 = GenomicRegion<'invalid-format'>; // bad format
+ * type Invalid4 = GenomicRegion<'chr1:abc-def'>;   // non-numeric
+ * ```
+ */
+export type GenomicRegion<T extends string> = T extends ValidGenomicRegion<T> ? T : never;
 
 /**
  * BED interval representation with computed properties
@@ -491,7 +613,11 @@ export const SequenceIdSchema = type('string>0').pipe((id: string) => {
   const cleaned = id.replace(/[^\w\-.|:]/g, '_');
   // Clean IDs that might cause issues
   if (id !== cleaned) {
-    // Sequence ID contains special characters, using cleaned version
+    throw new ValidationError(
+      `Sequence ID contains invalid characters: original='${id}' would be sanitized to='${cleaned}'`,
+      undefined,
+      'Use alphanumeric characters, hyphens, dots, pipes, and colons only'
+    );
   }
   return cleaned;
 });
@@ -540,7 +666,7 @@ export const GenomicCoordinate = type('number>=0').pipe((coord: number) => {
     throw new Error('Genomic coordinates must be integers');
   }
   if (coord > 300_000_000) {
-    // Larger than any known chromosome - continuing but may be unusual
+    throw GenomicCoordinateError.forLargeCoordinate(coord, 'position');
   }
   return coord;
 });
@@ -564,7 +690,7 @@ export const ChromosomeSchema = type('string>0').pipe((chr: string) => {
 
   const isValid = validPatterns.some((pattern) => pattern.test(normalized));
   if (!isValid) {
-    // Unusual chromosome name detected but continuing for compatibility
+    throw ChromosomeNamingError.forNonStandardName(chr);
   }
 
   return chr; // Return original format for compatibility
@@ -667,18 +793,29 @@ export const BedIntervalSchema = type({
   'blockSizes?': 'number[]',
   'blockStarts?': 'number[]',
   'lineNumber?': 'number>0',
-}).pipe((bed) => {
-  // Validate coordinate relationships
+}).pipe(validateAndEnrichBedInterval);
+
+function validateAndEnrichBedInterval(bed: any): any {
+  validateBedCoordinates(bed);
+  validateBedScore(bed);
+  validateBedThickCoordinates(bed);
+  validateBedBlockStructure(bed);
+  return enrichBedInterval(bed);
+}
+
+function validateBedCoordinates(bed: any): void {
   if (bed.end <= bed.start) {
     throw new Error(`Invalid coordinates: end (${bed.end}) must be > start (${bed.start})`);
   }
+}
 
-  // Validate score range
+function validateBedScore(bed: any): void {
   if (bed.score !== undefined && (bed.score < 0 || bed.score > 1000)) {
     throw new Error(`Score must be between 0 and 1000, got ${bed.score}`);
   }
+}
 
-  // Validate thick coordinates if present
+function validateBedThickCoordinates(bed: any): void {
   if (bed.thickStart !== undefined && bed.thickEnd !== undefined) {
     if (bed.thickStart > bed.thickEnd) {
       throw new Error(
@@ -689,28 +826,36 @@ export const BedIntervalSchema = type({
       throw new Error('Thick coordinates must be within interval bounds');
     }
   }
+}
 
-  // Validate block structure if present
-  if (
-    bed.blockCount !== null &&
-    bed.blockCount !== undefined &&
-    bed.blockCount !== 0 &&
-    ((bed.blockSizes !== null && bed.blockSizes !== undefined) ||
-      (bed.blockStarts !== null && bed.blockStarts !== undefined))
-  ) {
-    if (bed.blockSizes && bed.blockSizes.length !== bed.blockCount) {
+function validateBedBlockStructure(bed: any): void {
+  const hasBlocks = bed.blockCount !== null && bed.blockCount !== undefined && bed.blockCount !== 0;
+  const hasSizes = bed.blockSizes !== null && bed.blockSizes !== undefined;
+  const hasStarts = bed.blockStarts !== null && bed.blockStarts !== undefined;
+
+  if (hasBlocks && (hasSizes || hasStarts)) {
+    if (
+      bed.blockSizes !== null &&
+      bed.blockSizes !== undefined &&
+      bed.blockSizes.length !== bed.blockCount
+    ) {
       throw new Error(
         `Block sizes count (${bed.blockSizes.length}) != block count (${bed.blockCount})`
       );
     }
-    if (bed.blockStarts && bed.blockStarts.length !== bed.blockCount) {
+    if (
+      bed.blockStarts !== null &&
+      bed.blockStarts !== undefined &&
+      bed.blockStarts.length !== bed.blockCount
+    ) {
       throw new Error(
         `Block starts count (${bed.blockStarts.length}) != block count (${bed.blockCount})`
       );
     }
   }
+}
 
-  // Calculate derived properties
+function enrichBedInterval(bed: any): any {
   const length = bed.end - bed.start;
   const midpoint = bed.start + Math.floor(length / 2);
 
@@ -722,21 +867,29 @@ export const BedIntervalSchema = type({
       length,
       hasThickRegion: bed.thickStart !== undefined && bed.thickEnd !== undefined,
       hasBlocks: bed.blockCount !== undefined && bed.blockCount > 1,
-      bedType:
-        bed.blockCount !== null && bed.blockCount !== undefined && bed.blockCount !== 0
-          ? 'BED12'
-          : bed.itemRgb !== null && bed.itemRgb !== undefined && bed.itemRgb !== ''
-            ? 'BED9'
-            : bed.strand !== null && bed.strand !== undefined && bed.strand !== '.'
-              ? 'BED6'
-              : bed.score !== undefined
-                ? 'BED5'
-                : bed.name !== null && bed.name !== undefined && bed.name !== ''
-                  ? 'BED4'
-                  : 'BED3',
+      bedType: determineBedType(bed),
     },
   };
-});
+}
+
+function determineBedType(bed: any): string {
+  if (bed.blockCount !== null && bed.blockCount !== undefined && bed.blockCount !== 0) {
+    return 'BED12';
+  }
+  if (bed.itemRgb !== null && bed.itemRgb !== undefined && bed.itemRgb !== '') {
+    return 'BED9';
+  }
+  if (bed.strand !== null && bed.strand !== undefined && bed.strand !== '.') {
+    return 'BED6';
+  }
+  if (bed.score !== undefined) {
+    return 'BED5';
+  }
+  if (bed.name !== null && bed.name !== undefined && bed.name !== '') {
+    return 'BED4';
+  }
+  return 'BED3';
+}
 
 /**
  * SAM CIGAR operation validation - comprehensive pattern for all operations
@@ -1171,6 +1324,8 @@ export const FilePathSchema = type('string>0').pipe((path: string) => {
     '/dev/',
     'C:\\Windows\\',
     'C:\\System32\\',
+    'C:/Windows/', // Normalized Windows paths
+    'C:/System32/', // Normalized Windows paths
     '/System/',
     '/Library/System',
   ];
@@ -1178,13 +1333,13 @@ export const FilePathSchema = type('string>0').pipe((path: string) => {
   if (
     sensitivePatterns.some((pattern) => normalized.toLowerCase().includes(pattern.toLowerCase()))
   ) {
-    // Access to potentially sensitive path detected
+    throw SecurityPathError.forSensitiveDirectory(normalized);
   }
 
   // Determine if path is absolute
-  const isAbsolute = normalized.startsWith('/') || /^[A-Za-z]:[\\/]/.test(normalized);
+  const _isAbsolute = normalized.startsWith('/') || /^[A-Za-z]:[\\/]/.test(normalized);
 
-  return normalized as FilePath & { readonly __absolute: typeof isAbsolute };
+  return normalized as FilePath & { readonly __absolute: typeof _isAbsolute };
 });
 
 /**
@@ -1210,7 +1365,7 @@ export const FileReaderOptionsSchema = type({
     options.bufferSize !== 0 &&
     options.bufferSize > 1_048_576
   ) {
-    // Large buffer size detected - 1MB max buffer
+    throw ResourceLimitError.forBufferSize(options.bufferSize, 1_048_576, 'File reader');
   }
 
   // Validate timeout bounds
@@ -1220,7 +1375,7 @@ export const FileReaderOptionsSchema = type({
     options.timeout !== 0 &&
     options.timeout > 300_000
   ) {
-    // Long timeout detected - 5 minute max timeout
+    throw ResourceLimitError.forTimeout(options.timeout, 300_000, 'File reader');
   }
 
   // Validate file size bounds
@@ -1230,7 +1385,14 @@ export const FileReaderOptionsSchema = type({
     options.maxFileSize !== 0 &&
     options.maxFileSize > 10_737_418_240
   ) {
-    // Very large max file size detected - 10GB max
+    throw new ResourceLimitError(
+      `File size limit too large: ${Math.round(options.maxFileSize / 1_073_741_824)}GB (maximum 10GB)`,
+      'file-size',
+      options.maxFileSize,
+      10_737_418_240,
+      'bytes',
+      `File size limit: ${options.maxFileSize} bytes, Max allowed: 10,737,418,240 bytes`
+    );
   }
 
   // Validate decompression options if provided
@@ -1575,7 +1737,7 @@ export const DecompressorOptionsSchema = type({
     options.bufferSize !== 0 &&
     options.bufferSize > 10_485_760
   ) {
-    // Large decompression buffer detected - 10MB max
+    throw ResourceLimitError.forBufferSize(options.bufferSize, 10_485_760, 'Decompression');
   }
 
   // Validate max output size bounds
@@ -1585,7 +1747,14 @@ export const DecompressorOptionsSchema = type({
     options.maxOutputSize !== 0 &&
     options.maxOutputSize > 107_374_182_400
   ) {
-    // Very large max output size detected - 100GB max
+    throw new ResourceLimitError(
+      `Maximum output size too large: ${Math.round(options.maxOutputSize / 1_073_741_824)}GB (maximum 100GB)`,
+      'memory',
+      options.maxOutputSize,
+      107_374_182_400,
+      'bytes',
+      `Max output size: ${options.maxOutputSize} bytes, Max allowed: 107,374,182,400 bytes`
+    );
   }
 
   return options;
@@ -1676,7 +1845,12 @@ export const BAIChunkSchema = type({
   }
 
   if (chunkSize > 1_073_741_824) {
-    // Very large BAI chunk detected - 1GB sanity check
+    throw BAIIndexError.forPerformanceImpact(
+      'chunk',
+      Math.round(chunkSize / 1_048_576),
+      1024,
+      'MB'
+    );
   }
 
   return chunk;
@@ -1706,11 +1880,17 @@ export const BAIBinSchema = type({
 }).pipe((bin) => {
   // Additional bin-level validation
   if (bin.chunks.length === 0) {
-    // BAI bin has no chunks
+    throw new BAIIndexError(
+      `BAI bin ${bin.binId} has no chunks`,
+      'bin',
+      bin.chunks.length,
+      'May indicate sparse genomic coverage - consider regenerating index',
+      `Bin ID: ${bin.binId}, Chunks: ${bin.chunks.length}`
+    );
   }
 
   if (bin.chunks.length > 10000) {
-    // BAI bin has many chunks
+    throw BAIIndexError.forPerformanceImpact('bin', bin.chunks.length, 10000, 'chunks');
   }
 
   return bin;
@@ -1736,7 +1916,13 @@ export const BAILinearIndexSchema = type({
 }).pipe((linearIndex) => {
   // Tiger Style: Validate standard 16KB interval size
   if (linearIndex.intervalSize !== 16384) {
-    // Non-standard linear index interval size detected (standard is 16384)
+    throw new BAIIndexError(
+      `Non-standard BAI linear index interval size: ${linearIndex.intervalSize}`,
+      'linear-index',
+      linearIndex.intervalSize,
+      'Use standard 16384 byte intervals for better tool compatibility',
+      `Interval size: ${linearIndex.intervalSize}, Standard: 16384`
+    );
   }
 
   // Validate interval ordering (should be non-decreasing)
@@ -1854,7 +2040,13 @@ export const BAIIndexSchema = type({
     index.version !== '' &&
     !/^\d+\.\d+$/.test(index.version)
   ) {
-    // Non-standard BAI version format detected
+    throw new BAIIndexError(
+      `Non-standard BAI version format: '${index.version}'`,
+      'version',
+      index.version,
+      'Use standard version format (e.g., "1.0") for better compatibility',
+      `Version: ${index.version}, Expected format: X.Y`
+    );
   }
 
   // Calculate and warn about large indexes
@@ -1872,7 +2064,7 @@ export const BAIIndexSchema = type({
     return sum;
   }, 0);
   if (totalBins > 100000) {
-    // Large BAI index detected with many bins across references
+    throw BAIIndexError.forPerformanceImpact('bin', totalBins, 100000, 'total bins');
   }
 
   return index;
@@ -1951,7 +2143,13 @@ export const BAIWriterOptionsSchema = type({
 
     // Check if power of 2 for alignment efficiency
     if ((options.intervalSize & (options.intervalSize - 1)) !== 0) {
-      // Non-power-of-2 interval size detected (may be less efficient)
+      throw new BAIIndexError(
+        `Non-power-of-2 BAI interval size: ${options.intervalSize}`,
+        'interval-size',
+        options.intervalSize,
+        'Use power-of-2 sizes (1024, 2048, 4096, etc.) for better memory efficiency',
+        `Interval size: ${options.intervalSize}`
+      );
     }
   }
 
@@ -1962,7 +2160,7 @@ export const BAIWriterOptionsSchema = type({
     options.maxChunksPerBin !== 0 &&
     options.maxChunksPerBin > 100000
   ) {
-    // Very high max chunks per bin detected
+    throw BAIIndexError.forPerformanceImpact('bin', options.maxChunksPerBin, 100000, 'max chunks');
   }
 
   return options;
@@ -1986,7 +2184,7 @@ export const BAIReaderOptionsSchema = type({
     options.bufferSize !== 0 &&
     options.bufferSize > 10_485_760
   ) {
-    // Large buffer size for BAI reading detected - 10MB
+    throw ResourceLimitError.forBufferSize(options.bufferSize, 10_485_760, 'BAI reader');
   }
 
   // Validate timeout bounds
@@ -1996,7 +2194,7 @@ export const BAIReaderOptionsSchema = type({
     options.timeout !== 0 &&
     options.timeout > 300000
   ) {
-    // Long timeout for BAI operations detected - 5 minutes
+    throw ResourceLimitError.forTimeout(options.timeout, 300_000, 'BAI operation');
   }
 
   return options;

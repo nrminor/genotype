@@ -19,7 +19,7 @@ import type { SortOptions } from './types';
 
 /**
  * Memory threshold for switching to external sort (1GB)
- * ZIG_CRITICAL: This threshold calculation and memory monitoring
+ * NATIVE_CRITICAL: This threshold calculation and memory monitoring
  * would benefit significantly from native implementation
  */
 const EXTERNAL_SORT_THRESHOLD = 1024 * 1024 * 1024; // 1GB
@@ -59,7 +59,7 @@ export class SortProcessor {
     this.validateOptions(options);
 
     // For genomic data, we need to balance memory usage with performance
-    // ZIG_CRITICAL: Memory estimation and threshold decisions would be
+    // NATIVE_CRITICAL: Memory estimation and threshold decisions would be
     // much more accurate with native memory introspection
     const sequences = await this.collectWithMemoryTracking(source);
 
@@ -73,7 +73,7 @@ export class SortProcessor {
   /**
    * Collect sequences while tracking memory usage
    *
-   * ZIG_CRITICAL: Memory tracking and allocation monitoring would be
+   * NATIVE_CRITICAL: Memory tracking and allocation monitoring would be
    * far more accurate with native implementation, allowing for precise
    * threshold decisions for external sorting.
    */
@@ -87,7 +87,7 @@ export class SortProcessor {
       sequences.push(seq);
 
       // Estimate memory usage (rough approximation)
-      // ZIG_CRITICAL: Precise memory tracking would be much better
+      // NATIVE_CRITICAL: Precise memory tracking would be much better
       estimatedMemory += seq.sequence.length * 2 + 100; // chars + overhead
 
       if (estimatedMemory > EXTERNAL_SORT_THRESHOLD) {
@@ -118,7 +118,7 @@ export class SortProcessor {
   /**
    * In-memory sorting for small-medium datasets
    *
-   * ZIG_BENEFICIAL: Sorting algorithms could be optimized with native
+   * NATIVE_BENEFICIAL: Sorting algorithms could be optimized with native
    * implementation, especially for numeric sorts (length, GC content)
    */
   private async *inMemorySort(
@@ -135,7 +135,7 @@ export class SortProcessor {
   /**
    * External merge sort for large datasets
    *
-   * ZIG_CRITICAL: External sorting with disk I/O, memory management,
+   * NATIVE_CRITICAL: External sorting with disk I/O, memory management,
    * and merge operations would benefit dramatically from native implementation.
    * This is where genomic data processing performance is often bottlenecked.
    *
@@ -155,7 +155,7 @@ export class SortProcessor {
   /**
    * Sort sequences array in place for memory efficiency
    *
-   * ZIG_BENEFICIAL: In-place sorting with custom comparators could be
+   * NATIVE_BENEFICIAL: In-place sorting with custom comparators could be
    * optimized with native implementation, especially for genomic-specific
    * sorting criteria like GC content or k-mer similarity.
    */
@@ -176,7 +176,7 @@ export class SortProcessor {
   /**
    * Get optimized comparison function for genomic sorting
    *
-   * ZIG_CRITICAL: Comparison functions are called millions of times in large sorts.
+   * NATIVE_CRITICAL: Comparison functions are called millions of times in large sorts.
    *
    * @param sortBy - Field to sort by
    * @param order - Sort order (ascending/descending)
@@ -204,7 +204,7 @@ export class SortProcessor {
 
   /**
    * Create length-based comparator
-   * ZIG_BENEFICIAL: Called frequently for large sorts
+   * NATIVE_BENEFICIAL: Called frequently for large sorts
    */
   private createLengthComparator(
     ascending: boolean
@@ -214,7 +214,7 @@ export class SortProcessor {
 
   /**
    * Create ID-based comparator
-   * ZIG_BENEFICIAL: String comparison optimization opportunity
+   * NATIVE_BENEFICIAL: String comparison optimization opportunity
    */
   private createIdComparator(
     ascending: boolean
@@ -227,7 +227,7 @@ export class SortProcessor {
 
   /**
    * Create GC content-based comparator
-   * ZIG_CRITICAL: Expensive GC calculation called for every comparison
+   * NATIVE_CRITICAL: Expensive GC calculation called for every comparison
    */
   private createGCComparator(
     ascending: boolean
@@ -241,7 +241,7 @@ export class SortProcessor {
 
   /**
    * Create quality score-based comparator
-   * ZIG_CRITICAL: Expensive quality calculation for FASTQ files
+   * NATIVE_CRITICAL: Expensive quality calculation for FASTQ files
    */
   private createQualityComparator(
     ascending: boolean
@@ -256,7 +256,7 @@ export class SortProcessor {
   /**
    * Optimized GC content calculation for sorting
    *
-   * ZIG_CRITICAL: This function is called for every sequence pair comparison
+   * NATIVE_CRITICAL: This function is called for every sequence pair comparison
    * when sorting by GC content. For large datasets, this becomes a major
    * performance bottleneck. Native implementation could:
    * - Use SIMD instructions for parallel character counting
@@ -269,7 +269,7 @@ export class SortProcessor {
   private calculateGCOptimized(sequence: string): number {
     if (sequence.length === 0) return 0;
 
-    // ZIG_CRITICAL: This regex-based approach is inefficient for sorting
+    // NATIVE_CRITICAL: This regex-based approach is inefficient for sorting
     // Native implementation would use:
     // - Direct character loop with SIMD vectorization
     // - Lookup table for character classification
@@ -290,7 +290,7 @@ export class SortProcessor {
   /**
    * Optimized average quality calculation for FASTQ sorting
    *
-   * ZIG_CRITICAL: Quality score processing for sorting is extremely expensive
+   * NATIVE_CRITICAL: Quality score processing for sorting is extremely expensive
    * for large FASTQ files. Native implementation could:
    * - Vectorize quality score arithmetic
    * - Cache quality calculations to avoid recomputation
@@ -306,7 +306,7 @@ export class SortProcessor {
       const quality = seq.quality as string;
       if (quality.length === 0) return 0;
 
-      // ZIG_CRITICAL: This loop is called millions of times in large sorts
+      // NATIVE_CRITICAL: This loop is called millions of times in large sorts
       // Native implementation would:
       // - Use SIMD for parallel ASCII to score conversion
       // - Support different quality encodings without branching
@@ -322,55 +322,9 @@ export class SortProcessor {
   }
 
   /**
-   * Validate sort options with genomic-aware checks
-   */
-  private validateOptions(options: SortOptions): void {
-    if (options.custom !== undefined) {
-      this.validateCustomFunction(options);
-      return;
-    }
-
-    this.validateBuiltInSortOptions(options);
-  }
-
-  /**
-   * Validate custom function options
-   */
-  private validateCustomFunction(options: SortOptions): void {
-    if (typeof options.custom !== 'function') {
-      throw new Error('Custom sort function must be a function');
-    }
-  }
-
-  /**
-   * Validate built-in sort field and order options
-   */
-  private validateBuiltInSortOptions(options: SortOptions): void {
-    if (options.by === undefined) {
-      throw new Error('Sort field (by) is required when not using custom function');
-    }
-
-    const validSortFields = ['length', 'id', 'gc', 'quality'];
-    if (!validSortFields.includes(options.by)) {
-      throw new Error(
-        `Invalid sort field: ${options.by}. Valid options: ${validSortFields.join(', ')}`
-      );
-    }
-
-    if (options.order !== undefined) {
-      const validOrders = ['asc', 'desc'];
-      if (!validOrders.includes(options.order)) {
-        throw new Error(
-          `Invalid sort order: ${options.order}. Valid options: ${validOrders.join(', ')}`
-        );
-      }
-    }
-  }
-
-  /**
    * Estimate memory usage for sort decision
    *
-   * ZIG_CRITICAL: Accurate memory estimation is crucial for choosing
+   * NATIVE_CRITICAL: Accurate memory estimation is crucial for choosing
    * the right sorting strategy. Native implementation would provide:
    * - Precise memory usage tracking
    * - Real-time memory pressure monitoring
@@ -389,5 +343,32 @@ export class SortProcessor {
 
       return total + seqMemory;
     }, 0);
+  }
+
+  /**
+   * Validate sort options
+   */
+  private validateOptions(options: SortOptions): void {
+    if (options.custom !== undefined) {
+      if (typeof options.custom !== 'function') {
+        throw new Error('Custom sort function must be a function');
+      }
+      return; // Skip other validation if using custom function
+    }
+
+    if (!options.by) {
+      throw new Error('Sort field (by) is required when not using custom function');
+    }
+
+    const validSortFields = ['length', 'id', 'gc', 'quality'];
+    if (!validSortFields.includes(options.by)) {
+      throw new Error(
+        `Invalid sort field: ${options.by}. Valid options: ${validSortFields.join(', ')}`
+      );
+    }
+
+    if (options.order && !['asc', 'desc'].includes(options.order)) {
+      throw new Error(`Invalid sort order: ${options.order}. Valid options: asc, desc`);
+    }
   }
 }

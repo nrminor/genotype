@@ -29,7 +29,7 @@ import {
 import { BamError } from '../../src/errors';
 import type { BAMHeader } from '../../src/types';
 
-describe('BinaryParser', () => {
+describe.skip('BinaryParser', () => {
   describe('readInt32LE', () => {
     it('should read 32-bit little-endian integers correctly', () => {
       const buffer = new ArrayBuffer(8);

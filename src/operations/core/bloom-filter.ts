@@ -22,7 +22,7 @@ export class BloomFilter {
    * @param expectedItems - Expected number of items to be added
    * @param falsePositiveRate - Desired false positive rate (default 0.01 = 1%)
    *
-   * 🔥 ZIG CRITICAL: Bit operations and hashing
+   * 🔥 NATIVE CRITICAL: Bit operations and hashing
    */
   constructor(expectedItems: number, falsePositiveRate: number = 0.01) {
     // Tiger Style: Assert inputs
@@ -53,7 +53,7 @@ export class BloomFilter {
   /**
    * Add item to filter
    *
-   * 🔥 ZIG CRITICAL: Bit manipulation operations
+   * 🔥 NATIVE CRITICAL: Bit manipulation operations
    */
   add(item: string): void {
     // Set bits for all hash functions
@@ -70,7 +70,7 @@ export class BloomFilter {
    * Returns false if definitely not in set (no false negatives)
    * Returns true if might be in set (possible false positive)
    *
-   * 🔥 ZIG CRITICAL: Bit testing operations
+   * 🔥 NATIVE CRITICAL: Bit testing operations
    */
   contains(item: string): boolean {
     // Check bits for all hash functions
@@ -131,7 +131,7 @@ export class BloomFilter {
   /**
    * MurmurHash3 implementation for fast, high-quality hashing
    *
-   * 🔥 ZIG CRITICAL: Hash function performance
+   * 🔥 NATIVE CRITICAL: Hash function performance
    */
   private hash(str: string, seed: number): number {
     let h1 = seed;
@@ -340,7 +340,7 @@ export class CountingBloomFilter {
   /**
    * Add item (increment counters)
    *
-   * 🔥 ZIG OPTIMIZATION: Vectorized counter updates
+   * 🔥 NATIVE OPTIMIZATION: Vectorized counter updates
    */
   add(item: string): void {
     for (const seed of this.hashSeeds) {

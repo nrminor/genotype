@@ -1,12 +1,25 @@
 # Genotype Library - API Documentation & Development Guidelines
 
+## OVERALL ATTITUDE REQUIREMENT: PRACTICE SELF-DOUBT IN ALL ACTIVITIES
+
+- Be extraordinarily skeptical of your own correctness or stated assumptions.
+  You aren't a cynic, you are a highly critical thinker and this is tempered by
+  your self-doubt: you absolutely hate being wrong but you live in constant fear
+  of it
+- When appropriate, broaden the scope of inquiry beyond the stated assumptions
+  to think through unconvenitional opportunities, risks, and pattern-matching to
+  widen the aperture of solutions
+- Before calling anything "done" or "working", take a second look at it ("red
+  team" it) to critically analyze that you really are done or it really is
+  working
+
 ## MANDATORY REVIEW REQUIREMENTS
 
 **⚠️ STOP: Before ANY work on this codebase, you MUST:**
 
 1. Read and understand ALL sections of this document
 2. Review Tiger Style compliance requirements
-3. Review ALL best practices sections (TypeScript, Bun, Zig, ArkType)
+3. Review ALL best practices sections (TypeScript, Bun, Rust, ArkType)
 4. Understand the Anti-Code-Entropy policies
 5. Review the security considerations
 6. **Use Bun for ALL development tasks** - No npm, yarn, or pnpm allowed unless
@@ -34,7 +47,8 @@ After ANY compaction event:
 4. **Review any work in progress against these requirements**
 5. **ONLY proceed after confirming compliance**
 
-**It is UNACCEPTABLE to proceed without project rules and guidelines in context.**
+**It is UNACCEPTABLE to proceed without project rules and guidelines in
+context.**
 
 ## Overview
 
@@ -85,37 +99,49 @@ This library also embraces the wisdom of the
 **Core Principles:**
 
 - **Complexity is the enemy** - complexity very, very bad
-- **Simplicity wins** - prefer simple, understandable solutions over clever abstractions
-- **Say no to complexity** - be willing to reject features that add unnecessary complexity
+- **Simplicity wins** - prefer simple, understandable solutions over clever
+  abstractions
+- **Say no to complexity** - be willing to reject features that add unnecessary
+  complexity
 - **Pragmatism over perfection** - working code today beats perfect code never
 
 **Development Approach:**
 
-- **Prototype to understand** - build early prototypes to grasp the problem domain
-- **Avoid premature abstractions** - don't over-engineer before understanding the system
-- **Small, focused refactors** - improve code incrementally, not in massive rewrites
+- **Prototype to understand** - build early prototypes to grasp the problem
+  domain
+- **Avoid premature abstractions** - don't over-engineer before understanding
+  the system
+- **Small, focused refactors** - improve code incrementally, not in massive
+  rewrites
 - **Code near its data** - keep parsing logic close to format definitions
 
 **Testing Philosophy:**
 
-- **Integration tests are king** - test real genomic file parsing, not just units
+- **Integration tests are king** - test real genomic file parsing, not just
+  units
 - **Test alongside development** - write tests as you code, not just before
 - **Regression tests for bugs** - when fixing parser bugs, add tests immediately
-- **Minimal end-to-end suite** - a few comprehensive tests over many brittle ones
+- **Minimal end-to-end suite** - a few comprehensive tests over many brittle
+  ones
 
 **Code Clarity:**
 
 - **Readability trumps brevity** - clear code over clever one-liners
-- **Name your conditionals** - extract complex boolean logic into named variables
-- **Embrace "dumb" questions** - ask when confused, complexity is not a badge of honor
-- **Respect existing code** - understand why it exists before changing (Chesterton's Fence)
+- **Name your conditionals** - extract complex boolean logic into named
+  variables
+- **Embrace "dumb" questions** - ask when confused, complexity is not a badge of
+  honor
+- **Respect existing code** - understand why it exists before changing
+  (Chesterton's Fence)
 
 **Practical Wisdom for Genomics:**
 
-- **Domain complexity is enough** - genomic formats are complex; keep the code simple
+- **Domain complexity is enough** - genomic formats are complex; keep the code
+  simple
 - **Tools matter** - invest in understanding Bun, TypeScript, and your debugger
 - **Log everything** - especially in streaming parsers where debugging is hard
-- **Balance DRY with clarity** - some duplication is better than confusing abstractions
+- **Balance DRY with clarity** - some duplication is better than confusing
+  abstractions
 
 ### Zero-Dependency Philosophy
 
@@ -202,14 +228,15 @@ DECLARED COMPLETE.**
 - ESLint errors OR warnings
 - Test failures
 - Build failures
-- Zig compilation errors
-- Zig test failures
+- Rust compilation errors
+- Rust test failures
 
 **ZERO TOLERANCE for linting issues:**
 
 - ALL ESLint warnings must be resolved
 - ALL TypeScript strict mode violations must be fixed
-- NO suppression comments (@ts-ignore, eslint-disable) without documented justification
+- NO suppression comments (@ts-ignore, eslint-disable) without documented
+  justification
 - Code style warnings are NOT "minor" - they are technical debt
 
 ### PREVENTIVE MEASURES
@@ -245,9 +272,12 @@ Before marking ANY task complete, you MUST:
 
 1. Show the COMPLETE output of `bun run validate`
 2. Show the test results
-3. Show the ESLint output explicitly stating "✔ 0 problems (0 errors, 0 warnings)"
-4. Explicitly state: "Validation passed, tests passed, ZERO errors, ZERO warnings"
-5. If validation fails OR any warnings exist, the task stays "in_progress" or moves to "blocked"
+3. Show the ESLint output explicitly stating "✔ 0 problems (0 errors, 0
+   warnings)"
+4. Explicitly state: "Validation passed, tests passed, ZERO errors, ZERO
+   warnings"
+5. If validation fails OR any warnings exist, the task stays "in_progress" or
+   moves to "blocked"
 
 ### Required Validation Commands
 
@@ -258,11 +288,11 @@ bun run validate
 # Equivalent to: bun run lint && bun run test && bun run build
 ```
 
-**For contributions involving Zig/native code:**
+**For contributions involving Rust/native code:**
 
 ```bash
 bun run validate:full
-# Equivalent to: bun run lint && bun run test && bun run test:zig && bun run build:with-native
+# Equivalent to: bun run lint && bun run test && bun run test:rust && bun run build:with-native
 ```
 
 ### Individual Validation Steps
@@ -276,8 +306,8 @@ bun run lint
 # TypeScript tests
 bun run test
 
-# Zig tests
-bun run test:zig
+# Rust tests
+bun run test:rust
 
 # TypeScript build
 bun run build
@@ -290,18 +320,21 @@ bun run build:with-native
 
 **ALL of the following MUST be true before declaring any work complete:**
 
-1. ✅ **`bun run lint`** - Zero TypeScript compilation errors AND zero ESLint warnings
+1. ✅ **`bun run lint`** - Zero TypeScript compilation errors AND zero ESLint
+   warnings
    - Output must show: "✔ 0 problems (0 errors, 0 warnings)"
    - ANY number other than 0 means work is INCOMPLETE
 2. ✅ **`bun run test`** - All TypeScript tests pass
-3. ✅ **`bun run test:zig`** - All Zig tests pass (if applicable)
+3. ✅ **`bun run test:rust`** - All Rust tests pass (if applicable)
 4. ✅ **`bun run build`** - Clean TypeScript build
 5. ✅ **`bun run build:with-native`** - Clean native + TypeScript build (if
    applicable)
 
-**NO EXCEPTIONS. NO "I'll fix it later." NO "It's just warnings." NO "It still works."**
+**NO EXCEPTIONS. NO "I'll fix it later." NO "It's just warnings." NO "It still
+works."**
 
-**323 warnings is 323 problems. 1 warning is 1 problem. ZERO is the only acceptable number.**
+**323 warnings is 323 problems. 1 warning is 1 problem. ZERO is the only
+acceptable number.**
 
 ### When to Use Each Validation Level
 
@@ -361,7 +394,8 @@ If ANY validation step fails OR any warnings exist:
 3. **RERUN** - Execute the full validation workflow again
 4. **VERIFY** - Ensure all checks pass with ZERO problems before continuing
 
-**Work is NOT complete until validation shows: ✔ 0 problems (0 errors, 0 warnings)**
+**Work is NOT complete until validation shows: ✔ 0 problems (0 errors, 0
+warnings)**
 
 #### Bioinformatics-Specific Examples
 
@@ -467,12 +501,11 @@ what to ignore, we explicitly list what to include. This approach:
 !/src/validation/
 !/src/compression/
 
-# When Zig code is added, each file must be listed:
-# !/src/zig/
-# !/src/zig/build.zig
-# !/src/zig/build.zig.zon
-# !/src/zig/src/
-# !/src/zig/src/main.zig
+# When native code is added, each file must be listed:
+# !/src/native/
+# !/src/native/Cargo.toml
+# !/src/native/src/
+# !/src/native/src/lib.rs
 # etc...
 
 # Tests - each test file explicitly
@@ -1004,32 +1037,34 @@ const stream = decompressor.decompress(compressedStream);
 
 ### Bottleneck Identification
 
-Performance-critical operations will be implemented in Zig:
+Performance-critical operations will be implemented in Rust:
 
 1. **String processing** - sequence parsing and validation
 2. **Compression/decompression** - especially for large files
 3. **Binary parsing** - BAM file parsing
 4. **Quality score conversion** - FASTQ quality encoding
 
-### Zig Implementation Philosophy
+### Native Implementation Philosophy
 
 **TypeScript First, Then Optimize.** The development workflow is:
 
 1. **Prototype in TypeScript** - Establish the API and validate the design
 2. **Identify bottlenecks** - Through actual usage, not premature optimization
-3. **Move to Zig strategically** - Only after the API is stable and bottlenecks are proven
-4. **No performance testing until Zig** - Performance tests are only added when we have native implementations to benchmark
+3. **Move to native implementation strategically** - Only after the API is stable and bottlenecks
+   are proven
+4. **No performance testing until native code** - Performance tests are only added when
+   we have native implementations to benchmark
 
 **One implementation per feature.** We do NOT maintain parallel TypeScript and
-Zig implementations. Each feature has exactly one implementation. During the
+native implementations. Each feature has exactly one implementation. During the
 TypeScript-only phase, we focus on correctness and API design, not performance.
 
 Reference: [OpenTUI](https://github.com/sst/opentui) demonstrates elegant
-TypeScript/Zig integration patterns.
+TypeScript/native code integration patterns via FFI.
 
-#### When to Use Zig (Future)
+#### When to Use Native Implementation (Future)
 
-Once the API is stable, move to Zig for operations that benefit from:
+Once the API is stable, move to native Rust implementation for operations that benefit from:
 
 1. **SIMD acceleration** - Parallel sequence processing, quality score
    conversion
@@ -1050,7 +1085,7 @@ Once the API is stable, move to Zig for operations that benefit from:
 
 #### When to Keep TypeScript
 
-Keep TypeScript for:
+Keep TypeScript for high-level operations:
 
 1. **I/O operations** - File reading, streaming
 2. **High-level orchestration** - API surface, error handling
@@ -1060,20 +1095,20 @@ Keep TypeScript for:
 ### Native Module Structure
 
 ```
-src/zig/
+src/native/
 ├── src/
-│   ├── main.zig         # Main entry point
-│   ├── fasta.zig        # FASTA parsing primitives
-│   ├── fastq.zig        # FASTQ parsing primitives
-│   ├── compression.zig  # Compression utilities
-│   ├── validation.zig   # Validation primitives
-│   └── simd.zig         # SIMD optimizations
+│   ├── lib.rs           # Main entry point and FFI exports
+│   ├── fasta.rs         # FASTA parsing primitives
+│   ├── fastq.rs         # FASTQ parsing primitives
+│   ├── compression.rs   # Compression utilities
+│   ├── validation.rs    # Validation primitives
+│   └── simd.rs          # SIMD optimizations
 ├── tests/
-│   ├── fasta_test.zig
-│   ├── fastq_test.zig
-│   └── simd_test.zig
-├── build.zig            # Zig build configuration
-└── build.zig.zon       # Zig package dependencies
+│   ├── fasta_test.rs
+│   ├── fastq_test.rs
+│   └── simd_test.rs
+├── Cargo.toml           # Rust crate configuration
+└── lib/                 # Compiled libraries for each platform
 ```
 
 ## Error Handling
@@ -1469,7 +1504,7 @@ test:
 1. **Design** - Document API in AGENTS.md first
 2. **Validate** - Use Arktype schemas for all data structures
 3. **Implement** - TypeScript first, identify bottlenecks
-4. **Optimize** - Move critical paths to Zig
+4. **Optimize** - Move critical paths to native Rust implementation
 5. **Test** - Comprehensive test coverage
 6. **Document** - JSDoc for all public APIs
 
@@ -1485,11 +1520,10 @@ test:
 - `bun build` - Build TypeScript components
 - `bun lint` - Run TypeScript type checking
 - `bun bench` - Run performance benchmarks
-- `cd src/zig && zig build` - Build Zig components (production)
-- `cd src/zig && zig build -Doptimize=Debug` - Build Zig components (debug)
-- `cd src/zig && zig build -Doptimize=ReleaseFast` - Build Zig components
-  (optimized)
-- `cd src/zig && zig build test` - Run Zig tests
+- `cargo build --release` - Build Rust native components (production)
+- `cargo build` - Build Rust native components (debug)
+- `cargo test` - Run Rust native tests
+- `cargo clippy` - Run Rust linting
 
 ## Code Style
 
@@ -2010,7 +2044,7 @@ Cross-platform build system supporting multiple runtimes:
 {
   "scripts": {
     "build": "tsc && node scripts/build.js",
-    "build:zig": "zig build -Doptimize=ReleaseFast",
+    "build:rust": "cargo build --release",
     "test": "bun test",
     "test:node": "node --test",
     "test:deno": "deno test",
@@ -2116,23 +2150,32 @@ const query = db.query('SELECT * FROM sequences WHERE id = ?');
 - Leverage built-in snapshot testing
 - Implement parallel test execution
 
-## Zig Performance Module Guidelines
+## Native Rust Performance Module Guidelines
 
 ### Memory Management Patterns
 
-```zig
-// Allocator hierarchy for genomic data
-const SequenceAllocator = struct {
-    arena: std.heap.ArenaAllocator,
-    pool: ObjectPool(Sequence),
+```rust
+// Memory management for genomic data processing
+use std::sync::Arc;
+use std::collections::VecDeque;
 
-    pub fn init(base: Allocator) SequenceAllocator {
-        return .{
-            .arena = std.heap.ArenaAllocator.init(base),
-            .pool = ObjectPool(Sequence).init(base, 1024),
-        };
+pub struct SequenceProcessor {
+    // Pre-allocated buffers for performance
+    input_buffer: Vec<u8>,
+    output_buffer: Vec<u8>,
+    // Sequence pool for reuse
+    sequence_pool: VecDeque<String>,
+}
+
+impl SequenceProcessor {
+    pub fn with_capacity(buffer_size: usize, pool_size: usize) -> Self {
+        Self {
+            input_buffer: Vec::with_capacity(buffer_size),
+            output_buffer: Vec::with_capacity(buffer_size),
+            sequence_pool: VecDeque::with_capacity(pool_size),
+        }
     }
-};
+}
 ```
 
 ### SIMD Optimization Requirements
@@ -2143,16 +2186,19 @@ const SequenceAllocator = struct {
 
 ### Error Handling Convention
 
-```zig
-const ParseError = error{
+```rust
+use std::result::Result;
+
+#[derive(Debug)]
+pub enum ParseError {
     InvalidHeader,
     CorruptedData,
     UnsupportedFormat,
     AllocationFailed,
-};
+}
 
-// Always use error unions, never panic
-fn parseHeader(data: []const u8) ParseError!Header {
+// Always use Result types, never panic in FFI functions
+fn parse_header(data: &[u8]) -> Result<Header, ParseError> {
     // Implementation
 }
 ```

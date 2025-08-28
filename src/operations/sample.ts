@@ -22,7 +22,7 @@ import type { SampleOptions } from './types';
  * ```typescript
  * const processor = new SampleProcessor();
  * const sampled = processor.process(sequences, {
- *   count: 1000,
+ *   n: 1000,
  *   seed: 42,
  *   strategy: 'reservoir'
  * });
@@ -42,6 +42,7 @@ export class SampleProcessor {
     source: AsyncIterable<AbstractSequence>,
     options: SampleOptions
   ): AsyncIterable<AbstractSequence> {
+    // Validate options using common validation pattern
     this.validateOptions(options);
     this.initializeRandom(options.seed);
 
@@ -196,21 +197,38 @@ export class SampleProcessor {
    * Validate sample options
    */
   private validateOptions(options: SampleOptions): void {
-    if (options.n === undefined && options.fraction === undefined) {
+    const hasN = options.n !== undefined;
+    const hasFraction = options.fraction !== undefined;
+
+    // Must specify either n or fraction, but not both
+    if (!hasN && !hasFraction) {
       throw new Error('Either n or fraction must be specified');
     }
-
-    if (options.n !== undefined && options.fraction !== undefined) {
+    if (hasN && hasFraction) {
       throw new Error('Cannot specify both n and fraction');
     }
 
-    if (options.n !== undefined && options.n <= 0) {
-      throw new Error(`Sample count must be positive, got: ${options.n}`);
+    // Validate n if specified
+    if (options.n !== undefined) {
+      if (!Number.isInteger(options.n) || options.n <= 0) {
+        throw new Error(`n must be a positive integer, got: ${options.n}`);
+      }
     }
 
+    // Validate fraction if specified
     if (options.fraction !== undefined) {
-      if (options.fraction <= 0 || options.fraction > 1) {
-        throw new Error(`Sample fraction must be between 0 and 1, got: ${options.fraction}`);
+      if (typeof options.fraction !== 'number' || options.fraction <= 0 || options.fraction > 1) {
+        throw new Error(`Fraction must be between 0 and 1, got: ${options.fraction}`);
+      }
+    }
+
+    // Validate strategy
+    if (options.strategy) {
+      const validStrategies = ['random', 'systematic', 'reservoir'];
+      if (!validStrategies.includes(options.strategy)) {
+        throw new Error(
+          `Invalid strategy: ${options.strategy}. Valid options: ${validStrategies.join(', ')}`
+        );
       }
     }
   }

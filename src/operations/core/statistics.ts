@@ -64,7 +64,7 @@ export class SequenceStatsAccumulator {
    *
    * @param sequence - Sequence to accumulate statistics for
    *
-   * 🔥 ZIG OPTIMIZATION: Statistics calculation in single pass
+   * 🔥 NATIVE OPTIMIZATION: Statistics calculation in single pass
    */
   add(sequence: AbstractSequence): void {
     // Tiger Style: Assert input

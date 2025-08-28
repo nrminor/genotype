@@ -10,36 +10,8 @@
  */
 
 import type { AbstractSequence } from '../types';
-import { GrepError, createContextualError } from '../errors';
-
-/**
- * Options for pattern search operations
- *
- * Focused single-responsibility interface for grep-style pattern matching.
- * Follows Unix grep semantics while adding bioinformatics-specific features.
- */
-export interface GrepOptions {
-  /** Pattern to search for (string or regex) */
-  pattern: string | RegExp;
-
-  /** Target field to search in */
-  target: 'sequence' | 'id' | 'description';
-
-  /** Case-insensitive matching */
-  ignoreCase?: boolean;
-
-  /** Invert match (like grep -v) */
-  invert?: boolean;
-
-  /** Match whole words only */
-  wholeWord?: boolean;
-
-  /** Allow mismatches in sequence patterns (bioinformatics-specific) */
-  allowMismatches?: number;
-
-  /** Search both strands for sequence patterns */
-  searchBothStrands?: boolean;
-}
+import { GrepError } from '../errors';
+import type { GrepOptions } from './types';
 
 /**
  * Processor for pattern search operations
@@ -69,7 +41,6 @@ export class GrepProcessor {
     source: AsyncIterable<AbstractSequence>,
     options: GrepOptions
   ): AsyncIterable<AbstractSequence> {
-    // Validate options before processing
     this.validateOptions(options);
 
     for await (const seq of source) {
@@ -114,10 +85,9 @@ export class GrepProcessor {
       case 'description':
         return seq.description ?? null;
       default:
-        throw createContextualError(GrepError, `Invalid search target: ${target}`, {
-          context: `Valid targets: ${['sequence', 'id', 'description'].join(', ')}`,
-          data: { providedTarget: target },
-        });
+        throw new GrepError(
+          `Invalid search target: ${target}. Valid targets: ${['sequence', 'id', 'description'].join(', ')}`
+        );
     }
   }
 
@@ -180,7 +150,7 @@ export class GrepProcessor {
   /**
    * Fuzzy pattern matching with mismatches for sequences
    *
-   * ZIG_CANDIDATE: String matching with mismatches is computationally expensive
+   * NATIVE_CANDIDATE: String matching with mismatches is computationally expensive
    * Native implementation with SIMD could provide significant performance gains
    */
   private fuzzyMatches(
@@ -263,67 +233,33 @@ export class GrepProcessor {
   }
 
   /**
+   * Validate grep options
+   */
+  private validateOptions(options: GrepOptions): void {
+    if (options.pattern === undefined || options.pattern === null || options.pattern === '') {
+      throw new GrepError('Pattern is required for grep operation');
+    }
+
+    const validTargets = ['sequence', 'id', 'description'];
+    if (!validTargets.includes(options.target)) {
+      throw new GrepError(
+        `Invalid target: ${options.target}. Valid targets: ${validTargets.join(', ')}`
+      );
+    }
+
+    if (options.allowMismatches !== undefined && options.allowMismatches < 0) {
+      throw new GrepError('allowMismatches must be non-negative');
+    }
+
+    if (options.allowMismatches !== undefined && options.target !== 'sequence') {
+      throw new GrepError('allowMismatches only supported for sequence searches');
+    }
+  }
+
+  /**
    * Escape special regex characters in string
    */
   private escapeRegex(str: string): string {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  }
-
-  /**
-   * Validate grep options
-   */
-  private validateOptions(options: GrepOptions): void {
-    this.validatePattern(options);
-    this.validateTarget(options);
-    this.validateMismatchOptions(options);
-  }
-
-  /**
-   * Validate pattern requirement
-   */
-  private validatePattern(options: GrepOptions): void {
-    if (options.pattern === undefined || options.pattern === null || options.pattern === '') {
-      throw createContextualError(GrepError, 'Pattern is required for grep operation', {
-        context: 'Provide a pattern string or RegExp',
-        data: { providedOptions: Object.keys(options) },
-      });
-    }
-  }
-
-  /**
-   * Validate search target
-   */
-  private validateTarget(options: GrepOptions): void {
-    if (!['sequence', 'id', 'description'].includes(options.target)) {
-      throw createContextualError(GrepError, `Invalid search target: ${options.target}`, {
-        context: 'Valid targets: sequence, id, description',
-        data: { providedTarget: options.target },
-      });
-    }
-  }
-
-  /**
-   * Validate mismatch-related options
-   */
-  private validateMismatchOptions(options: GrepOptions): void {
-    if (options.allowMismatches !== undefined) {
-      if (options.allowMismatches < 0) {
-        throw createContextualError(GrepError, 'allowMismatches must be non-negative', {
-          context: 'Mismatch count cannot be negative',
-          data: { provided: options.allowMismatches },
-        });
-      }
-
-      if (options.target !== 'sequence') {
-        throw createContextualError(
-          GrepError,
-          'allowMismatches only supported for sequence searches',
-          {
-            context: 'Set target to "sequence" for fuzzy matching',
-            data: { currentTarget: options.target },
-          }
-        );
-      }
-    }
   }
 }

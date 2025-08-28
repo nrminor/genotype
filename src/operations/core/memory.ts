@@ -60,7 +60,7 @@ export class DefaultMemoryMonitor implements MemoryMonitor {
  * External merge sort for datasets larger than available RAM
  * Sorts data in chunks that fit in memory, then merges the sorted chunks
  *
- * 🔥 ZIG OPTIMIZATION: File I/O and sorting could be significantly optimized
+ * 🔥 NATIVE OPTIMIZATION: File I/O and sorting could be significantly optimized
  */
 export class ExternalSorter<T> {
   private chunkFiles: string[] = [];
@@ -90,7 +90,7 @@ export class ExternalSorter<T> {
 
   /**
    * Create sorted chunks and write to disk
-   * 🔥 ZIG: In-memory sorting could use parallel quicksort
+   * 🔥 NATIVE: In-memory sorting could use parallel quicksort
    */
   private async createSortedChunks(
     items: AsyncIterable<T>,
@@ -131,7 +131,7 @@ export class ExternalSorter<T> {
 
   /**
    * Merge sorted chunks using k-way merge
-   * 🔥 ZIG: Could optimize with binary heap for merge
+   * 🔥 NATIVE: Could optimize with binary heap for merge
    */
   private async *mergeSortedChunks(compareFn: (a: T, b: T) => number): AsyncIterable<T> {
     if (this.chunkFiles.length === 0) return;

@@ -208,7 +208,7 @@ function buildBadCharTable(pattern: string): Map<number, number> {
  * @param pattern - Pattern to search for
  * @returns Array of match positions
  *
- * 🔥 ZIG CRITICAL: Core string search algorithm
+ * 🔥 NATIVE CRITICAL: Core string search algorithm
  */
 export function boyerMoore(text: string, pattern: string): number[] {
   // Tiger Style: Assert inputs
@@ -260,7 +260,7 @@ export function boyerMoore(text: string, pattern: string): number[] {
  * @param maxMismatches - Maximum allowed mismatches
  * @returns Array of pattern matches with mismatch information
  *
- * 🔥 ZIG CRITICAL: Approximate string matching
+ * 🔥 NATIVE CRITICAL: Approximate string matching
  */
 export function fuzzyMatch(text: string, pattern: string, maxMismatches: number): PatternMatch[] {
   // Tiger Style: Assert inputs
@@ -322,7 +322,7 @@ function areBasesCompatible(base1: string, base2: string): boolean {
  * @param pattern - Pattern with potential ambiguity codes
  * @returns Array of match positions
  *
- * 🔥 ZIG OPTIMIZATION: Degenerate base matching
+ * 🔥 NATIVE OPTIMIZATION: Degenerate base matching
  */
 export function matchWithAmbiguous(sequence: string, pattern: string): number[] {
   // Tiger Style: Assert inputs
@@ -395,7 +395,7 @@ function buildLPSArray(pattern: string): number[] {
  * @param pattern - Pattern to search for
  * @returns Array of match positions
  *
- * ⚡ ZIG BENEFICIAL: Alternative to Boyer-Moore for specific patterns
+ * ⚡ NATIVE BENEFICIAL: Alternative to Boyer-Moore for specific patterns
  */
 export function kmpSearch(text: string, pattern: string): number[] {
   // Tiger Style: Assert inputs
@@ -443,7 +443,7 @@ export function kmpSearch(text: string, pattern: string): number[] {
  * @param prime - Prime number for hash computation (default: 101)
  * @returns Array of match positions
  *
- * ⚡ ZIG BENEFICIAL: Good for searching multiple patterns
+ * ⚡ NATIVE BENEFICIAL: Good for searching multiple patterns
  */
 export function rabinKarp(text: string, pattern: string, prime: number = 101): number[] {
   // Tiger Style: Assert inputs
@@ -538,7 +538,7 @@ export function findOverlapping(text: string, pattern: string): number[] {
  * @param seq2 - Second sequence
  * @returns Object with substring details
  *
- * ⚡ ZIG BENEFICIAL: Matrix operations could be optimized
+ * ⚡ NATIVE BENEFICIAL: Matrix operations could be optimized
  */
 export function longestCommonSubstring(
   seq1: string,
@@ -1191,7 +1191,7 @@ export function hasPattern(
  * @param sequence - DNA sequence to check
  * @returns True if sequence equals its reverse complement
  *
- * 🔥 ZIG: Vectorized comparison could speed up palindrome checking
+ * 🔥 NATIVE: Vectorized comparison could speed up palindrome checking
  */
 export function isPalindromic(sequence: string): boolean {
   // Tiger Style: Assert input

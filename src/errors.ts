@@ -485,6 +485,348 @@ export class LocateError extends GenotypeError {
 }
 
 /**
+ * Concatenation operation errors
+ */
+export class ConcatError extends GenotypeError {
+  constructor(
+    message: string,
+    public readonly sourceContext?: string,
+    public readonly idConflict?: string,
+    lineNumber?: number,
+    context?: string
+  ) {
+    super(message, 'CONCAT_ERROR', lineNumber, context);
+    this.name = 'ConcatError';
+  }
+
+  /**
+   * Create concat error with source file context
+   */
+  static withSourceContext(
+    message: string,
+    sourceFile: string,
+    idConflict?: string,
+    lineNumber?: number
+  ): ConcatError {
+    return new ConcatError(
+      `${message} (source: ${sourceFile})`,
+      sourceFile,
+      idConflict,
+      lineNumber,
+      `Source file: ${sourceFile}`
+    );
+  }
+
+  /**
+   * Enhanced toString with concat-specific context
+   */
+  override toString(): string {
+    let msg = super.toString();
+
+    if (
+      this.sourceContext !== undefined &&
+      this.sourceContext !== null &&
+      this.sourceContext !== ''
+    ) {
+      msg += `\nSource: ${this.sourceContext}`;
+    }
+
+    if (this.idConflict !== undefined && this.idConflict !== null && this.idConflict !== '') {
+      msg += `\nConflicting ID: ${this.idConflict}`;
+    }
+
+    return msg;
+  }
+}
+
+/**
+ * CIGAR validation errors with detailed mismatch analysis
+ */
+export class CigarValidationError extends ValidationError {
+  constructor(
+    message: string,
+    public readonly cigar: string,
+    public readonly sequenceLength: number,
+    public readonly consumedBases: number,
+    public readonly mismatchPercentage: number,
+    lineNumber?: number,
+    context?: string
+  ) {
+    super(message, lineNumber, context);
+    this.name = 'CigarValidationError';
+  }
+
+  /**
+   * Create CIGAR error with detailed analysis
+   */
+  static withMismatchAnalysis(
+    cigar: string,
+    sequenceLength: number,
+    consumedBases: number,
+    lineNumber?: number
+  ): CigarValidationError {
+    const mismatch = Math.abs(consumedBases - sequenceLength);
+    const percentage = (mismatch / sequenceLength) * 100;
+
+    return new CigarValidationError(
+      `CIGAR/sequence length mismatch: CIGAR consumes ${consumedBases} bases, sequence has ${sequenceLength} bases (${percentage.toFixed(1)}% difference)`,
+      cigar,
+      sequenceLength,
+      consumedBases,
+      percentage,
+      lineNumber,
+      `CIGAR: ${cigar}, Expected: ${sequenceLength} bases, Actual: ${consumedBases} bases`
+    );
+  }
+
+  /**
+   * Enhanced toString with CIGAR analysis
+   */
+  override toString(): string {
+    let msg = super.toString();
+    msg += `\nCIGAR Analysis:`;
+    msg += `\n  CIGAR String: ${this.cigar}`;
+    msg += `\n  Sequence Length: ${this.sequenceLength} bases`;
+    msg += `\n  CIGAR Consumption: ${this.consumedBases} bases`;
+    msg += `\n  Mismatch: ${this.mismatchPercentage.toFixed(1)}%`;
+    msg += `\nSuggestion: Check for corrupted SAM/BAM data or non-standard CIGAR operations`;
+    return msg;
+  }
+}
+
+/**
+ * Genomic coordinate validation errors
+ */
+export class GenomicCoordinateError extends ValidationError {
+  constructor(
+    message: string,
+    public readonly coordinate: number,
+    public readonly maxExpected: number,
+    public readonly coordinateType: 'start' | 'end' | 'position',
+    lineNumber?: number,
+    context?: string
+  ) {
+    super(message, lineNumber, context);
+    this.name = 'GenomicCoordinateError';
+  }
+
+  /**
+   * Create coordinate error for unusually large values
+   */
+  static forLargeCoordinate(
+    coordinate: number,
+    coordinateType: 'start' | 'end' | 'position' = 'position',
+    lineNumber?: number
+  ): GenomicCoordinateError {
+    const maxExpected = 300_000_000;
+    const sizeMB = Math.round(coordinate / 1_000_000);
+
+    return new GenomicCoordinateError(
+      `Genomic coordinate unusually large: ${coordinate} (${sizeMB}MB, exceeds largest known chromosome ~300MB)`,
+      coordinate,
+      maxExpected,
+      coordinateType,
+      lineNumber,
+      `Coordinate: ${coordinate}, Expected max: ~${maxExpected.toLocaleString()}`
+    );
+  }
+
+  override toString(): string {
+    let msg = super.toString();
+    msg += `\nCoordinate Analysis:`;
+    msg += `\n  Value: ${this.coordinate.toLocaleString()}`;
+    msg += `\n  Type: ${this.coordinateType}`;
+    msg += `\n  Expected Max: ~${this.maxExpected.toLocaleString()}`;
+    msg += `\nSuggestion: Verify coordinate system (0-based vs 1-based) and data integrity`;
+    return msg;
+  }
+}
+
+/**
+ * Chromosome naming validation errors
+ */
+export class ChromosomeNamingError extends ValidationError {
+  constructor(
+    message: string,
+    public readonly chromosomeName: string,
+    public readonly suggestedNames: string[],
+    lineNumber?: number,
+    context?: string
+  ) {
+    super(message, lineNumber, context);
+    this.name = 'ChromosomeNamingError';
+  }
+
+  /**
+   * Create error for non-standard chromosome names
+   */
+  static forNonStandardName(chromosomeName: string, lineNumber?: number): ChromosomeNamingError {
+    const suggestedNames = ['chr1', 'chr2', 'chrX', 'chrY', 'chrM'];
+
+    return new ChromosomeNamingError(
+      `Non-standard chromosome name: '${chromosomeName}'`,
+      chromosomeName,
+      suggestedNames,
+      lineNumber,
+      `Input: ${chromosomeName}`
+    );
+  }
+
+  override toString(): string {
+    let msg = super.toString();
+    msg += `\nChromosome: ${this.chromosomeName}`;
+    msg += `\nSuggested standard names: ${this.suggestedNames.join(', ')}`;
+    msg += `\nNote: Non-standard names may cause compatibility issues with downstream tools`;
+    return msg;
+  }
+}
+
+/**
+ * Security path access errors
+ */
+export class SecurityPathError extends GenotypeError {
+  constructor(
+    message: string,
+    public readonly attemptedPath: string,
+    public readonly securityRisk: 'traversal' | 'sensitive-directory' | 'system-access',
+    context?: string
+  ) {
+    super(message, 'SECURITY_PATH_ERROR', undefined, context);
+    this.name = 'SecurityPathError';
+  }
+
+  /**
+   * Create error for sensitive system path access
+   */
+  static forSensitiveDirectory(path: string): SecurityPathError {
+    return new SecurityPathError(
+      `Access denied: path accesses sensitive system directory`,
+      path,
+      'sensitive-directory',
+      `Attempted path: ${path}`
+    );
+  }
+
+  override toString(): string {
+    let msg = super.toString();
+    msg += `\nAttempted Path: ${this.attemptedPath}`;
+    msg += `\nSecurity Risk: ${this.securityRisk}`;
+    msg += `\nSuggestion: Use paths within your project directory or explicitly allowed locations`;
+    return msg;
+  }
+}
+
+/**
+ * Resource limit validation errors
+ */
+export class ResourceLimitError extends ValidationError {
+  constructor(
+    message: string,
+    public readonly resourceType: 'buffer' | 'file-size' | 'timeout' | 'memory',
+    public readonly actualValue: number,
+    public readonly maxAllowed: number,
+    public readonly unit: 'bytes' | 'ms' | 'count',
+    context?: string
+  ) {
+    super(message, undefined, context);
+    this.name = 'ResourceLimitError';
+  }
+
+  /**
+   * Create error for buffer size violations
+   */
+  static forBufferSize(actualSize: number, maxSize: number, operation: string): ResourceLimitError {
+    const actualMB = Math.round(actualSize / 1_048_576);
+    const maxMB = Math.round(maxSize / 1_048_576);
+
+    return new ResourceLimitError(
+      `${operation} buffer size too large: ${actualMB}MB (maximum ${maxMB}MB)`,
+      'buffer',
+      actualSize,
+      maxSize,
+      'bytes',
+      `Operation: ${operation}, Actual: ${actualSize} bytes, Max: ${maxSize} bytes`
+    );
+  }
+
+  /**
+   * Create error for timeout violations
+   */
+  static forTimeout(
+    actualTimeout: number,
+    maxTimeout: number,
+    operation: string
+  ): ResourceLimitError {
+    const actualMin = Math.round(actualTimeout / 60_000);
+    const maxMin = Math.round(maxTimeout / 60_000);
+
+    return new ResourceLimitError(
+      `${operation} timeout too long: ${actualMin} minutes (maximum ${maxMin} minutes)`,
+      'timeout',
+      actualTimeout,
+      maxTimeout,
+      'ms',
+      `Operation: ${operation}, Actual: ${actualTimeout}ms, Max: ${maxTimeout}ms`
+    );
+  }
+
+  override toString(): string {
+    let msg = super.toString();
+    msg += `\nResource Limit Violation:`;
+    msg += `\n  Type: ${this.resourceType}`;
+    msg += `\n  Actual: ${this.actualValue.toLocaleString()} ${this.unit}`;
+    msg += `\n  Maximum: ${this.maxAllowed.toLocaleString()} ${this.unit}`;
+    msg += `\nSuggestion: Reduce the ${this.resourceType} value or process data in smaller chunks`;
+    return msg;
+  }
+}
+
+/**
+ * BAI index validation errors
+ */
+export class BAIIndexError extends ValidationError {
+  constructor(
+    message: string,
+    public readonly indexComponent: 'chunk' | 'bin' | 'linear-index' | 'version' | 'interval-size',
+    public readonly value: number | string,
+    public readonly recommendation?: string,
+    context?: string
+  ) {
+    super(message, undefined, context);
+    this.name = 'BAIIndexError';
+  }
+
+  /**
+   * Create error for performance-impacting BAI conditions
+   */
+  static forPerformanceImpact(
+    component: BAIIndexError['indexComponent'],
+    value: number | string,
+    threshold: number,
+    unit: string
+  ): BAIIndexError {
+    return new BAIIndexError(
+      `BAI ${component} may impact performance: ${value} ${unit} (threshold: ${threshold})`,
+      component,
+      value,
+      `Consider regenerating BAI index with standard parameters for better performance`,
+      `Component: ${component}, Value: ${value}, Threshold: ${threshold} ${unit}`
+    );
+  }
+
+  override toString(): string {
+    let msg = super.toString();
+    msg += `\nBAI Index Issue:`;
+    msg += `\n  Component: ${this.indexComponent}`;
+    msg += `\n  Value: ${this.value}`;
+    if (this.recommendation) {
+      msg += `\n  Recommendation: ${this.recommendation}`;
+    }
+    return msg;
+  }
+}
+
+/**
  * Get helpful suggestion for common error patterns
  */
 export function getErrorSuggestion(error: GenotypeError): string | undefined {

@@ -203,8 +203,8 @@ export class SequenceValidator {
   /**
    * Clean a sequence by removing or replacing invalid characters
    *
-   * // ZIG OPTIMIZATION: Character filtering and replacement operations
-   * // are ideal for SIMD vectorization in Zig native implementation
+   * // NATIVE OPTIMIZATION: Character filtering and replacement operations
+   * // are ideal for SIMD vectorization in native implementation
    *
    * @param sequence - The sequence string to clean
    * @param replaceChar - Character to replace invalid characters with (default: 'N')
@@ -395,7 +395,7 @@ export class ValidateProcessor implements Processor<ValidateOptions> {
   ): AsyncIterable<AbstractSequence> {
     const validator = this.createValidator(options);
 
-    // ZIG_CANDIDATE: Hot loop validating every sequence
+    // NATIVE_CANDIDATE: Hot loop validating every sequence
     // Native batch validation would improve performance
     for await (const seq of source) {
       const result = this.validateSequence(seq, options, validator);
@@ -417,7 +417,7 @@ export class ValidateProcessor implements Processor<ValidateOptions> {
 
     // Determine sequence type based on allowed characters
     let type: 'dna' | 'rna' | 'unknown' = 'dna';
-    if (options.allowRNA) {
+    if (options.allowRNA === true) {
       type = 'rna';
     }
 
@@ -427,7 +427,7 @@ export class ValidateProcessor implements Processor<ValidateOptions> {
   /**
    * Validate a single sequence
    *
-   * ZIG_CANDIDATE: Character validation loop.
+   * NATIVE_CANDIDATE: Character validation loop.
    * Native implementation would be faster for
    * validating large sequences against IUPAC codes.
    *
@@ -447,12 +447,12 @@ export class ValidateProcessor implements Processor<ValidateOptions> {
     let validSequence = seq.sequence;
 
     // Apply additional validation constraints
-    if (!options.allowGaps) {
-      // ZIG_CANDIDATE: Character filtering loop
+    if (options.allowGaps !== true) {
+      // NATIVE_CANDIDATE: Character filtering loop
       validSequence = validSequence.replace(/[-.*]/g, '');
     }
 
-    // ZIG_CANDIDATE: validate() performs character-by-character validation
+    // NATIVE_CANDIDATE: validate() performs character-by-character validation
     const isValid = validator.validate(validSequence);
 
     if (isValid) {
@@ -476,7 +476,7 @@ export class ValidateProcessor implements Processor<ValidateOptions> {
 
       case 'fix': {
         // Fix invalid sequences
-        // ZIG_CANDIDATE: clean() replaces invalid characters
+        // NATIVE_CANDIDATE: clean() replaces invalid characters
         const fixed = validator.clean(
           validSequence,
           options.fixChar !== undefined && options.fixChar !== null && options.fixChar !== ''

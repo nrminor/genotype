@@ -41,11 +41,7 @@
 !/src/operations/core/*.ts
 !/src/compression/
 !/src/compression/*.ts
-!/src/zig/
-!/src/zig/build.zig
-!/src/zig/src/
-!/src/zig/src/*.zig
-!/src/zig.ts
+# Removed: Zig code migrated to Rust in src/native/
 !/src/native.ts
 !/src/native/
 !/src/native/Cargo.toml

@@ -38,11 +38,7 @@ if (!buildLib && !buildNative) {
   process.exit(1);
 }
 
-const getZigTarget = (platform, arch) => {
-  const platformMap = { darwin: "macos", win32: "windows", linux: "linux" };
-  const archMap = { x64: "x86_64", arm64: "aarch64" };
-  return `${archMap[arch] ?? arch}-${platformMap[platform] ?? platform}`;
-};
+// Removed: getZigTarget function (migrated to Rust workspace)
 
 const replaceLinks = (text) => {
   return packageJson.homepage
@@ -72,116 +68,103 @@ if (missingRequired.length > 0) {
 }
 
 if (buildNative) {
-  console.log(`Building native ${isDev ? "dev" : "prod"} binaries...`);
+  console.log(`Building native ${isDev ? "debug" : "release"} binaries...`);
 
-  const zigBuild = spawnSync("zig", [
+  const rustBuild = spawnSync("cargo", [
     "build",
-    `-Doptimize=${isDev ? "Debug" : "ReleaseFast"}`,
-  ], {
-    cwd: join(rootDir, "src", "zig"),
+    isDev ? "" : "--release",
+  ].filter(Boolean), {
+    cwd: rootDir,
     stdio: "inherit",
   });
 
-  if (zigBuild.error) {
-    console.error("Error: Zig is not installed or not in PATH");
+  if (rustBuild.error) {
+    console.error("Error: Cargo is not installed or not in PATH");
     process.exit(1);
   }
 
-  if (zigBuild.status !== 0) {
-    console.error("Error: Zig build failed");
+  if (rustBuild.status !== 0) {
+    console.error("Error: Rust build failed");
     process.exit(1);
   }
 
-  for (const { platform, arch } of variants) {
-    const nativeName = `${packageJson.name}-${platform}-${arch}`;
-    const nativeDir = join(rootDir, "node_modules", nativeName);
-    const libDir = join(
-      rootDir,
-      "src",
-      "zig",
-      "lib",
-      getZigTarget(platform, arch),
+  // For now: single platform build (current host only)
+  // TODO: Add cross-compilation when deployment planning begins
+  const libDir = join(rootDir, "target", "release");
+  const platform = process.platform;
+  const arch = process.arch;
+  
+  const nativeName = `${packageJson.name}-${platform}-${arch}`;
+  const nativeDir = join(rootDir, "node_modules", nativeName);
+
+  rmSync(nativeDir, { recursive: true, force: true });
+  mkdirSync(nativeDir, { recursive: true });
+
+  let copiedFiles = 0;
+  let libraryFileName = null;
+  
+  // Look for the built Rust library
+  const expectedLib = platform === "win32" ? "genotype.dll" : 
+                     platform === "darwin" ? "libgenotype.dylib" : "libgenotype.so";
+  const src = join(libDir, expectedLib);
+  
+  if (existsSync(src)) {
+    copyFileSync(src, join(nativeDir, expectedLib));
+    copiedFiles++;
+    libraryFileName = expectedLib;
+  }
+
+  if (copiedFiles === 0) {
+    console.error(
+      `Error: No dynamic library found for ${platform}-${arch} in ${libDir}`
     );
+    console.error(`Expected: ${expectedLib}`);
+    console.error(`Run: cargo build --release`);
+    process.exit(1);
+  }
 
-    rmSync(nativeDir, { recursive: true, force: true });
-    mkdirSync(nativeDir, { recursive: true });
-
-    let copiedFiles = 0;
-    let libraryFileName = null;
-    for (const name of ["libgenotype", "genotype"]) {
-      for (const ext of [".so", ".dll", ".dylib"]) {
-        const src = join(libDir, `${name}${ext}`);
-        if (existsSync(src)) {
-          const fileName = `${name}${ext}`;
-          copyFileSync(src, join(nativeDir, fileName));
-          copiedFiles++;
-          if (!libraryFileName) {
-            libraryFileName = fileName;
-          }
-        }
-      }
-    }
-
-    if (copiedFiles === 0) {
-      console.error(
-        `Error: No dynamic libraries found for ${platform}-${arch} in ${libDir}`,
-      );
-      console.error(
-        `Expected to find files like: libgenotype.so, libgenotype.dylib, genotype.dll`,
-      );
-      console.error(`Found files in ${libDir}:`);
-      if (existsSync(libDir)) {
-        const files = spawnSync("ls", ["-la", libDir], { stdio: "pipe" });
-        if (files.stdout) console.error(files.stdout.toString());
-      } else {
-        console.error("Directory does not exist");
-      }
-      process.exit(1);
-    }
-
-    const indexTsContent =
-      `const module = await import("./${libraryFileName}", { with: { type: "file" } })
+  const indexTsContent =
+    `const module = await import("./${libraryFileName}", { with: { type: "file" } })
 const path = module.default
 export default path;
 `;
-    writeFileSync(join(nativeDir, "index.ts"), indexTsContent);
+  writeFileSync(join(nativeDir, "index.ts"), indexTsContent);
 
-    writeFileSync(
-      join(nativeDir, "package.json"),
-      JSON.stringify(
-        {
-          name: nativeName,
-          version: packageJson.version,
-          description:
-            `Prebuilt ${platform}-${arch} binaries for ${packageJson.name}`,
-          main: "index.ts",
-          types: "index.ts",
-          license: packageJson.license,
-          author: packageJson.author,
-          homepage: packageJson.homepage,
-          repository: packageJson.repository,
-          bugs: packageJson.bugs,
-          keywords: [...(packageJson.keywords ?? []), "prebuild", "prebuilt"],
-          os: [platform],
-          cpu: [arch],
-        },
-        null,
-        2,
-      ),
-    );
+  writeFileSync(
+    join(nativeDir, "package.json"),
+    JSON.stringify(
+      {
+        name: nativeName,
+        version: packageJson.version,
+        description:
+          `Prebuilt ${platform}-${arch} binaries for ${packageJson.name}`,
+        main: "index.ts",
+        types: "index.ts",
+        license: packageJson.license,
+        author: packageJson.author,
+        homepage: packageJson.homepage,
+        repository: packageJson.repository,
+        bugs: packageJson.bugs,
+        keywords: [...(packageJson.keywords ?? []), "prebuild", "prebuilt"],
+        os: [platform],
+        cpu: [arch],
+      },
+      null,
+      2,
+    ),
+  );
 
-    writeFileSync(
-      join(nativeDir, "README.md"),
-      replaceLinks(
-        `## ${nativeName}\n\n> Prebuilt ${platform}-${arch} binaries for \`${packageJson.name}\`.`,
-      ),
-    );
+  writeFileSync(
+    join(nativeDir, "README.md"),
+    replaceLinks(
+      `## ${nativeName}\n\n> Prebuilt ${platform}-${arch} binaries for \`${packageJson.name}\`.`,
+    ),
+  );
 
-    if (existsSync(licensePath)) {
-      copyFileSync(licensePath, join(nativeDir, "LICENSE"));
-    }
-    console.log("Built:", nativeName);
+  if (existsSync(licensePath)) {
+    copyFileSync(licensePath, join(nativeDir, "LICENSE"));
   }
+  console.log("Built:", nativeName);
 }
 
 if (buildLib) {
@@ -232,7 +215,7 @@ if (buildLib) {
       "**/*.spec.ts",
       "src/examples/**/*",
       "src/benchmark/**/*",
-      "src/zig/**/*",
+      // Removed: src/zig/**/* (migrated to Rust)
       "src/native/**/*",
     ],
   };

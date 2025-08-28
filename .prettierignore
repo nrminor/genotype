@@ -9,7 +9,7 @@ test/fixtures/
 **/*.sam
 **/*.bed
 **/*.bam
-src/zig/
+# Removed: src/zig/ (migrated to Rust)
 src/native/
 *.zig
 bun.lockb

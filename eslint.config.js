@@ -126,6 +126,6 @@ export default [
     },
   },
   {
-    ignores: ['dist/**/*', 'node_modules/**/*', 'src/zig/**/*', 'src/native/**/*', '*.js', '*.d.ts'],
+    ignores: ['dist/**/*', 'node_modules/**/*', 'src/native/**/*', '*.js', '*.d.ts'],
   },
 ];

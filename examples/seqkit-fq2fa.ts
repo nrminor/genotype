@@ -269,7 +269,9 @@ async function main(): Promise<void> {
     if (options.qualityFilter || options.trim || options.minQuality !== undefined) {
       appliedOperations.push('quality control');
       pipeline = pipeline.quality({
-        ...(options.minQuality !== undefined && { minScore: options.minQuality }),
+        ...(options.minQuality !== undefined && {
+          minScore: options.minQuality,
+        }),
         ...(options.trim && {
           trim: true,
           trimThreshold: options.trimThreshold || 20,
@@ -284,7 +286,10 @@ async function main(): Promise<void> {
       appliedOperations.push('cleaning');
       pipeline = pipeline.clean({
         ...(options.removeGaps && { removeGaps: true }),
-        ...(options.replaceAmbiguous && { replaceAmbiguous: true, replaceChar: 'N' }),
+        ...(options.replaceAmbiguous && {
+          replaceAmbiguous: true,
+          replaceChar: 'N',
+        }),
       });
       console.error(`   ✓ Sequence cleaning enabled`);
     }
@@ -293,8 +298,12 @@ async function main(): Promise<void> {
     if (options.minLength !== undefined || options.maxLength !== undefined) {
       appliedOperations.push('length filtering');
       pipeline = pipeline.filter({
-        ...(options.minLength !== undefined && { minLength: options.minLength }),
-        ...(options.maxLength !== undefined && { maxLength: options.maxLength }),
+        ...(options.minLength !== undefined && {
+          minLength: options.minLength,
+        }),
+        ...(options.maxLength !== undefined && {
+          maxLength: options.maxLength,
+        }),
       });
       console.error(
         `   ✓ Length filtering: ${options.minLength || 0}-${options.maxLength || '∞'} bp`
@@ -315,9 +324,9 @@ async function main(): Promise<void> {
     console.error(`🚀 Processing sequences...`);
     const startTime = performance.now();
 
-    let inputCount = 0;
+    const inputCount = 0;
     let outputCount = 0;
-    let totalInputLength = 0;
+    const totalInputLength = 0;
     let totalOutputLength = 0;
     let totalQualitySum = 0;
     let qualityCount = 0;
@@ -371,7 +380,6 @@ async function main(): Promise<void> {
 
       // Skip empty sequences if requested
       if (options.skipEmptySequences && seq.sequence.length === 0) {
-        continue;
       }
     }
 

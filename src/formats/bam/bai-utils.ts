@@ -96,7 +96,10 @@ export const VirtualOffsetUtils: VirtualOffsetUtilsType = {
    * @returns Object with blockOffset and uncompressedOffset
    * @throws {BamError} If virtual offset is invalid
    */
-  unpack(virtualOffset: VirtualOffset): { blockOffset: number; uncompressedOffset: number } {
+  unpack(virtualOffset: VirtualOffset): {
+    blockOffset: number;
+    uncompressedOffset: number;
+  } {
     // Tiger Style: Assert function arguments
     console.assert(typeof virtualOffset === 'bigint', 'virtualOffset must be bigint');
     console.assert(virtualOffset >= 0n, 'virtualOffset must be non-negative');

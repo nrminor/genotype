@@ -116,7 +116,10 @@ export class BAIReader {
   /**
    * Parse BAI header and return parsed data with offset
    */
-  private parseBAIHeader(view: DataView): { referenceCount: number; offset: number } {
+  private parseBAIHeader(view: DataView): {
+    referenceCount: number;
+    offset: number;
+  } {
     let offset = 0;
 
     // Read and validate BAI magic bytes

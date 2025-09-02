@@ -49,11 +49,20 @@ export interface SubseqOptions {
   /** BED file path to load regions from */
   bedFile?: string;
   /** BED regions to extract (alternative to bedFile) */
-  bedRegions?: Array<{ chromosome: string; chromStart: number; chromEnd: number }>;
+  bedRegions?: Array<{
+    chromosome: string;
+    chromStart: number;
+    chromEnd: number;
+  }>;
   /** GTF file path to load features from */
   gtfFile?: string;
   /** GTF features to extract (alternative to gtfFile) */
-  gtfFeatures?: Array<{ seqname: string; start: number; end: number; feature: string }>;
+  gtfFeatures?: Array<{
+    seqname: string;
+    start: number;
+    end: number;
+    feature: string;
+  }>;
   /** Feature type to filter (for GTF) */
   featureType?: string;
 
@@ -1250,7 +1259,9 @@ export class SubseqExtractor {
       ...first,
       sequence: concatenatedSeq,
       length: concatenatedSeq.length,
-      ...(concatenatedQuality !== undefined && { quality: concatenatedQuality }),
+      ...(concatenatedQuality !== undefined && {
+        quality: concatenatedQuality,
+      }),
     } as T;
 
     return result;

@@ -562,11 +562,7 @@ export class BGZFCompressor {
    * @returns Optimized compressor instance
    */
   static createOptimized(
-    options: {
-      compressionLevel?: number;
-      blockSize?: number;
-      prioritizeSpeed?: boolean;
-    } = {}
+    options: { compressionLevel?: number; blockSize?: number; prioritizeSpeed?: boolean } = {}
   ): BGZFCompressor {
     const {
       compressionLevel = options.prioritizeSpeed === true ? 1 : 6,

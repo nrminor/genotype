@@ -12,7 +12,7 @@
 import { type } from 'arktype';
 import { createContextualError, SequenceError, ValidationError } from '../errors';
 import type { AbstractSequence } from '../types';
-import { GeneticCode, GeneticCodeTable } from './core/genetic-codes';
+import { GeneticCode, getGeneticCode, isStartCodon } from './core/genetic-codes';
 import { reverseComplement } from './core/sequence-manipulation';
 import type { TranslateOptions } from './types';
 import { createOptionsValidator } from './core/validation-utils';
@@ -244,7 +244,7 @@ export class TranslateProcessor {
     geneticCode: GeneticCode,
     options: TranslateOptions
   ): string {
-    const codeTable = GeneticCodeTable.getGeneticCode(geneticCode);
+    const codeTable = getGeneticCode(geneticCode);
     if (!codeTable) {
       throw createContextualError(SequenceError, `Invalid genetic code: ${geneticCode}`, {
         context: 'Use genetic codes 1-33',
@@ -305,7 +305,7 @@ export class TranslateProcessor {
     geneticCode: GeneticCode,
     options: TranslateOptions
   ): string | null {
-    const codeTable = GeneticCodeTable.getGeneticCode(geneticCode);
+    const codeTable = getGeneticCode(geneticCode);
     if (!codeTable) return null;
 
     for (let i = frameOffset; i + 2 < sequence.length; i += 3) {
@@ -423,7 +423,7 @@ export class TranslateProcessor {
    * Check if codon is a start codon for the genetic code
    */
   private isStartCodon(codon: string, geneticCode: GeneticCode): boolean {
-    return GeneticCodeTable.isStartCodon(codon, geneticCode);
+    return isStartCodon(codon, geneticCode);
   }
 
   /**

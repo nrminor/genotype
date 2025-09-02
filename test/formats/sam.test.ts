@@ -328,7 +328,11 @@ describe('SAMParser', () => {
       expect(alignment.tags![1]).toEqual({ tag: 'NM', type: 'i', value: 5 });
       expect(alignment.tags![2]).toEqual({ tag: 'AS', type: 'f', value: 99.5 });
       expect(alignment.tags![3]).toEqual({ tag: 'MD', type: 'Z', value: '4' });
-      expect(alignment.tags![4]).toEqual({ tag: 'XS', type: 'H', value: '1A2B' });
+      expect(alignment.tags![4]).toEqual({
+        tag: 'XS',
+        type: 'H',
+        value: '1A2B',
+      });
     });
 
     test('should throw error for malformed tag', async () => {

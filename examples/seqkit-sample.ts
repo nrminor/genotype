@@ -36,7 +36,7 @@ async function main() {
     process.exit(1);
   }
 
-  if (isNaN(count) || count <= 0) {
+  if (Number.isNaN(count) || count <= 0) {
     console.error(`Error: Count must be a positive number, got: ${process.argv[3]}`);
     process.exit(1);
   }
@@ -56,7 +56,7 @@ async function main() {
     // Output sampled sequences
     let outputCount = 0;
     for await (const seq of sampled) {
-      console.log(`>${seq.id}${seq.description ? ' ' + seq.description : ''}`);
+      console.log(`>${seq.id}${seq.description ? ` ${seq.description}` : ''}`);
       console.log(seq.sequence);
       outputCount++;
     }

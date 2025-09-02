@@ -207,7 +207,7 @@ export class BAMParser {
           // Use efficient buffer concatenation for Bun
           const uint8Value =
             value instanceof ArrayBuffer ? new Uint8Array(value as ArrayBuffer) : value;
-          // @ts-ignore - ArrayBufferLike vs ArrayBuffer compatibility
+          // @ts-expect-error - ArrayBufferLike vs ArrayBuffer compatibility
           buffer = this.appendToBuffer(buffer, uint8Value);
           totalBytesProcessed += value.length;
 
@@ -375,7 +375,10 @@ export class BAMParser {
   /**
    * Validate BAM header buffer and magic bytes
    */
-  private validateBAMHeaderBuffer(buffer: Uint8Array): { view: DataView; offset: number } {
+  private validateBAMHeaderBuffer(buffer: Uint8Array): {
+    view: DataView;
+    offset: number;
+  } {
     if (!(buffer instanceof Uint8Array)) {
       throw new ValidationError('buffer must be Uint8Array');
     }

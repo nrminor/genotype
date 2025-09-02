@@ -313,7 +313,7 @@ export class WeightedReservoirSampler<T> {
     }
 
     // Generate key = random^(1/weight)
-    const key = Math.pow(this.rng(), 1 / weight);
+    const key = this.rng() ** (1 / weight);
 
     if (this.reservoir.length < this.size) {
       // Reservoir not full, add item

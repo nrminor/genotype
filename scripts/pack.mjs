@@ -1,40 +1,36 @@
-import { spawnSync } from "bun";
-import { existsSync, mkdirSync, readFileSync, rmSync, statSync } from "fs";
-import { dirname, join, resolve } from "path";
-import process from "process";
-import { fileURLToPath } from "url";
+import { spawnSync } from 'bun';
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync } from 'fs';
+import { dirname, join, resolve } from 'path';
+import process from 'process';
+import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const rootDir = resolve(__dirname, "..");
-const packedDir = join(rootDir, "packed");
+const rootDir = resolve(__dirname, '..');
+const packedDir = join(rootDir, 'packed');
 
-const packageJson = JSON.parse(
-  readFileSync(join(rootDir, "package.json"), "utf8"),
-);
+const packageJson = JSON.parse(readFileSync(join(rootDir, 'package.json'), 'utf8'));
 
 const args = process.argv.slice(2);
-const skipBuild = args.includes("--skip-build");
-const verbose = args.includes("--verbose");
+const skipBuild = args.includes('--skip-build');
+const verbose = args.includes('--verbose');
 
 if (!skipBuild) {
-  console.log("Building packages first...");
-  const buildResult = spawnSync("bun", ["run", "build"], {
+  console.log('Building packages first...');
+  const buildResult = spawnSync('bun', ['run', 'build'], {
     cwd: rootDir,
-    stdio: "inherit",
+    stdio: 'inherit',
   });
 
   if (buildResult.status !== 0) {
-    console.error("Error: Build failed");
+    console.error('Error: Build failed');
     process.exit(1);
   }
 }
 
-const libDir = join(rootDir, "dist");
+const libDir = join(rootDir, 'dist');
 if (!existsSync(libDir)) {
-  console.error(
-    "Error: dist directory not found. Please run 'bun run build' first.",
-  );
+  console.error("Error: dist directory not found. Please run 'bun run build' first.");
   process.exit(1);
 }
 
@@ -42,26 +38,23 @@ rmSync(packedDir, { recursive: true, force: true });
 mkdirSync(packedDir, { recursive: true });
 
 const packagesToPack = [];
-const libPackageJson = JSON.parse(
-  readFileSync(join(libDir, "package.json"), "utf8"),
-);
+const libPackageJson = JSON.parse(readFileSync(join(libDir, 'package.json'), 'utf8'));
 
 packagesToPack.push({
   name: libPackageJson.name,
   dir: libDir,
-  type: "library",
+  type: 'library',
 });
 
-for (
-  const pkgName of Object.keys(libPackageJson.optionalDependencies || {})
-    .filter((x) => x.startsWith(packageJson.name))
-) {
-  const nativeDir = join(rootDir, "node_modules", pkgName);
+for (const pkgName of Object.keys(libPackageJson.optionalDependencies || {}).filter((x) =>
+  x.startsWith(packageJson.name)
+)) {
+  const nativeDir = join(rootDir, 'node_modules', pkgName);
   if (existsSync(nativeDir)) {
     packagesToPack.push({
       name: pkgName,
       dir: nativeDir,
-      type: "native",
+      type: 'native',
     });
   } else {
     console.warn(`Warning: Native package directory not found: ${nativeDir}`);
@@ -77,17 +70,13 @@ for (const pkg of packagesToPack) {
   try {
     console.log(`Packing ${pkg.name} (${pkg.type})...`);
 
-    const packResult = spawnSync("npm", [
-      "pack",
-      "--pack-destination",
-      packedDir,
-    ], {
+    const packResult = spawnSync('npm', ['pack', '--pack-destination', packedDir], {
       cwd: pkg.dir,
-      stdio: verbose ? "inherit" : "pipe",
+      stdio: verbose ? 'inherit' : 'pipe',
     });
 
     if (packResult.status !== 0) {
-      const error = packResult.stderr?.toString() || "Unknown error";
+      const error = packResult.stderr?.toString() || 'Unknown error';
       errors.push({ package: pkg.name, error });
       console.error(`    Failed to pack ${pkg.name}`);
       if (!verbose) {
@@ -97,7 +86,7 @@ for (const pkg of packagesToPack) {
     }
 
     const output = packResult.stdout?.toString().trim();
-    const packedFile = output.split("\n").pop();
+    const packedFile = output.split('\n').pop();
     const fullPath = join(packedDir, packedFile);
 
     if (existsSync(fullPath)) {
@@ -116,11 +105,11 @@ for (const pkg of packagesToPack) {
       console.log(`  ✓ Packed: ${packedFile} (${sizeKB} KB)`);
 
       if (verbose) {
-        const listResult = spawnSync("tar", ["-tzf", fullPath], {
+        const listResult = spawnSync('tar', ['-tzf', fullPath], {
           cwd: packedDir,
         });
         if (listResult.status === 0) {
-          const files = listResult.stdout.toString().trim().split("\n");
+          const files = listResult.stdout.toString().trim().split('\n');
           console.log(`    Files: ${files.length} files`);
           if (files.length <= 20) {
             files.forEach((f) => console.log(`      - ${f}`));
@@ -131,7 +120,7 @@ for (const pkg of packagesToPack) {
         }
       }
     } else {
-      errors.push({ package: pkg.name, error: "Packed file not found" });
+      errors.push({ package: pkg.name, error: 'Packed file not found' });
       console.error(`    Packed file not found for ${pkg.name}`);
     }
   } catch (error) {
@@ -140,25 +129,25 @@ for (const pkg of packagesToPack) {
   }
 }
 
-console.log("\n" + "=".repeat(60));
-console.log("PACKING SUMMARY");
-console.log("=".repeat(60));
+console.log('\n' + '='.repeat(60));
+console.log('PACKING SUMMARY');
+console.log('='.repeat(60));
 
 if (packedFiles.length > 0) {
   console.log(`\n✓ Successfully packed ${packedFiles.length} packages:`);
 
-  const library = packedFiles.filter((p) => p.type === "library");
-  const native = packedFiles.filter((p) => p.type === "native");
+  const library = packedFiles.filter((p) => p.type === 'library');
+  const native = packedFiles.filter((p) => p.type === 'native');
 
   if (library.length > 0) {
-    console.log("\n  Library:");
+    console.log('\n  Library:');
     library.forEach((p) => {
       console.log(`    - ${p.file} (${p.sizeKB} KB)`);
     });
   }
 
   if (native.length > 0) {
-    console.log("\n  Native binaries:");
+    console.log('\n  Native binaries:');
     native.forEach((p) => {
       console.log(`    - ${p.file} (${p.sizeKB} KB)`);
     });
@@ -178,11 +167,11 @@ if (errors.length > 0) {
 
 if (packedFiles.length > 0) {
   console.log(`\nPacked files saved to: ${packedDir}`);
-  console.log("\nYou can inspect the packed files with:");
-  console.log("  tar -tzf packed/<filename>.tgz    # List contents");
-  console.log("  tar -xzf packed/<filename>.tgz    # Extract contents");
-  console.log("\nTo publish these packages, run:");
-  console.log("  bun run publish");
+  console.log('\nYou can inspect the packed files with:');
+  console.log('  tar -tzf packed/<filename>.tgz    # List contents');
+  console.log('  tar -xzf packed/<filename>.tgz    # Extract contents');
+  console.log('\nTo publish these packages, run:');
+  console.log('  bun run publish');
 }
 
 if (errors.length > 0) {

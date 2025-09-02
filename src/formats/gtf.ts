@@ -82,11 +82,17 @@ export function validateGtfCoordinates(
   end: number
 ): { valid: boolean; error?: string } {
   if (start < 1) {
-    return { valid: false, error: 'Start coordinate must be >= 1 (GTF is 1-based)' };
+    return {
+      valid: false,
+      error: 'Start coordinate must be >= 1 (GTF is 1-based)',
+    };
   }
 
   if (end < start) {
-    return { valid: false, error: 'End coordinate must be >= start coordinate' };
+    return {
+      valid: false,
+      error: 'End coordinate must be >= start coordinate',
+    };
   }
 
   return { valid: true };

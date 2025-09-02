@@ -304,27 +304,26 @@ export type ParseGenomicRegion<T extends string> =
  * ): ExtractCoordinates<T> extends { length: number } ? T : never;
  * ```
  */
-export type ExtractCoordinates<T extends string> =
-  ParseGenomicRegion<T> extends {
-    chromosome: infer Chr;
-    start: infer Start;
-    end: infer End;
-  }
-    ? {
-        readonly chr: Chr;
-        readonly start: Start;
-        readonly end: End;
-        readonly length: Start extends number
-          ? End extends number
-            ? End extends 0
-              ? never
-              : Start extends 0
-                ? End
-                : never // Simplified arithmetic for template literals
-            : never
-          : never;
-      }
-    : never;
+export type ExtractCoordinates<T extends string> = ParseGenomicRegion<T> extends {
+  chromosome: infer Chr;
+  start: infer Start;
+  end: infer End;
+}
+  ? {
+      readonly chr: Chr;
+      readonly start: Start;
+      readonly end: End;
+      readonly length: Start extends number
+        ? End extends number
+          ? End extends 0
+            ? never
+            : Start extends 0
+              ? End
+              : never // Simplified arithmetic for template literals
+          : never
+        : never;
+    }
+  : never;
 
 /**
  * Validate genomic region format and coordinates at compile time

@@ -10,9 +10,23 @@ export { QualityEncoding } from '../../types';
 
 // Note: SeqOps is now exported from operations/index.ts, not here
 // Bloom filters for deduplication (low-level)
-export { BloomFilter, CountingBloomFilter, ScalableBloomFilter } from './bloom-filter';
-// NCBI genetic code tables
-export { GeneticCode, GeneticCodeTable } from './genetic-codes';
+export {
+  BloomFilter,
+  CountingBloomFilter,
+  ScalableBloomFilter,
+} from './bloom-filter';
+// NCBI genetic code tables (tree-shakeable functions)
+export {
+  GeneticCode,
+  GeneticCodes,
+  translate,
+  translateSixFrames,
+  findORFs,
+  getGeneticCode,
+  listGeneticCodes,
+  isStartCodon,
+  isStopCodon,
+} from './genetic-codes';
 // Memory management strategies
 export { MemoryStrategy } from './interfaces';
 // Memory management strategies (low-level)
@@ -89,7 +103,11 @@ export {
   sortSequences,
 } from './sequence-sorter';
 // Statistics accumulator for streaming analysis
-export { calculateSequenceStats, type SequenceStats, SequenceStatsAccumulator } from './statistics';
+export {
+  calculateSequenceStats,
+  type SequenceStats,
+  SequenceStatsAccumulator,
+} from './statistics';
 // Sequence manipulation operations (from sequence-manipulation.ts)
 export {
   complement,

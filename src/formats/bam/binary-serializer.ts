@@ -1188,10 +1188,7 @@ export function calculateAlignmentSize(alignment: SAMAlignment, references: stri
  * @returns Optimized serializer functions
  */
 export function createOptimizedSerializer(
-  options: {
-    maxAlignmentSize?: number;
-    bufferPoolSize?: number;
-  } = {}
+  options: { maxAlignmentSize?: number; bufferPoolSize?: number } = {}
 ): {
   getBuffer: (size: number) => Uint8Array;
   getStats: () => {

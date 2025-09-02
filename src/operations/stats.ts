@@ -442,7 +442,11 @@ export class SequenceStatsCalculator {
   private analyzeComposition(
     sequence: string,
     accumulator: StatsAccumulator,
-    options: { gapChars: string; ambiguousChars: string; includeComposition: boolean }
+    options: {
+      gapChars: string;
+      ambiguousChars: string;
+      includeComposition: boolean;
+    }
   ): void {
     const upperSeq = sequence.toUpperCase();
 

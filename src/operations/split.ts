@@ -346,7 +346,9 @@ export class SplitProcessor {
           length: sequence.length,
           ...(sequence.description !== undefined &&
             sequence.description !== null &&
-            sequence.description !== '' && { description: sequence.description }),
+            sequence.description !== '' && {
+              description: sequence.description,
+            }),
         };
         currentWriter.write(writer.formatSequence(fastaSeq));
       }
@@ -411,7 +413,9 @@ export class SplitProcessor {
               length: sequence.length,
               ...(sequence.description !== undefined &&
                 sequence.description !== null &&
-                sequence.description !== '' && { description: sequence.description }),
+                sequence.description !== '' && {
+                  description: sequence.description,
+                }),
             };
             writer.write(fastaWriter.formatSequence(fastaSeq));
           }
@@ -485,7 +489,9 @@ export class SplitProcessor {
           length: sequence.length,
           ...(sequence.description !== undefined &&
             sequence.description !== null &&
-            sequence.description !== '' && { description: sequence.description }),
+            sequence.description !== '' && {
+              description: sequence.description,
+            }),
         };
         currentWriter.write(writer.formatSequence(fastaSeq));
       }
@@ -553,7 +559,9 @@ export class SplitProcessor {
             length: sequence.length,
             ...(sequence.description !== undefined &&
               sequence.description !== null &&
-              sequence.description !== '' && { description: sequence.description }),
+              sequence.description !== '' && {
+                description: sequence.description,
+              }),
           };
           writer.write(fastaWriter.formatSequence(fastaSeq));
         }
@@ -602,7 +610,9 @@ export class SplitProcessor {
           length: sequence.length,
           ...(sequence.description !== null &&
             sequence.description !== undefined &&
-            sequence.description !== '' && { description: sequence.description }),
+            sequence.description !== '' && {
+              description: sequence.description,
+            }),
         } as FastaSequence);
 
         writer.write(formatted);

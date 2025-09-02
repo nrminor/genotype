@@ -149,12 +149,19 @@ function initializeDecompressor(
   controller: { error: (error: Error) => void },
   runtime: Runtime,
   options: Required<DecompressorOptions>,
-  state: { bytesProcessed: number; decompressor: unknown; initialized: boolean }
+  state: {
+    bytesProcessed: number;
+    decompressor: unknown;
+    initialized: boolean;
+  }
 ): void {
   try {
     if (runtime === 'node') {
       void initializeNodeDecompressor(
-        controller as { enqueue: (chunk: Uint8Array) => void; error: (error: Error) => void },
+        controller as {
+          enqueue: (chunk: Uint8Array) => void;
+          error: (error: Error) => void;
+        },
         options,
         state
       );
@@ -174,9 +181,16 @@ function initializeDecompressor(
 }
 
 async function initializeNodeDecompressor(
-  controller: { enqueue: (chunk: Uint8Array) => void; error: (error: Error) => void },
+  controller: {
+    enqueue: (chunk: Uint8Array) => void;
+    error: (error: Error) => void;
+  },
   options: Required<DecompressorOptions>,
-  state: { bytesProcessed: number; decompressor: unknown; initialized: boolean }
+  state: {
+    bytesProcessed: number;
+    decompressor: unknown;
+    initialized: boolean;
+  }
 ): Promise<void> {
   const zlib = await import('zlib');
   state.decompressor = zlib.createGunzip({
@@ -220,7 +234,11 @@ function processChunk(
   context: {
     runtime: Runtime;
     options: Required<DecompressorOptions>;
-    state: { bytesProcessed: number; decompressor: unknown; initialized: boolean };
+    state: {
+      bytesProcessed: number;
+      decompressor: unknown;
+      initialized: boolean;
+    };
   }
 ): void {
   const { runtime, options, state } = context;
@@ -270,7 +288,9 @@ function writeChunkToDecompressor(
   state: { decompressor: unknown }
 ): void {
   if (runtime === 'node') {
-    const nodeStream = state.decompressor as { write: (data: Uint8Array) => void };
+    const nodeStream = state.decompressor as {
+      write: (data: Uint8Array) => void;
+    };
     nodeStream.write(chunk);
   } else if (state.decompressor instanceof DecompressionStream) {
     const writer = state.decompressor.writable.getWriter();
@@ -430,7 +450,11 @@ export function createStream(
 
   const runtime = detectRuntime();
   const mergedOptions = mergeOptions(options, runtime);
-  const state = { bytesProcessed: 0, decompressor: null as unknown, initialized: false };
+  const state = {
+    bytesProcessed: 0,
+    decompressor: null as unknown,
+    initialized: false,
+  };
 
   return new TransformStream({
     start: (controller) => initializeDecompressor(controller, runtime, mergedOptions, state),

@@ -17,6 +17,8 @@
 !/.editorconfig
 !/.prettierignore
 !/eslint.config.js
+!/biome.json
+!/biome.jsonc
 
 !/examples/
 !/examples/*.ts

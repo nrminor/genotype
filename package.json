@@ -19,12 +19,7 @@
       "import": "./dist/index.js"
     }
   },
-  "files": [
-    "dist",
-    "src",
-    "README.md",
-    "LICENSE*"
-  ],
+  "files": ["dist", "src", "README.md", "LICENSE*"],
   "sideEffects": false,
   "scripts": {
     "build": "bun run build:native && bun run build:lib",
@@ -37,12 +32,11 @@
     "test": "bun test",
     "test:rust": "cargo test",
     "test:node": "node --test test/**/*.test.js",
-    "test:deno": "deno test test/**/*.test.ts",
-    "lint": "tsc --noEmit && eslint src test --ext .ts",
-    "lint:fix": "eslint src test --ext .ts --fix",
+    "lint": "tsc --noEmit && bunx biome lint",
+    "lint:fix": "bunx biome lint --write",
     "lint:rust": "cargo clippy -- -D warnings",
-    "format": "prettier --write \"src/**/*.{ts,js,json}\" \"test/**/*.{ts,js,json}\" \"examples/**/*.{ts,js,json}\" \"*.{ts,js,json,md}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,js,json}\" \"test/**/*.{ts,js,json}\" \"*.{ts,js,json,md}\"",
+    "format": "bunx biome format --write",
+    "format:check": "bunx biome check",
     "format:rust": "cargo fmt",
     "clean": "rm -rf dist && cargo clean",
     "clean:rust": "cargo clean",
@@ -81,30 +75,13 @@
     "genotype-win32-arm64": "0.1.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.1.4",
-    "@eslint/js": "^9.32.0",
+    "@biomejs/biome": "2.2.2",
     "@types/bun": "^1.1.0",
     "@types/node": "^22.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.0.0",
-    "@typescript-eslint/parser": "^8.0.0",
-    "eslint": "^9.32.0",
-    "prettier": "^3.3.0",
     "tsd": "^0.31.0",
     "type-coverage": "^2.29.0",
     "typescript": "^5.5.0",
     "typescript-language-server": "^4.3.4",
     "vscode-langservers-extracted": "4.8"
-  },
-  "prettier": {
-    "semi": true,
-    "singleQuote": true,
-    "printWidth": 100,
-    "tabWidth": 2,
-    "trailingComma": "es5",
-    "bracketSpacing": true,
-    "arrowParens": "always",
-    "endOfLine": "lf",
-    "bracketSameLine": false,
-    "quoteProps": "as-needed"
   }
 }

@@ -106,7 +106,7 @@ describe('FastaParser', () => {
 
     await expect(async () => {
       for await (const seq of parser.parseString(fasta)) {
-        // Should throw before yielding any sequences  
+        // Should throw before yielding any sequences
       }
     }).toThrow(/Empty FASTA header.*identifier/);
   });

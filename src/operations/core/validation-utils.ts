@@ -11,7 +11,7 @@
  * @since v0.1.0
  */
 
-import { type } from 'arktype';
+import type { type } from 'arktype';
 import { ValidationError, GenotypeError } from '../../errors';
 
 /**

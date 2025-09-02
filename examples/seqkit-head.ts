@@ -55,7 +55,7 @@ function parseArguments(): { inputFile: string; options: HeadOptions } {
       case '-l':
         options.lengths = true;
         break;
-      default:
+      default: {
         // Try to parse as count
         const maybeCount = parseInt(arg, 10);
         if (!isNaN(maybeCount) && maybeCount > 0) {
@@ -65,6 +65,7 @@ function parseArguments(): { inputFile: string; options: HeadOptions } {
           console.error(`Error: Unknown option '${arg}' or invalid count`);
           process.exit(1);
         }
+      }
     }
   }
 

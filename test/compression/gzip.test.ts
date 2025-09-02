@@ -133,7 +133,9 @@ describe('GzipDecompressor', () => {
 
     test.skip('should handle abort signal in stream', async () => {
       const controller = new AbortController();
-      const stream = GzipDecompressor.createStream({ signal: controller.signal });
+      const stream = GzipDecompressor.createStream({
+        signal: controller.signal,
+      });
 
       const writer = stream.writable.getWriter();
       const reader = stream.readable.getReader();

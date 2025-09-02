@@ -255,9 +255,6 @@ export class FastaParser {
         // Call error handler for parsing errors
         const errorMessage = error instanceof Error ? error.message : String(error);
         this.options.onError(errorMessage, currentLineNumber);
-
-        // Continue processing if error handler doesn't throw
-        continue;
       }
     }
 
@@ -382,7 +379,12 @@ export class FastaParser {
       if (this.options.skipValidation) {
         this.options.onWarning('Empty FASTA header', lineNumber);
       } else {
-        throw new ParseError('Empty FASTA header: header must contain an identifier after ">"', 'FASTA', lineNumber, headerLine);
+        throw new ParseError(
+          'Empty FASTA header: header must contain an identifier after ">"',
+          'FASTA',
+          lineNumber,
+          headerLine
+        );
       }
     }
 
@@ -404,7 +406,10 @@ export class FastaParser {
     }
   }
 
-  private extractIdAndDescription(header: string): { id: string; description?: string } {
+  private extractIdAndDescription(header: string): {
+    id: string;
+    description?: string;
+  } {
     const firstSpace = header.search(/\s/);
     const id = firstSpace === -1 ? header : header.slice(0, firstSpace);
     const description = firstSpace === -1 ? undefined : header.slice(firstSpace + 1).trim();
@@ -755,9 +760,6 @@ export class FastaParser {
           // Call error handler for line-level parsing errors
           const errorMessage = lineError instanceof Error ? lineError.message : String(lineError);
           this.options.onError(errorMessage, lineNumber);
-
-          // Continue processing if error handler doesn't throw
-          continue;
         }
       }
 
@@ -769,8 +771,8 @@ export class FastaParser {
         throw new SequenceError(
           'Header found but no sequence data',
           currentSequence.id !== null &&
-          currentSequence.id !== undefined &&
-          currentSequence.id !== ''
+            currentSequence.id !== undefined &&
+            currentSequence.id !== ''
             ? currentSequence.id
             : 'unknown',
           lineNumber

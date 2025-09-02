@@ -8,7 +8,7 @@
  * @since v0.1.0
  */
 
-import { GeneticCodeTable } from './genetic-codes';
+import { getGeneticCode } from './genetic-codes';
 
 // =============================================================================
 // EXPORTED FUNCTIONS
@@ -181,7 +181,7 @@ export function translateSimple(sequence: string, geneticCodeId: number = 1): st
     throw new Error('Sequence must be a non-empty string');
   }
 
-  const geneticCode = GeneticCodeTable.getGeneticCode(geneticCodeId);
+  const geneticCode = getGeneticCode(geneticCodeId);
   if (!geneticCode) {
     throw new Error(`Unknown genetic code: ${geneticCodeId}`);
   }

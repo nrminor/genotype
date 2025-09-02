@@ -288,7 +288,11 @@ function initializeZstdDecompressor(
   controller: any,
   runtime: Runtime,
   mergedOptions: Required<DecompressorOptions>,
-  state: { bytesProcessed: number; decompressor: unknown; initialized: boolean }
+  state: {
+    bytesProcessed: number;
+    decompressor: unknown;
+    initialized: boolean;
+  }
 ): void {
   try {
     // Initialize runtime-specific decompressor
@@ -347,7 +351,12 @@ function processZstdChunk(
   controller: any,
   runtime: Runtime,
   mergedOptions: Required<DecompressorOptions>,
-  state: { bytesProcessed: number; decompressor: unknown; initialized: boolean; buffer: Uint8Array }
+  state: {
+    bytesProcessed: number;
+    decompressor: unknown;
+    initialized: boolean;
+    buffer: Uint8Array;
+  }
 ): void {
   if (!state.initialized) {
     controller.error(new CompressionError('Decompressor not initialized', 'zstd', 'stream'));
@@ -371,7 +380,9 @@ function processZstdChunk(
     }
 
     if (runtime === 'node' && state.decompressor !== null) {
-      const nodeStream = state.decompressor as { write?: (chunk: Uint8Array) => void };
+      const nodeStream = state.decompressor as {
+        write?: (chunk: Uint8Array) => void;
+      };
       if (nodeStream.write !== undefined) {
         nodeStream.write(chunk);
       }

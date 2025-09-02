@@ -1232,7 +1232,11 @@ seqops.concat = (
 };
 
 // Re-export types and classes for convenience
-export { type SequenceStats, SequenceStatsCalculator, type StatsOptions } from './stats';
+export {
+  type SequenceStats,
+  SequenceStatsCalculator,
+  type StatsOptions,
+} from './stats';
 export { SubseqExtractor, type SubseqOptions } from './subseq';
 export { TranslateProcessor } from './translate';
 

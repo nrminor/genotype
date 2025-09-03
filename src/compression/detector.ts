@@ -6,8 +6,8 @@
  * bioinformatics workflows.
  */
 
-import { CompressionError } from '../errors';
-import type { CompressionDetection, CompressionFormat } from '../types';
+import { CompressionError } from "../errors";
+import type { CompressionDetection, CompressionFormat } from "../types";
 
 /**
  * Magic byte signatures for compression formats commonly used in genomics
@@ -39,11 +39,11 @@ const COMPRESSION_MAGIC_BYTES = {
  * Includes both primary extensions and composite extensions for genomic formats.
  */
 const COMPRESSION_EXTENSIONS = {
-  gzip: ['.gz', '.gzip'],
-  zstd: ['.zst', '.zstd'],
+  gzip: [".gz", ".gzip"],
+  zstd: [".zst", ".zstd"],
   // Common genomic file combinations
-  genomic_gzip: ['.fasta.gz', '.fastq.gz', '.sam.gz', '.bed.gz', '.vcf.gz'],
-  genomic_zstd: ['.fasta.zst', '.fastq.zst', '.sam.zst', '.bed.zst', '.vcf.zst'],
+  genomic_gzip: [".fasta.gz", ".fastq.gz", ".sam.gz", ".bed.gz", ".vcf.gz"],
+  genomic_zstd: [".fasta.zst", ".fastq.zst", ".sam.zst", ".bed.zst", ".vcf.zst"],
 } as const;
 
 /**
@@ -81,15 +81,15 @@ const MIN_CONFIDENCE_DISAGREEMENT = 0.3;
 export function fromExtension(filePath: string): CompressionFormat {
   // Tiger Style: Validate function arguments with proper error handling
 
-  if (typeof filePath !== 'string') {
-    throw new CompressionError('File path must be a string', 'none', 'detect');
+  if (typeof filePath !== "string") {
+    throw new CompressionError("File path must be a string", "none", "detect");
   }
   if (filePath.length === 0) {
-    throw new CompressionError('File path must not be empty', 'none', 'detect');
+    throw new CompressionError("File path must not be empty", "none", "detect");
   }
 
   // Normalize path for cross-platform compatibility
-  const normalizedPath = filePath.toLowerCase().replace(/\\/g, '/');
+  const normalizedPath = filePath.toLowerCase().replace(/\\/g, "/");
 
   try {
     // Check for gzip extensions (most common in genomics)
@@ -97,7 +97,7 @@ export function fromExtension(filePath: string): CompressionFormat {
 
     for (const ext of gzipExtensions) {
       if (normalizedPath.endsWith(ext)) {
-        return 'gzip';
+        return "gzip";
       }
     }
 
@@ -106,14 +106,14 @@ export function fromExtension(filePath: string): CompressionFormat {
 
     for (const ext of zstdExtensions) {
       if (normalizedPath.endsWith(ext)) {
-        return 'zstd';
+        return "zstd";
       }
     }
 
     // No compression detected
-    return 'none';
+    return "none";
   } catch (error) {
-    throw CompressionError.fromSystemError('none', 'detect', error);
+    throw CompressionError.fromSystemError("none", "detect", error);
   }
 }
 
@@ -142,10 +142,10 @@ export function fromMagicBytes(bytes: Uint8Array): CompressionDetection {
   // Tiger Style: Validate function arguments with proper error handling
 
   if (!(bytes instanceof Uint8Array)) {
-    throw new CompressionError('Bytes must be Uint8Array', 'none', 'detect');
+    throw new CompressionError("Bytes must be Uint8Array", "none", "detect");
   }
   if (bytes.length === 0) {
-    throw new CompressionError('Bytes array must not be empty', 'none', 'detect');
+    throw new CompressionError("Bytes array must not be empty", "none", "detect");
   }
 
   try {
@@ -155,10 +155,10 @@ export function fromMagicBytes(bytes: Uint8Array): CompressionDetection {
       const matches = gzipMagic.every((byte, index) => bytes[index] === byte);
       if (matches) {
         const result: CompressionDetection = {
-          format: 'gzip',
+          format: "gzip",
           confidence: 1.0, // Perfect magic byte match
           magicBytes: bytes.slice(0, gzipMagic.length),
-          detectionMethod: 'magic-bytes',
+          detectionMethod: "magic-bytes",
         };
         return result;
       }
@@ -170,10 +170,10 @@ export function fromMagicBytes(bytes: Uint8Array): CompressionDetection {
       const matches = zstdMagic.every((byte, index) => bytes[index] === byte);
       if (matches) {
         const result: CompressionDetection = {
-          format: 'zstd',
+          format: "zstd",
           confidence: 1.0, // Perfect magic byte match
           magicBytes: bytes.slice(0, zstdMagic.length),
-          detectionMethod: 'magic-bytes',
+          detectionMethod: "magic-bytes",
         };
         return result;
       }
@@ -181,13 +181,13 @@ export function fromMagicBytes(bytes: Uint8Array): CompressionDetection {
 
     // No compression detected from magic bytes
     const result: CompressionDetection = {
-      format: 'none',
+      format: "none",
       confidence: 0.9, // High confidence that it's not compressed
-      detectionMethod: 'magic-bytes',
+      detectionMethod: "magic-bytes",
     };
     return result;
   } catch (error) {
-    throw CompressionError.fromSystemError('none', 'detect', error);
+    throw CompressionError.fromSystemError("none", "detect", error);
   }
 }
 
@@ -219,7 +219,7 @@ export async function fromStream(
   // Tiger Style: Validate function arguments with proper error handling
 
   if (!(stream instanceof ReadableStream)) {
-    throw new CompressionError('Stream must be ReadableStream', 'none', 'detect');
+    throw new CompressionError("Stream must be ReadableStream", "none", "detect");
   }
 
   const reader = stream.getReader();
@@ -233,9 +233,9 @@ export async function fromStream(
     if (isEmpty) {
       // Empty stream - not compressed
       const result: CompressionDetection = {
-        format: 'none',
+        format: "none",
         confidence: 0.8, // Reasonable confidence for empty stream
-        detectionMethod: 'magic-bytes',
+        detectionMethod: "magic-bytes",
       };
       return result;
     }
@@ -255,7 +255,7 @@ export async function fromStream(
       // Ignore release errors
     }
 
-    throw CompressionError.fromSystemError('none', 'detect', error);
+    throw CompressionError.fromSystemError("none", "detect", error);
   }
 }
 
@@ -289,15 +289,15 @@ export function hybrid(filePath: string, bytes?: Uint8Array): CompressionDetecti
 
     // If no bytes provided, rely on extension only
     if (!bytes) {
-      const hasCompression = extensionFormat !== 'none';
+      const hasCompression = extensionFormat !== "none";
       const confidence = hasCompression
         ? HIGH_CONFIDENCE_BOTH_METHODS
         : MEDIUM_CONFIDENCE_EXTENSION_ONLY;
       const result: CompressionDetection = {
         format: extensionFormat,
         confidence,
-        extension: filePath.substring(filePath.lastIndexOf('.')),
-        detectionMethod: 'extension',
+        extension: filePath.substring(filePath.lastIndexOf(".")),
+        detectionMethod: "extension",
       };
       return result;
     }
@@ -313,8 +313,8 @@ export function hybrid(filePath: string, bytes?: Uint8Array): CompressionDetecti
         ...(magicDetection.magicBytes && {
           magicBytes: magicDetection.magicBytes,
         }),
-        extension: filePath.substring(filePath.lastIndexOf('.')),
-        detectionMethod: 'hybrid',
+        extension: filePath.substring(filePath.lastIndexOf(".")),
+        detectionMethod: "hybrid",
       };
       return result;
     }
@@ -329,12 +329,12 @@ export function hybrid(filePath: string, bytes?: Uint8Array): CompressionDetecti
       ...(magicDetection.magicBytes && {
         magicBytes: magicDetection.magicBytes,
       }),
-      extension: filePath.substring(filePath.lastIndexOf('.')),
-      detectionMethod: 'hybrid',
+      extension: filePath.substring(filePath.lastIndexOf(".")),
+      detectionMethod: "hybrid",
     };
     return result;
   } catch (error) {
-    throw CompressionError.fromSystemError('none', 'detect', error);
+    throw CompressionError.fromSystemError("none", "detect", error);
   }
 }
 
@@ -354,11 +354,11 @@ export function hybrid(filePath: string, bytes?: Uint8Array): CompressionDetecti
  * ```
  */
 export function isReliable(detection: CompressionDetection): boolean {
-  if (typeof detection !== 'object' || detection === null) {
-    throw new CompressionError('Detection result must be an object', 'none', 'detect');
+  if (typeof detection !== "object" || detection === null) {
+    throw new CompressionError("Detection result must be an object", "none", "detect");
   }
-  if (typeof detection.confidence !== 'number') {
-    throw new CompressionError('Detection confidence must be a number', 'none', 'detect');
+  if (typeof detection.confidence !== "number") {
+    throw new CompressionError("Detection confidence must be a number", "none", "detect");
   }
 
   return detection.confidence >= MIN_CONFIDENCE_THRESHOLD;

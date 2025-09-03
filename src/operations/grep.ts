@@ -9,9 +9,44 @@
  * @since v0.1.0
  */
 
-import type { AbstractSequence } from '../types';
-import { GrepError } from '../errors';
-import type { GrepOptions } from './types';
+import { type } from "arktype";
+import { GrepError, ValidationError } from "../errors";
+import type { AbstractSequence } from "../types";
+import { hasPatternWithMismatches } from "./core/pattern-matching";
+import type { GrepOptions } from "./types";
+
+/**
+ * ArkType schema for GrepOptions validation
+ */
+const GrepOptionsSchema = type({
+  pattern: "string | RegExp",
+  target: "'sequence' | 'id' | 'description'",
+  "ignoreCase?": "boolean",
+  "invert?": "boolean",
+  "wholeWord?": "boolean",
+  "allowMismatches?": "number>=0",
+  "searchBothStrands?": "boolean",
+}).narrow((options, ctx) => {
+  // Pattern validation - ensure string patterns aren't empty
+  if (typeof options.pattern === "string" && options.pattern.trim() === "") {
+    return ctx.reject({
+      expected: "non-empty pattern string",
+      actual: "empty string",
+      path: ["pattern"],
+    });
+  }
+
+  // Validate mismatch/target compatibility
+  if (options.allowMismatches && options.allowMismatches > 0 && options.target !== "sequence") {
+    return ctx.reject({
+      expected: "target: 'sequence' for fuzzy matching",
+      actual: `target: '${options.target}' with allowMismatches > 0`,
+      path: ["allowMismatches"],
+    });
+  }
+
+  return true;
+});
 
 /**
  * Processor for pattern search operations
@@ -41,7 +76,11 @@ export class GrepProcessor {
     source: AsyncIterable<AbstractSequence>,
     options: GrepOptions
   ): AsyncIterable<AbstractSequence> {
-    this.validateOptions(options);
+    // Direct ArkType validation
+    const validationResult = GrepOptionsSchema(options);
+    if (validationResult instanceof type.errors) {
+      throw new ValidationError(`Invalid grep options: ${validationResult.summary}`);
+    }
 
     for await (const seq of source) {
       const matches = this.sequenceMatches(seq, options);
@@ -64,7 +103,7 @@ export class GrepProcessor {
    */
   private sequenceMatches(seq: AbstractSequence, options: GrepOptions): boolean {
     const target = this.getSearchTarget(seq, options.target);
-    if (target === null || target === '') return false;
+    if (target === null || target === "") return false;
 
     return this.patternMatches(target, options);
   }
@@ -78,15 +117,15 @@ export class GrepProcessor {
    */
   private getSearchTarget(seq: AbstractSequence, target: string): string | null {
     switch (target) {
-      case 'sequence':
+      case "sequence":
         return seq.sequence;
-      case 'id':
+      case "id":
         return seq.id;
-      case 'description':
+      case "description":
         return seq.description ?? null;
       default:
         throw new GrepError(
-          `Invalid search target: ${target}. Valid targets: ${['sequence', 'id', 'description'].join(', ')}`
+          `Invalid search target: ${target}. Valid targets: ${["sequence", "id", "description"].join(", ")}`
         );
     }
   }
@@ -111,9 +150,9 @@ export class GrepProcessor {
     const searchPattern = ignoreCase === true ? pattern.toLowerCase() : pattern;
 
     // Handle sequence matching (including both strands and fuzzy matching)
-    if (options.target === 'sequence') {
+    if (options.target === "sequence") {
       const maxMismatches = allowMismatches ?? 0;
-      return this.fuzzyMatches(
+      return hasPatternWithMismatches(
         searchTarget,
         searchPattern,
         maxMismatches,
@@ -125,7 +164,7 @@ export class GrepProcessor {
     if (wholeWord === true) {
       const wordRegex = new RegExp(
         `\\b${this.escapeRegex(searchPattern)}\\b`,
-        ignoreCase === true ? 'i' : ''
+        ignoreCase === true ? "i" : ""
       );
       return wordRegex.test(target);
     }
@@ -138,9 +177,9 @@ export class GrepProcessor {
    * Check regex pattern matching with case sensitivity handling
    */
   private regexMatches(target: string, pattern: RegExp, ignoreCase: boolean): boolean {
-    if (ignoreCase === true && !pattern.flags.includes('i')) {
+    if (ignoreCase === true && !pattern.flags.includes("i")) {
       // Create case-insensitive version if needed
-      const flags = pattern.flags + 'i';
+      const flags = pattern.flags + "i";
       const caseInsensitivePattern = new RegExp(pattern.source, flags);
       return caseInsensitivePattern.test(target);
     }
@@ -148,118 +187,9 @@ export class GrepProcessor {
   }
 
   /**
-   * Fuzzy pattern matching with mismatches for sequences
-   *
-   * NATIVE_CANDIDATE: String matching with mismatches is computationally expensive
-   * Native implementation with SIMD could provide significant performance gains
-   */
-  private fuzzyMatches(
-    sequence: string,
-    pattern: string,
-    maxMismatches: number,
-    bothStrands?: boolean
-  ): boolean {
-    // Check forward strand
-    if (this.countMismatches(sequence, pattern) <= maxMismatches) {
-      return true;
-    }
-
-    // Check reverse complement if requested
-    if (bothStrands === true) {
-      const patternReverseComplement = this.reverseComplement(pattern);
-      if (this.countMismatches(sequence, patternReverseComplement) <= maxMismatches) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  /**
-   * Count mismatches between pattern and all positions in sequence
-   */
-  private countMismatches(sequence: string, pattern: string): number {
-    let minMismatches = Infinity;
-
-    // Sliding window approach
-    for (let i = 0; i <= sequence.length - pattern.length; i++) {
-      const window = sequence.substr(i, pattern.length);
-      let mismatches = 0;
-
-      for (let j = 0; j < pattern.length; j++) {
-        if (window[j] !== pattern[j]) {
-          mismatches++;
-        }
-      }
-
-      minMismatches = Math.min(minMismatches, mismatches);
-
-      // Early exit if perfect match found
-      if (minMismatches === 0) break;
-    }
-
-    return minMismatches === Infinity ? pattern.length : minMismatches;
-  }
-
-  /**
-   * Generate reverse complement of DNA sequence
-   */
-  private reverseComplement(sequence: string): string {
-    const complement: Record<string, string> = {
-      A: 'T',
-      T: 'A',
-      C: 'G',
-      G: 'C',
-      U: 'A',
-      R: 'Y',
-      Y: 'R',
-      S: 'S',
-      W: 'W',
-      K: 'M',
-      M: 'K',
-      B: 'V',
-      D: 'H',
-      H: 'D',
-      V: 'B',
-      N: 'N',
-    };
-
-    return sequence
-      .toUpperCase()
-      .split('')
-      .reverse()
-      .map((base) => complement[base] ?? base)
-      .join('');
-  }
-
-  /**
-   * Validate grep options
-   */
-  private validateOptions(options: GrepOptions): void {
-    if (options.pattern === undefined || options.pattern === null || options.pattern === '') {
-      throw new GrepError('Pattern is required for grep operation');
-    }
-
-    const validTargets = ['sequence', 'id', 'description'];
-    if (!validTargets.includes(options.target)) {
-      throw new GrepError(
-        `Invalid target: ${options.target}. Valid targets: ${validTargets.join(', ')}`
-      );
-    }
-
-    if (options.allowMismatches !== undefined && options.allowMismatches < 0) {
-      throw new GrepError('allowMismatches must be non-negative');
-    }
-
-    if (options.allowMismatches !== undefined && options.target !== 'sequence') {
-      throw new GrepError('allowMismatches only supported for sequence searches');
-    }
-  }
-
-  /**
    * Escape special regex characters in string
    */
   private escapeRegex(str: string): string {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
 }

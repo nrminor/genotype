@@ -9,8 +9,9 @@
  * @since v0.1.0
  */
 
-import type { AbstractSequence } from '../types';
-import type { CleanOptions, Processor } from './types';
+import type { AbstractSequence } from "../types";
+import { removeGaps, replaceAmbiguousBases } from "./core/sequence-manipulation";
+import type { CleanOptions, Processor } from "./types";
 
 /**
  * Processor for cleaning and sanitizing sequences
@@ -65,29 +66,21 @@ export class CleanProcessor implements Processor<CleanOptions> {
     // Trim whitespace first
     if (options.trimWhitespace === true) {
       sequence = sequence.trim();
-      if (description !== undefined && description !== null) {
+      if (description !== undefined) {
         description = description.trim();
       }
     }
 
     // Remove gaps
     if (options.removeGaps === true) {
-      const gapChars =
-        options.gapChars !== undefined && options.gapChars !== null && options.gapChars !== ''
-          ? options.gapChars
-          : '.-*';
-      sequence = this.removeGaps(sequence, gapChars);
+      const gapChars = options.gapChars ?? ".-*";
+      sequence = removeGaps(sequence, gapChars);
     }
 
     // Replace ambiguous bases
     if (options.replaceAmbiguous === true) {
-      const replaceChar =
-        options.replaceChar !== undefined &&
-        options.replaceChar !== null &&
-        options.replaceChar !== ''
-          ? options.replaceChar
-          : 'N';
-      sequence = this.replaceAmbiguousBases(sequence, replaceChar);
+      const replaceChar = options.replaceChar ?? "N";
+      sequence = replaceAmbiguousBases(sequence, replaceChar);
     }
 
     // Return new sequence object if changed
@@ -101,54 +94,5 @@ export class CleanProcessor implements Processor<CleanOptions> {
       length: sequence.length,
       ...(description !== seq.description && { description }),
     };
-  }
-
-  /**
-   * Remove gap characters from sequence
-   *
-   * NATIVE_CANDIDATE: Character filtering loop.
-   * Native implementation would avoid regex overhead
-   * and intermediate string allocations.
-   *
-   * @param sequence - Input sequence
-   * @param gapChars - Characters to remove
-   * @returns Sequence with gaps removed
-   */
-  private removeGaps(sequence: string, gapChars: string): string {
-    // Create regex pattern from gap characters, escaping special regex chars
-    const escapedChars = gapChars
-      .split('')
-      .map((char) => {
-        // Escape special regex characters
-        // Note: hyphen needs special handling in character classes
-        if ('\\^$*+?.()|[]{}/-'.includes(char)) {
-          return '\\' + char;
-        }
-        return char;
-      })
-      .join('');
-
-    // NATIVE_CANDIDATE: Regex replace creates new string
-    // Native loop could build result directly
-    const pattern = new RegExp(`[${escapedChars}]`, 'g');
-    return sequence.replace(pattern, '');
-  }
-
-  /**
-   * Replace ambiguous bases with a standard character
-   *
-   * NATIVE_CANDIDATE: Character validation and replacement loop.
-   * Native implementation would be faster than regex replace.
-   *
-   * @param sequence - Input sequence
-   * @param replaceChar - Character to use for replacement
-   * @returns Sequence with ambiguous bases replaced
-   */
-  private replaceAmbiguousBases(sequence: string, replaceChar: string): string {
-    // Replace any non-standard DNA/RNA bases
-    // Standard bases: A, C, G, T, U
-    // Everything else (including IUPAC codes) gets replaced
-    // NATIVE_CANDIDATE: Regex creates new string with replacements
-    return sequence.replace(/[^ACGTU]/gi, replaceChar);
   }
 }

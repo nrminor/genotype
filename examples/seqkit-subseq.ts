@@ -19,8 +19,8 @@
  *   bun run examples/seqkit-subseq.ts circular.fa --region "950:50" --circular
  */
 
-import { FastaParser, seqops } from '../src';
-import type { SubseqOptions } from '../src/operations';
+import { FastaParser, seqops } from "../src";
+import type { SubseqOptions } from "../src/operations";
 
 interface SubseqScriptOptions {
   region?: string;
@@ -33,16 +33,16 @@ interface SubseqScriptOptions {
   downstream?: number;
   onlyFlank?: boolean;
   oneBased?: boolean;
-  strand?: '+' | '-' | 'both';
+  strand?: "+" | "-" | "both";
   circular?: boolean;
 }
 
 function parseArguments(): { inputFile: string; options: SubseqScriptOptions } {
   const args = process.argv.slice(2);
 
-  if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
+  if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
     showHelp();
-    process.exit(args.includes('--help') || args.includes('-h') ? 0 : 1);
+    process.exit(args.includes("--help") || args.includes("-h") ? 0 : 1);
   }
 
   const inputFile = args[0];
@@ -53,8 +53,8 @@ function parseArguments(): { inputFile: string; options: SubseqScriptOptions } {
     const nextArg = args[i + 1];
 
     switch (arg) {
-      case '--region':
-      case '-r':
+      case "--region":
+      case "-r":
         if (!nextArg) {
           console.error(`Error: ${arg} requires a region string (e.g., "1:100")`);
           process.exit(1);
@@ -63,16 +63,16 @@ function parseArguments(): { inputFile: string; options: SubseqScriptOptions } {
         i++;
         break;
 
-      case '--regions':
+      case "--regions":
         if (!nextArg) {
           console.error(`Error: ${arg} requires comma-separated regions (e.g., "1:100,200:300")`);
           process.exit(1);
         }
-        options.regions = nextArg.split(',');
+        options.regions = nextArg.split(",");
         i++;
         break;
 
-      case '--start':
+      case "--start":
         if (!nextArg || isNaN(Number(nextArg))) {
           console.error(`Error: ${arg} requires a numeric value`);
           process.exit(1);
@@ -81,7 +81,7 @@ function parseArguments(): { inputFile: string; options: SubseqScriptOptions } {
         i++;
         break;
 
-      case '--end':
+      case "--end":
         if (!nextArg || isNaN(Number(nextArg))) {
           console.error(`Error: ${arg} requires a numeric value`);
           process.exit(1);
@@ -90,8 +90,8 @@ function parseArguments(): { inputFile: string; options: SubseqScriptOptions } {
         i++;
         break;
 
-      case '--bed-file':
-      case '--bed':
+      case "--bed-file":
+      case "--bed":
         if (!nextArg) {
           console.error(`Error: ${arg} requires a BED file path`);
           process.exit(1);
@@ -100,8 +100,8 @@ function parseArguments(): { inputFile: string; options: SubseqScriptOptions } {
         i++;
         break;
 
-      case '--gtf-file':
-      case '--gtf':
+      case "--gtf-file":
+      case "--gtf":
         if (!nextArg) {
           console.error(`Error: ${arg} requires a GTF file path`);
           process.exit(1);
@@ -110,8 +110,8 @@ function parseArguments(): { inputFile: string; options: SubseqScriptOptions } {
         i++;
         break;
 
-      case '--upstream':
-      case '--up-stream':
+      case "--upstream":
+      case "--up-stream":
         if (!nextArg || isNaN(Number(nextArg))) {
           console.error(`Error: ${arg} requires a numeric value`);
           process.exit(1);
@@ -120,8 +120,8 @@ function parseArguments(): { inputFile: string; options: SubseqScriptOptions } {
         i++;
         break;
 
-      case '--downstream':
-      case '--down-stream':
+      case "--downstream":
+      case "--down-stream":
         if (!nextArg || isNaN(Number(nextArg))) {
           console.error(`Error: ${arg} requires a numeric value`);
           process.exit(1);
@@ -130,25 +130,25 @@ function parseArguments(): { inputFile: string; options: SubseqScriptOptions } {
         i++;
         break;
 
-      case '--only-flank':
+      case "--only-flank":
         options.onlyFlank = true;
         break;
 
-      case '--one-based':
+      case "--one-based":
         options.oneBased = true;
         break;
 
-      case '--strand':
-        if (!nextArg || !['plus', '+', 'minus', '-', 'both'].includes(nextArg)) {
+      case "--strand":
+        if (!nextArg || !["plus", "+", "minus", "-", "both"].includes(nextArg)) {
           console.error(`Error: ${arg} requires one of: plus, +, minus, -, both`);
           process.exit(1);
         }
         options.strand =
-          nextArg === 'plus' ? '+' : nextArg === 'minus' ? '-' : (nextArg as '+' | '-' | 'both');
+          nextArg === "plus" ? "+" : nextArg === "minus" ? "-" : (nextArg as "+" | "-" | "both");
         i++;
         break;
 
-      case '--circular':
+      case "--circular":
         options.circular = true;
         break;
 
@@ -241,11 +241,11 @@ Output:
 }
 
 function parseRegionString(region: string): { start: number; end: number } {
-  if (!region.includes(':')) {
+  if (!region.includes(":")) {
     throw new Error(`Invalid region format '${region}'. Use 'start:end' format.`);
   }
 
-  const [startStr, endStr] = region.split(':');
+  const [startStr, endStr] = region.split(":");
   const start = parseInt(startStr, 10);
   const end = parseInt(endStr, 10);
 
@@ -325,7 +325,7 @@ async function main(): Promise<void> {
     !(options.start !== undefined && options.end !== undefined)
   ) {
     console.error(
-      'Error: Must specify extraction method (--region, --regions, --bed-file, --gtf-file, or --start/--end)'
+      "Error: Must specify extraction method (--region, --regions, --bed-file, --gtf-file, or --start/--end)"
     );
     process.exit(1);
   }
@@ -345,7 +345,7 @@ async function main(): Promise<void> {
       console.error(`Extracting region: ${options.region}`);
     }
     if (options.regions) {
-      console.error(`Extracting regions: ${options.regions.join(', ')}`);
+      console.error(`Extracting regions: ${options.regions.join(", ")}`);
     }
     if (options.bedFile) {
       console.error(`Using BED file: ${options.bedFile}`);
@@ -358,17 +358,17 @@ async function main(): Promise<void> {
         `Flanking sequences: ${options.upstream || 0} bp upstream, ${options.downstream || 0} bp downstream`
       );
     }
-    if (options.strand && options.strand !== 'both') {
+    if (options.strand && options.strand !== "both") {
       console.error(`Strand: ${options.strand}`);
     }
     if (options.circular) {
-      console.error('Circular sequence handling enabled');
+      console.error("Circular sequence handling enabled");
     }
 
-    console.error(`Coordinate system: ${options.oneBased ? '1-based' : '0-based'}`);
+    console.error(`Coordinate system: ${options.oneBased ? "1-based" : "0-based"}`);
 
     // Extract subsequences
-    console.error('Extracting subsequences...');
+    console.error("Extracting subsequences...");
     const startTime = performance.now();
 
     const extracted = seqops(sequences).subseq(subseqOptions);
@@ -378,7 +378,7 @@ async function main(): Promise<void> {
     let totalExtractedLength = 0;
 
     for await (const seq of extracted) {
-      console.log(`>${seq.id}${seq.description ? ' ' + seq.description : ''}`);
+      console.log(`>${seq.id}${seq.description ? " " + seq.description : ""}`);
       console.log(seq.sequence);
 
       extractedCount++;
@@ -415,10 +415,10 @@ async function main(): Promise<void> {
     }
   } catch (error) {
     if (error instanceof Error) {
-      if (error.message.includes('Invalid region format')) {
+      if (error.message.includes("Invalid region format")) {
         console.error(`Error: ${error.message}`);
         console.error(`Expected format: "start:end" (e.g., "1:100", "50:-1", "-100:-1")`);
-      } else if (error.message.includes('file not found')) {
+      } else if (error.message.includes("file not found")) {
         console.error(`Error: Could not read file '${inputFile}'`);
         console.error(`Check that the file exists and is accessible.`);
       } else {

@@ -18,7 +18,7 @@
  *   bun run examples/seqkit-stats.ts assembly.fa --n50 --gaps
  */
 
-import { FastaParser, FastqParser, seqops } from '../src';
+import { FastaParser, FastqParser, seqops } from "../src";
 
 interface StatsOptions {
   detailed?: boolean;
@@ -33,9 +33,9 @@ interface StatsOptions {
 function parseArguments(): { inputFile: string; options: StatsOptions } {
   const args = process.argv.slice(2);
 
-  if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
+  if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
     showHelp();
-    process.exit(args.includes('--help') || args.includes('-h') ? 0 : 1);
+    process.exit(args.includes("--help") || args.includes("-h") ? 0 : 1);
   }
 
   const inputFile = args[0];
@@ -45,27 +45,27 @@ function parseArguments(): { inputFile: string; options: StatsOptions } {
     const arg = args[i];
 
     switch (arg) {
-      case '--detailed':
-      case '-a':
+      case "--detailed":
+      case "-a":
         options.detailed = true;
         break;
-      case '--tabular':
-      case '-T':
+      case "--tabular":
+      case "-T":
         options.tabular = true;
         break;
-      case '--gc-content':
+      case "--gc-content":
         options.gcContent = true;
         break;
-      case '--n50':
+      case "--n50":
         options.n50 = true;
         break;
-      case '--quality':
+      case "--quality":
         options.quality = true;
         break;
-      case '--gaps':
+      case "--gaps":
         options.gaps = true;
         break;
-      case '--skip-validation':
+      case "--skip-validation":
         options.skipValidation = true;
         break;
       default:
@@ -152,7 +152,7 @@ function formatBytes(bytes: number): string {
 }
 
 function outputTabular(stats: any, filename: string): void {
-  console.log('file\tformat\ttype\tnum_seqs\tsum_len\tmin_len\tavg_len\tmax_len');
+  console.log("file\tformat\ttype\tnum_seqs\tsum_len\tmin_len\tavg_len\tmax_len");
   console.log(
     [
       filename,
@@ -163,13 +163,13 @@ function outputTabular(stats: any, filename: string): void {
       stats.minLength,
       stats.avgLength.toFixed(1),
       stats.maxLength,
-    ].join('\t')
+    ].join("\t")
   );
 }
 
 function outputDetailed(stats: any, filename: string, options: StatsOptions): void {
   console.log(`\n📊 Comprehensive Statistics for: ${filename}`);
-  console.log('='.repeat(60));
+  console.log("=".repeat(60));
 
   // Basic information
   console.log(`\n📁 FILE INFORMATION:`);
@@ -200,7 +200,7 @@ function outputDetailed(stats: any, filename: string, options: StatsOptions): vo
     if (stats.n90 !== undefined) {
       console.log(`   N90:              ${formatNumber(stats.n90)} bp`);
     }
-    console.log(`   L50:              ${stats.l50 || 'N/A'} sequences`);
+    console.log(`   L50:              ${stats.l50 || "N/A"} sequences`);
   }
 
   // GC content (if available and requested)
@@ -211,10 +211,10 @@ function outputDetailed(stats: any, filename: string, options: StatsOptions): vo
 
     if (stats.baseComposition) {
       console.log(`\n   Base composition:`);
-      console.log(`     A: ${stats.baseComposition.A?.toFixed(2) || '0.00'}%`);
-      console.log(`     T: ${stats.baseComposition.T?.toFixed(2) || '0.00'}%`);
-      console.log(`     G: ${stats.baseComposition.G?.toFixed(2) || '0.00'}%`);
-      console.log(`     C: ${stats.baseComposition.C?.toFixed(2) || '0.00'}%`);
+      console.log(`     A: ${stats.baseComposition.A?.toFixed(2) || "0.00"}%`);
+      console.log(`     T: ${stats.baseComposition.T?.toFixed(2) || "0.00"}%`);
+      console.log(`     G: ${stats.baseComposition.G?.toFixed(2) || "0.00"}%`);
+      console.log(`     C: ${stats.baseComposition.C?.toFixed(2) || "0.00"}%`);
       if (stats.baseComposition.N && stats.baseComposition.N > 0) {
         console.log(`     N: ${stats.baseComposition.N.toFixed(2)}% (ambiguous)`);
       }
@@ -232,7 +232,7 @@ function outputDetailed(stats: any, filename: string, options: StatsOptions): vo
   if ((options.quality || options.detailed) && stats.avgQuality !== undefined) {
     console.log(`\n⭐ QUALITY STATISTICS:`);
     console.log(`   Average quality:  ${stats.avgQuality.toFixed(2)}`);
-    console.log(`   Quality encoding: ${stats.qualityEncoding || 'Auto-detected'}`);
+    console.log(`   Quality encoding: ${stats.qualityEncoding || "Auto-detected"}`);
 
     if (stats.q20Percentage !== undefined) {
       console.log(`   Q20 bases:        ${stats.q20Percentage.toFixed(2)}%`);
@@ -244,7 +244,7 @@ function outputDetailed(stats: any, filename: string, options: StatsOptions): vo
 
   // Summary assessment
   console.log(`\n✅ QUALITY ASSESSMENT:`);
-  if (stats.format === 'FASTA') {
+  if (stats.format === "FASTA") {
     if (stats.n50 && stats.n50 > 10000) {
       console.log(`   Assembly quality: Excellent (N50 > 10kb)`);
     } else if (stats.avgLength > 1000) {
@@ -252,7 +252,7 @@ function outputDetailed(stats: any, filename: string, options: StatsOptions): vo
     } else {
       console.log(`   Sequence quality: Fragmented sequences`);
     }
-  } else if (stats.format === 'FASTQ') {
+  } else if (stats.format === "FASTQ") {
     if (stats.avgQuality && stats.avgQuality > 30) {
       console.log(`   Read quality: Excellent (Q${stats.avgQuality.toFixed(0)})`);
     } else if (stats.avgQuality && stats.avgQuality > 20) {
@@ -276,22 +276,22 @@ async function main(): Promise<void> {
   try {
     // Auto-detect format and create appropriate parser
     let sequences: AsyncIterable<any>;
-    let detectedFormat = 'FASTA';
+    let detectedFormat = "FASTA";
 
-    if (inputFile.toLowerCase().includes('.fq') || inputFile.toLowerCase().includes('.fastq')) {
-      console.error('Detected FASTQ format - including quality analysis');
+    if (inputFile.toLowerCase().includes(".fq") || inputFile.toLowerCase().includes(".fastq")) {
+      console.error("Detected FASTQ format - including quality analysis");
       const parser = new FastqParser();
       sequences = parser.parseFile(inputFile);
-      detectedFormat = 'FASTQ';
+      detectedFormat = "FASTQ";
       options.quality = true; // Enable quality analysis for FASTQ
     } else {
-      console.error('Detected FASTA format');
+      console.error("Detected FASTA format");
       const parser = new FastaParser();
       sequences = parser.parseFile(inputFile);
     }
 
     // Calculate comprehensive statistics
-    console.error('Calculating statistics...');
+    console.error("Calculating statistics...");
     const startTime = performance.now();
 
     const stats = await seqops(sequences).stats({
@@ -322,11 +322,11 @@ async function main(): Promise<void> {
         `📈 Throughput: ${formatNumber(Math.round(stats.totalLength / parseFloat(processingTime)))} bp/s`
       );
 
-      if (detectedFormat === 'FASTQ' && options.quality) {
+      if (detectedFormat === "FASTQ" && options.quality) {
         console.error(`💡 Tip: Use --detailed for comprehensive quality analysis`);
       }
 
-      if (stats.numSequences > 1000 && !options.n50 && detectedFormat === 'FASTA') {
+      if (stats.numSequences > 1000 && !options.n50 && detectedFormat === "FASTA") {
         console.error(`💡 Tip: Use --n50 for assembly statistics`);
       }
     }

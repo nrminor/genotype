@@ -23,8 +23,8 @@
  * ```
  */
 
-import type { FastqSequence, QualityEncoding } from '../../types';
-import { QualityEncoding as QualityEncodingConstants } from '../../types';
+import type { FastqSequence, QualityEncoding } from "../../types";
+import { QualityEncoding as QualityEncodingConstants } from "../../types";
 
 // =============================================================================
 // TYPES AND CONSTANTS
@@ -63,7 +63,7 @@ export async function detectEncoding(
 ): Promise<QualityEncoding> {
   // Tiger Style: Assert input
   if (sequences === null || sequences === undefined) {
-    throw new Error('Sequences input is required for encoding detection');
+    throw new Error("Sequences input is required for encoding detection");
   }
 
   let minQual = 127;
@@ -129,11 +129,11 @@ export const detect = detectEncoding;
  */
 export function convertScore(quality: string, from: QualityEncoding, to: QualityEncoding): string {
   // Tiger Style: Assert inputs
-  if (!quality || typeof quality !== 'string') {
-    throw new Error('Quality string is required for conversion');
+  if (!quality || typeof quality !== "string") {
+    throw new Error("Quality string is required for conversion");
   }
   if (from === undefined || from === null || to === undefined || to === null) {
-    throw new Error('Both from and to encodings are required');
+    throw new Error("Both from and to encodings are required");
   }
 
   if (from === to) return quality;
@@ -145,7 +145,7 @@ export function convertScore(quality: string, from: QualityEncoding, to: Quality
 
   // Handle Solexa's different probability calculation if needed
   if (from === QualityEncodingConstants.SOLEXA || to === QualityEncodingConstants.SOLEXA) {
-    throw new Error('Solexa conversion not yet implemented');
+    throw new Error("Solexa conversion not yet implemented");
   }
 
   // Simple offset conversion for Phred encodings
@@ -159,7 +159,7 @@ export function convertScore(quality: string, from: QualityEncoding, to: Quality
     result[i] = String.fromCharCode(newCharCode);
   }
 
-  return result.join('');
+  return result.join("");
 }
 
 /**
@@ -185,8 +185,8 @@ export function averageQuality(
   encoding: QualityEncoding = QualityEncodingConstants.PHRED33
 ): number {
   // Tiger Style: Assert inputs
-  if (!quality || typeof quality !== 'string') {
-    throw new Error('Quality string is required for average calculation');
+  if (!quality || typeof quality !== "string") {
+    throw new Error("Quality string is required for average calculation");
   }
 
   if (quality.length === 0) {
@@ -213,8 +213,8 @@ export function averageQuality(
  */
 export function scoreToChar(score: number, encoding: QualityEncoding): string {
   // Tiger Style: Assert inputs
-  if (typeof score !== 'number' || score < 0) {
-    throw new Error('Score must be a non-negative number');
+  if (typeof score !== "number" || score < 0) {
+    throw new Error("Score must be a non-negative number");
   }
 
   const range = getEncodingRange(encoding);
@@ -237,7 +237,7 @@ export function scoreToChar(score: number, encoding: QualityEncoding): string {
 export function charToScore(char: string, encoding: QualityEncoding): number {
   // Tiger Style: Assert inputs
   if (!char || char.length !== 1) {
-    throw new Error('Single character required for score conversion');
+    throw new Error("Single character required for score conversion");
   }
 
   const range = getEncodingRange(encoding);
@@ -258,7 +258,7 @@ export function charToScore(char: string, encoding: QualityEncoding): number {
  * @returns true if valid, false otherwise
  */
 export function validateQualityString(quality: string, encoding: QualityEncoding): boolean {
-  if (!quality || typeof quality !== 'string') {
+  if (!quality || typeof quality !== "string") {
     return false;
   }
 
@@ -304,8 +304,8 @@ export function getEncodingRange(encoding: QualityEncoding): EncodingRange {
  * @returns Error probability (0-1)
  */
 export function scoreToErrorProbability(score: number): number {
-  if (typeof score !== 'number' || score < 0) {
-    throw new Error('Score must be a non-negative number');
+  if (typeof score !== "number" || score < 0) {
+    throw new Error("Score must be a non-negative number");
   }
   return 10 ** (-score / 10);
 }
@@ -318,8 +318,8 @@ export function scoreToErrorProbability(score: number): number {
  * @returns Quality score
  */
 export function errorProbabilityToScore(probability: number): number {
-  if (typeof probability !== 'number' || probability <= 0 || probability > 1) {
-    throw new Error('Probability must be between 0 and 1');
+  if (typeof probability !== "number" || probability <= 0 || probability > 1) {
+    throw new Error("Probability must be between 0 and 1");
   }
   return -10 * Math.log10(probability);
 }

@@ -10,16 +10,16 @@
  * - Comments and blank lines
  */
 
-import { type } from 'arktype';
+import { type } from "arktype";
 import {
   FileError,
   getErrorSuggestion,
   ParseError,
   SequenceError,
   ValidationError,
-} from '../errors';
-import type { FastaSequence, ParserOptions } from '../types';
-import { FastaSequenceSchema, SequenceIdSchema, SequenceSchema } from '../types';
+} from "../errors";
+import type { FastaSequence, ParserOptions } from "../types";
+import { FastaSequenceSchema, SequenceIdSchema, SequenceSchema } from "../types";
 
 /**
  * Streaming FASTA parser with comprehensive validation
@@ -53,17 +53,17 @@ export class FastaParser {
    * @param options Parser configuration options
    */
   constructor(options: ParserOptions = {}) {
-    if (typeof options !== 'object') {
-      throw new ValidationError('options must be an object');
+    if (typeof options !== "object") {
+      throw new ValidationError("options must be an object");
     }
     this.options = {
       skipValidation: false,
       maxLineLength: 1_000_000, // 1MB max line length
       trackLineNumbers: true,
-      qualityEncoding: 'phred33', // Not used for FASTA
+      qualityEncoding: "phred33", // Not used for FASTA
       parseQualityScores: false, // Not used for FASTA
       onError: (error: string, lineNumber?: number): void => {
-        throw new ParseError(error, 'FASTA', lineNumber);
+        throw new ParseError(error, "FASTA", lineNumber);
       },
       onWarning: (warning: string, lineNumber?: number): void => {
         console.warn(`FASTA Warning (line ${lineNumber}): ${warning}`);
@@ -87,8 +87,8 @@ export class FastaParser {
    * ```
    */
   async *parseString(data: string): AsyncIterable<FastaSequence> {
-    if (typeof data !== 'string') {
-      throw new ValidationError('data must be a string');
+    if (typeof data !== "string") {
+      throw new ValidationError("data must be a string");
     }
     const lines = data.split(/\r?\n/);
     yield* this.parseLines(lines);
@@ -112,22 +112,22 @@ export class FastaParser {
    */
   async *parseFile(
     filePath: string,
-    options?: import('../types').FileReaderOptions
+    options?: import("../types").FileReaderOptions
   ): AsyncIterable<FastaSequence> {
     // Tiger Style: Assert function arguments
-    if (typeof filePath !== 'string') {
-      throw new ValidationError('filePath must be a string');
+    if (typeof filePath !== "string") {
+      throw new ValidationError("filePath must be a string");
     }
     if (filePath.length === 0) {
-      throw new ValidationError('filePath must not be empty');
+      throw new ValidationError("filePath must not be empty");
     }
-    if (options && typeof options !== 'object') {
-      throw new ValidationError('options must be an object if provided');
+    if (options && typeof options !== "object") {
+      throw new ValidationError("options must be an object if provided");
     }
 
     // Import I/O modules dynamically to avoid circular dependencies
-    const { createStream } = await import('../io/file-reader');
-    const { StreamUtils } = await import('../io/stream-utils');
+    const { createStream } = await import("../io/file-reader");
+    const { StreamUtils } = await import("../io/stream-utils");
 
     try {
       // Validate file path and create stream
@@ -135,7 +135,7 @@ export class FastaParser {
       const stream = await createStream(validatedPath, options);
 
       // Convert binary stream to lines and parse
-      const lines = StreamUtils.readLines(stream, options?.encoding || 'utf8');
+      const lines = StreamUtils.readLines(stream, options?.encoding || "utf8");
       yield* this.parseLinesFromAsyncIterable(lines);
     } catch (error) {
       // Re-throw file errors unchanged to preserve error type
@@ -146,7 +146,7 @@ export class FastaParser {
       if (error instanceof Error) {
         throw new ParseError(
           `Failed to parse FASTA file '${filePath}': ${error.message}`,
-          'FASTA',
+          "FASTA",
           undefined,
           error.stack
         );
@@ -172,11 +172,11 @@ export class FastaParser {
   async *parse(stream: ReadableStream<Uint8Array>): AsyncIterable<FastaSequence> {
     // Tiger Style: Assert function arguments
     if (!(stream instanceof ReadableStream)) {
-      throw new ValidationError('stream must be a ReadableStream');
+      throw new ValidationError("stream must be a ReadableStream");
     }
     const reader = stream.getReader();
     const decoder = new TextDecoder();
-    let buffer = '';
+    let buffer = "";
     let lineNumber = 0;
 
     try {
@@ -197,7 +197,7 @@ export class FastaParser {
         // Process complete lines
         const lines = buffer.split(/\r?\n/);
         const lastLine = lines.pop();
-        buffer = lastLine !== null && lastLine !== undefined ? lastLine : ''; // Keep incomplete line in buffer
+        buffer = lastLine !== null && lastLine !== undefined ? lastLine : ""; // Keep incomplete line in buffer
 
         if (lines.length > 0) {
           yield* this.parseLines(lines, lineNumber);
@@ -217,10 +217,10 @@ export class FastaParser {
    */
   private async *parseLines(lines: string[], startLineNumber = 1): AsyncIterable<FastaSequence> {
     if (!Array.isArray(lines)) {
-      throw new ValidationError('lines must be an array');
+      throw new ValidationError("lines must be an array");
     }
     if (!Number.isInteger(startLineNumber) || startLineNumber < 0) {
-      throw new ValidationError('startLineNumber must be non-negative integer');
+      throw new ValidationError("startLineNumber must be non-negative integer");
     }
 
     let currentSequence: Partial<FastaSequence> | null = null;
@@ -230,7 +230,7 @@ export class FastaParser {
       const currentLineNumber = startLineNumber + i;
 
       try {
-        const processedLine = this.processLine(lines[i] ?? '', currentLineNumber);
+        const processedLine = this.processLine(lines[i] ?? "", currentLineNumber);
 
         if (!processedLine) continue; // Skip empty/comment lines
 
@@ -283,11 +283,11 @@ export class FastaParser {
     sequenceData?: string;
   } | null {
     // Tiger Style: Assert function arguments
-    if (typeof line !== 'string') {
-      throw new ValidationError('line must be a string');
+    if (typeof line !== "string") {
+      throw new ValidationError("line must be a string");
     }
     if (!Number.isInteger(lineNumber) || lineNumber <= 0) {
-      throw new ValidationError('lineNumber must be positive integer');
+      throw new ValidationError("lineNumber must be positive integer");
     }
 
     // Check line length bounds
@@ -302,12 +302,12 @@ export class FastaParser {
     const trimmedLine = line.trim();
 
     // Skip empty lines and comments
-    if (!trimmedLine || trimmedLine.startsWith(';')) {
+    if (!trimmedLine || trimmedLine.startsWith(";")) {
       return null;
     }
 
     // Header line
-    if (trimmedLine.startsWith('>')) {
+    if (trimmedLine.startsWith(">")) {
       return {
         isHeader: true,
         headerData: this.parseHeader(trimmedLine, lineNumber),
@@ -338,18 +338,18 @@ export class FastaParser {
     lineNumber: number
   ): void {
     // Tiger Style: Assert function arguments and preconditions
-    if (typeof sequenceData !== 'string') {
-      throw new ValidationError('sequenceData must be a string');
+    if (typeof sequenceData !== "string") {
+      throw new ValidationError("sequenceData must be a string");
     }
     if (!Array.isArray(sequenceBuffer)) {
-      throw new ValidationError('sequenceBuffer must be an array');
+      throw new ValidationError("sequenceBuffer must be an array");
     }
     if (!Number.isInteger(lineNumber) || lineNumber <= 0) {
-      throw new ValidationError('lineNumber must be positive integer');
+      throw new ValidationError("lineNumber must be positive integer");
     }
 
     if (!currentSequence) {
-      this.options.onError('Sequence data found before header', lineNumber);
+      this.options.onError("Sequence data found before header", lineNumber);
       return;
     }
 
@@ -358,8 +358,8 @@ export class FastaParser {
     // Tiger Style: Assert postcondition
     if (sequenceBuffer.length === 0) {
       throw new SequenceError(
-        'sequenceBuffer should contain data after processing',
-        'unknown',
+        "sequenceBuffer should contain data after processing",
+        "unknown",
         lineNumber
       );
     }
@@ -377,11 +377,11 @@ export class FastaParser {
     const header = headerLine.slice(1); // Remove '>'
     if (!header) {
       if (this.options.skipValidation) {
-        this.options.onWarning('Empty FASTA header', lineNumber);
+        this.options.onWarning("Empty FASTA header", lineNumber);
       } else {
         throw new ParseError(
           'Empty FASTA header: header must contain an identifier after ">"',
-          'FASTA',
+          "FASTA",
           lineNumber,
           headerLine
         );
@@ -395,14 +395,14 @@ export class FastaParser {
   }
 
   private validateHeaderInputs(headerLine: string, lineNumber: number): void {
-    if (typeof headerLine !== 'string') {
-      throw new ValidationError('headerLine must be a string');
+    if (typeof headerLine !== "string") {
+      throw new ValidationError("headerLine must be a string");
     }
-    if (!headerLine.startsWith('>')) {
+    if (!headerLine.startsWith(">")) {
       throw new ValidationError('headerLine must start with ">"');
     }
     if (!Number.isInteger(lineNumber) || lineNumber <= 0) {
-      throw new ValidationError('lineNumber must be positive integer');
+      throw new ValidationError("lineNumber must be positive integer");
     }
   }
 
@@ -450,29 +450,29 @@ export class FastaParser {
     lineNumber: number
   ): Partial<FastaSequence> {
     const result = {
-      format: 'fasta' as const,
+      format: "fasta" as const,
       id,
       description:
-        description !== null && description !== undefined && description !== ''
+        description !== null && description !== undefined && description !== ""
           ? description
           : undefined,
       lineNumber: this.options.trackLineNumbers ? lineNumber : undefined,
     };
 
     // Tiger Style: Assert postconditions
-    if (result.format !== 'fasta') {
-      throw new SequenceError('result format must be fasta', result.id || 'unknown', lineNumber);
+    if (result.format !== "fasta") {
+      throw new SequenceError("result format must be fasta", result.id || "unknown", lineNumber);
     }
-    if (typeof result.id !== 'string') {
-      throw new SequenceError('result id must be a string', result.id || 'unknown', lineNumber);
+    if (typeof result.id !== "string") {
+      throw new SequenceError("result id must be a string", result.id || "unknown", lineNumber);
     }
 
     return {
-      format: 'fasta',
-      id: result.id !== null && result.id !== undefined && result.id !== '' ? result.id : '',
+      format: "fasta",
+      id: result.id !== null && result.id !== undefined && result.id !== "" ? result.id : "",
       ...(result.description !== null &&
         result.description !== undefined &&
-        result.description !== '' && { description: result.description }),
+        result.description !== "" && { description: result.description }),
       ...(result.lineNumber !== null &&
         result.lineNumber !== undefined &&
         result.lineNumber !== 0 && { lineNumber: result.lineNumber }),
@@ -487,17 +487,17 @@ export class FastaParser {
    */
   private cleanSequence(sequenceLine: string, lineNumber: number): string {
     // Tiger Style: Assert function arguments
-    if (typeof sequenceLine !== 'string') {
-      throw new ValidationError('sequenceLine must be a string');
+    if (typeof sequenceLine !== "string") {
+      throw new ValidationError("sequenceLine must be a string");
     }
     if (!Number.isInteger(lineNumber) || lineNumber <= 0) {
-      throw new ValidationError('lineNumber must be positive integer');
+      throw new ValidationError("lineNumber must be positive integer");
     }
     // Remove whitespace
-    const cleaned = sequenceLine.replace(/\s/g, '');
+    const cleaned = sequenceLine.replace(/\s/g, "");
 
     if (!cleaned) {
-      return '';
+      return "";
     }
 
     // Validate sequence if not skipping validation
@@ -510,7 +510,7 @@ export class FastaParser {
 
         throw new SequenceError(
           `Invalid sequence characters found. ${suggestion}`,
-          'unknown',
+          "unknown",
           lineNumber,
           sequenceLine
         );
@@ -518,11 +518,11 @@ export class FastaParser {
     }
 
     // Tiger Style: Assert postconditions
-    if (typeof cleaned !== 'string') {
-      throw new SequenceError('cleaned result must be a string', 'unknown', lineNumber);
+    if (typeof cleaned !== "string") {
+      throw new SequenceError("cleaned result must be a string", "unknown", lineNumber);
     }
-    if (cleaned.includes(' ') || cleaned.includes('\t')) {
-      throw new SequenceError('cleaned result must not contain whitespace', 'unknown', lineNumber);
+    if (cleaned.includes(" ") || cleaned.includes("\t")) {
+      throw new SequenceError("cleaned result must not contain whitespace", "unknown", lineNumber);
     }
 
     return cleaned;
@@ -542,12 +542,12 @@ export class FastaParser {
   ): FastaSequence {
     this.validateFinalizeInputs(partialSequence, sequenceBuffer, lineNumber);
 
-    const sequence = sequenceBuffer.join('');
+    const sequence = sequenceBuffer.join("");
     const length = sequence.length;
 
     if (length === 0) {
       throw new SequenceError(
-        'Empty sequence found',
+        "Empty sequence found",
         this.getSequenceIdOrDefault(partialSequence),
         lineNumber
       );
@@ -566,29 +566,29 @@ export class FastaParser {
     lineNumber: number
   ): void {
     if (partialSequence === null) {
-      throw new ValidationError('partialSequence must not be null');
+      throw new ValidationError("partialSequence must not be null");
     }
     if (!Array.isArray(sequenceBuffer)) {
-      throw new ValidationError('sequenceBuffer must be an array');
+      throw new ValidationError("sequenceBuffer must be an array");
     }
     if (sequenceBuffer.length === 0) {
       throw new SequenceError(
-        'Empty sequence found',
+        "Empty sequence found",
         this.getSequenceIdOrDefault(partialSequence),
         lineNumber
       );
     }
     if (!Number.isInteger(lineNumber) || lineNumber <= 0) {
-      throw new ValidationError('lineNumber must be positive integer');
+      throw new ValidationError("lineNumber must be positive integer");
     }
   }
 
   private getSequenceIdOrDefault(partialSequence: Partial<FastaSequence>): string {
     return partialSequence.id !== null &&
       partialSequence.id !== undefined &&
-      partialSequence.id !== ''
+      partialSequence.id !== ""
       ? partialSequence.id
-      : 'unknown';
+      : "unknown";
   }
 
   private buildFastaSequence(
@@ -597,14 +597,14 @@ export class FastaParser {
     length: number
   ): FastaSequence {
     return {
-      format: 'fasta',
+      format: "fasta",
       id:
-        this.getSequenceIdOrDefault(partialSequence) === 'unknown'
-          ? ''
+        this.getSequenceIdOrDefault(partialSequence) === "unknown"
+          ? ""
           : this.getSequenceIdOrDefault(partialSequence),
       ...(partialSequence.description !== null &&
         partialSequence.description !== undefined &&
-        partialSequence.description !== '' && {
+        partialSequence.description !== "" && {
           description: partialSequence.description,
         }),
       sequence,
@@ -642,17 +642,17 @@ export class FastaParser {
   }
 
   private assertSequencePostconditions(fastaSequence: FastaSequence, lineNumber: number): void {
-    if (fastaSequence.format !== 'fasta') {
-      throw new SequenceError('result format must be fasta', fastaSequence.id, lineNumber);
+    if (fastaSequence.format !== "fasta") {
+      throw new SequenceError("result format must be fasta", fastaSequence.id, lineNumber);
     }
-    if (typeof fastaSequence.id !== 'string') {
-      throw new SequenceError('result id must be a string', fastaSequence.id, lineNumber);
+    if (typeof fastaSequence.id !== "string") {
+      throw new SequenceError("result id must be a string", fastaSequence.id, lineNumber);
     }
     if (fastaSequence.length !== fastaSequence.sequence.length) {
-      throw new SequenceError('length must match sequence length', fastaSequence.id, lineNumber);
+      throw new SequenceError("length must match sequence length", fastaSequence.id, lineNumber);
     }
     if (fastaSequence.length === 0) {
-      throw new SequenceError('sequence must not be empty', fastaSequence.id, lineNumber);
+      throw new SequenceError("sequence must not be empty", fastaSequence.id, lineNumber);
     }
   }
 
@@ -664,19 +664,19 @@ export class FastaParser {
    */
   private async validateFilePath(filePath: string): Promise<string> {
     // Tiger Style: Assert function arguments
-    if (typeof filePath !== 'string') {
-      throw new ValidationError('filePath must be a string');
+    if (typeof filePath !== "string") {
+      throw new ValidationError("filePath must be a string");
     }
     if (filePath.length === 0) {
-      throw new ValidationError('filePath must not be empty');
+      throw new ValidationError("filePath must not be empty");
     }
 
     // Import FileReader functions dynamically to avoid circular dependencies
-    const { exists, getMetadata } = await import('../io/file-reader');
+    const { exists, getMetadata } = await import("../io/file-reader");
 
     // Check if file exists and is readable
     if (!(await exists(filePath))) {
-      throw new FileError(`FASTA file not found or not accessible: ${filePath}`, filePath, 'read');
+      throw new FileError(`FASTA file not found or not accessible: ${filePath}`, filePath, "read");
     }
 
     // Get file metadata for additional validation
@@ -686,9 +686,9 @@ export class FastaParser {
       if (!metadata.readable) {
         throw new ParseError(
           `FASTA file is not readable: ${filePath}`,
-          'FASTA',
+          "FASTA",
           undefined,
-          'Check file permissions'
+          "Check file permissions"
         );
       }
 
@@ -704,7 +704,7 @@ export class FastaParser {
       if (error instanceof ParseError) throw error;
       throw new ParseError(
         `Failed to validate FASTA file: ${error instanceof Error ? error.message : String(error)}`,
-        'FASTA',
+        "FASTA",
         undefined,
         filePath
       );
@@ -722,8 +722,8 @@ export class FastaParser {
     lines: AsyncIterable<string>
   ): AsyncIterable<FastaSequence> {
     // Tiger Style: Assert function arguments
-    if (typeof lines !== 'object' || !(Symbol.asyncIterator in lines)) {
-      throw new ValidationError('lines must be async iterable');
+    if (typeof lines !== "object" || !(Symbol.asyncIterator in lines)) {
+      throw new ValidationError("lines must be async iterable");
     }
 
     let currentSequence: Partial<FastaSequence> | null = null;
@@ -769,12 +769,12 @@ export class FastaParser {
       } else if (currentSequence) {
         // Handle case where header exists but no sequence data
         throw new SequenceError(
-          'Header found but no sequence data',
+          "Header found but no sequence data",
           currentSequence.id !== null &&
             currentSequence.id !== undefined &&
-            currentSequence.id !== ''
+            currentSequence.id !== ""
             ? currentSequence.id
-            : 'unknown',
+            : "unknown",
           lineNumber
         );
       }
@@ -786,15 +786,15 @@ export class FastaParser {
 
       throw new ParseError(
         `FASTA parsing failed at line ${lineNumber}: ${error instanceof Error ? error.message : String(error)}`,
-        'FASTA',
+        "FASTA",
         lineNumber,
-        'Check file format and content'
+        "Check file format and content"
       );
     }
 
     // Tiger Style: Assert postconditions
     if (lineNumber < 0) {
-      throw new ParseError('line number must be non-negative', 'FASTA');
+      throw new ParseError("line number must be non-negative", "FASTA");
     }
   }
 }
@@ -819,7 +819,7 @@ export class FastaWriter {
         ? options.lineWidth
         : 80;
     this.includeDescription = options.includeDescription ?? true;
-    this.lineEnding = options.lineEnding ?? (process.platform === 'win32' ? '\r\n' : '\n');
+    this.lineEnding = options.lineEnding ?? (process.platform === "win32" ? "\r\n" : "\n");
   }
 
   /**
@@ -832,7 +832,7 @@ export class FastaWriter {
       this.includeDescription === true &&
       sequence.description !== null &&
       sequence.description !== undefined &&
-      sequence.description !== ''
+      sequence.description !== ""
     ) {
       header += ` ${sequence.description}`;
     }
@@ -893,7 +893,7 @@ export const FastaUtils = {
    */
   detectFormat(data: string): boolean {
     const trimmed = data.trim();
-    return trimmed.startsWith('>') && trimmed.includes('\n');
+    return trimmed.startsWith(">") && trimmed.includes("\n");
   },
 
   /**
@@ -926,7 +926,7 @@ export const FastaUtils = {
     for (const char of sequence.toUpperCase()) {
       composition[char] =
         (composition[char] !== null && composition[char] !== undefined ? composition[char] : 0) + 1;
-      if (char === 'G' || char === 'C') {
+      if (char === "G" || char === "C") {
         gcCount++;
       }
     }

@@ -9,82 +9,46 @@
  * @since v0.1.0
  */
 
-import { type } from 'arktype';
-import type { AbstractSequence, MotifLocation } from '../types';
-import { LocateError, createContextualError } from '../errors';
-import type { LocateOptions } from './types';
-import { createOptionsValidator } from './core/validation-utils';
+import { type } from "arktype";
+import { ValidationError } from "../errors";
+import type { AbstractSequence, MotifLocation } from "../types";
+import { fuzzyMatch } from "./core/pattern-matching";
+import { reverseComplement } from "./core/sequence-manipulation";
+import type { LocateOptions } from "./types";
 
 /**
  * Schema for validating LocateOptions using ArkType
  */
 const LocateOptionsSchema = type({
-  pattern: 'string | RegExp',
-  'ignoreCase?': 'boolean',
-  'allowMismatches?': 'number>=0',
-  'searchBothStrands?': 'boolean',
-  'outputFormat?': "'default' | 'bed' | 'custom'",
-  'allowOverlaps?': 'boolean',
-  'minLength?': 'number>=1',
-  'maxMatches?': 'number>=1',
+  pattern: "string | RegExp",
+  "ignoreCase?": "boolean",
+  "allowMismatches?": "number>=0",
+  "searchBothStrands?": "boolean",
+  "outputFormat?": "'default' | 'bed' | 'custom'",
+  "allowOverlaps?": "boolean",
+  "minLength?": "number>=1",
+  "maxMatches?": "number>=1",
+}).narrow((options, ctx) => {
+  // Pattern validation - ensure string patterns aren't empty
+  if (typeof options.pattern === "string" && options.pattern.trim() === "") {
+    return ctx.reject({
+      expected: "non-empty pattern string",
+      actual: "empty string",
+      path: ["pattern"],
+    });
+  }
+
+  // Validate mismatch/regex compatibility
+  if (options.pattern instanceof RegExp && options.allowMismatches && options.allowMismatches > 0) {
+    return ctx.reject({
+      expected: "string pattern for fuzzy matching",
+      actual: "RegExp with allowMismatches > 0",
+      path: ["allowMismatches"],
+    });
+  }
+
+  return true;
 });
-
-/**
- * Common validation function for locate options using the new pattern
- */
-const validateLocateOptions = createOptionsValidator<LocateOptions>(LocateOptionsSchema, [
-  // Pattern validation
-  (options: LocateOptions) => {
-    if (options.pattern === undefined || options.pattern === null || options.pattern === '') {
-      throw createContextualError(LocateError, 'Pattern is required for locate operation', {
-        context: 'Provide a pattern string or RegExp',
-        data: { providedOptions: Object.keys(options) },
-      });
-    }
-  },
-  // Mismatch validation
-  (options: LocateOptions) => {
-    if (options.allowMismatches !== undefined) {
-      if (options.allowMismatches < 0) {
-        throw createContextualError(LocateError, 'allowMismatches must be non-negative', {
-          context: 'Mismatch count cannot be negative',
-          data: { provided: options.allowMismatches },
-        });
-      }
-
-      if (options.pattern instanceof RegExp && options.allowMismatches > 0) {
-        throw createContextualError(
-          LocateError,
-          'allowMismatches not supported for regex patterns',
-          {
-            context: 'Use string patterns for fuzzy matching',
-            data: { patternType: 'RegExp' },
-          }
-        );
-      }
-    }
-
-    if (options.maxMatches !== undefined && options.maxMatches < 1) {
-      throw createContextualError(LocateError, 'maxMatches must be positive', {
-        context: 'Specify a positive number for maximum matches',
-        data: { provided: options.maxMatches },
-      });
-    }
-  },
-  // Output format validation
-  (options: LocateOptions) => {
-    if (options.minLength !== undefined && options.minLength < 1) {
-      throw createContextualError(LocateError, 'minLength must be positive', {
-        context: 'Minimum match length must be at least 1',
-        data: { provided: options.minLength },
-      });
-    }
-
-    if (options.outputFormat === 'custom') {
-      // Could add custom format validation here if needed
-    }
-  },
-]);
 
 /**
  * Processor for motif location operations
@@ -118,8 +82,11 @@ export class LocateProcessor {
     source: AsyncIterable<AbstractSequence>,
     options: LocateOptions
   ): AsyncIterable<MotifLocation> {
-    // Validate options before processing using common validation pattern
-    validateLocateOptions(options);
+    // Direct ArkType validation
+    const validationResult = LocateOptionsSchema(options);
+    if (validationResult instanceof type.errors) {
+      throw new ValidationError(`Invalid locate options: ${validationResult.summary}`);
+    }
 
     let totalYielded = 0;
 
@@ -167,19 +134,19 @@ export class LocateProcessor {
         seq,
         searchSequence,
         stringPattern,
-        '+',
+        "+",
         options
       );
       results.push(...forwardMatches);
 
       // Reverse strand search if enabled
       if (options.searchBothStrands === true) {
-        const reversePattern = this.reverseComplement(stringPattern);
+        const reversePattern = reverseComplement(stringPattern);
         const reverseMatches = this.findStringMatches(
           seq,
           searchSequence,
           reversePattern,
-          '-',
+          "-",
           options
         );
         results.push(...reverseMatches);
@@ -203,13 +170,13 @@ export class LocateProcessor {
 
     // Create case-insensitive version if needed
     let searchPattern = pattern;
-    if (options.ignoreCase === true && !pattern.flags.includes('i')) {
-      searchPattern = new RegExp(pattern.source, pattern.flags + 'i');
+    if (options.ignoreCase === true && !pattern.flags.includes("i")) {
+      searchPattern = new RegExp(pattern.source, pattern.flags + "i");
     }
 
     // Add global flag if not present to find all matches
-    if (!searchPattern.flags.includes('g')) {
-      searchPattern = new RegExp(searchPattern.source, searchPattern.flags + 'g');
+    if (!searchPattern.flags.includes("g")) {
+      searchPattern = new RegExp(searchPattern.source, searchPattern.flags + "g");
     }
 
     let match;
@@ -219,12 +186,12 @@ export class LocateProcessor {
         start: match.index,
         end: match.index + match[0].length,
         length: match[0].length,
-        strand: '+',
+        strand: "+",
         matchedSequence: match[0],
         mismatches: 0,
         score: 1.0,
         pattern: pattern.source,
-        ...(options.outputFormat !== 'bed' && {
+        ...(options.outputFormat !== "bed" && {
           context: this.extractContext(seq.sequence, match.index, match[0].length),
         }),
       };
@@ -247,67 +214,48 @@ export class LocateProcessor {
     seq: AbstractSequence,
     searchSequence: string,
     pattern: string,
-    strand: '+' | '-',
+    strand: "+" | "-",
     options: LocateOptions
   ): MotifLocation[] {
-    const results: MotifLocation[] = [];
     const maxMismatches = options.allowMismatches ?? 0;
     const minLength = options.minLength ?? pattern.length;
 
-    // NATIVE_CRITICAL: Hot loop - sliding window pattern matching across entire sequence
-    // Perfect candidate for SIMD string comparison and Boyer-Moore optimization
-    for (let i = 0; i <= searchSequence.length - minLength; i++) {
-      const window = searchSequence.substring(i, i + pattern.length);
+    // Early return if pattern is shorter than minimum length
+    if (pattern.length < minLength) {
+      return [];
+    }
 
-      if (window.length < minLength) {
-        continue;
-      }
+    // Use core fuzzy matching function instead of reimplementing
+    const matches = fuzzyMatch(searchSequence, pattern, maxMismatches);
 
-      // NATIVE_CRITICAL: Character-by-character comparison in tight loop
-      const mismatches = this.countMismatches(window, pattern);
+    return matches
+      .map((match) => {
+        const score = this.calculateScore(match.mismatches, pattern.length);
 
-      if (mismatches <= maxMismatches) {
-        const score = this.calculateScore(mismatches, pattern.length);
+        // Preserve original case from the source sequence, not the search sequence
+        const originalMatchedSequence = seq.sequence.substring(
+          match.position,
+          match.position + match.length
+        );
 
         const location: MotifLocation = {
           sequenceId: seq.id,
-          start: i,
-          end: i + pattern.length,
-          length: pattern.length,
+          start: match.position,
+          end: match.position + match.length,
+          length: match.length,
           strand,
-          matchedSequence: seq.sequence.substring(i, i + pattern.length),
-          mismatches,
+          matchedSequence: originalMatchedSequence, // Use original case from seq.sequence
+          mismatches: match.mismatches,
           score,
           pattern: options.pattern as string,
-          ...(options.outputFormat !== 'bed' && {
-            context: this.extractContext(seq.sequence, i, pattern.length),
+          ...(options.outputFormat !== "bed" && {
+            context: this.extractContext(seq.sequence, match.position, match.length),
           }),
         };
 
-        results.push(location);
-      }
-    }
-
-    return results;
-  }
-
-  /**
-   * Count mismatches between two strings
-   */
-  private countMismatches(str1: string, str2: string): number {
-    const minLen = Math.min(str1.length, str2.length);
-    let mismatches = 0;
-
-    for (let i = 0; i < minLen; i++) {
-      if (str1[i] !== str2[i]) {
-        mismatches++;
-      }
-    }
-
-    // Count length difference as mismatches
-    mismatches += Math.abs(str1.length - str2.length);
-
-    return mismatches;
+        return location;
+      })
+      .filter((location) => location.length >= minLength); // Apply minLength filter
   }
 
   /**
@@ -334,52 +282,6 @@ export class LocateProcessor {
       upstream: sequence.substring(upstreamStart, start),
       downstream: sequence.substring(start + length, downstreamEnd),
     };
-  }
-
-  /**
-   * Generate reverse complement of DNA sequence
-   */
-  private reverseComplement(sequence: string): string {
-    const complement: Record<string, string> = {
-      A: 'T',
-      T: 'A',
-      C: 'G',
-      G: 'C',
-      U: 'A',
-      R: 'Y',
-      Y: 'R',
-      S: 'S',
-      W: 'W',
-      K: 'M',
-      M: 'K',
-      B: 'V',
-      D: 'H',
-      H: 'D',
-      V: 'B',
-      N: 'N',
-      a: 't',
-      t: 'a',
-      c: 'g',
-      g: 'c',
-      u: 'a',
-      r: 'y',
-      y: 'r',
-      s: 's',
-      w: 'w',
-      k: 'm',
-      m: 'k',
-      b: 'v',
-      d: 'h',
-      h: 'd',
-      v: 'b',
-      n: 'n',
-    };
-
-    return sequence
-      .split('')
-      .reverse()
-      .map((base) => complement[base] ?? base)
-      .join('');
   }
 
   /**

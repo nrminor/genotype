@@ -9,8 +9,9 @@
  * @since v0.1.0
  */
 
-import type { AbstractSequence } from '../types';
-import type { FilterOptions, Processor } from './types';
+import type { AbstractSequence } from "../types";
+import { gcContent } from "./core/calculations";
+import type { FilterOptions, Processor } from "./types";
 
 /**
  * Processor for filtering sequences based on various criteria
@@ -54,21 +55,21 @@ export class FilterProcessor implements Processor<FilterOptions> {
    * @returns True if sequence passes all criteria
    */
   private passesFilter(seq: AbstractSequence, options: FilterOptions): boolean {
-    // Length filters
-    if (options.minLength !== undefined && seq.length < options.minLength) {
+    // Length filters - early returns for better readability
+    if (options.minLength && seq.length < options.minLength) {
       return false;
     }
-    if (options.maxLength !== undefined && seq.length > options.maxLength) {
+    if (options.maxLength && seq.length > options.maxLength) {
       return false;
     }
 
-    // GC content filters
-    if (options.minGC !== undefined || options.maxGC !== undefined) {
-      const gcContent = this.calculateGC(seq.sequence);
-      if (options.minGC !== undefined && gcContent < options.minGC) {
+    // GC content filters - calculate only if needed
+    if (options.minGC || options.maxGC) {
+      const gc = gcContent(seq.sequence);
+      if (options.minGC && gc < options.minGC) {
         return false;
       }
-      if (options.maxGC !== undefined && gcContent > options.maxGC) {
+      if (options.maxGC && gc > options.maxGC) {
         return false;
       }
     }
@@ -108,24 +109,5 @@ export class FilterProcessor implements Processor<FilterOptions> {
     }
 
     return true;
-  }
-
-  /**
-   * Calculate GC content percentage
-   *
-   * NATIVE_CANDIDATE: Character counting loop for GC bases.
-   * Native implementation would provide significant speedup
-   * for large sequences by avoiding regex overhead.
-   *
-   * @param sequence - DNA/RNA sequence
-   * @returns GC content as percentage (0-100)
-   */
-  private calculateGC(sequence: string): number {
-    if (sequence.length === 0) return 0;
-
-    // NATIVE_CANDIDATE: This regex match creates intermediate array
-    // Native loop would be more efficient for counting
-    const gcCount = (sequence.match(/[GC]/gi) || []).length;
-    return (gcCount / sequence.length) * 100;
   }
 }

@@ -9,17 +9,17 @@
  * @since v0.1.0
  */
 
-import { ConcatError, FileError } from '../errors';
-import { detectFormat, parseAny } from '../index';
-import { FileReader } from '../io/file-reader';
+import { ConcatError, FileError } from "../errors";
+import { detectFormat, parseAny } from "../index";
+import { FileReader } from "../io/file-reader";
 import type {
   AbstractSequence,
   BedInterval,
   FastaSequence,
   FastqSequence,
   FormatDetection,
-} from '../types';
-import type { ConcatOptions, Processor } from './types';
+} from "../types";
+import type { ConcatOptions, Processor } from "./types";
 
 /**
  * Result of source validation for concatenation
@@ -77,7 +77,7 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
     let context: ConcatContext = {
       seenIds: new Set<string>(),
       sourceIndex: -1,
-      sourceLabel: 'base',
+      sourceLabel: "base",
       totalProcessed: 0,
     };
 
@@ -101,9 +101,7 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
     }
 
     // Report final progress
-    if (normalizedOptions.onProgress !== undefined) {
-      normalizedOptions.onProgress(context.totalProcessed, context.totalProcessed);
-    }
+    normalizedOptions.onProgress(context.totalProcessed, context.totalProcessed);
   }
 
   /**
@@ -111,19 +109,23 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
    */
   private normalizeOptions(options: ConcatOptions): Required<ConcatOptions> {
     if (options.sources === undefined || options.sources.length === 0) {
-      throw new ConcatError('At least one source must be specified');
+      throw new ConcatError("At least one source must be specified");
     }
 
     return {
       sources: options.sources,
-      idConflictResolution: options.idConflictResolution ?? 'error',
-      renameSuffix: options.renameSuffix ?? '_src',
+      idConflictResolution: options.idConflictResolution ?? "error",
+      renameSuffix: options.renameSuffix ?? "_src",
       validateFormats: options.validateFormats ?? true,
       preserveOrder: options.preserveOrder ?? true,
       skipEmpty: options.skipEmpty ?? false,
       sourceLabels: options.sourceLabels ?? [],
       maxMemory: options.maxMemory ?? 104_857_600, // 100MB default
-      onProgress: options.onProgress ?? (() => {}),
+      onProgress:
+        options.onProgress ??
+        (() => {
+          /* no-op */
+        }),
     };
   }
 
@@ -157,7 +159,7 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
   ): Promise<SourceValidation> {
     const label = options.sourceLabels[index] ?? `source_${index}`;
 
-    if (typeof source === 'string') {
+    if (typeof source === "string") {
       // File path source
       try {
         // Check if file exists and get metadata
@@ -178,7 +180,7 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
           const sampleContent = await this.readSampleContent(source);
           format = detectFormat(sampleContent);
 
-          if (format.format === 'unknown') {
+          if (format.format === "unknown") {
             throw new ConcatError(`Cannot detect format of source file`, source);
           }
         }
@@ -213,7 +215,7 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
     try {
       // Read first 8KB for format detection
       const content = await FileReader.readToString(filePath, {
-        encoding: 'utf8',
+        encoding: "utf8",
         maxFileSize: 8192,
       });
       return content;
@@ -221,7 +223,7 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
       throw new FileError(
         `Failed to read sample from file: ${error instanceof Error ? error.message : String(error)}`,
         filePath,
-        'read'
+        "read"
       );
     }
   }
@@ -233,8 +235,8 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
     const detectedFormats = validations
       .map((v) => v.format?.format)
       .filter(
-        (format): format is 'fasta' | 'fastq' | 'bed' | 'sam' | 'bam' =>
-          format !== undefined && format !== 'unknown'
+        (format): format is "fasta" | "fastq" | "bed" | "sam" | "bam" =>
+          format !== undefined && format !== "unknown"
       );
 
     if (detectedFormats.length === 0) {
@@ -244,7 +246,7 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
     const uniqueFormats = [...new Set(detectedFormats)];
     if (uniqueFormats.length > 1) {
       throw new ConcatError(
-        `Incompatible formats detected: ${uniqueFormats.join(', ')}. All sources must have the same format.`
+        `Incompatible formats detected: ${uniqueFormats.join(", ")}. All sources must have the same format.`
       );
     }
   }
@@ -280,14 +282,14 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
     for await (const item of source) {
       // Check if item has sequence properties
       if (
-        typeof item === 'object' &&
+        typeof item === "object" &&
         item !== null &&
-        'id' in item &&
-        'sequence' in item &&
-        'length' in item &&
-        typeof item.id === 'string' &&
-        typeof item.sequence === 'string' &&
-        typeof item.length === 'number'
+        "id" in item &&
+        "sequence" in item &&
+        "length" in item &&
+        typeof item.id === "string" &&
+        typeof item.sequence === "string" &&
+        typeof item.length === "number"
       ) {
         yield item as AbstractSequence;
       }
@@ -322,7 +324,7 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
           };
 
           // Report progress
-          if (options.onProgress !== undefined && context.totalProcessed % 1000 === 0) {
+          if (context.totalProcessed % 1000 === 0) {
             options.onProgress(context.totalProcessed, undefined, context.sourceLabel);
           }
         }
@@ -354,18 +356,18 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
 
     // Handle ID conflict based on strategy
     switch (options.idConflictResolution) {
-      case 'error':
+      case "error":
         throw ConcatError.withSourceContext(
           `Duplicate sequence ID found: ${originalId}`,
           context.sourceLabel,
           originalId
         );
 
-      case 'ignore':
+      case "ignore":
         // Skip this sequence
         return null;
 
-      case 'rename': {
+      case "rename": {
         // Generate unique ID
         let newId = originalId;
         let suffix = 1;
@@ -381,9 +383,9 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
         };
       }
 
-      case 'suffix': {
+      case "suffix": {
         // Add source suffix
-        const suffix = options.renameSuffix.startsWith('_')
+        const suffix = options.renameSuffix.startsWith("_")
           ? `${options.renameSuffix}${context.sourceIndex}`
           : `_${options.renameSuffix}${context.sourceIndex}`;
 

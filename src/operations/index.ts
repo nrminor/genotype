@@ -12,7 +12,7 @@
  * @since v0.1.0
  */
 
-import { FastaParser, FastaWriter, FastqWriter } from '../formats';
+import { FastaParser, FastaWriter, FastqWriter } from "../formats";
 import type {
   AbstractSequence,
   FASTXSequence,
@@ -20,21 +20,22 @@ import type {
   FastqSequence,
   MotifLocation,
   ValidGenomicRegion,
-} from '../types';
+} from "../types";
 // Import processors
-import { CleanProcessor } from './clean';
-import { ConcatProcessor } from './concat';
-import { FilterProcessor } from './filter';
-import { GrepProcessor } from './grep';
-import { LocateProcessor } from './locate';
-import { QualityProcessor } from './quality';
-import { RmdupProcessor } from './rmdup';
-import { SampleProcessor } from './sample';
-import { SortProcessor } from './sort';
-import { type SequenceStats, SequenceStatsCalculator, type StatsOptions } from './stats';
-import { SubseqExtractor, type SubseqOptions } from './subseq';
-import { TransformProcessor } from './transform';
-import { TranslateProcessor } from './translate';
+import { CleanProcessor } from "./clean";
+import { ConcatProcessor } from "./concat";
+import { FilterProcessor } from "./filter";
+import { GrepProcessor } from "./grep";
+import { LocateProcessor } from "./locate";
+import { QualityProcessor } from "./quality";
+import { RmdupProcessor } from "./rmdup";
+import { SampleProcessor } from "./sample";
+import { SortProcessor } from "./sort";
+import type { SplitResult, SplitSummary } from "./split";
+import { type SequenceStats, SequenceStatsCalculator, type StatsOptions } from "./stats";
+import { SubseqExtractor, type SubseqOptions } from "./subseq";
+import { TransformProcessor } from "./transform";
+import { TranslateProcessor } from "./translate";
 import type {
   CleanOptions,
   ConcatOptions,
@@ -49,9 +50,8 @@ import type {
   TransformOptions,
   TranslateOptions,
   ValidateOptions,
-} from './types';
-import type { SplitResult, SplitSummary } from './split';
-import { ValidateProcessor } from './validate';
+} from "./types";
+import { ValidateProcessor } from "./validate";
 
 /**
  * Main SeqOps class providing fluent interface for sequence operations
@@ -111,7 +111,7 @@ export class SeqOps {
    */
   filter(options: FilterOptions | ((seq: AbstractSequence) => boolean)): SeqOps {
     // Handle legacy predicate function for backwards compatibility
-    if (typeof options === 'function') {
+    if (typeof options === "function") {
       return new SeqOps(this.filterWithPredicate(options));
     }
 
@@ -232,15 +232,15 @@ export class SeqOps {
    */
   grep(
     pattern: string | RegExp | GrepOptions,
-    target: 'sequence' | 'id' | 'description' = 'sequence'
+    target: "sequence" | "id" | "description" = "sequence"
   ): SeqOps {
     const processor = new GrepProcessor();
 
     // Handle overloaded parameters for better DX
     const options: GrepOptions =
-      typeof pattern === 'object' && pattern !== null && 'pattern' in pattern
-        ? (pattern as GrepOptions) // Full options object provided
-        : { pattern: pattern as string | RegExp, target }; // Simple pattern with target
+      typeof pattern === "object" && "pattern" in pattern
+        ? pattern // TypeScript knows this is GrepOptions
+        : { pattern, target }; // TypeScript knows pattern is string | RegExp here
 
     return new SeqOps(processor.process(this.source, options));
   }
@@ -276,7 +276,7 @@ export class SeqOps {
    */
   concat(
     sources: Array<string | AsyncIterable<AbstractSequence>>,
-    options?: Omit<ConcatOptions, 'sources'>
+    options?: Omit<ConcatOptions, "sources">
   ): SeqOps {
     const processor = new ConcatProcessor();
     const fullOptions: ConcatOptions = { ...options, sources };
@@ -373,13 +373,13 @@ export class SeqOps {
    */
   sample(
     count: number | SampleOptions,
-    strategy: 'random' | 'systematic' | 'reservoir' = 'reservoir'
+    strategy: "random" | "systematic" | "reservoir" = "reservoir"
   ): SeqOps {
     const processor = new SampleProcessor();
 
     // Handle overloaded parameters for better DX
     const options: SampleOptions =
-      typeof count === 'number'
+      typeof count === "number"
         ? { n: count, strategy } // Simple count with optional strategy
         : count; // Full options object provided
 
@@ -432,8 +432,8 @@ export class SeqOps {
    *   .sortByLength()        // Shortest first (default)
    * ```
    */
-  sortByLength(order: 'asc' | 'desc' = 'asc'): SeqOps {
-    return this.sort({ by: 'length', order });
+  sortByLength(order: "asc" | "desc" = "asc"): SeqOps {
+    return this.sort({ sortBy: order === "asc" ? "length-asc" : "length" });
   }
 
   /**
@@ -442,8 +442,8 @@ export class SeqOps {
    * @param order - Sort order: 'asc' or 'desc' (default: 'asc')
    * @returns New SeqOps instance for chaining
    */
-  sortById(order: 'asc' | 'desc' = 'asc'): SeqOps {
-    return this.sort({ by: 'id', order });
+  sortById(order: "asc" | "desc" = "asc"): SeqOps {
+    return this.sort({ sortBy: order === "asc" ? "id" : "id-desc" });
   }
 
   /**
@@ -452,8 +452,8 @@ export class SeqOps {
    * @param order - Sort order: 'asc' or 'desc' (default: 'asc')
    * @returns New SeqOps instance for chaining
    */
-  sortByGC(order: 'asc' | 'desc' = 'asc'): SeqOps {
-    return this.sort({ by: 'gc', order });
+  sortByGC(order: "asc" | "desc" = "asc"): SeqOps {
+    return this.sort({ sortBy: order === "asc" ? "gc-asc" : "gc" });
   }
 
   /**
@@ -483,12 +483,12 @@ export class SeqOps {
    *   })
    * ```
    */
-  rmdup(by: 'sequence' | 'id' | 'both' | RmdupOptions, exact: boolean = false): SeqOps {
+  rmdup(by: "sequence" | "id" | "both" | RmdupOptions, exact: boolean = false): SeqOps {
     const processor = new RmdupProcessor();
 
     // Handle overloaded parameters for better DX
     const options: RmdupOptions =
-      typeof by === 'string'
+      typeof by === "string"
         ? { by, exact } // Simple by + exact parameters
         : by; // Full options object provided
 
@@ -504,7 +504,7 @@ export class SeqOps {
    * @returns New SeqOps instance for chaining
    */
   removeSequenceDuplicates(caseSensitive: boolean = true): SeqOps {
-    return this.rmdup({ by: 'sequence', caseSensitive, exact: false });
+    return this.rmdup({ by: "sequence", caseSensitive, exact: false });
   }
 
   /**
@@ -516,7 +516,7 @@ export class SeqOps {
    * @returns New SeqOps instance for chaining
    */
   removeIdDuplicates(exact: boolean = true): SeqOps {
-    return this.rmdup({ by: 'id', exact });
+    return this.rmdup({ by: "id", exact });
   }
 
   /**
@@ -549,7 +549,7 @@ export class SeqOps {
 
     // Handle progressive disclosure for better DX
     const options: TranslateOptions =
-      typeof geneticCode === 'number'
+      typeof geneticCode === "number"
         ? { geneticCode } // Simple: just genetic code, use defaults
         : geneticCode || {}; // Full options object or empty defaults
 
@@ -661,7 +661,7 @@ export class SeqOps {
    * ```
    */
   async split(options: SplitOptions): Promise<SplitSummary> {
-    const { SplitProcessor } = await import('./split');
+    const { SplitProcessor } = await import("./split");
     const processor = new SplitProcessor();
     return processor.split(this.source, options);
   }
@@ -712,7 +712,7 @@ export class SeqOps {
    * ```
    */
   async *splitToStream(options: SplitOptions): AsyncIterable<SplitResult> {
-    const { SplitProcessor } = await import('./split');
+    const { SplitProcessor } = await import("./split");
     const processor = new SplitProcessor();
     yield* processor.process(this.source, options);
   }
@@ -745,8 +745,8 @@ export class SeqOps {
    *   .splitBySize(100000, './de-analysis');
    * ```
    */
-  async splitBySize(sequencesPerFile: number, outputDir = './split'): Promise<SplitSummary> {
-    return this.split({ mode: 'by-size', sequencesPerFile, outputDir });
+  async splitBySize(sequencesPerFile: number, outputDir = "./split"): Promise<SplitSummary> {
+    return this.split({ mode: "by-size", sequencesPerFile, outputDir });
   }
 
   /**
@@ -756,8 +756,8 @@ export class SeqOps {
    * @param outputDir - Output directory (default: './split')
    * @returns Promise resolving to split results
    */
-  async splitByParts(numParts: number, outputDir = './split'): Promise<SplitSummary> {
-    return this.split({ mode: 'by-parts', numParts, outputDir });
+  async splitByParts(numParts: number, outputDir = "./split"): Promise<SplitSummary> {
+    return this.split({ mode: "by-parts", numParts, outputDir });
   }
 
   /**
@@ -789,8 +789,8 @@ export class SeqOps {
    *   .splitByLength(50_000_000, './nanopore-chunks');
    * ```
    */
-  async splitByLength(basesPerFile: number, outputDir = './split'): Promise<SplitSummary> {
-    return this.split({ mode: 'by-length', basesPerFile, outputDir });
+  async splitByLength(basesPerFile: number, outputDir = "./split"): Promise<SplitSummary> {
+    return this.split({ mode: "by-length", basesPerFile, outputDir });
   }
 
   /**
@@ -823,9 +823,9 @@ export class SeqOps {
    *   .splitById(/^(chr[XY]|chrM)_/, './sex-chromosomes');
    * ```
    */
-  async splitById(pattern: string | RegExp, outputDir = './split'): Promise<SplitSummary> {
-    const regex = typeof pattern === 'string' ? new RegExp(pattern) : pattern;
-    return this.split({ mode: 'by-id', idRegex: regex.source, outputDir });
+  async splitById(pattern: string | RegExp, outputDir = "./split"): Promise<SplitSummary> {
+    const regex = typeof pattern === "string" ? new RegExp(pattern) : pattern;
+    return this.split({ mode: "by-id", idRegex: regex.source, outputDir });
   }
 
   /**
@@ -857,9 +857,9 @@ export class SeqOps {
    */
   async splitByRegion<T extends string>(
     region: T extends ValidGenomicRegion<T> ? T : never,
-    outputDir = './split'
+    outputDir = "./split"
   ): Promise<SplitSummary> {
-    return this.split({ mode: 'by-region', region, outputDir });
+    return this.split({ mode: "by-region", region, outputDir });
   }
 
   // =============================================================================
@@ -905,7 +905,7 @@ export class SeqOps {
    * ```
    */
   async writeFasta(path: string, options: { wrapWidth?: number } = {}): Promise<void> {
-    const lineEnding = process.platform === 'win32' ? '\r\n' : '\n';
+    const lineEnding = process.platform === "win32" ? "\r\n" : "\n";
     const writer = new FastaWriter({
       ...(options.wrapWidth !== undefined && { lineWidth: options.wrapWidth }),
       lineEnding,
@@ -915,7 +915,7 @@ export class SeqOps {
     try {
       for await (const seq of this.source) {
         const fastaSeq: FastaSequence = {
-          format: 'fasta',
+          format: "fasta",
           id: seq.id,
           sequence: seq.sequence,
           length: seq.length,
@@ -949,7 +949,7 @@ export class SeqOps {
    *   .writeFastq('output.fastq', 'IIIIIIIIII');
    * ```
    */
-  async writeFastq(path: string, defaultQuality: string = 'I'): Promise<void> {
+  async writeFastq(path: string, defaultQuality: string = "I"): Promise<void> {
     const writer = new FastqWriter();
     const stream = Bun.file(path).writer();
 
@@ -963,11 +963,11 @@ export class SeqOps {
           // Convert to FASTQ with default quality
           const qualityString = defaultQuality.repeat(seq.length).substring(0, seq.length);
           fastqSeq = {
-            format: 'fastq',
+            format: "fastq",
             id: seq.id,
             sequence: seq.sequence,
             quality: qualityString,
-            qualityEncoding: 'phred33',
+            qualityEncoding: "phred33",
             length: seq.length,
             ...(seq.description !== undefined && {
               description: seq.description,
@@ -1089,10 +1089,10 @@ export class SeqOps {
 
     // Handle overloaded parameters for better DX
     const options: LocateOptions =
-      typeof pattern === 'object' && pattern !== null && 'pattern' in pattern
-        ? (pattern as LocateOptions) // Full options object provided
+      typeof pattern === "object" && "pattern" in pattern
+        ? pattern // TypeScript knows this is LocateOptions
         : {
-            pattern: pattern as string | RegExp,
+            pattern, // TypeScript knows this is string | RegExp
             allowMismatches: mismatches,
           }; // Simple pattern with optional mismatch count
 
@@ -1124,7 +1124,7 @@ export class SeqOps {
    * @private
    */
   private isFastqSequence(seq: AbstractSequence): seq is FastqSequence {
-    return 'quality' in seq && 'qualityEncoding' in seq;
+    return "quality" in seq && "qualityEncoding" in seq;
   }
 }
 
@@ -1201,14 +1201,14 @@ seqops.from = <T extends AbstractSequence | FASTXSequence>(sequences: T[]): SeqO
  */
 seqops.concat = (
   filePaths: string[],
-  handleDuplicateIds: 'suffix' | 'ignore' = 'ignore'
+  handleDuplicateIds: "suffix" | "ignore" = "ignore"
 ): SeqOps => {
   async function* concatenateFiles(): AsyncIterable<AbstractSequence> {
     const seenIds = new Set<string>();
 
     for (let sourceIndex = 0; sourceIndex < filePaths.length; sourceIndex++) {
       const filePath = filePaths[sourceIndex];
-      if (filePath === null || filePath === undefined || filePath === '') continue;
+      if (!filePath) continue;
 
       // Simple format detection and parsing
       const parser = new FastaParser();
@@ -1218,7 +1218,7 @@ seqops.concat = (
         let finalSeq = seq;
 
         // Handle duplicate IDs simply
-        if (seenIds.has(seq.id) && handleDuplicateIds === 'suffix') {
+        if (seenIds.has(seq.id) && handleDuplicateIds === "suffix") {
           finalSeq = { ...seq, id: `${seq.id}_${sourceIndex}` };
         }
 
@@ -1231,18 +1231,18 @@ seqops.concat = (
   return new SeqOps(concatenateFiles());
 };
 
+// Export processors for advanced usage
+export { ConcatProcessor } from "./concat";
+// Export split-specific types
+export { SplitProcessor, type SplitResult, type SplitSummary } from "./split";
 // Re-export types and classes for convenience
 export {
   type SequenceStats,
   SequenceStatsCalculator,
   type StatsOptions,
-} from './stats';
-export { SubseqExtractor, type SubseqOptions } from './subseq';
-export { TranslateProcessor } from './translate';
-
-// Export processors for advanced usage
-export { ConcatProcessor } from './concat';
-
+} from "./stats";
+export { SubseqExtractor, type SubseqOptions } from "./subseq";
+export { TranslateProcessor } from "./translate";
 // Export new semantic API types
 export type {
   AnnotateOptions,
@@ -1260,7 +1260,4 @@ export type {
   TransformOptions,
   TranslateOptions,
   ValidateOptions,
-} from './types';
-
-// Export split-specific types
-export { type SplitResult, type SplitSummary, SplitProcessor } from './split';
+} from "./types";

@@ -16,7 +16,7 @@
  */
 
 // FASTA format exports
-export { FastaParser, FastaWriter, FastaUtils } from './fasta';
+export { FastaParser, FastaWriter, FastaUtils } from "./fasta";
 
 // FASTQ format exports
 export {
@@ -29,7 +29,7 @@ export {
   getOffset,
   detectEncoding,
   calculateStats,
-} from './fastq';
+} from "./fastq";
 
 // BED format exports
 export {
@@ -46,10 +46,10 @@ export {
   calculateStats as calculateBedStats,
   sortIntervals,
   mergeOverlapping,
-} from './bed';
+} from "./bed";
 
 // SAM format exports
-export { SAMParser, SAMWriter, SAMUtils } from './sam';
+export { SAMParser, SAMWriter, SAMUtils } from "./sam";
 
 // BAM format exports
 export {
@@ -61,7 +61,7 @@ export {
   BAIWriter,
   VirtualOffsetUtils,
   BinningUtils,
-} from './bam';
+} from "./bam";
 
 // GTF format exports
 export {
@@ -79,4 +79,4 @@ export {
   detectGtfFormat,
   countGtfFeatures,
   filterFeaturesByType,
-} from './gtf';
+} from "./gtf";

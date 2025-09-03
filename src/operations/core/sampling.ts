@@ -20,7 +20,7 @@ export class ReservoirSampler<T> {
   ) {
     // Tiger Style: Assert inputs
     if (size <= 0) {
-      throw new Error('Reservoir size must be positive');
+      throw new Error("Reservoir size must be positive");
     }
 
     // Initialize RNG with optional seed for reproducibility
@@ -111,6 +111,84 @@ export class ReservoirSampler<T> {
 }
 
 /**
+ * Random sampler using Fisher-Yates shuffle for perfect randomness
+ *
+ * Superior implementation with proper seeded RNG and optimized partial shuffling.
+ * More memory-efficient than full shuffling when sampleSize << datasetSize.
+ */
+export class RandomSampler<T> {
+  private readonly rng: () => number;
+
+  constructor(
+    private readonly sampleSize: number,
+    seed?: number
+  ) {
+    // Tiger Style: Assert inputs
+    if (sampleSize <= 0) {
+      throw new Error("Sample size must be positive");
+    }
+
+    this.rng = seed !== undefined ? this.createSeededRNG(seed) : Math.random;
+  }
+
+  /**
+   * Sample items using optimized Fisher-Yates shuffle
+   *
+   * 🔥 NATIVE OPTIMIZATION: Array shuffling and random number generation
+   * Perfect candidate for SIMD shuffle operations
+   */
+  async *sample(source: AsyncIterable<T>): AsyncIterable<T> {
+    // Collect items first (necessary for Fisher-Yates)
+    const items: T[] = [];
+    for await (const item of source) {
+      items.push(item);
+    }
+
+    if (items.length === 0) return;
+
+    const actualSampleSize = Math.min(this.sampleSize, items.length);
+
+    // Optimized Fisher-Yates: only shuffle the portion we need
+    // More efficient than full shuffle when sampleSize << items.length
+    for (let i = 0; i < actualSampleSize; i++) {
+      // Pick random element from remaining unshuffled portion
+      const j = i + Math.floor(this.rng() * (items.length - i));
+
+      // Swap current position with random selection
+      const temp = items[i];
+      const selected = items[j];
+      if (temp !== undefined && selected !== undefined) {
+        items[i] = selected;
+        items[j] = temp;
+      }
+    }
+
+    // Yield first n shuffled items
+    for (let i = 0; i < actualSampleSize; i++) {
+      const item = items[i];
+      if (item !== undefined) {
+        yield item;
+      }
+    }
+  }
+
+  /**
+   * Create seeded pseudo-random number generator
+   * Uses xorshift32 for better quality than LCG
+   */
+  private createSeededRNG(seed: number): () => number {
+    let state = seed;
+    return () => {
+      // xorshift32 algorithm (same as ReservoirSampler for consistency)
+      state ^= state << 13;
+      state ^= state >>> 17;
+      state ^= state << 5;
+      return (state >>> 0) / 0x100000000;
+    };
+  }
+}
+
+/**
  * Systematic sampling - select every Nth item
  * Useful for regular sampling from ordered data
  */
@@ -123,10 +201,10 @@ export class SystematicSampler<T> {
   ) {
     // Tiger Style: Assert inputs
     if (interval <= 0) {
-      throw new Error('Sampling interval must be positive');
+      throw new Error("Sampling interval must be positive");
     }
     if (offset < 0) {
-      throw new Error('Offset must be non-negative');
+      throw new Error("Offset must be non-negative");
     }
   }
 
@@ -155,6 +233,48 @@ export class SystematicSampler<T> {
   getSeenCount(): number {
     return this.count;
   }
+
+  /**
+   * Create systematic sampler from desired sample size
+   *
+   * Factory method that calculates optimal interval for given sample size.
+   * Requires two-pass algorithm: first pass counts, second pass samples.
+   */
+  static async *sampleBySize<T>(
+    source: AsyncIterable<T>,
+    sampleSize: number,
+    offset: number = 0
+  ): AsyncIterable<T> {
+    // Tiger Style: Assert inputs
+    if (sampleSize <= 0) {
+      throw new Error("Sample size must be positive");
+    }
+
+    // First pass: collect all items (necessary to calculate interval)
+    const items: T[] = [];
+    for await (const item of source) {
+      items.push(item);
+    }
+
+    if (items.length === 0 || sampleSize >= items.length) {
+      // Return all items if sample size >= total
+      for (const item of items) {
+        yield item;
+      }
+      return;
+    }
+
+    // Calculate optimal interval for desired sample size
+    const interval = Math.max(1, Math.floor(items.length / sampleSize));
+
+    // Second pass: systematic sampling
+    for (let i = offset; i < items.length && (i - offset) / interval < sampleSize; i += interval) {
+      const item = items[i];
+      if (item !== undefined) {
+        yield item;
+      }
+    }
+  }
 }
 
 /**
@@ -168,12 +288,12 @@ export class StratifiedSampler<T> {
   constructor(
     private readonly totalSamples: number,
     private readonly getStratum: (item: T) => string,
-    private readonly expectedStrata?: number,
+    readonly expectedStrata?: number,
     seed?: number
   ) {
     // Tiger Style: Assert inputs
     if (totalSamples <= 0) {
-      throw new Error('Total samples must be positive');
+      throw new Error("Total samples must be positive");
     }
 
     // Calculate samples per stratum
@@ -183,7 +303,7 @@ export class StratifiedSampler<T> {
         : totalSamples;
 
     // Create initial sampler with seed for reproducibility
-    this.createSamplerForStratum('__default__', seed);
+    this.createSamplerForStratum("__default__", seed);
   }
 
   /**
@@ -296,7 +416,7 @@ export class WeightedReservoirSampler<T> {
   ) {
     // Tiger Style: Assert inputs
     if (size <= 0) {
-      throw new Error('Reservoir size must be positive');
+      throw new Error("Reservoir size must be positive");
     }
 
     this.rng = seed !== undefined ? this.createSeededRNG(seed) : Math.random;
@@ -309,7 +429,7 @@ export class WeightedReservoirSampler<T> {
   add(item: T, weight: number): void {
     // Tiger Style: Assert inputs
     if (weight <= 0) {
-      throw new Error('Weight must be positive');
+      throw new Error("Weight must be positive");
     }
 
     // Generate key = random^(1/weight)
@@ -400,7 +520,7 @@ export class BernoulliSampler<T> {
   ) {
     // Tiger Style: Assert inputs
     if (probability < 0 || probability > 1) {
-      throw new Error('Probability must be between 0 and 1');
+      throw new Error("Probability must be between 0 and 1");
     }
 
     this.rng = seed !== undefined ? this.createSeededRNG(seed) : Math.random;

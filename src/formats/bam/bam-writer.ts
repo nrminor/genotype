@@ -16,9 +16,9 @@
  * - Native support for BGZF compression
  */
 
-import type { SAMAlignment, SAMHeader } from '../../types';
-import { BamError, CompressionError } from '../../errors';
-import { BGZFCompressor } from './bgzf-compressor';
+import type { SAMAlignment, SAMHeader } from "../../types";
+import { BamError, CompressionError } from "../../errors";
+import { BGZFCompressor } from "./bgzf-compressor";
 import {
   createOptimizedSerializer,
   writeInt32LE,
@@ -29,7 +29,7 @@ import {
   packQualityScores,
   packTags,
   calculateAlignmentSize,
-} from './binary-serializer';
+} from "./binary-serializer";
 
 // Constants for BAM writer configuration
 const DEFAULT_BUFFER_SIZE = 256 * 1024; // 256KB
@@ -97,7 +97,7 @@ export class BAMWriter {
    */
   constructor(options: BAMWriterOptions = {}) {
     // Tiger Style: Assert constructor arguments
-    console.assert(typeof options === 'object', 'options must be an object');
+    console.assert(typeof options === "object", "options must be an object");
 
     this.options = {
       compressionLevel: 6,
@@ -114,14 +114,14 @@ export class BAMWriter {
       throw new BamError(
         `Invalid compression level: ${this.options.compressionLevel} (must be 0-9)`,
         undefined,
-        'config'
+        "config"
       );
     }
     console.assert(
       this.options.blockSize >= 1024 && this.options.blockSize <= 65536,
-      'block size must be between 1KB and 64KB'
+      "block size must be between 1KB and 64KB"
     );
-    console.assert(this.options.bufferSize >= 1024, 'buffer size must be at least 1KB');
+    console.assert(this.options.bufferSize >= 1024, "buffer size must be at least 1KB");
 
     // Initialize compressor and serializer
     this.compressor = new BGZFCompressor({
@@ -147,8 +147,8 @@ export class BAMWriter {
     alignments: Iterable<SAMAlignment> | AsyncIterable<SAMAlignment>
   ): Promise<Uint8Array> {
     // Tiger Style: Assert function arguments
-    console.assert(header !== undefined, 'header must be provided');
-    console.assert(alignments !== undefined, 'alignments must be provided');
+    console.assert(header !== undefined, "header must be provided");
+    console.assert(alignments !== undefined, "alignments must be provided");
 
     try {
       // Collect all data chunks
@@ -176,8 +176,8 @@ export class BAMWriter {
       }
 
       // Tiger Style: Assert postconditions
-      console.assert(result.length === totalSize, 'result size must match calculated total');
-      console.assert(result.length > 0, 'result must not be empty');
+      console.assert(result.length === totalSize, "result size must match calculated total");
+      console.assert(result.length > 0, "result must not be empty");
 
       return result;
     } catch (error) {
@@ -188,7 +188,7 @@ export class BAMWriter {
       throw new BamError(
         `Failed to write BAM to memory: ${error instanceof Error ? error.message : String(error)}`,
         undefined,
-        'writing',
+        "writing",
         undefined,
         error instanceof Error ? error.stack : undefined
       );
@@ -208,10 +208,10 @@ export class BAMWriter {
     alignments: Iterable<SAMAlignment> | AsyncIterable<SAMAlignment>
   ): Promise<void> {
     // Tiger Style: Assert function arguments
-    console.assert(typeof filePath === 'string', 'filePath must be a string');
-    console.assert(filePath.length > 0, 'filePath must not be empty');
-    console.assert(header !== undefined, 'header must be provided');
-    console.assert(alignments !== undefined, 'alignments must be provided');
+    console.assert(typeof filePath === "string", "filePath must be a string");
+    console.assert(filePath.length > 0, "filePath must not be empty");
+    console.assert(header !== undefined, "header must be provided");
+    console.assert(alignments !== undefined, "alignments must be provided");
 
     try {
       // Use Bun.file() for optimal performance when available
@@ -228,7 +228,7 @@ export class BAMWriter {
       throw new BamError(
         `Failed to write BAM file '${filePath}': ${error instanceof Error ? error.message : String(error)}`,
         undefined,
-        'file',
+        "file",
         undefined,
         error instanceof Error ? error.stack : undefined
       );
@@ -249,7 +249,7 @@ export class BAMWriter {
           // Validate BGZF stream is ready
           if (bgzfStream === null || bgzfStream === undefined) {
             controller.error(
-              new BamError('BGZF compression stream failed to initialize', undefined, 'stream')
+              new BamError("BGZF compression stream failed to initialize", undefined, "stream")
             );
           }
         } catch (error) {
@@ -257,7 +257,7 @@ export class BAMWriter {
             new BamError(
               `Stream initialization failed: ${error instanceof Error ? error.message : String(error)}`,
               undefined,
-              'stream'
+              "stream"
             )
           );
         }
@@ -266,7 +266,7 @@ export class BAMWriter {
       write: async (chunk, controller): Promise<void> => {
         try {
           // Tiger Style: Assert chunk validity
-          console.assert(chunk instanceof Uint8Array, 'chunk must be Uint8Array');
+          console.assert(chunk instanceof Uint8Array, "chunk must be Uint8Array");
 
           // Transform through BGZF compression
           const writer = bgzfStream.writable.getWriter();
@@ -276,7 +276,7 @@ export class BAMWriter {
           const bamError = new BamError(
             `Stream write failed: ${error instanceof Error ? error.message : String(error)}`,
             undefined,
-            'stream'
+            "stream"
           );
           controller.error(bamError);
           throw bamError;
@@ -292,7 +292,7 @@ export class BAMWriter {
           throw new BamError(
             `Stream close failed: ${error instanceof Error ? error.message : String(error)}`,
             undefined,
-            'stream'
+            "stream"
           );
         }
       },
@@ -303,7 +303,7 @@ export class BAMWriter {
           await writer.abort(reason);
         } catch (error) {
           // Log but don't throw during abort
-          console.warn('BAM stream abort error:', error);
+          console.warn("BAM stream abort error:", error);
         }
       },
     });
@@ -316,13 +316,13 @@ export class BAMWriter {
    */
   async serializeHeader(header: SAMHeader | SAMHeader[]): Promise<Uint8Array> {
     // Tiger Style: Assert function arguments
-    console.assert(header !== undefined, 'header must be provided');
+    console.assert(header !== undefined, "header must be provided");
 
     const headers = Array.isArray(header) ? header : [header];
 
     // Calculate header size
     let headerTextSize = 0;
-    let samHeaderText = '';
+    let samHeaderText = "";
 
     // Build SAM header text
     for (const h of headers) {
@@ -332,7 +332,7 @@ export class BAMWriter {
         line += `\t${key}:${value}`;
       }
 
-      samHeaderText += line + '\n';
+      samHeaderText += line + "\n";
     }
 
     headerTextSize = new TextEncoder().encode(samHeaderText).length;
@@ -341,17 +341,17 @@ export class BAMWriter {
     const references: Array<{ name: string; length: number }> = [];
 
     // Parse SAM header for @SQ lines
-    const lines = samHeaderText.split('\n');
+    const lines = samHeaderText.split("\n");
     for (const line of lines) {
-      if (line.startsWith('@SQ')) {
-        const fields = line.split('\t');
-        let name = '';
+      if (line.startsWith("@SQ")) {
+        const fields = line.split("\t");
+        let name = "";
         let length = 0;
 
         for (const field of fields) {
-          if (field.startsWith('SN:')) {
+          if (field.startsWith("SN:")) {
             name = field.substring(3);
-          } else if (field.startsWith('LN:')) {
+          } else if (field.startsWith("LN:")) {
             length = parseInt(field.substring(3), 10);
           }
         }
@@ -419,8 +419,8 @@ export class BAMWriter {
     }
 
     // Tiger Style: Assert postconditions
-    console.assert(offset === totalSize, 'must write exactly the calculated size');
-    console.assert(buffer.length === totalSize, 'buffer size must match calculated size');
+    console.assert(offset === totalSize, "must write exactly the calculated size");
+    console.assert(buffer.length === totalSize, "buffer size must match calculated size");
 
     return buffer;
   }
@@ -433,8 +433,8 @@ export class BAMWriter {
    */
   async serializeAlignment(alignment: SAMAlignment, references: string[]): Promise<Uint8Array> {
     // Tiger Style: Assert function arguments
-    console.assert(typeof alignment === 'object', 'alignment must be an object');
-    console.assert(Array.isArray(references), 'references must be an array');
+    console.assert(typeof alignment === "object", "alignment must be an object");
+    console.assert(Array.isArray(references), "references must be an array");
 
     if (!this.options.skipValidation) {
       this.validateAlignment(alignment);
@@ -469,7 +469,7 @@ export class BAMWriter {
       offset += 4;
 
       // Count CIGAR operations
-      const numCigarOps = alignment.cigar === '*' ? 0 : this.countCigarOperations(alignment.cigar);
+      const numCigarOps = alignment.cigar === "*" ? 0 : this.countCigarOperations(alignment.cigar);
 
       // Write flag_nc (FLAG<<16 | n_cigar_op)
       const flagNc = (alignment.flag << 16) | numCigarOps;
@@ -477,13 +477,13 @@ export class BAMWriter {
       offset += 4;
 
       // Write l_seq
-      const seqLength = alignment.seq === '*' ? 0 : alignment.seq.length;
+      const seqLength = alignment.seq === "*" ? 0 : alignment.seq.length;
       writeInt32LE(view, offset, seqLength);
       offset += 4;
 
       // Write next_refID
       const nextRefID = this.getRefID(
-        alignment.rnext === '=' ? alignment.rname : alignment.rnext,
+        alignment.rnext === "=" ? alignment.rname : alignment.rnext,
         references
       );
       writeInt32LE(view, offset, nextRefID);
@@ -501,17 +501,17 @@ export class BAMWriter {
       offset += writeCString(view, offset, alignment.qname, 256);
 
       // Write CIGAR
-      if (alignment.cigar !== '*') {
+      if (alignment.cigar !== "*") {
         offset += packCIGAR(alignment.cigar, buffer, offset);
       }
 
       // Write sequence (4-bit packed)
-      if (alignment.seq !== '*') {
+      if (alignment.seq !== "*") {
         offset += packSequence(alignment.seq, buffer, offset);
       }
 
       // Write quality scores
-      if (alignment.qual !== '*') {
+      if (alignment.qual !== "*") {
         offset += packQualityScores(alignment.qual, buffer, offset);
       }
 
@@ -524,10 +524,10 @@ export class BAMWriter {
       const result = buffer.slice(0, offset);
 
       // Tiger Style: Assert postconditions
-      console.assert(result.length === offset, 'result size must match bytes written');
+      console.assert(result.length === offset, "result size must match bytes written");
       console.assert(
         result.length >= 36,
-        'alignment must be at least 36 bytes (32 fixed + 4 block size)'
+        "alignment must be at least 36 bytes (32 fixed + 4 block size)"
       );
 
       return result;
@@ -539,7 +539,7 @@ export class BAMWriter {
       throw new BamError(
         `Alignment serialization failed for '${alignment.qname}': ${error instanceof Error ? error.message : String(error)}`,
         alignment.qname,
-        'alignment',
+        "alignment",
         undefined,
         error instanceof Error ? error.stack : undefined
       );
@@ -552,18 +552,18 @@ export class BAMWriter {
    */
   private validateAlignment(alignment: SAMAlignment): void {
     // Tiger Style: Assert function arguments
-    console.assert(typeof alignment === 'object', 'alignment must be an object');
+    console.assert(typeof alignment === "object", "alignment must be an object");
 
     // Validate required fields
     if (!alignment.qname || alignment.qname.length === 0) {
-      throw new BamError('Query name (QNAME) cannot be empty', alignment.qname, 'qname');
+      throw new BamError("Query name (QNAME) cannot be empty", alignment.qname, "qname");
     }
 
     if (alignment.qname.length > 254) {
       throw new BamError(
         `Query name too long: ${alignment.qname.length} characters (max 254)`,
         alignment.qname,
-        'qname'
+        "qname"
       );
     }
 
@@ -571,7 +571,7 @@ export class BAMWriter {
       throw new BamError(
         `Invalid position: ${alignment.pos} (must be positive)`,
         alignment.qname,
-        'pos'
+        "pos"
       );
     }
 
@@ -579,23 +579,23 @@ export class BAMWriter {
       throw new BamError(
         `Invalid mate position: ${alignment.pnext} (must be positive)`,
         alignment.qname,
-        'pnext'
+        "pnext"
       );
     }
 
     // Validate sequence and quality consistency
-    if (alignment.seq !== '*' && alignment.qual !== '*') {
+    if (alignment.seq !== "*" && alignment.qual !== "*") {
       if (alignment.seq.length !== alignment.qual.length) {
         throw new BamError(
           `Sequence/quality length mismatch: seq=${alignment.seq.length}, qual=${alignment.qual.length}`,
           alignment.qname,
-          'sequence_quality'
+          "sequence_quality"
         );
       }
     }
 
     // Validate CIGAR
-    if (alignment.cigar !== '*' && alignment.seq !== '*') {
+    if (alignment.cigar !== "*" && alignment.seq !== "*") {
       try {
         const queryLength = this.calculateQueryLengthFromCIGAR(alignment.cigar);
         if (queryLength !== alignment.seq.length) {
@@ -609,7 +609,7 @@ export class BAMWriter {
         throw new BamError(
           `Invalid CIGAR string '${alignment.cigar}': ${error instanceof Error ? error.message : String(error)}`,
           alignment.qname,
-          'cigar'
+          "cigar"
         );
       }
     }
@@ -623,10 +623,10 @@ export class BAMWriter {
    */
   private getRefID(refName: string, references: string[]): number {
     // Tiger Style: Assert function arguments
-    console.assert(typeof refName === 'string', 'refName must be a string');
-    console.assert(Array.isArray(references), 'references must be an array');
+    console.assert(typeof refName === "string", "refName must be a string");
+    console.assert(Array.isArray(references), "references must be an array");
 
-    if (refName === '*') {
+    if (refName === "*") {
       return -1; // Unmapped
     }
 
@@ -645,9 +645,9 @@ export class BAMWriter {
    */
   private calculateAlignmentEnd(alignment: SAMAlignment): number {
     // Tiger Style: Assert function arguments
-    console.assert(typeof alignment === 'object', 'alignment must be an object');
+    console.assert(typeof alignment === "object", "alignment must be an object");
 
-    if (alignment.cigar === '*' || alignment.pos <= 0) {
+    if (alignment.cigar === "*" || alignment.pos <= 0) {
       return alignment.pos;
     }
 
@@ -660,7 +660,7 @@ export class BAMWriter {
       const operation = match[2]!;
 
       // Operations that consume reference: M, D, N, =, X
-      if ('MDN=X'.includes(operation)) {
+      if ("MDN=X".includes(operation)) {
         refLength += length;
       }
     }
@@ -676,8 +676,8 @@ export class BAMWriter {
    */
   private calculateBin(start: number, end: number): number {
     // Tiger Style: Assert function arguments
-    console.assert(Number.isInteger(start) && start >= 0, 'start must be non-negative integer');
-    console.assert(Number.isInteger(end) && end >= start, 'end must be >= start');
+    console.assert(Number.isInteger(start) && start >= 0, "start must be non-negative integer");
+    console.assert(Number.isInteger(end) && end >= start, "end must be >= start");
 
     // BAM binning scheme for efficient random access
     if (start === end) {
@@ -702,9 +702,9 @@ export class BAMWriter {
    */
   private countCigarOperations(cigar: string): number {
     // Tiger Style: Assert function arguments
-    console.assert(typeof cigar === 'string', 'cigar must be a string');
+    console.assert(typeof cigar === "string", "cigar must be a string");
 
-    if (cigar === '*') {
+    if (cigar === "*") {
       return 0;
     }
 
@@ -719,9 +719,9 @@ export class BAMWriter {
    */
   private calculateQueryLengthFromCIGAR(cigar: string): number {
     // Tiger Style: Assert function arguments
-    console.assert(typeof cigar === 'string', 'cigar must be a string');
+    console.assert(typeof cigar === "string", "cigar must be a string");
 
-    if (cigar === '*') {
+    if (cigar === "*") {
       return 0;
     }
 
@@ -734,7 +734,7 @@ export class BAMWriter {
       const operation = match[2]!;
 
       // Operations that consume query sequence: M, I, S, =, X
-      if ('MIS=X'.includes(operation)) {
+      if ("MIS=X".includes(operation)) {
         queryLength += length;
       }
     }
@@ -755,10 +755,10 @@ export class BAMWriter {
   ): Promise<void> {
     // Tiger Style: Assert function arguments
     console.assert(
-      writer !== undefined && writer !== null && typeof writer === 'object',
-      'writer must be an object'
+      writer !== undefined && writer !== null && typeof writer === "object",
+      "writer must be an object"
     );
-    console.assert('write' in writer, 'writer must have write method');
+    console.assert("write" in writer, "writer must have write method");
 
     // Extract reference sequences from header
     const references = this.extractReferences(header);
@@ -794,17 +794,17 @@ export class BAMWriter {
    */
   private extractReferences(header: SAMHeader | SAMHeader[]): string[] {
     // Tiger Style: Assert function arguments
-    console.assert(header !== undefined, 'header must be provided');
+    console.assert(header !== undefined, "header must be provided");
 
     const headers = Array.isArray(header) ? header : [header];
     const references: string[] = [];
 
     for (const h of headers) {
       if (
-        h.type === 'SQ' &&
+        h.type === "SQ" &&
         h.fields.SN !== undefined &&
         h.fields.SN !== null &&
-        h.fields.SN !== ''
+        h.fields.SN !== ""
       ) {
         references.push(h.fields.SN);
       }
@@ -825,8 +825,8 @@ export class BAMWriter {
     alignments: Iterable<SAMAlignment> | AsyncIterable<SAMAlignment>
   ): Promise<void> {
     // Tiger Style: Assert function arguments and availability
-    console.assert(typeof filePath === 'string', 'filePath must be a string');
-    console.assert(this.isBunAvailable(), 'Bun must be available');
+    console.assert(typeof filePath === "string", "filePath must be a string");
+    console.assert(this.isBunAvailable(), "Bun must be available");
 
     // Create file writer using Bun.file()
     const file = Bun.file(filePath);
@@ -850,12 +850,12 @@ export class BAMWriter {
     alignments: Iterable<SAMAlignment> | AsyncIterable<SAMAlignment>
   ): Promise<void> {
     // Tiger Style: Assert function arguments
-    console.assert(typeof filePath === 'string', 'filePath must be a string');
+    console.assert(typeof filePath === "string", "filePath must be a string");
 
     // Implement streaming file writer for Node.js runtime
-    if (typeof process !== 'undefined' && process.versions?.node) {
+    if (typeof process !== "undefined" && process.versions?.node) {
       // Node.js implementation
-      const fs = await import('fs');
+      const fs = await import("fs");
       const stream = fs.createWriteStream(filePath);
 
       // Write header first and extract references
@@ -879,11 +879,11 @@ export class BAMWriter {
 
     // For other runtimes, throw informative error
     throw new BamError(
-      'File writing is currently only supported in Bun and Node.js runtimes',
+      "File writing is currently only supported in Bun and Node.js runtimes",
       undefined,
-      'file',
+      "file",
       undefined,
-      'Use writeString() to get BAM data as Uint8Array, then write manually'
+      "Use writeString() to get BAM data as Uint8Array, then write manually"
     );
   }
 
@@ -898,10 +898,10 @@ export class BAMWriter {
 
     for (const h of headers) {
       if (
-        h.type === 'SQ' &&
+        h.type === "SQ" &&
         h.fields.SN !== undefined &&
         h.fields.SN !== null &&
-        h.fields.SN !== ''
+        h.fields.SN !== ""
       ) {
         references.push(h.fields.SN);
       }
@@ -916,11 +916,11 @@ export class BAMWriter {
    */
   private isBunAvailable(): boolean {
     return (
-      typeof globalThis !== 'undefined' &&
-      'Bun' in globalThis &&
+      typeof globalThis !== "undefined" &&
+      "Bun" in globalThis &&
       globalThis.Bun !== undefined &&
-      typeof globalThis.Bun.write === 'function' &&
-      typeof globalThis.Bun.file === 'function'
+      typeof globalThis.Bun.write === "function" &&
+      typeof globalThis.Bun.file === "function"
     );
   }
 
@@ -930,7 +930,7 @@ export class BAMWriter {
    */
   getWriterInfo(): {
     options: Required<BAMWriterOptions>;
-    compressionInfo: ReturnType<BGZFCompressor['getCompressionInfo']>;
+    compressionInfo: ReturnType<BGZFCompressor["getCompressionInfo"]>;
     serializerStats: {
       maxAlignmentSize: number;
       bufferPoolSize: number;

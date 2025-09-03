@@ -13,54 +13,24 @@
  * @since v0.1.0
  */
 
-import { type } from 'arktype';
-import type { AbstractSequence } from '../types';
-import { SequenceDeduplicator, ExactDeduplicator } from './core/sequence-deduplicator';
-import type { DeduplicationStrategy } from './core/sequence-deduplicator';
-import type { RmdupOptions } from './types';
-import { createOptionsValidator } from './core/validation-utils';
+import { type } from "arktype";
+import { ValidationError } from "../errors";
+import type { AbstractSequence } from "../types";
+import type { DeduplicationStrategy } from "./core/sequence-deduplicator";
+import { ExactDeduplicator, SequenceDeduplicator } from "./core/sequence-deduplicator";
+import type { RmdupOptions } from "./types";
 
 /**
- * Schema for validating RmdupOptions using ArkType
+ * ArkType schema for RmdupOptions validation
  */
 const RmdupOptionsSchema = type({
-  by: 'string', // Let custom validator handle valid values
-  'caseSensitive?': 'boolean',
-  'exact?': 'boolean',
-  'expectedUnique?': 'number', // Let custom validator handle positive constraint
-  'falsePositiveRate?': 'number', // Let custom validator handle range constraint
+  by: "'sequence' | 'id' | 'both'",
+  "caseSensitive?": "boolean",
+  "exact?": "boolean",
+  "expectedUnique?": "number>0",
+  "falsePositiveRate?": "0 < number <= 0.1",
 });
-
-/**
- * Common validation function for rmdup options using the new pattern
- */
-const validateRmdupOptions = createOptionsValidator<RmdupOptions>(RmdupOptionsSchema, [
-  // Strategy validation
-  (options: RmdupOptions) => {
-    const validStrategies = ['sequence', 'id', 'both'];
-    if (!validStrategies.includes(options.by)) {
-      throw new Error(
-        `Invalid deduplication strategy: ${options.by}. Valid options: ${validStrategies.join(', ')}`
-      );
-    }
-  },
-  // Expected unique validation
-  (options: RmdupOptions) => {
-    if (options.expectedUnique !== undefined && options.expectedUnique <= 0) {
-      throw new Error(`Expected unique count must be positive, got: ${options.expectedUnique}`);
-    }
-  },
-  // False positive rate validation
-  (options: RmdupOptions) => {
-    if (options.falsePositiveRate !== undefined) {
-      if (options.falsePositiveRate <= 0 || options.falsePositiveRate > 0.1) {
-        throw new Error(
-          `False positive rate must be between 0 and 0.1, got: ${options.falsePositiveRate}`
-        );
-      }
-    }
-  },
-]);
+// export type RmdupOptionsSchema = typeof RmdupOptionsSchema.infer;
 
 /**
  * Processor for high-performance sequence deduplication
@@ -93,7 +63,11 @@ export class RmdupProcessor {
     source: AsyncIterable<AbstractSequence>,
     options: RmdupOptions
   ): AsyncIterable<AbstractSequence> {
-    validateRmdupOptions(options);
+    // Direct ArkType validation
+    const validationResult = RmdupOptionsSchema(options);
+    if (validationResult instanceof type.errors) {
+      throw new ValidationError(`Invalid rmdup options: ${validationResult.summary}`);
+    }
 
     const deduplicationStrategy = this.mapStrategy(options.by);
     const caseSensitive = options.caseSensitive ?? true;
@@ -156,17 +130,11 @@ export class RmdupProcessor {
 
   /**
    * Map rmdup options to core deduplication strategy
+   *
+   * Note: ArkType already validated the enum, so no error case needed
    */
-  private mapStrategy(by: string): DeduplicationStrategy {
-    switch (by) {
-      case 'sequence':
-        return 'sequence';
-      case 'id':
-        return 'id';
-      case 'both':
-        return 'both';
-      default:
-        throw new Error(`Invalid deduplication criterion: ${by}`);
-    }
+  private mapStrategy(by: "sequence" | "id" | "both"): DeduplicationStrategy {
+    // Direct mapping - ArkType guarantees valid values
+    return by;
   }
 }

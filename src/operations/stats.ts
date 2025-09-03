@@ -16,9 +16,10 @@
  * @since v0.1.0
  */
 
-import type { AbstractSequence, FASTXSequence, FastqSequence, QualityEncoding } from '../types';
-import { SequenceError } from '../errors';
-import { charToScore } from './core/encoding';
+import { type } from "arktype";
+import { SequenceError, ValidationError } from "../errors";
+import type { AbstractSequence, FASTXSequence, FastqSequence, QualityEncoding } from "../types";
+import { charToScore } from "./core/encoding";
 
 // =============================================================================
 // TYPES AND INTERFACES
@@ -34,9 +35,9 @@ export interface SequenceStats {
   /** File or data source identifier */
   readonly file?: string;
   /** Detected format of sequences */
-  readonly format: 'FASTA' | 'FASTQ' | 'Mixed' | 'Unknown';
+  readonly format: "FASTA" | "FASTQ" | "Mixed" | "Unknown";
   /** Inferred sequence type based on content */
-  readonly type: 'DNA' | 'RNA' | 'Protein' | 'Unknown';
+  readonly type: "DNA" | "RNA" | "Protein" | "Unknown";
   /** Total number of sequences processed */
   readonly numSequences: number;
   /** Sum of all sequence lengths */
@@ -158,6 +159,44 @@ interface StatsAccumulator {
 }
 
 // =============================================================================
+// VALIDATION SCHEMA
+// =============================================================================
+
+/**
+ * ArkType schema for StatsOptions validation with genomics-specific constraints
+ */
+const StatsOptionsSchema = type({
+  "detailed?": "boolean",
+  "tabular?": "boolean",
+  "includeQuality?": "boolean",
+  "gapChars?": "string",
+  "ambiguousChars?": "string",
+  "includeComposition?": "boolean",
+  "fileName?": "string",
+}).narrow((options, ctx) => {
+  // Validate gap characters are reasonable
+  if (options.gapChars && options.gapChars.length === 0) {
+    return ctx.reject({
+      expected: "non-empty gap characters string",
+      path: ["gapChars"],
+      description: "Gap characters cannot be empty string",
+    });
+  }
+
+  // Validate ambiguous characters are valid IUPAC codes
+  if (options.ambiguousChars && !/^[NRYSWKMBDHV]*$/i.test(options.ambiguousChars)) {
+    return ctx.reject({
+      expected: "valid IUPAC ambiguity codes",
+      actual: options.ambiguousChars,
+      path: ["ambiguousChars"],
+      description: "Use characters like N, R, Y, S, W, K, M, B, D, H, V",
+    });
+  }
+
+  return true;
+});
+
+// =============================================================================
 // MAIN CALCULATOR CLASS
 // =============================================================================
 
@@ -193,10 +232,10 @@ export class SequenceStatsCalculator {
     detailed: false,
     tabular: false,
     includeQuality: true,
-    gapChars: '-.*',
-    ambiguousChars: 'NRYSWKMBDHV',
+    gapChars: "-.*",
+    ambiguousChars: "NRYSWKMBDHV",
     includeComposition: false,
-  } satisfies Omit<Required<StatsOptions>, 'fileName'>;
+  } satisfies Omit<Required<StatsOptions>, "fileName">;
 
   /**
    * Calculate comprehensive sequence statistics
@@ -220,6 +259,16 @@ export class SequenceStatsCalculator {
     sequences: AsyncIterable<AbstractSequence | FASTXSequence>,
     options: StatsOptions = {}
   ): Promise<SequenceStats> {
+    // Validate options with ArkType
+    const validationResult = StatsOptionsSchema(options);
+    if (validationResult instanceof type.errors) {
+      throw new ValidationError(
+        `Invalid statistics options: ${validationResult.summary}`,
+        undefined,
+        "Check gap characters and ambiguous character patterns"
+      );
+    }
+
     const opts = {
       detailed: options.detailed ?? this.defaultOptions.detailed,
       tabular: options.tabular ?? this.defaultOptions.tabular,
@@ -242,7 +291,7 @@ export class SequenceStatsCalculator {
     } catch (error) {
       throw new SequenceError(
         `Statistics calculation failed: ${error instanceof Error ? error.message : String(error)}`,
-        '<statistics>',
+        "<statistics>",
         undefined,
         `Processed ${accumulator.count} sequences before error`
       );
@@ -289,8 +338,7 @@ export class SequenceStatsCalculator {
       }
     }
 
-    const lastValue = sorted[sorted.length - 1];
-    return lastValue !== undefined && lastValue !== null ? lastValue : 0;
+    return sorted[sorted.length - 1] ?? 0;
   }
 
   /**
@@ -455,28 +503,28 @@ export class SequenceStatsCalculator {
 
       // Count bases
       switch (char) {
-        case 'G':
-        case 'C':
+        case "G":
+        case "C":
           accumulator.gcCount++;
           if (options.includeComposition) {
             accumulator.baseComposition[char]++;
           }
           break;
-        case 'A':
-        case 'T':
+        case "A":
+        case "T":
           accumulator.atCount++;
           if (options.includeComposition) {
-            accumulator.baseComposition[char as 'A' | 'T']++;
+            accumulator.baseComposition[char as "A" | "T"]++;
           }
           break;
-        case 'U':
+        case "U":
           accumulator.atCount++;
           accumulator.hasRNA = true;
           if (options.includeComposition) {
             accumulator.baseComposition.U++;
           }
           break;
-        case 'N':
+        case "N":
           accumulator.ambiguousCount++;
           if (options.includeComposition) {
             accumulator.baseComposition.N++;
@@ -492,7 +540,7 @@ export class SequenceStatsCalculator {
             accumulator.ambiguousCount++;
           }
           // Check for protein
-          else if ('DEFHIKLMPQVWY'.includes(char)) {
+          else if ("DEFHIKLMPQVWY".includes(char)) {
             accumulator.hasProtein = true;
           }
 
@@ -563,7 +611,7 @@ export class SequenceStatsCalculator {
 
     // Build statistics object with all computed values
     const stats: SequenceStats = {
-      ...(options.fileName !== undefined && { file: options.fileName }),
+      ...(options.fileName && { file: options.fileName }),
       format: this.determineFormat(accumulator),
       type: this.determineType(accumulator),
       numSequences: accumulator.count,
@@ -579,18 +627,15 @@ export class SequenceStatsCalculator {
           n90: this.calculateNX(accumulator.lengths, 90),
           q1Length: (() => {
             const sorted = [...accumulator.lengths].sort((a, b) => a - b);
-            const value = sorted[Math.floor(accumulator.lengths.length * 0.25)];
-            return value !== undefined && value !== null ? value : 0;
+            return sorted[Math.floor(accumulator.lengths.length * 0.25)] ?? 0;
           })(),
           q2Length: (() => {
             const sorted = [...accumulator.lengths].sort((a, b) => a - b);
-            const value = sorted[Math.floor(accumulator.lengths.length * 0.5)];
-            return value !== undefined && value !== null ? value : 0;
+            return sorted[Math.floor(accumulator.lengths.length * 0.5)] ?? 0;
           })(),
           q3Length: (() => {
             const sorted = [...accumulator.lengths].sort((a, b) => a - b);
-            const value = sorted[Math.floor(accumulator.lengths.length * 0.75)];
-            return value !== undefined && value !== null ? value : 0;
+            return sorted[Math.floor(accumulator.lengths.length * 0.75)] ?? 0;
           })(),
         }),
 
@@ -627,34 +672,34 @@ export class SequenceStatsCalculator {
    * Determine overall format from accumulated data
    * @private
    */
-  private determineFormat(accumulator: StatsAccumulator): 'FASTA' | 'FASTQ' | 'Mixed' | 'Unknown' {
+  private determineFormat(accumulator: StatsAccumulator): "FASTA" | "FASTQ" | "Mixed" | "Unknown" {
     if (accumulator.hasFasta && accumulator.hasFastq) {
-      return 'Mixed';
+      return "Mixed";
     }
     if (accumulator.hasFastq) {
-      return 'FASTQ';
+      return "FASTQ";
     }
     if (accumulator.hasFasta) {
-      return 'FASTA';
+      return "FASTA";
     }
-    return 'Unknown';
+    return "Unknown";
   }
 
   /**
    * Determine sequence type from accumulated data
    * @private
    */
-  private determineType(accumulator: StatsAccumulator): 'DNA' | 'RNA' | 'Protein' | 'Unknown' {
+  private determineType(accumulator: StatsAccumulator): "DNA" | "RNA" | "Protein" | "Unknown" {
     if (accumulator.hasProtein) {
-      return 'Protein';
+      return "Protein";
     }
     if (accumulator.hasRNA) {
-      return 'RNA';
+      return "RNA";
     }
     if (accumulator.gcCount > 0 || accumulator.atCount > 0) {
-      return 'DNA';
+      return "DNA";
     }
-    return 'Unknown';
+    return "Unknown";
   }
 
   /**
@@ -663,9 +708,9 @@ export class SequenceStatsCalculator {
    */
   private createEmptyStats(fileName?: string | undefined): SequenceStats {
     return {
-      ...(fileName !== undefined && { file: fileName }),
-      format: 'Unknown',
-      type: 'Unknown',
+      ...(fileName && { file: fileName }),
+      format: "Unknown",
+      type: "Unknown",
       numSequences: 0,
       totalLength: 0,
       minLength: 0,
@@ -680,9 +725,9 @@ export class SequenceStatsCalculator {
    */
   private isFastqSequence(sequence: AbstractSequence | FASTXSequence): sequence is FastqSequence {
     return (
-      'quality' in sequence &&
-      'qualityEncoding' in sequence &&
-      typeof sequence.quality === 'string' &&
+      "quality" in sequence &&
+      "qualityEncoding" in sequence &&
+      typeof sequence.quality === "string" &&
       sequence.qualityEncoding !== undefined
     );
   }
@@ -753,10 +798,10 @@ export async function calculateSequenceStats(
 export function formatStatsTable(stats: SequenceStats): string {
   const lines: string[] = [];
 
-  lines.push('File\tFormat\tType\tNum_seqs\tSum_len\tMin_len\tMax_len\tAvg_len');
+  lines.push("File\tFormat\tType\tNum_seqs\tSum_len\tMin_len\tMax_len\tAvg_len");
 
   const row = [
-    stats.file !== undefined && stats.file !== null && stats.file !== '' ? stats.file : '-',
+    stats.file ?? "-",
     stats.format,
     stats.type,
     stats.numSequences.toString(),
@@ -767,21 +812,21 @@ export function formatStatsTable(stats: SequenceStats): string {
   ];
 
   if (stats.n50 !== undefined) {
-    lines[0] += '\tN50';
+    lines[0] += "\tN50";
     row.push(stats.n50.toString());
   }
 
   if (stats.gcContent !== undefined) {
-    lines[0] += '\tGC%';
+    lines[0] += "\tGC%";
     row.push((stats.gcContent * 100).toFixed(2));
   }
 
   if (stats.avgQuality !== undefined) {
-    lines[0] += '\tAvg_qual';
+    lines[0] += "\tAvg_qual";
     row.push(stats.avgQuality.toFixed(1));
   }
 
-  lines.push(row.join('\t'));
+  lines.push(row.join("\t"));
 
-  return lines.join('\n');
+  return lines.join("\n");
 }

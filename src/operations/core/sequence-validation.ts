@@ -17,7 +17,7 @@
  * @since v0.1.0
  */
 
-import { type } from 'arktype';
+import { type } from "arktype";
 
 // =============================================================================
 // IUPAC PATTERN CONSTANTS
@@ -58,13 +58,13 @@ export const IUPAC_RNA: RegExp = /^[ACGURYSWKMBDHVNacguryswkmbdhvn.\-*]*$/i;
 export const IUPAC_PROTEIN: RegExp = /^[ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy\-*]*$/;
 
 // =============================================================================
-// VALIDATION MODE CONSTANTS
+// FUNDAMENTAL VALIDATION CONSTANTS (Core library primitives)
 // =============================================================================
 
 /**
  * Validation modes for different levels of sequence strictness
  *
- * These modes control how strictly sequences are validated:
+ * These modes control how strictly sequences are validated across the entire library:
  * - STRICT: Only standard bases (ACGT/U for nucleotides, 20 standard amino acids)
  * - NORMAL: Standard bases plus IUPAC ambiguity codes (recommended)
  * - PERMISSIVE: Accept any ASCII characters (use with caution)
@@ -76,20 +76,20 @@ export const ValidationMode = {
    * RNA: A, C, G, U
    * Protein: 20 standard amino acids
    */
-  STRICT: 'strict',
+  STRICT: "strict",
 
   /**
    * Normal validation including IUPAC ambiguity codes
    * DNA/RNA: Standard bases + R, Y, S, W, K, M, B, D, H, V, N
    * Protein: Standard amino acids (same as STRICT for now)
    */
-  NORMAL: 'normal',
+  NORMAL: "normal",
 
   /**
    * Permissive validation accepting any ASCII characters
    * Useful for handling legacy data with non-standard encoding
    */
-  PERMISSIVE: 'permissive',
+  PERMISSIVE: "permissive",
 } as const;
 
 /**
@@ -97,18 +97,14 @@ export const ValidationMode = {
  */
 export type ValidationMode = (typeof ValidationMode)[keyof typeof ValidationMode];
 
-// =============================================================================
-// SEQUENCE TYPE CONSTANTS
-// =============================================================================
-
 /**
- * Sequence types for validation context
+ * Sequence types for validation context across the library
  */
 export const SequenceType = {
-  DNA: 'dna',
-  RNA: 'rna',
-  PROTEIN: 'protein',
-  UNKNOWN: 'unknown',
+  DNA: "dna",
+  RNA: "rna",
+  PROTEIN: "protein",
+  UNKNOWN: "unknown",
 } as const;
 
 /**
@@ -204,7 +200,7 @@ export class SequenceValidator {
    * );
    * ```
    */
-  constructor(mode: ValidationMode = 'normal', type: SequenceType = 'dna') {
+  constructor(mode: ValidationMode = "normal", type: SequenceType = "dna") {
     // Validate inputs
     const validModes = Object.values(ValidationMode) as readonly string[];
     const validTypes = Object.values(SequenceType) as readonly string[];
@@ -229,24 +225,24 @@ export class SequenceValidator {
    * @private
    */
   private computeValidationPattern(): RegExp {
-    if (this.mode === 'permissive') {
+    if (this.mode === "permissive") {
       // Permissive mode accepts everything
       return /^.*$/;
     }
 
     switch (this.type) {
-      case 'dna':
-        return this.mode === 'strict' ? /^[ACGTacgt.\-*]*$/i : IUPAC_DNA;
+      case "dna":
+        return this.mode === "strict" ? /^[ACGTacgt.\-*]*$/i : IUPAC_DNA;
 
-      case 'rna':
-        return this.mode === 'strict' ? /^[ACGUacgu.\-*]*$/i : IUPAC_RNA;
+      case "rna":
+        return this.mode === "strict" ? /^[ACGUacgu.\-*]*$/i : IUPAC_RNA;
 
-      case 'protein':
+      case "protein":
         return IUPAC_PROTEIN;
 
-      case 'unknown':
+      case "unknown":
         // For unknown types, use DNA pattern as most permissive nucleotide pattern
-        return this.mode === 'strict' ? /^[ACGTUacgtu.\-*]*$/i : IUPAC_DNA;
+        return this.mode === "strict" ? /^[ACGTUacgtu.\-*]*$/i : IUPAC_DNA;
 
       default:
         throw new Error(`Unsupported sequence type: ${this.type}`);
@@ -258,17 +254,17 @@ export class SequenceValidator {
    * @private
    */
   private computeCleaningPattern(): RegExp {
-    if (this.mode === 'permissive') {
+    if (this.mode === "permissive") {
       // Permissive mode accepts everything
       return /./;
     }
 
     switch (this.mode) {
-      case 'strict':
+      case "strict":
         // Only standard bases, gaps, and stop codons
         return /[ACGTUacgtu.\-*]/;
 
-      case 'normal':
+      case "normal":
         // Standard bases plus IUPAC ambiguity codes
         return /[ACGTURYSWKMBDHVNacgturyswkmbdhvn.\-*]/;
 
@@ -308,8 +304,8 @@ export class SequenceValidator {
    */
   validate(sequence: string): boolean {
     // Tiger Style: Assert preconditions
-    if (typeof sequence !== 'string') {
-      throw new Error('sequence must be a string');
+    if (typeof sequence !== "string") {
+      throw new Error("sequence must be a string");
     }
 
     // Empty sequences are valid
@@ -352,20 +348,20 @@ export class SequenceValidator {
    * @performance O(n) time complexity where n is sequence length
    * @since v0.1.0
    */
-  clean(sequence: string, replaceChar: string = 'N'): string {
+  clean(sequence: string, replaceChar: string = "N"): string {
     // Tiger Style: Assert preconditions
-    if (typeof sequence !== 'string') {
-      throw new Error('sequence must be a string');
+    if (typeof sequence !== "string") {
+      throw new Error("sequence must be a string");
     }
-    if (typeof replaceChar !== 'string') {
-      throw new Error('replaceChar must be a string');
+    if (typeof replaceChar !== "string") {
+      throw new Error("replaceChar must be a string");
     }
     if (replaceChar.length !== 1) {
-      throw new Error('replaceChar must be a single character');
+      throw new Error("replaceChar must be a single character");
     }
 
     // PERMISSIVE mode returns sequence unchanged
-    if (this.mode === 'permissive') {
+    if (this.mode === "permissive") {
       return sequence;
     }
 
@@ -375,7 +371,7 @@ export class SequenceValidator {
     }
 
     // Filter sequence, replacing invalid characters
-    let cleanedSequence = '';
+    let cleanedSequence = "";
 
     for (let i = 0; i < sequence.length; i++) {
       const char = sequence[i];
@@ -420,7 +416,7 @@ export class SequenceValidator {
   } {
     const errors: string[] = [];
     const warnings: string[] = [];
-    const { replaceChar = 'N', returnCleaned = false } = options;
+    const { replaceChar = "N", returnCleaned = false } = options;
 
     try {
       // Validate the original sequence
@@ -538,11 +534,11 @@ export class SequenceValidator {
    */
   static expandAmbiguous(base: string): string[] {
     // Tiger Style: Assert preconditions
-    if (typeof base !== 'string') {
-      throw new Error('base must be a string');
+    if (typeof base !== "string") {
+      throw new Error("base must be a string");
     }
     if (base.length !== 1) {
-      throw new Error('base must be a single character');
+      throw new Error("base must be a single character");
     }
 
     // Convert to uppercase for consistent lookup
@@ -551,24 +547,24 @@ export class SequenceValidator {
     // IUPAC ambiguity code mapping
     const expansionMap: Record<string, string[]> = {
       // Two-base ambiguity codes
-      R: ['A', 'G'], // puRines
-      Y: ['C', 'T'], // pYrimidines
-      S: ['G', 'C'], // Strong bonds (3 H-bonds)
-      W: ['A', 'T'], // Weak bonds (2 H-bonds)
-      K: ['G', 'T'], // Keto groups
-      M: ['A', 'C'], // aMino groups
+      R: ["A", "G"], // puRines
+      Y: ["C", "T"], // pYrimidines
+      S: ["G", "C"], // Strong bonds (3 H-bonds)
+      W: ["A", "T"], // Weak bonds (2 H-bonds)
+      K: ["G", "T"], // Keto groups
+      M: ["A", "C"], // aMino groups
 
       // Three-base ambiguity codes (complement codes)
-      B: ['C', 'G', 'T'], // not A
-      D: ['A', 'G', 'T'], // not C
-      H: ['A', 'C', 'T'], // not G
-      V: ['A', 'C', 'G'], // not T/U
+      B: ["C", "G", "T"], // not A
+      D: ["A", "G", "T"], // not C
+      H: ["A", "C", "T"], // not G
+      V: ["A", "C", "G"], // not T/U
 
       // Four-base ambiguity code
-      N: ['A', 'C', 'G', 'T'], // aNy base
+      N: ["A", "C", "G", "T"], // aNy base
 
       // Handle RNA uracil in ambiguity codes
-      U: ['U'], // Uracil (RNA equivalent of T)
+      U: ["U"], // Uracil (RNA equivalent of T)
     };
 
     // Return expansion if found, otherwise return the original base
@@ -596,13 +592,13 @@ export const SequenceTypeSchema = type('"dna"|"rna"|"protein"|"unknown"');
 export const ValidationOptionsSchema = type({
   mode: ValidationModeSchema,
   type: SequenceTypeSchema,
-  'replaceChar?': type('string').pipe((char: string) => {
+  "replaceChar?": type("string").pipe((char: string) => {
     if (char.length !== 1) {
-      throw new Error('replaceChar must be a single character');
+      throw new Error("replaceChar must be a single character");
     }
     return char;
   }),
-  'strict?': 'boolean',
+  "strict?": "boolean",
 }).pipe((options) => {
   // Additional cross-field validation if needed
   return options;
@@ -612,13 +608,13 @@ export const ValidationOptionsSchema = type({
  * Sequence validation result schema
  */
 export const ValidationResultSchema = type({
-  isValid: 'boolean',
-  sequence: 'string',
+  isValid: "boolean",
+  sequence: "string",
   mode: ValidationModeSchema,
   type: SequenceTypeSchema,
-  'errors?': 'string[]',
-  'warnings?': 'string[]',
-  'cleaned?': 'string',
+  "errors?": "string[]",
+  "warnings?": "string[]",
+  "cleaned?": "string",
 });
 
 // =============================================================================
@@ -640,8 +636,8 @@ export const ValidationResultSchema = type({
  */
 export function validateAndClean(
   sequence: string,
-  mode: ValidationMode = 'normal',
-  type: SequenceType = 'dna',
+  mode: ValidationMode = "normal",
+  type: SequenceType = "dna",
   options: { replaceChar?: string; returnCleaned?: boolean } = {}
 ): {
   isValid: boolean;
@@ -667,12 +663,12 @@ export function validateAndClean(
  */
 export function detectSequenceType(sequence: string): SequenceType {
   if (!sequence || sequence.length === 0) {
-    return 'unknown';
+    return "unknown";
   }
 
   const upperSeq = sequence.toUpperCase();
-  const hasU = upperSeq.includes('U');
-  const hasT = upperSeq.includes('T');
+  const hasU = upperSeq.includes("U");
+  const hasT = upperSeq.includes("T");
 
   // Check for amino acid specific characters (letters that aren't common in nucleotides)
   const proteinChars = /[DEFHIKLMNPQRSVWY]/;
@@ -684,25 +680,82 @@ export function detectSequenceType(sequence: string): SequenceType {
 
   // If it has protein-specific characters and it's not purely nucleotides, it's protein
   if (hasProteinChars && !isNucleotide) {
-    return 'protein';
+    return "protein";
   }
 
   // If it's nucleotide sequence, check RNA vs DNA
   if (isNucleotide) {
     if (hasU && !hasT) {
-      return 'rna';
+      return "rna";
     }
     if (hasT && !hasU) {
-      return 'dna';
+      return "dna";
     }
     if (hasT && hasU) {
-      return 'dna'; // Mixed, default to DNA
+      return "dna"; // Mixed, default to DNA
     }
     // If no T or U, could be either - default to DNA
-    return 'dna';
+    return "dna";
   }
 
-  return 'unknown';
+  return "unknown";
+}
+
+/**
+ * Expand a single IUPAC ambiguity code to its constituent bases
+ *
+ * Core primitive function for IUPAC nucleotide code expansion.
+ * Used across multiple modules for pattern matching, translation, and validation.
+ *
+ * @param base - Single character IUPAC code to expand
+ * @returns Array of possible bases for the given code
+ * @throws {Error} When base parameter is invalid
+ *
+ * @example
+ * ```typescript
+ * const purines = expandAmbiguous('R');
+ * console.log(purines); // ['A', 'G']
+ *
+ * const anyBase = expandAmbiguous('N');
+ * console.log(anyBase); // ['A', 'C', 'G', 'T']
+ * ```
+ *
+ * @since v0.1.0
+ */
+export function expandAmbiguous(base: string): string[] {
+  // Tiger Style: Assert meaningful constraints
+  if (base.length !== 1) {
+    throw new Error("base must be a single character");
+  }
+
+  // Convert to uppercase for consistent lookup
+  const upperBase = base.toUpperCase();
+
+  // IUPAC ambiguity code mapping
+  const expansionMap: Record<string, string[]> = {
+    // Two-base ambiguity codes
+    R: ["A", "G"], // puRines
+    Y: ["C", "T"], // pYrimidines
+    S: ["G", "C"], // Strong bonds (3 H-bonds)
+    W: ["A", "T"], // Weak bonds (2 H-bonds)
+    K: ["G", "T"], // Keto groups
+    M: ["A", "C"], // aMino groups
+
+    // Three-base ambiguity codes (complement codes)
+    B: ["C", "G", "T"], // not A
+    D: ["A", "G", "T"], // not C
+    H: ["A", "C", "T"], // not G
+    V: ["A", "C", "G"], // not T/U
+
+    // Four-base ambiguity code
+    N: ["A", "C", "G", "T"], // aNy base
+
+    // Handle RNA uracil in ambiguity codes
+    U: ["U"], // Uracil (RNA equivalent of T)
+  };
+
+  // Return expansion if found, otherwise return the original base
+  return expansionMap[upperBase] || [upperBase];
 }
 
 /**
@@ -717,13 +770,13 @@ export function detectSequenceType(sequence: string): SequenceType {
  */
 export function expandAmbiguousSequence(sequence: string, maxExpansions: number = 1000): string[] {
   if (!sequence || sequence.length === 0) {
-    return [''];
+    return [""];
   }
 
-  const result: string[] = [''];
+  const result: string[] = [""];
 
   for (const char of sequence) {
-    const expansions = SequenceValidator.expandAmbiguous(char);
+    const expansions = expandAmbiguous(char);
     const newResult: string[] = [];
 
     for (const prefix of result) {

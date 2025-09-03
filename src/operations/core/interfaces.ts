@@ -18,8 +18,8 @@
  * - BLOOM_FILTER: Probabilistic data structures for deduplication
  */
 export enum MemoryStrategy {
-  STREAMING = 'streaming',
-  BUFFERED = 'buffered',
-  EXTERNAL = 'external',
-  BLOOM_FILTER = 'bloom_filter',
+  STREAMING = "streaming",
+  BUFFERED = "buffered",
+  EXTERNAL = "external",
+  BLOOM_FILTER = "bloom_filter",
 }

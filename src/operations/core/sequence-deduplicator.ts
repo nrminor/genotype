@@ -23,8 +23,8 @@
  * - ExactDeduplicator provides 100% accuracy at higher memory cost
  */
 
-import type { AbstractSequence } from '../../types';
-import { BloomFilter, ScalableBloomFilter } from './bloom-filter';
+import type { AbstractSequence } from "../../types";
+import { BloomFilter, ScalableBloomFilter } from "./bloom-filter";
 
 /**
  * Strategy for determining sequence uniqueness.
@@ -51,10 +51,10 @@ import { BloomFilter, ScalableBloomFilter } from './bloom-filter';
  * ```
  */
 export type DeduplicationStrategy =
-  | 'sequence' // Deduplicate by sequence content only
-  | 'id' // Deduplicate by ID only
-  | 'both' // Deduplicate by ID and sequence (default)
-  | 'exact' // Deduplicate by exact match of all fields
+  | "sequence" // Deduplicate by sequence content only
+  | "id" // Deduplicate by ID only
+  | "both" // Deduplicate by ID and sequence (default)
+  | "exact" // Deduplicate by exact match of all fields
   | ((seq: AbstractSequence) => string); // Custom key function
 
 /**
@@ -246,7 +246,7 @@ export class SequenceDeduplicator {
 
   constructor(options: DeduplicationOptions = {}) {
     this.options = {
-      strategy: options.strategy ?? 'both',
+      strategy: options.strategy ?? "both",
       expectedSequences: options.expectedSequences ?? 1_000_000,
       falsePositiveRate: options.falsePositiveRate ?? 0.001,
       scalable: options.scalable ?? false,
@@ -392,7 +392,7 @@ export class SequenceDeduplicator {
     const bloomStats = this.bloom.getStats();
 
     // Handle different stats structures from BloomFilter vs ScalableBloomFilter
-    if ('estimatedFPR' in bloomStats) {
+    if ("estimatedFPR" in bloomStats) {
       // Regular BloomFilter
       this.stats.estimatedFPR = bloomStats.estimatedFPR;
       this.stats.memoryUsage = bloomStats.sizeBytes;
@@ -472,7 +472,7 @@ export class SequenceDeduplicator {
    */
   merge(other: SequenceDeduplicator): SequenceDeduplicator {
     if (!(this.bloom instanceof BloomFilter) || !(other.bloom instanceof BloomFilter)) {
-      throw new Error('Can only merge non-scalable Bloom filters');
+      throw new Error("Can only merge non-scalable Bloom filters");
     }
 
     const merged = new SequenceDeduplicator(this.options);
@@ -509,7 +509,7 @@ export class SequenceDeduplicator {
   }
 
   private createKeyFunction(strategy: DeduplicationStrategy): (seq: AbstractSequence) => string {
-    if (typeof strategy === 'function') {
+    if (typeof strategy === "function") {
       return strategy;
     }
 
@@ -518,16 +518,16 @@ export class SequenceDeduplicator {
       : (s: string): string => s.toUpperCase();
 
     switch (strategy) {
-      case 'sequence':
+      case "sequence":
         return (seq) => processSequence(seq.sequence);
 
-      case 'id':
+      case "id":
         return (seq) => seq.id;
 
-      case 'both':
+      case "both":
         return (seq) => `${seq.id}:${processSequence(seq.sequence)}`;
 
-      case 'exact':
+      case "exact":
         return (seq) =>
           JSON.stringify({
             id: seq.id,
@@ -575,25 +575,25 @@ export class ExactDeduplicator {
     duplicateCount: 0,
   };
 
-  constructor(strategy: DeduplicationStrategy = 'both', caseSensitive: boolean = true) {
+  constructor(strategy: DeduplicationStrategy = "both", caseSensitive: boolean = true) {
     const processSequence = caseSensitive
       ? (s: string): string => s
       : (s: string): string => s.toUpperCase();
 
-    if (typeof strategy === 'function') {
+    if (typeof strategy === "function") {
       this.getKey = strategy;
     } else {
       switch (strategy) {
-        case 'sequence':
+        case "sequence":
           this.getKey = (seq): string => processSequence(seq.sequence);
           break;
-        case 'id':
+        case "id":
           this.getKey = (seq): string => seq.id;
           break;
-        case 'both':
+        case "both":
           this.getKey = (seq): string => `${seq.id}:${processSequence(seq.sequence)}`;
           break;
-        case 'exact':
+        case "exact":
           this.getKey = (seq): string =>
             JSON.stringify({
               id: seq.id,

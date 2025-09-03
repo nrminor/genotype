@@ -6,7 +6,7 @@
  * strict type safety where possible.
  */
 
-import { type } from 'arktype';
+import { type } from "arktype";
 import {
   BAIIndexError,
   ChromosomeNamingError,
@@ -15,7 +15,7 @@ import {
   ResourceLimitError,
   SecurityPathError,
   ValidationError,
-} from './errors';
+} from "./errors";
 
 /**
  * Helper functions for validation to reduce nesting
@@ -25,7 +25,7 @@ import {
  * Validate CIGAR string consistency with sequence length
  */
 function validateCigarSequenceConsistency(cigar: string, sequence: string): void {
-  if (cigar === '*' || sequence === '*') {
+  if (cigar === "*" || sequence === "*") {
     return;
   }
 
@@ -37,7 +37,7 @@ function validateCigarSequenceConsistency(cigar: string, sequence: string): void
     const operation = op.slice(-1);
 
     // Operations that consume query sequence
-    if ('MIS=X'.includes(operation)) {
+    if ("MIS=X".includes(operation)) {
       consumesQuery += length;
     }
   }
@@ -73,9 +73,9 @@ function isValidChunk(chunk: any): chunk is { beginOffset: number } {
   return (
     chunk !== null &&
     chunk !== undefined &&
-    typeof chunk === 'object' &&
-    'beginOffset' in chunk &&
-    typeof chunk.beginOffset === 'number'
+    typeof chunk === "object" &&
+    "beginOffset" in chunk &&
+    typeof chunk.beginOffset === "number"
   );
 }
 
@@ -120,7 +120,7 @@ export interface FASTXSequence extends AbstractSequence {
  * Format: >id description\nsequence
  */
 export interface FastaSequence extends FASTXSequence {
-  readonly format: 'fasta';
+  readonly format: "fasta";
   /** GC content ratio (0.0 to 1.0) */
   readonly gcContent?: number;
 }
@@ -130,11 +130,11 @@ export interface FastaSequence extends FASTXSequence {
  */
 export const QualityEncoding = {
   /** ASCII 33-126, scores 0-93 (modern standard since Illumina 1.8+) */
-  PHRED33: 'phred33',
+  PHRED33: "phred33",
   /** ASCII 64-126, scores 0-62 (legacy Illumina 1.3-1.7) */
-  PHRED64: 'phred64',
+  PHRED64: "phred64",
   /** Can have negative scores (-5 to 62), uses p/(1-p) probability */
-  SOLEXA: 'solexa',
+  SOLEXA: "solexa",
 } as const;
 
 /**
@@ -147,7 +147,7 @@ export type QualityEncoding = (typeof QualityEncoding)[keyof typeof QualityEncod
  * Format: @id description\nsequence\n+\nquality
  */
 export interface FastqSequence extends FASTXSequence {
-  readonly format: 'fastq';
+  readonly format: "fastq";
   /** Quality scores as ASCII string - required for FASTQ */
   readonly quality: string;
   /** Quality encoding system detected or specified - required for FASTQ */
@@ -165,16 +165,16 @@ export interface FastqSequence extends FASTXSequence {
 
 // SAM Format Branded Types for compile-time safety
 export type SAMFlag = number & {
-  readonly __brand: 'SAMFlag';
+  readonly __brand: "SAMFlag";
   readonly __valid: true;
 };
 export type CIGARString = string & {
-  readonly __brand: 'CIGAR';
+  readonly __brand: "CIGAR";
   readonly __validated: true;
 };
 export type MAPQScore = number & {
-  readonly __brand: 'MAPQ';
-  readonly __range: '0-255';
+  readonly __brand: "MAPQ";
+  readonly __range: "0-255";
 };
 
 /**
@@ -182,7 +182,7 @@ export type MAPQScore = number & {
  */
 export interface SAMTag {
   readonly tag: string; // Two character tag (e.g., "NM", "MD")
-  readonly type: 'A' | 'i' | 'f' | 'Z' | 'H' | 'B';
+  readonly type: "A" | "i" | "f" | "Z" | "H" | "B";
   readonly value: string | number;
 }
 
@@ -190,8 +190,8 @@ export interface SAMTag {
  * SAM header record with validated structure
  */
 export interface SAMHeader {
-  readonly format: 'sam-header';
-  readonly type: 'HD' | 'SQ' | 'RG' | 'PG' | 'CO';
+  readonly format: "sam-header";
+  readonly type: "HD" | "SQ" | "RG" | "PG" | "CO";
   readonly fields: Record<string, string>;
   readonly lineNumber?: number;
 }
@@ -200,7 +200,7 @@ export interface SAMHeader {
  * SAM alignment record with validated fields and branded types
  */
 export interface SAMAlignment {
-  readonly format: 'sam' | 'bam';
+  readonly format: "sam" | "bam";
   readonly qname: string; // Query name
   readonly flag: SAMFlag; // Bitwise flag
   readonly rname: string; // Reference name
@@ -252,7 +252,7 @@ export interface SamRecord {
 /**
  * Strand orientation
  */
-export type Strand = '+' | '-' | '.';
+export type Strand = "+" | "-" | ".";
 
 /**
  * Parse genomic region string at compile time for type safety
@@ -406,7 +406,7 @@ export interface BedInterval {
     readonly length: number;
     readonly hasThickRegion: boolean;
     readonly hasBlocks: boolean;
-    readonly bedType: 'BED3' | 'BED4' | 'BED5' | 'BED6' | 'BED9' | 'BED12';
+    readonly bedType: "BED3" | "BED4" | "BED5" | "BED6" | "BED9" | "BED12";
   };
 }
 
@@ -426,7 +426,7 @@ export interface MotifLocation {
   /** Length of the match */
   readonly length: number;
   /** Strand where match was found */
-  readonly strand: '+' | '-';
+  readonly strand: "+" | "-";
   /** Matched sequence content */
   readonly matchedSequence: string;
   /** Number of mismatches (for fuzzy matching) */
@@ -481,13 +481,13 @@ export interface ParserOptions {
 /**
  * Compression format detection with focus on genomics standards
  */
-export type CompressionFormat = 'gzip' | 'zstd' | 'none';
+export type CompressionFormat = "gzip" | "zstd" | "none";
 
 /**
  * Branded type for compressed streams with format metadata
  */
 export type CompressedStream = ReadableStream<Uint8Array> & {
-  readonly __brand: 'CompressedStream';
+  readonly __brand: "CompressedStream";
   readonly format: CompressionFormat;
   readonly originalSize?: number;
 };
@@ -505,7 +505,7 @@ export interface CompressionDetection {
   /** File extension used in detection */
   readonly extension?: string;
   /** Whether detection used magic bytes vs extension */
-  readonly detectionMethod: 'magic-bytes' | 'extension' | 'hybrid';
+  readonly detectionMethod: "magic-bytes" | "extension" | "hybrid";
 }
 
 /**
@@ -528,7 +528,7 @@ export interface DecompressorOptions {
  * BAM alignment record extending SAM with binary-specific metadata
  */
 export interface BAMAlignment extends SAMAlignment {
-  readonly format: 'bam';
+  readonly format: "bam";
   /** BGZF block offset for random access */
   readonly blockStart?: number;
   /** BGZF block end offset */
@@ -583,7 +583,7 @@ export interface BinaryContext {
  */
 export interface FormatDetection {
   /** Detected file format */
-  format: 'fasta' | 'fastq' | 'sam' | 'bam' | 'bed' | 'unknown';
+  format: "fasta" | "fastq" | "sam" | "bam" | "bed" | "unknown";
   /** Detected compression format */
   compression: CompressionFormat;
   /** Confidence level (0-1) */
@@ -607,15 +607,15 @@ export const ValidSequenceChar = type(
 /**
  * Sophisticated sequence ID validation with bioinformatics patterns
  */
-export const SequenceIdSchema = type('string>0').pipe((id: string) => {
+export const SequenceIdSchema = type("string>0").pipe((id: string) => {
   // Remove common problematic characters but preserve meaningful ones
-  const cleaned = id.replace(/[^\w\-.|:]/g, '_');
+  const cleaned = id.replace(/[^\w\-.|:]/g, "_");
   // Clean IDs that might cause issues
   if (id !== cleaned) {
     throw new ValidationError(
       `Sequence ID contains invalid characters: original='${id}' would be sanitized to='${cleaned}'`,
       undefined,
-      'Use alphanumeric characters, hyphens, dots, pipes, and colons only'
+      "Use alphanumeric characters, hyphens, dots, pipes, and colons only"
     );
   }
   return cleaned;
@@ -624,14 +624,14 @@ export const SequenceIdSchema = type('string>0').pipe((id: string) => {
 /**
  * DNA/RNA sequence schema with sophisticated validation and normalization
  */
-export const SequenceSchema = type('string').pipe((seq: string) => {
+export const SequenceSchema = type("string").pipe((seq: string) => {
   // Remove whitespace and validate characters
-  const cleaned = seq.replace(/\s+/g, '').toUpperCase();
+  const cleaned = seq.replace(/\s+/g, "").toUpperCase();
   const validPattern = /^[ACGTURYSWKMBDHVN\-.*]*$/;
 
   if (!validPattern.test(cleaned)) {
     const invalidChars = cleaned.match(/[^ACGTURYSWKMBDHVN\-.*]/g);
-    throw new Error(`Invalid sequence characters: ${invalidChars?.join(', ')}`);
+    throw new Error(`Invalid sequence characters: ${invalidChars?.join(", ")}`);
   }
 
   return cleaned;
@@ -641,11 +641,11 @@ export const SequenceSchema = type('string').pipe((seq: string) => {
  * Quality score validation with encoding-aware constraints
  */
 export const QualitySchema = type({
-  quality: 'string>0',
+  quality: "string>0",
   encoding: '"phred33"|"phred64"|"solexa"',
 }).pipe(({ quality, encoding }) => {
-  const minChar = encoding === 'phred33' ? 33 : 64;
-  const maxChar = encoding === 'phred33' ? 126 : 126;
+  const minChar = encoding === "phred33" ? 33 : 64;
+  const maxChar = encoding === "phred33" ? 126 : 126;
 
   for (let i = 0; i < quality.length; i++) {
     const ascii = quality.charCodeAt(i);
@@ -660,12 +660,12 @@ export const QualitySchema = type({
 /**
  * Coordinate validation with biological constraints
  */
-export const GenomicCoordinate = type('number>=0').pipe((coord: number) => {
+export const GenomicCoordinate = type("number>=0").pipe((coord: number) => {
   if (!Number.isInteger(coord)) {
-    throw new Error('Genomic coordinates must be integers');
+    throw new Error("Genomic coordinates must be integers");
   }
   if (coord > 300_000_000) {
-    throw GenomicCoordinateError.forLargeCoordinate(coord, 'position');
+    throw GenomicCoordinateError.forLargeCoordinate(coord, "position");
   }
   return coord;
 });
@@ -673,9 +673,9 @@ export const GenomicCoordinate = type('number>=0').pipe((coord: number) => {
 /**
  * Chromosome name validation with common patterns
  */
-export const ChromosomeSchema = type('string>0').pipe((chr: string) => {
+export const ChromosomeSchema = type("string>0").pipe((chr: string) => {
   // Normalize common chromosome name patterns
-  const normalized = chr.replace(/^chr/i, '').toUpperCase();
+  const normalized = chr.replace(/^chr/i, "").toUpperCase();
 
   // Validate against common patterns
   const validPatterns = [
@@ -701,10 +701,10 @@ export const ChromosomeSchema = type('string>0').pipe((chr: string) => {
 export const FastaSequenceSchema = type({
   format: '"fasta"',
   id: SequenceIdSchema,
-  'description?': 'string | undefined',
+  "description?": "string | undefined",
   sequence: SequenceSchema,
-  length: 'number>=0',
-  'lineNumber?': 'number>0',
+  length: "number>=0",
+  "lineNumber?": "number>0",
 }).pipe((fasta) => {
   // Validate sequence length matches actual length
   if (fasta.sequence.length !== fasta.length) {
@@ -735,13 +735,13 @@ export const FastaSequenceSchema = type({
 export const FastqSequenceSchema = type({
   format: '"fastq"',
   id: SequenceIdSchema,
-  'description?': 'string | undefined',
+  "description?": "string | undefined",
   sequence: SequenceSchema,
-  quality: 'string',
+  quality: "string",
   qualityEncoding: '"phred33"|"phred64"|"solexa"',
-  'qualityScores?': 'number[] | undefined',
-  length: 'number>=0',
-  'lineNumber?': 'number>0',
+  "qualityScores?": "number[] | undefined",
+  length: "number>=0",
+  "lineNumber?": "number>0",
 }).pipe((fastq) => {
   // Validate sequence and quality lengths match
   if (fastq.sequence.length !== fastq.quality.length) {
@@ -782,16 +782,16 @@ export const BedIntervalSchema = type({
   chromosome: ChromosomeSchema,
   start: GenomicCoordinate,
   end: GenomicCoordinate,
-  'name?': 'string',
-  'score?': 'number>=0',
-  'strand?': '"+"|"-"|"."',
-  'thickStart?': GenomicCoordinate,
-  'thickEnd?': GenomicCoordinate,
-  'itemRgb?': 'string',
-  'blockCount?': 'number>0',
-  'blockSizes?': 'number[]',
-  'blockStarts?': 'number[]',
-  'lineNumber?': 'number>0',
+  "name?": "string",
+  "score?": "number>=0",
+  "strand?": '"+"|"-"|"."',
+  "thickStart?": GenomicCoordinate,
+  "thickEnd?": GenomicCoordinate,
+  "itemRgb?": "string",
+  "blockCount?": "number>0",
+  "blockSizes?": "number[]",
+  "blockStarts?": "number[]",
+  "lineNumber?": "number>0",
 }).pipe(validateAndEnrichBedInterval);
 
 function validateAndEnrichBedInterval(bed: any): any {
@@ -822,7 +822,7 @@ function validateBedThickCoordinates(bed: any): void {
       );
     }
     if (bed.thickStart < bed.start || bed.thickEnd > bed.end) {
-      throw new Error('Thick coordinates must be within interval bounds');
+      throw new Error("Thick coordinates must be within interval bounds");
     }
   }
 }
@@ -873,29 +873,29 @@ function enrichBedInterval(bed: any): any {
 
 function determineBedType(bed: any): string {
   if (bed.blockCount !== null && bed.blockCount !== undefined && bed.blockCount !== 0) {
-    return 'BED12';
+    return "BED12";
   }
-  if (bed.itemRgb !== null && bed.itemRgb !== undefined && bed.itemRgb !== '') {
-    return 'BED9';
+  if (bed.itemRgb !== null && bed.itemRgb !== undefined && bed.itemRgb !== "") {
+    return "BED9";
   }
-  if (bed.strand !== null && bed.strand !== undefined && bed.strand !== '.') {
-    return 'BED6';
+  if (bed.strand !== null && bed.strand !== undefined && bed.strand !== ".") {
+    return "BED6";
   }
   if (bed.score !== undefined) {
-    return 'BED5';
+    return "BED5";
   }
-  if (bed.name !== null && bed.name !== undefined && bed.name !== '') {
-    return 'BED4';
+  if (bed.name !== null && bed.name !== undefined && bed.name !== "") {
+    return "BED4";
   }
-  return 'BED3';
+  return "BED3";
 }
 
 /**
  * SAM CIGAR operation validation - comprehensive pattern for all operations
  */
-export const CIGAROperationSchema = type('string').pipe((cigar: string) => {
+export const CIGAROperationSchema = type("string").pipe((cigar: string) => {
   // Handle special case for unmapped reads
-  if (cigar === '*') {
+  if (cigar === "*") {
     return cigar as CIGARString;
   }
 
@@ -915,7 +915,7 @@ export const CIGAROperationSchema = type('string').pipe((cigar: string) => {
     }
 
     // Validate operation type
-    if (!'MIDNSHPX='.includes(operation)) {
+    if (!"MIDNSHPX=".includes(operation)) {
       throw new Error(`Invalid CIGAR operation: ${operation}`);
     }
   }
@@ -926,14 +926,14 @@ export const CIGAROperationSchema = type('string').pipe((cigar: string) => {
 /**
  * SAM FLAG validation with bitwise operation support
  */
-export const SAMFlagSchema = type('number>=0').pipe((flag: number) => {
+export const SAMFlagSchema = type("number>=0").pipe((flag: number) => {
   // SAM flags are 11-bit (0-2047)
   if (flag > 2047) {
     throw new Error(`SAM flag out of range: ${flag} (max 2047)`);
   }
 
   if (!Number.isInteger(flag)) {
-    throw new Error('SAM flag must be an integer');
+    throw new Error("SAM flag must be an integer");
   }
 
   return flag as SAMFlag;
@@ -942,13 +942,13 @@ export const SAMFlagSchema = type('number>=0').pipe((flag: number) => {
 /**
  * MAPQ score validation (0-255 range)
  */
-export const MAPQScoreSchema = type('number>=0').pipe((mapq: number) => {
+export const MAPQScoreSchema = type("number>=0").pipe((mapq: number) => {
   if (mapq > 255) {
     throw new Error(`MAPQ score out of range: ${mapq} (max 255)`);
   }
 
   if (!Number.isInteger(mapq)) {
-    throw new Error('MAPQ score must be an integer');
+    throw new Error("MAPQ score must be an integer");
   }
 
   return mapq as MAPQScore;
@@ -958,9 +958,9 @@ export const MAPQScoreSchema = type('number>=0').pipe((mapq: number) => {
  * SAM tag validation schema
  */
 export const SAMTagSchema = type({
-  tag: 'string',
+  tag: "string",
   type: '"A"|"i"|"f"|"Z"|"H"|"B"',
-  value: 'string | number',
+  value: "string | number",
 }).pipe((tag) => {
   // Validate tag name (2 characters)
   if (tag.tag.length !== 2) {
@@ -974,24 +974,24 @@ export const SAMTagSchema = type({
 
   // Type-specific value validation
   switch (tag.type) {
-    case 'A':
-      if (typeof tag.value !== 'string' || tag.value.length !== 1) {
+    case "A":
+      if (typeof tag.value !== "string" || tag.value.length !== 1) {
         throw new Error(`SAM tag type A must be single character: ${tag.value}`);
       }
       break;
-    case 'i':
-      if (typeof tag.value !== 'number' || !Number.isInteger(tag.value)) {
+    case "i":
+      if (typeof tag.value !== "number" || !Number.isInteger(tag.value)) {
         throw new Error(`SAM tag type i must be integer: ${tag.value}`);
       }
       break;
-    case 'f':
-      if (typeof tag.value !== 'number') {
+    case "f":
+      if (typeof tag.value !== "number") {
         throw new Error(`SAM tag type f must be number: ${tag.value}`);
       }
       break;
-    case 'Z':
-    case 'H':
-      if (typeof tag.value !== 'string') {
+    case "Z":
+    case "H":
+      if (typeof tag.value !== "string") {
         throw new Error(`SAM tag type ${tag.type} must be string: ${tag.value}`);
       }
       break;
@@ -1006,26 +1006,26 @@ export const SAMTagSchema = type({
 export const SAMHeaderSchema = type({
   format: '"sam-header"',
   type: '"HD"|"SQ"|"RG"|"PG"|"CO"',
-  fields: 'Record<string, string>',
-  'lineNumber?': 'number>0',
+  fields: "Record<string, string>",
+  "lineNumber?": "number>0",
 }).pipe((header) => {
   // Type-specific field validation
   switch (header.type) {
-    case 'HD':
-      if (header.fields.VN === undefined || header.fields.VN === null || header.fields.VN === '') {
-        throw new Error('HD header must have VN (version) field');
+    case "HD":
+      if (header.fields.VN === undefined || header.fields.VN === null || header.fields.VN === "") {
+        throw new Error("HD header must have VN (version) field");
       }
       break;
-    case 'SQ': {
+    case "SQ": {
       if (
         header.fields.SN === undefined ||
         header.fields.SN === null ||
-        header.fields.SN === '' ||
+        header.fields.SN === "" ||
         header.fields.LN === undefined ||
         header.fields.LN === null ||
-        header.fields.LN === ''
+        header.fields.LN === ""
       ) {
-        throw new Error('SQ header must have SN (sequence name) and LN (length) fields');
+        throw new Error("SQ header must have SN (sequence name) and LN (length) fields");
       }
       const length = parseInt(header.fields.LN);
       if (isNaN(length) || length <= 0) {
@@ -1033,14 +1033,14 @@ export const SAMHeaderSchema = type({
       }
       break;
     }
-    case 'RG':
-      if (header.fields.ID === undefined || header.fields.ID === null || header.fields.ID === '') {
-        throw new Error('RG header must have ID field');
+    case "RG":
+      if (header.fields.ID === undefined || header.fields.ID === null || header.fields.ID === "") {
+        throw new Error("RG header must have ID field");
       }
       break;
-    case 'PG':
-      if (header.fields.ID === undefined || header.fields.ID === null || header.fields.ID === '') {
-        throw new Error('PG header must have ID field');
+    case "PG":
+      if (header.fields.ID === undefined || header.fields.ID === null || header.fields.ID === "") {
+        throw new Error("PG header must have ID field");
       }
       break;
   }
@@ -1053,25 +1053,25 @@ export const SAMHeaderSchema = type({
  */
 export const SAMAlignmentSchema = type({
   format: '"sam"',
-  qname: 'string>0',
+  qname: "string>0",
   flag: SAMFlagSchema,
-  rname: 'string',
-  pos: 'number>=0',
+  rname: "string",
+  pos: "number>=0",
   mapq: MAPQScoreSchema,
   cigar: CIGAROperationSchema,
-  rnext: 'string',
-  pnext: 'number>=0',
-  tlen: 'number',
-  seq: 'string',
-  qual: 'string',
-  'tags?': type('unknown[] | undefined').pipe((tags: unknown[] | undefined) => {
+  rnext: "string",
+  pnext: "number>=0",
+  tlen: "number",
+  seq: "string",
+  qual: "string",
+  "tags?": type("unknown[] | undefined").pipe((tags: unknown[] | undefined) => {
     if (!tags) return undefined;
     return tags.map((tag) => SAMTagSchema(tag));
   }),
-  'lineNumber?': 'number>0',
+  "lineNumber?": "number>0",
 }).pipe((alignment) => {
   // Validate sequence and quality length match (unless one is '*')
-  if (alignment.seq !== '*' && alignment.qual !== '*') {
+  if (alignment.seq !== "*" && alignment.qual !== "*") {
     if (alignment.seq.length !== alignment.qual.length) {
       throw new Error(
         `Sequence/quality length mismatch: seq=${alignment.seq.length}, qual=${alignment.qual.length}`
@@ -1094,9 +1094,9 @@ export const SAMAlignmentSchema = type({
  * Legacy SAM record validation schema (deprecated)
  * @deprecated Use SAMAlignmentSchema instead
  */
-export const SamFlagSchema = type('number>=0'); // 11-bit flag (will validate range in pipe)
+export const SamFlagSchema = type("number>=0"); // 11-bit flag (will validate range in pipe)
 export const SamCigarSchema = type(/^(\d+[MIDNSHPX=])*$/);
-export const SamMapQSchema = type('number>=0'); // Will validate <=255 in pipe
+export const SamMapQSchema = type("number>=0"); // Will validate <=255 in pipe
 
 /**
  * Genomic range operations using ArkType's morphing capabilities
@@ -1128,7 +1128,7 @@ export type InferSchema<T> = T extends { infer: infer U } ? U : never;
  * Ensures file paths have been validated before use in I/O operations
  */
 export type FilePath = string & {
-  readonly __brand: 'FilePath';
+  readonly __brand: "FilePath";
   readonly __validated: true;
   readonly __absolute: boolean;
 };
@@ -1138,8 +1138,8 @@ export type FilePath = string & {
  * Maintains reference to the originating runtime for proper cleanup
  */
 export type FileHandle = unknown & {
-  readonly __brand: 'FileHandle';
-  readonly __runtime: 'node' | 'deno' | 'bun';
+  readonly __brand: "FileHandle";
+  readonly __runtime: "node" | "deno" | "bun";
   readonly __readable: boolean;
   readonly __writable: boolean;
 };
@@ -1152,7 +1152,7 @@ export interface FileReaderOptions {
   /** Buffer size for streaming reads (default: runtime-optimized) */
   readonly bufferSize?: number;
   /** Text encoding for file content (default: 'utf8') */
-  readonly encoding?: 'utf8' | 'binary' | 'ascii';
+  readonly encoding?: "utf8" | "binary" | "ascii";
   /** Maximum file size to prevent memory exhaustion (default: 100MB) */
   readonly maxFileSize?: number;
   /** Read timeout in milliseconds (default: 30000) */
@@ -1236,7 +1236,7 @@ export interface FileValidationResult {
   /** Validation error if any */
   readonly error?: string;
   /** Detected file format */
-  readonly detectedFormat?: 'fasta' | 'fastq' | 'sam' | 'bam' | 'bed' | 'unknown';
+  readonly detectedFormat?: "fasta" | "fastq" | "sam" | "bam" | "bed" | "unknown";
   /** Confidence level for format detection (0-1) */
   readonly confidence?: number;
 }
@@ -1268,9 +1268,9 @@ export interface FileIOContext {
   /** File path being operated on */
   readonly filePath: string;
   /** Type of operation being performed */
-  readonly operation: 'read' | 'write' | 'stat' | 'open' | 'close' | 'seek';
+  readonly operation: "read" | "write" | "stat" | "open" | "close" | "seek";
   /** Runtime environment */
-  readonly runtime: 'node' | 'deno' | 'bun';
+  readonly runtime: "node" | "deno" | "bun";
   /** Operation start timestamp */
   readonly startTime: number;
   /** Current position in file */
@@ -1287,46 +1287,46 @@ export interface FileIOContext {
  * File path validation schema with security checks
  * Validates and normalizes file paths while preventing directory traversal
  */
-export const FilePathSchema = type('string>0').pipe((path: string) => {
+export const FilePathSchema = type("string>0").pipe((path: string) => {
   // Tiger Style: Assert preconditions
-  if (typeof path !== 'string') {
-    throw new Error('path must be a string');
+  if (typeof path !== "string") {
+    throw new Error("path must be a string");
   }
   if (path.length === 0) {
-    throw new Error('path must not be empty');
+    throw new Error("path must not be empty");
   }
 
   // Check for invalid characters including null bytes
-  if (path.includes('\0')) {
-    throw new Error('File paths cannot contain null characters');
+  if (path.includes("\0")) {
+    throw new Error("File paths cannot contain null characters");
   }
 
   // Check for other invalid characters
   const invalidChars = /[<>"|*?]/;
   if (invalidChars.test(path)) {
-    throw new Error('File path contains invalid characters');
+    throw new Error("File path contains invalid characters");
   }
 
   // Normalize path separators and resolve relative components
-  const normalized = path.replace(/[\\/]+/g, '/').replace(/\/+/g, '/');
+  const normalized = path.replace(/[\\/]+/g, "/").replace(/\/+/g, "/");
 
   // Security: Prevent directory traversal attacks
-  if (normalized.includes('../') || normalized.includes('..\\')) {
-    throw new Error('Directory traversal not allowed in file paths');
+  if (normalized.includes("../") || normalized.includes("..\\")) {
+    throw new Error("Directory traversal not allowed in file paths");
   }
 
   // Security: Prevent access to sensitive system paths
   const sensitivePatterns = [
-    '/etc/',
-    '/proc/',
-    '/sys/',
-    '/dev/',
-    'C:\\Windows\\',
-    'C:\\System32\\',
-    'C:/Windows/', // Normalized Windows paths
-    'C:/System32/', // Normalized Windows paths
-    '/System/',
-    '/Library/System',
+    "/etc/",
+    "/proc/",
+    "/sys/",
+    "/dev/",
+    "C:\\Windows\\",
+    "C:\\System32\\",
+    "C:/Windows/", // Normalized Windows paths
+    "C:/System32/", // Normalized Windows paths
+    "/System/",
+    "/Library/System",
   ];
 
   if (
@@ -1336,7 +1336,7 @@ export const FilePathSchema = type('string>0').pipe((path: string) => {
   }
 
   // Determine if path is absolute
-  const _isAbsolute = normalized.startsWith('/') || /^[A-Za-z]:[\\/]/.test(normalized);
+  const _isAbsolute = normalized.startsWith("/") || /^[A-Za-z]:[\\/]/.test(normalized);
 
   return normalized as FilePath & { readonly __absolute: typeof _isAbsolute };
 });
@@ -1346,16 +1346,16 @@ export const FilePathSchema = type('string>0').pipe((path: string) => {
  * Ensures all options are within safe and reasonable bounds
  */
 export const FileReaderOptionsSchema = type({
-  'bufferSize?': 'number>=1024', // Minimum 1KB buffer
-  'encoding?': '"utf8"|"binary"|"ascii"',
-  'maxFileSize?': 'number>=0',
-  'timeout?': 'number>=0',
-  'concurrent?': 'boolean',
-  'signal?': 'unknown', // AbortSignal
-  'onProgress?': 'unknown', // Function
-  'autoDecompress?': 'boolean',
-  'compressionFormat?': '"gzip"|"zstd"|"none"',
-  'decompressionOptions?': 'unknown', // DecompressorOptions
+  "bufferSize?": "number>=1024", // Minimum 1KB buffer
+  "encoding?": '"utf8"|"binary"|"ascii"',
+  "maxFileSize?": "number>=0",
+  "timeout?": "number>=0",
+  "concurrent?": "boolean",
+  "signal?": "unknown", // AbortSignal
+  "onProgress?": "unknown", // Function
+  "autoDecompress?": "boolean",
+  "compressionFormat?": '"gzip"|"zstd"|"none"',
+  "decompressionOptions?": "unknown", // DecompressorOptions
 }).pipe((options) => {
   // Validate buffer size bounds
   if (
@@ -1364,7 +1364,7 @@ export const FileReaderOptionsSchema = type({
     options.bufferSize !== 0 &&
     options.bufferSize > 1_048_576
   ) {
-    throw ResourceLimitError.forBufferSize(options.bufferSize, 1_048_576, 'File reader');
+    throw ResourceLimitError.forBufferSize(options.bufferSize, 1_048_576, "File reader");
   }
 
   // Validate timeout bounds
@@ -1374,7 +1374,7 @@ export const FileReaderOptionsSchema = type({
     options.timeout !== 0 &&
     options.timeout > 300_000
   ) {
-    throw ResourceLimitError.forTimeout(options.timeout, 300_000, 'File reader');
+    throw ResourceLimitError.forTimeout(options.timeout, 300_000, "File reader");
   }
 
   // Validate file size bounds
@@ -1386,10 +1386,10 @@ export const FileReaderOptionsSchema = type({
   ) {
     throw new ResourceLimitError(
       `File size limit too large: ${Math.round(options.maxFileSize / 1_073_741_824)}GB (maximum 10GB)`,
-      'file-size',
+      "file-size",
       options.maxFileSize,
       10_737_418_240,
-      'bytes',
+      "bytes",
       `File size limit: ${options.maxFileSize} bytes, Max allowed: 10,737,418,240 bytes`
     );
   }
@@ -1414,15 +1414,15 @@ export const FileReaderOptionsSchema = type({
  * Ensures stream chunks have valid structure and data
  */
 export const StreamChunkSchema = type({
-  data: 'unknown', // Uint8Array
-  isLast: 'boolean',
-  bytesRead: 'number>=0',
-  'totalBytes?': 'number>=0',
-  chunkNumber: 'number>=0',
+  data: "unknown", // Uint8Array
+  isLast: "boolean",
+  bytesRead: "number>=0",
+  "totalBytes?": "number>=0",
+  chunkNumber: "number>=0",
 }).pipe((chunk) => {
   // Validate data is Uint8Array
   if (!(chunk.data instanceof Uint8Array)) {
-    throw new Error('Stream chunk data must be Uint8Array');
+    throw new Error("Stream chunk data must be Uint8Array");
   }
 
   // Validate bytes read matches data length
@@ -1439,7 +1439,7 @@ export const StreamChunkSchema = type({
     chunk.totalBytes !== 0 &&
     chunk.bytesRead > chunk.totalBytes
   ) {
-    throw new Error('Bytes read cannot exceed total bytes');
+    throw new Error("Bytes read cannot exceed total bytes");
   }
 
   return chunk;
@@ -1451,20 +1451,20 @@ export const StreamChunkSchema = type({
  */
 export const FileMetadataSchema = type({
   path: FilePathSchema,
-  size: 'number>=0',
-  lastModified: 'unknown', // Date
-  readable: 'boolean',
-  writable: 'boolean',
-  'mimeType?': 'string',
-  extension: 'string',
+  size: "number>=0",
+  lastModified: "unknown", // Date
+  readable: "boolean",
+  writable: "boolean",
+  "mimeType?": "string",
+  extension: "string",
 }).pipe((metadata) => {
   // Validate lastModified is a Date
   if (!(metadata.lastModified instanceof Date)) {
-    throw new Error('lastModified must be a Date object');
+    throw new Error("lastModified must be a Date object");
   }
 
   // Validate extension format
-  if (metadata.extension && !metadata.extension.startsWith('.')) {
+  if (metadata.extension && !metadata.extension.startsWith(".")) {
     // Extension should start with dot but continuing
   }
 
@@ -1480,7 +1480,7 @@ export const FileMetadataSchema = type({
  * Combines BGZF block offset (48 bits) and uncompressed offset within block (16 bits)
  */
 export type VirtualOffset = bigint & {
-  readonly __brand: 'VirtualOffset';
+  readonly __brand: "VirtualOffset";
   readonly __valid: true;
 };
 
@@ -1489,7 +1489,7 @@ export type VirtualOffset = bigint & {
  * Hierarchical spatial indexing for efficient genomic region queries
  */
 export type BAIBinNumber = number & {
-  readonly __brand: 'BAIBin';
+  readonly __brand: "BAIBin";
   readonly __valid: true;
 };
 
@@ -1681,9 +1681,9 @@ export const CompressionFormatSchema = type('"gzip"|"zstd"|"none"');
  */
 export const CompressionDetectionSchema = type({
   format: CompressionFormatSchema,
-  confidence: 'number>=0',
-  'magicBytes?': 'unknown', // Uint8Array
-  'extension?': 'string',
+  confidence: "number>=0",
+  "magicBytes?": "unknown", // Uint8Array
+  "extension?": "string",
   detectionMethod: '"magic-bytes"|"extension"|"hybrid"',
 }).pipe((detection) => {
   // Validate magic bytes if present
@@ -1692,7 +1692,7 @@ export const CompressionDetectionSchema = type({
     detection.magicBytes !== undefined &&
     !(detection.magicBytes instanceof Uint8Array)
   ) {
-    throw new Error('magicBytes must be Uint8Array');
+    throw new Error("magicBytes must be Uint8Array");
   }
 
   // Validate confidence bounds
@@ -1702,18 +1702,18 @@ export const CompressionDetectionSchema = type({
 
   // Validate method consistency
   if (
-    detection.detectionMethod === 'magic-bytes' &&
+    detection.detectionMethod === "magic-bytes" &&
     (detection.magicBytes === null || detection.magicBytes === undefined)
   ) {
-    throw new Error('magic-bytes detection method requires magicBytes');
+    throw new Error("magic-bytes detection method requires magicBytes");
   }
   if (
-    detection.detectionMethod === 'extension' &&
+    detection.detectionMethod === "extension" &&
     (detection.extension === null ||
       detection.extension === undefined ||
-      detection.extension === '')
+      detection.extension === "")
   ) {
-    throw new Error('extension detection method requires extension');
+    throw new Error("extension detection method requires extension");
   }
 
   return detection;
@@ -1723,11 +1723,11 @@ export const CompressionDetectionSchema = type({
  * Decompressor options validation schema
  */
 export const DecompressorOptionsSchema = type({
-  'bufferSize?': 'number>=1024', // Minimum 1KB buffer
-  'maxOutputSize?': 'number>=0',
-  'onProgress?': 'unknown', // Function
-  'signal?': 'unknown', // AbortSignal
-  'validateIntegrity?': 'boolean',
+  "bufferSize?": "number>=1024", // Minimum 1KB buffer
+  "maxOutputSize?": "number>=0",
+  "onProgress?": "unknown", // Function
+  "signal?": "unknown", // AbortSignal
+  "validateIntegrity?": "boolean",
 }).pipe((options) => {
   // Validate buffer size bounds
   if (
@@ -1736,7 +1736,7 @@ export const DecompressorOptionsSchema = type({
     options.bufferSize !== 0 &&
     options.bufferSize > 10_485_760
   ) {
-    throw ResourceLimitError.forBufferSize(options.bufferSize, 10_485_760, 'Decompression');
+    throw ResourceLimitError.forBufferSize(options.bufferSize, 10_485_760, "Decompression");
   }
 
   // Validate max output size bounds
@@ -1748,10 +1748,10 @@ export const DecompressorOptionsSchema = type({
   ) {
     throw new ResourceLimitError(
       `Maximum output size too large: ${Math.round(options.maxOutputSize / 1_073_741_824)}GB (maximum 100GB)`,
-      'memory',
+      "memory",
       options.maxOutputSize,
       107_374_182_400,
-      'bytes',
+      "bytes",
       `Max output size: ${options.maxOutputSize} bytes, Max allowed: 107,374,182,400 bytes`
     );
   }
@@ -1767,15 +1767,15 @@ export const DecompressorOptionsSchema = type({
  * Virtual offset validation schema with BGZF constraints
  * Ensures virtual offsets are within valid 64-bit range for BGZF
  */
-export const VirtualOffsetSchema = type('bigint').pipe((offset: bigint) => {
+export const VirtualOffsetSchema = type("bigint").pipe((offset: bigint) => {
   // Tiger Style: Assert valid virtual offset range
   if (offset < 0n) {
-    throw new Error('Virtual offset cannot be negative');
+    throw new Error("Virtual offset cannot be negative");
   }
 
   // BGZF virtual offsets use 48 bits for block offset + 16 bits for uncompressed offset
   if (offset >= 1n << 64n) {
-    throw new Error('Virtual offset exceeds 64-bit limit');
+    throw new Error("Virtual offset exceeds 64-bit limit");
   }
 
   // Validate uncompressed offset doesn't exceed 64KB (BGZF block size limit)
@@ -1791,10 +1791,10 @@ export const VirtualOffsetSchema = type('bigint').pipe((offset: bigint) => {
  * BAI bin number validation using UCSC binning scheme constraints
  * Validates bin numbers are within the defined hierarchical levels
  */
-export const BAIBinNumberSchema = type('number>=0').pipe((binNumber: number) => {
+export const BAIBinNumberSchema = type("number>=0").pipe((binNumber: number) => {
   // Tiger Style: Assert integer bin number
   if (!Number.isInteger(binNumber)) {
-    throw new Error('BAI bin number must be an integer');
+    throw new Error("BAI bin number must be an integer");
   }
 
   // UCSC binning scheme has maximum bin number of 37449 (level 5)
@@ -1840,15 +1840,15 @@ export const BAIChunkSchema = type({
   // Validate chunk size is reasonable (not empty, not too large)
   const chunkSize = Number(chunk.endOffset - chunk.beginOffset);
   if (chunkSize === 0) {
-    throw new Error('BAI chunk cannot be empty (beginOffset == endOffset)');
+    throw new Error("BAI chunk cannot be empty (beginOffset == endOffset)");
   }
 
   if (chunkSize > 1_073_741_824) {
     throw BAIIndexError.forPerformanceImpact(
-      'chunk',
+      "chunk",
       Math.round(chunkSize / 1_048_576),
       1024,
-      'MB'
+      "MB"
     );
   }
 
@@ -1861,12 +1861,12 @@ export const BAIChunkSchema = type({
  */
 export const BAIBinSchema = type({
   binId: BAIBinNumberSchema,
-  chunks: type('unknown[]').pipe((chunks: unknown[]) => {
+  chunks: type("unknown[]").pipe((chunks: unknown[]) => {
     // Validate each chunk
     const validatedChunks = chunks.map((chunk) => {
       const result = BAIChunkSchema(chunk);
-      if (result instanceof Array && 'arkKind' in result && result.arkKind === 'errors') {
-        throw new Error(`Invalid BAI chunk: ${result.map((e) => e.message).join(', ')}`);
+      if (result instanceof Array && "arkKind" in result && result.arkKind === "errors") {
+        throw new Error(`Invalid BAI chunk: ${result.map((e) => e.message).join(", ")}`);
       }
       return result;
     });
@@ -1881,15 +1881,15 @@ export const BAIBinSchema = type({
   if (bin.chunks.length === 0) {
     throw new BAIIndexError(
       `BAI bin ${bin.binId} has no chunks`,
-      'bin',
+      "bin",
       bin.chunks.length,
-      'May indicate sparse genomic coverage - consider regenerating index',
+      "May indicate sparse genomic coverage - consider regenerating index",
       `Bin ID: ${bin.binId}, Chunks: ${bin.chunks.length}`
     );
   }
 
   if (bin.chunks.length > 10000) {
-    throw BAIIndexError.forPerformanceImpact('bin', bin.chunks.length, 10000, 'chunks');
+    throw BAIIndexError.forPerformanceImpact("bin", bin.chunks.length, 10000, "chunks");
   }
 
   return bin;
@@ -1900,26 +1900,26 @@ export const BAIBinSchema = type({
  * Ensures linear index has valid structure and interval size
  */
 export const BAILinearIndexSchema = type({
-  intervals: type('unknown[]').pipe((intervals: unknown[]) => {
+  intervals: type("unknown[]").pipe((intervals: unknown[]) => {
     return intervals.map((interval) => {
-      if (typeof interval === 'bigint' || interval === 0n) {
+      if (typeof interval === "bigint" || interval === 0n) {
         return VirtualOffsetSchema(interval);
       }
-      if (typeof interval === 'number' && interval === 0) {
+      if (typeof interval === "number" && interval === 0) {
         return 0n as VirtualOffset;
       }
-      throw new Error('Linear index intervals must be virtual offsets or 0');
+      throw new Error("Linear index intervals must be virtual offsets or 0");
     });
   }),
-  intervalSize: 'number>0',
+  intervalSize: "number>0",
 }).pipe((linearIndex) => {
   // Tiger Style: Validate standard 16KB interval size
   if (linearIndex.intervalSize !== 16384) {
     throw new BAIIndexError(
       `Non-standard BAI linear index interval size: ${linearIndex.intervalSize}`,
-      'linear-index',
+      "linear-index",
       linearIndex.intervalSize,
-      'Use standard 16384 byte intervals for better tool compatibility',
+      "Use standard 16384 byte intervals for better tool compatibility",
       `Interval size: ${linearIndex.intervalSize}, Standard: 16384`
     );
   }
@@ -1943,39 +1943,39 @@ export const BAILinearIndexSchema = type({
  * Validates reference index structure and consistency
  */
 export const BAIReferenceSchema = type({
-  bins: 'unknown', // ReadonlyMap<number, BAIBin>
+  bins: "unknown", // ReadonlyMap<number, BAIBin>
   linearIndex: BAILinearIndexSchema,
-  'referenceName?': 'string',
-  'referenceLength?': 'number>=0',
+  "referenceName?": "string",
+  "referenceLength?": "number>=0",
 }).pipe((reference) => {
   // Validate bins Map structure
   if (!(reference.bins instanceof Map)) {
-    throw new Error('BAI reference bins must be a Map');
+    throw new Error("BAI reference bins must be a Map");
   }
 
   const validatedBins = new Map<number, BAIBin>();
 
   for (const [binId, bin] of reference.bins) {
     // Validate bin ID matches key
-    if (typeof binId !== 'number' || !Number.isInteger(binId)) {
+    if (typeof binId !== "number" || !Number.isInteger(binId)) {
       throw new Error(`Invalid bin ID: ${binId}`);
     }
 
     const result = BAIBinSchema(bin);
-    if (result instanceof Array && 'arkKind' in result && result.arkKind === 'errors') {
-      throw new Error(`Invalid BAI bin: ${result.map((e) => e.message).join(', ')}`);
+    if (result instanceof Array && "arkKind" in result && result.arkKind === "errors") {
+      throw new Error(`Invalid BAI bin: ${result.map((e) => e.message).join(", ")}`);
     }
     const validatedBin = result;
 
     if (
-      typeof validatedBin === 'object' &&
-      'binId' in validatedBin &&
+      typeof validatedBin === "object" &&
+      "binId" in validatedBin &&
       validatedBin.binId !== binId
     ) {
       throw new Error(`Bin ID mismatch: key=${binId}, bin.binId=${validatedBin.binId}`);
     }
 
-    if (typeof validatedBin === 'object' && 'binId' in validatedBin && 'chunks' in validatedBin) {
+    if (typeof validatedBin === "object" && "binId" in validatedBin && "chunks" in validatedBin) {
       validatedBins.set(binId, validatedBin as BAIBin);
     } else {
       throw new Error(`Invalid bin validation result for bin ${binId}`);
@@ -2002,19 +2002,19 @@ export const BAIReferenceSchema = type({
  * Validates entire index structure with cross-reference checks
  */
 export const BAIIndexSchema = type({
-  referenceCount: 'number>=0',
-  references: type('unknown[]').pipe((references: unknown[]) => {
+  referenceCount: "number>=0",
+  references: type("unknown[]").pipe((references: unknown[]) => {
     return references.map((ref) => {
       const result = BAIReferenceSchema(ref);
-      if (result instanceof Array && 'arkKind' in result && result.arkKind === 'errors') {
-        throw new Error(`Invalid BAI reference: ${result.map((e) => e.message).join(', ')}`);
+      if (result instanceof Array && "arkKind" in result && result.arkKind === "errors") {
+        throw new Error(`Invalid BAI reference: ${result.map((e) => e.message).join(", ")}`);
       }
       return result;
     });
   }),
-  'version?': 'string',
-  'createdAt?': 'unknown', // Date
-  'sourceFile?': 'string',
+  "version?": "string",
+  "createdAt?": "unknown", // Date
+  "sourceFile?": "string",
 }).pipe((index) => {
   // Tiger Style: Assert reference count consistency
   if (index.references.length !== index.referenceCount) {
@@ -2029,19 +2029,19 @@ export const BAIIndexSchema = type({
     index.createdAt !== undefined &&
     !(index.createdAt instanceof Date)
   ) {
-    throw new Error('createdAt must be a Date object');
+    throw new Error("createdAt must be a Date object");
   }
 
   // Validate version format if provided
   if (
     index.version !== null &&
     index.version !== undefined &&
-    index.version !== '' &&
+    index.version !== "" &&
     !/^\d+\.\d+$/.test(index.version)
   ) {
     throw new BAIIndexError(
       `Non-standard BAI version format: '${index.version}'`,
-      'version',
+      "version",
       index.version,
       'Use standard version format (e.g., "1.0") for better compatibility',
       `Version: ${index.version}, Expected format: X.Y`
@@ -2051,19 +2051,19 @@ export const BAIIndexSchema = type({
   // Calculate and warn about large indexes
   const totalBins = index.references.reduce((sum, ref) => {
     if (
-      typeof ref === 'object' &&
+      typeof ref === "object" &&
       ref !== null &&
-      'bins' in ref &&
+      "bins" in ref &&
       ref.bins !== null &&
       ref.bins !== undefined &&
-      typeof ref.bins.size === 'number'
+      typeof ref.bins.size === "number"
     ) {
       return sum + ref.bins.size;
     }
     return sum;
   }, 0);
   if (totalBins > 100000) {
-    throw BAIIndexError.forPerformanceImpact('bin', totalBins, 100000, 'total bins');
+    throw BAIIndexError.forPerformanceImpact("bin", totalBins, 100000, "total bins");
   }
 
   return index;
@@ -2074,20 +2074,20 @@ export const BAIIndexSchema = type({
  * Ensures query results have valid structure
  */
 export const BAIQueryResultSchema = type({
-  chunks: type('unknown[]').pipe((chunks: unknown[]) => {
+  chunks: type("unknown[]").pipe((chunks: unknown[]) => {
     return chunks.map((chunk) => {
       const result = BAIChunkSchema(chunk);
-      if (result instanceof Array && 'arkKind' in result && result.arkKind === 'errors') {
-        throw new Error(`Invalid BAI chunk: ${result.map((e) => e.message).join(', ')}`);
+      if (result instanceof Array && "arkKind" in result && result.arkKind === "errors") {
+        throw new Error(`Invalid BAI chunk: ${result.map((e) => e.message).join(", ")}`);
       }
       return result;
     });
   }),
-  'minOffset?': VirtualOffsetSchema,
-  referenceId: 'number>=0',
+  "minOffset?": VirtualOffsetSchema,
+  referenceId: "number>=0",
   region: type({
-    start: 'number>=0',
-    end: 'number>=0',
+    start: "number>=0",
+    end: "number>=0",
   }).pipe((region) => {
     if (region.end <= region.start) {
       throw new Error(
@@ -2104,13 +2104,13 @@ export const BAIQueryResultSchema = type({
     if (
       current &&
       previous &&
-      typeof current === 'object' &&
-      typeof previous === 'object' &&
-      'beginOffset' in current &&
-      'beginOffset' in previous
+      typeof current === "object" &&
+      typeof previous === "object" &&
+      "beginOffset" in current &&
+      "beginOffset" in previous
     ) {
       if (current.beginOffset <= previous.beginOffset) {
-        throw new Error('Query result chunks must be sorted by beginOffset');
+        throw new Error("Query result chunks must be sorted by beginOffset");
       }
     }
   }
@@ -2123,12 +2123,12 @@ export const BAIQueryResultSchema = type({
  * Validates index generation configuration
  */
 export const BAIWriterOptionsSchema = type({
-  'intervalSize?': 'number>0',
-  'validateAlignments?': 'boolean',
-  'onProgress?': 'unknown', // Function
-  'streamingMode?': 'boolean',
-  'maxChunksPerBin?': 'number>0',
-  'signal?': 'unknown', // AbortSignal
+  "intervalSize?": "number>0",
+  "validateAlignments?": "boolean",
+  "onProgress?": "unknown", // Function
+  "streamingMode?": "boolean",
+  "maxChunksPerBin?": "number>0",
+  "signal?": "unknown", // AbortSignal
 }).pipe((options) => {
   // Validate interval size is power of 2 and reasonable
   if (
@@ -2144,9 +2144,9 @@ export const BAIWriterOptionsSchema = type({
     if ((options.intervalSize & (options.intervalSize - 1)) !== 0) {
       throw new BAIIndexError(
         `Non-power-of-2 BAI interval size: ${options.intervalSize}`,
-        'interval-size',
+        "interval-size",
         options.intervalSize,
-        'Use power-of-2 sizes (1024, 2048, 4096, etc.) for better memory efficiency',
+        "Use power-of-2 sizes (1024, 2048, 4096, etc.) for better memory efficiency",
         `Interval size: ${options.intervalSize}`
       );
     }
@@ -2159,7 +2159,7 @@ export const BAIWriterOptionsSchema = type({
     options.maxChunksPerBin !== 0 &&
     options.maxChunksPerBin > 100000
   ) {
-    throw BAIIndexError.forPerformanceImpact('bin', options.maxChunksPerBin, 100000, 'max chunks');
+    throw BAIIndexError.forPerformanceImpact("bin", options.maxChunksPerBin, 100000, "max chunks");
   }
 
   return options;
@@ -2170,11 +2170,11 @@ export const BAIWriterOptionsSchema = type({
  * Validates index reading configuration
  */
 export const BAIReaderOptionsSchema = type({
-  'cacheIndex?': 'boolean',
-  'validateOnLoad?': 'boolean',
-  'bufferSize?': 'number>=1024',
-  'timeout?': 'number>0',
-  'onProgress?': 'unknown', // Function
+  "cacheIndex?": "boolean",
+  "validateOnLoad?": "boolean",
+  "bufferSize?": "number>=1024",
+  "timeout?": "number>0",
+  "onProgress?": "unknown", // Function
 }).pipe((options) => {
   // Validate buffer size bounds
   if (
@@ -2183,7 +2183,7 @@ export const BAIReaderOptionsSchema = type({
     options.bufferSize !== 0 &&
     options.bufferSize > 10_485_760
   ) {
-    throw ResourceLimitError.forBufferSize(options.bufferSize, 10_485_760, 'BAI reader');
+    throw ResourceLimitError.forBufferSize(options.bufferSize, 10_485_760, "BAI reader");
   }
 
   // Validate timeout bounds
@@ -2193,7 +2193,7 @@ export const BAIReaderOptionsSchema = type({
     options.timeout !== 0 &&
     options.timeout > 300000
   ) {
-    throw ResourceLimitError.forTimeout(options.timeout, 300_000, 'BAI operation');
+    throw ResourceLimitError.forTimeout(options.timeout, 300_000, "BAI operation");
   }
 
   return options;

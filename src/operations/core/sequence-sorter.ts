@@ -23,8 +23,8 @@
  * - Deduplication adds ~20% overhead with Set tracking
  */
 
-import type { FastqSequence, AbstractSequence } from '../../types';
-import { ExternalSorter } from './memory';
+import type { FastqSequence, AbstractSequence } from "../../types";
+import { ExternalSorter } from "./memory";
 
 /**
  * Sorting strategy for sequences.
@@ -54,14 +54,14 @@ import { ExternalSorter } from './memory';
  * ```
  */
 export type SortBy =
-  | 'length' // Sort by sequence length (default: longest first)
-  | 'length-asc' // Sort by sequence length (shortest first)
-  | 'gc' // Sort by GC content (highest first)
-  | 'gc-asc' // Sort by GC content (lowest first)
-  | 'id' // Sort alphabetically by ID
-  | 'id-desc' // Sort reverse alphabetically by ID
-  | 'quality' // Sort by average quality (FASTQ only, highest first)
-  | 'quality-asc' // Sort by average quality (FASTQ only, lowest first)
+  | "length" // Sort by sequence length (default: longest first)
+  | "length-asc" // Sort by sequence length (shortest first)
+  | "gc" // Sort by GC content (highest first)
+  | "gc-asc" // Sort by GC content (lowest first)
+  | "id" // Sort alphabetically by ID
+  | "id-desc" // Sort reverse alphabetically by ID
+  | "quality" // Sort by average quality (FASTQ only, highest first)
+  | "quality-asc" // Sort by average quality (FASTQ only, lowest first)
   | ((a: AbstractSequence, b: AbstractSequence) => number); // Custom comparison function
 
 /**
@@ -115,7 +115,7 @@ export interface SortOptions {
    * Required when sortBy is 'quality' or 'quality-asc'.
    * @default 'phred33'
    */
-  qualityEncoding?: 'phred33' | 'phred64';
+  qualityEncoding?: "phred33" | "phred64";
 }
 
 /**
@@ -173,11 +173,11 @@ export class SequenceSorter {
 
   constructor(options: SortOptions = {}) {
     this.options = {
-      sortBy: options.sortBy ?? 'length',
-      tempDir: options.tempDir ?? '/tmp',
+      sortBy: options.sortBy ?? "length",
+      tempDir: options.tempDir ?? "/tmp",
       chunkSize: options.chunkSize ?? 100_000_000, // 100MB
       unique: options.unique ?? false,
-      qualityEncoding: options.qualityEncoding ?? 'phred33',
+      qualityEncoding: options.qualityEncoding ?? "phred33",
     };
 
     this.compareFn = this.getCompareFn(this.options.sortBy);
@@ -314,33 +314,33 @@ export class SequenceSorter {
   // Private helper methods
 
   private getCompareFn(sortBy: SortBy): (a: AbstractSequence, b: AbstractSequence) => number {
-    if (typeof sortBy === 'function') {
+    if (typeof sortBy === "function") {
       return sortBy;
     }
 
     switch (sortBy) {
-      case 'length':
+      case "length":
         return (a, b) => b.sequence.length - a.sequence.length;
 
-      case 'length-asc':
+      case "length-asc":
         return (a, b) => a.sequence.length - b.sequence.length;
 
-      case 'gc':
+      case "gc":
         return (a, b) => this.getGCContent(b) - this.getGCContent(a);
 
-      case 'gc-asc':
+      case "gc-asc":
         return (a, b) => this.getGCContent(a) - this.getGCContent(b);
 
-      case 'id':
+      case "id":
         return (a, b) => a.id.localeCompare(b.id);
 
-      case 'id-desc':
+      case "id-desc":
         return (a, b) => b.id.localeCompare(a.id);
 
-      case 'quality':
+      case "quality":
         return (a, b) => this.getAverageQuality(b) - this.getAverageQuality(a);
 
-      case 'quality-asc':
+      case "quality-asc":
         return (a, b) => this.getAverageQuality(a) - this.getAverageQuality(b);
 
       default:
@@ -356,12 +356,12 @@ export class SequenceSorter {
 
   private getAverageQuality(seq: AbstractSequence): number {
     // Only applicable to FASTQ sequences
-    if (!('quality' in seq)) {
+    if (!("quality" in seq)) {
       return 0;
     }
 
     const fastq = seq as FastqSequence;
-    const offset = this.options.qualityEncoding === 'phred33' ? 33 : 64;
+    const offset = this.options.qualityEncoding === "phred33" ? 33 : 64;
     let sum = 0;
 
     for (let i = 0; i < fastq.quality.length; i++) {
@@ -373,7 +373,7 @@ export class SequenceSorter {
 
   private serializeSequence(seq: AbstractSequence): string {
     // Use a compact JSON format for serialization
-    if ('quality' in seq) {
+    if ("quality" in seq) {
       // FASTQ format
       const fastq = seq as FastqSequence;
       return JSON.stringify({
@@ -396,14 +396,14 @@ export class SequenceSorter {
     try {
       const obj = JSON.parse(line);
 
-      if ('q' in obj) {
+      if ("q" in obj) {
         // FASTQ
         const fastq: FastqSequence = {
           id: obj.id,
           sequence: obj.s,
           quality: obj.q,
           description: obj.d,
-          format: 'fastq',
+          format: "fastq",
           qualityEncoding: this.options.qualityEncoding,
           length: obj.s.length,
         };
@@ -421,8 +421,8 @@ export class SequenceSorter {
     } catch {
       // Fallback for malformed data
       return {
-        id: 'unknown',
-        sequence: '',
+        id: "unknown",
+        sequence: "",
         length: 0,
       };
     }
@@ -624,7 +624,7 @@ export async function sortSequences(
 export async function getTopSequences(
   sequences: AsyncIterable<AbstractSequence>,
   n: number,
-  sortBy: SortBy = 'length'
+  sortBy: SortBy = "length"
 ): Promise<AbstractSequence[]> {
   const sorter = new SequenceSorter({ sortBy });
   const result: AbstractSequence[] = [];

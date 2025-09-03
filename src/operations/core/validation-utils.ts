@@ -11,8 +11,8 @@
  * @since v0.1.0
  */
 
-import type { type } from 'arktype';
-import { ValidationError, GenotypeError } from '../../errors';
+import type { type } from "arktype";
+import { ValidationError, GenotypeError } from "../../errors";
 
 /**
  * Custom validation function signature
@@ -75,14 +75,14 @@ export function createOptionsValidator<T>(
       if (
         schemaResult !== null &&
         schemaResult !== undefined &&
-        typeof schemaResult === 'object' &&
-        'problems' in schemaResult
+        typeof schemaResult === "object" &&
+        "problems" in schemaResult
       ) {
         // This is an error result from ArkType
         throw new ValidationError(
           `Invalid options: ${JSON.stringify(schemaResult)}`,
           undefined,
-          'Review the options structure and types'
+          "Review the options structure and types"
         );
       }
     } catch (error) {
@@ -90,9 +90,9 @@ export function createOptionsValidator<T>(
         throw error;
       }
       throw new ValidationError(
-        `Schema validation failed: ${error instanceof Error ? error.message : 'unknown error'}`,
+        `Schema validation failed: ${error instanceof Error ? error.message : "unknown error"}`,
         undefined,
-        'Check option types and required fields'
+        "Check option types and required fields"
       );
     }
 
@@ -109,12 +109,12 @@ export function createOptionsValidator<T>(
           if (error instanceof ValidationError || error instanceof GenotypeError) {
             throw error;
           } else if (error instanceof Error) {
-            throw new ValidationError(error.message, undefined, 'Custom validation failed');
+            throw new ValidationError(error.message, undefined, "Custom validation failed");
           } else {
             throw new ValidationError(
-              'Unknown validation error',
+              "Unknown validation error",
               undefined,
-              'Custom validation failed with unknown error'
+              "Custom validation failed with unknown error"
             );
           }
         }
@@ -166,7 +166,7 @@ export function createSafeOptionsValidator<T>(
         error instanceof ValidationError
           ? error
           : new ValidationError(
-              error instanceof Error ? error.message : 'Unknown validation error'
+              error instanceof Error ? error.message : "Unknown validation error"
             );
       return { success: false, error: validationError };
     }
@@ -184,8 +184,8 @@ export const CommonValidators = {
    * Validates that a pattern is not empty (for grep, locate, etc.)
    */
   nonEmptyPattern: <T extends { pattern: string | RegExp }>(options: T): void => {
-    if (typeof options.pattern === 'string' && options.pattern.trim() === '') {
-      throw new Error('Pattern cannot be empty');
+    if (typeof options.pattern === "string" && options.pattern.trim() === "") {
+      throw new Error("Pattern cannot be empty");
     }
   },
 
@@ -197,11 +197,11 @@ export const CommonValidators = {
     const hasFraction = options.fraction !== undefined && options.fraction !== null;
 
     if (!hasN && !hasFraction) {
-      throw new Error('Either n or fraction must be specified');
+      throw new Error("Either n or fraction must be specified");
     }
 
     if (hasN && hasFraction) {
-      throw new Error('Cannot specify both n and fraction');
+      throw new Error("Cannot specify both n and fraction");
     }
   },
 
@@ -214,7 +214,7 @@ export const CommonValidators = {
       const value = options[field];
       if (
         value !== undefined &&
-        typeof value === 'number' &&
+        typeof value === "number" &&
         (value <= 0 || !Number.isInteger(value))
       ) {
         throw new Error(`${String(field)} must be a positive integer, got: ${value}`);
@@ -240,7 +240,7 @@ export const CommonValidators = {
     (options: T): void => {
       if (!allowedTargets.includes(options.target)) {
         throw new Error(
-          `Invalid target: ${options.target}. Valid targets: ${allowedTargets.join(', ')}`
+          `Invalid target: ${options.target}. Valid targets: ${allowedTargets.join(", ")}`
         );
       }
     },
@@ -257,12 +257,12 @@ export function createValidationError(
   data?: Record<string, unknown>
 ): ValidationError {
   let contextStr =
-    context !== undefined && context !== null && context !== '' ? context : 'Validation failed';
+    context !== undefined && context !== null && context !== "" ? context : "Validation failed";
 
   if (data && Object.keys(data).length > 0) {
     const dataStr = Object.entries(data)
       .map(([key, value]) => `${key}: ${value}`)
-      .join(', ');
+      .join(", ");
     contextStr = `${contextStr} - ${dataStr}`;
   }
 

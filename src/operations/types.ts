@@ -9,7 +9,7 @@
  * @since v0.1.0
  */
 
-import type { AbstractSequence } from '../types';
+import type { AbstractSequence } from "../types";
 
 /**
  * Options for filtering sequences based on various criteria
@@ -130,7 +130,7 @@ export interface QualityOptions {
   trimFromEnd?: boolean;
 
   /** Quality score encoding */
-  encoding?: 'phred33' | 'phred64';
+  encoding?: "phred33" | "phred64";
 }
 
 /**
@@ -140,7 +140,7 @@ export interface QualityOptions {
  */
 export interface ValidateOptions {
   /** Validation strictness level */
-  mode?: 'strict' | 'normal' | 'permissive';
+  mode?: "strict" | "normal" | "permissive";
 
   /** Allow RNA bases (U) in sequences */
   allowRNA?: boolean;
@@ -152,7 +152,7 @@ export interface ValidateOptions {
   allowGaps?: boolean;
 
   /** Action to take on invalid sequences */
-  action?: 'reject' | 'fix' | 'warn';
+  action?: "reject" | "fix" | "warn";
 
   /** Character to use when fixing invalid bases */
   fixChar?: string;
@@ -184,18 +184,12 @@ export interface AnnotateOptions {
 }
 
 /**
- * Options for sorting sequences
+ * Options for sorting sequences - uses superior core implementation
+ *
+ * Re-exports the comprehensive SortOptions from core/sequence-sorter
+ * which provides external sorting, deduplication, and memory safety.
  */
-export interface SortOptions {
-  /** Field to sort by */
-  by: 'length' | 'id' | 'gc' | 'quality';
-
-  /** Sort order */
-  order?: 'asc' | 'desc';
-
-  /** Custom comparison function */
-  custom?: (a: AbstractSequence, b: AbstractSequence) => number;
-}
+export type { SortBy, SortOptions } from "./core/sequence-sorter";
 
 /**
  * Options for random sampling
@@ -214,7 +208,7 @@ export interface SampleOptions {
   withReplacement?: boolean;
 
   /** Sampling strategy */
-  strategy?: 'random' | 'systematic' | 'reservoir';
+  strategy?: "random" | "systematic" | "reservoir";
 }
 
 /**
@@ -225,7 +219,7 @@ export interface SampleOptions {
  */
 export interface RmdupOptions {
   /** Deduplication criterion */
-  by: 'sequence' | 'id' | 'both';
+  by: "sequence" | "id" | "both";
 
   /** Case-sensitive comparison */
   caseSensitive?: boolean;
@@ -245,10 +239,10 @@ export interface RmdupOptions {
  */
 export interface GroupOptions {
   /** Grouping criterion */
-  by: 'length' | 'gc' | ((seq: AbstractSequence) => string);
+  by: "length" | "gc" | ((seq: AbstractSequence) => string);
 
   /** Aggregation method for groups */
-  aggregate?: 'count' | 'stats' | 'collect';
+  aggregate?: "count" | "stats" | "collect";
 }
 
 /**
@@ -271,7 +265,7 @@ export interface LocateOptions {
   searchBothStrands?: boolean;
 
   /** Output format for results */
-  outputFormat?: 'default' | 'bed' | 'custom';
+  outputFormat?: "default" | "bed" | "custom";
 
   /** Include overlap regions when finding multiple matches */
   allowOverlaps?: boolean;
@@ -296,7 +290,7 @@ export interface GrepOptions {
   pattern: string | RegExp;
 
   /** Target field to search in */
-  target: 'sequence' | 'id' | 'description';
+  target: "sequence" | "id" | "description";
 
   /** Case-insensitive matching */
   ignoreCase?: boolean;
@@ -369,7 +363,7 @@ export interface ConcatOptions {
   sources: Array<string | AsyncIterable<AbstractSequence>>;
 
   /** Strategy for handling ID conflicts between sources */
-  idConflictResolution?: 'error' | 'rename' | 'ignore' | 'suffix';
+  idConflictResolution?: "error" | "rename" | "ignore" | "suffix";
 
   /** Suffix to append when using 'suffix' conflict resolution (default: source index) */
   renameSuffix?: string;
@@ -400,7 +394,7 @@ export interface ConcatOptions {
  */
 export interface SplitOptions {
   /** Splitting strategy to use */
-  mode: 'by-size' | 'by-parts' | 'by-length' | 'by-id' | 'by-region';
+  mode: "by-size" | "by-parts" | "by-length" | "by-id" | "by-region";
 
   // Mode-specific options
   /** Number of sequences per output file (for by-size) */

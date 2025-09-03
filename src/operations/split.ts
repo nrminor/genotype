@@ -8,25 +8,11 @@
  * @since v0.1.0
  */
 
-import { FastaWriter, FastqWriter } from '../formats';
-import { GenotypeError } from '../errors';
-import type { AbstractSequence, FastaSequence, FastqSequence } from '../types';
-import type { SplitOptions } from './types';
-
-/**
- * Split operation error with properly typed mode
- */
-export class SplitError extends GenotypeError {
-  constructor(
-    message: string,
-    public readonly operation: string,
-    public readonly mode?: SplitOptions['mode'],
-    public readonly splitContext?: string
-  ) {
-    super(message, 'SPLIT_ERROR');
-    this.name = 'SplitError';
-  }
-}
+import { type } from "arktype";
+import { SplitError, ValidationError } from "../errors";
+import { FastaWriter, FastqWriter } from "../formats";
+import type { AbstractSequence, FastaSequence, FastqSequence } from "../types";
+import type { SplitOptions } from "./types";
 
 /**
  * Result of a split operation for each sequence
@@ -50,16 +36,87 @@ export interface SplitSummary {
 }
 
 /**
+ * ArkType schema for SplitOptions validation with custom logic
+ */
+const SplitOptionsSchema = type({
+  mode: "'by-size' | 'by-parts' | 'by-length' | 'by-id' | 'by-region'",
+  "sequencesPerFile?": "number>0",
+  "numParts?": "number>0",
+  "basesPerFile?": "number>0",
+  "idRegex?": "string",
+  "region?": "string",
+  "outputDir?": "string",
+  "filePrefix?": "string",
+  "fileExtension?": "string",
+  "keepOrder?": "boolean",
+  "useStreaming?": "boolean",
+  "maxMemoryMB?": "number>0",
+  "bufferSize?": "number>0",
+}).narrow((options, ctx) => {
+  // Complex validations that ArkType can't express natively
+
+  // Validate regex syntax for by-id mode
+  if (options.mode === "by-id") {
+    if (!options.idRegex) {
+      return ctx.reject({
+        expected: "idRegex is required for by-id mode",
+        path: ["idRegex"],
+      });
+    }
+    try {
+      new RegExp(options.idRegex);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Invalid regex";
+      return ctx.reject({
+        expected: "valid regex pattern",
+        actual: `${options.idRegex} (${errorMessage})`,
+        path: ["idRegex"],
+      });
+    }
+  }
+
+  // Validate region format for by-region mode
+  if (options.mode === "by-region") {
+    if (!options.region) {
+      return ctx.reject({
+        expected: "region is required for by-region mode",
+        path: ["region"],
+      });
+    }
+    const regionMatch = options.region.match(/^(.+):(\d+)-(\d+)$/);
+    if (!regionMatch) {
+      return ctx.reject({
+        expected: "region format chr:start-end",
+        actual: options.region,
+        path: ["region"],
+      });
+    }
+    const [, , startStr, endStr] = regionMatch;
+    const start = parseInt(startStr!, 10);
+    const end = parseInt(endStr!, 10);
+    if (start >= end) {
+      return ctx.reject({
+        expected: "start < end",
+        actual: `start=${start}, end=${end}`,
+        path: ["region"],
+      });
+    }
+  }
+
+  return true;
+});
+
+/**
  * Split sequences into files by size
  */
 export async function splitBySize(
   sequences: AsyncIterable<AbstractSequence>,
   sequencesPerFile: number,
-  outputDir: string = './split',
-  prefix: string = 'part'
+  outputDir: string = "./split",
+  prefix: string = "part"
 ): Promise<SplitSummary> {
   if (sequencesPerFile <= 0) {
-    throw new SplitError(`Invalid sequencesPerFile: ${sequencesPerFile}`, 'splitBySize', 'by-size');
+    throw new SplitError(`Invalid sequencesPerFile: ${sequencesPerFile}`, "splitBySize", "by-size");
   }
 
   const filesCreated: string[] = [];
@@ -88,13 +145,11 @@ export async function splitBySize(
       // Write sequence in FASTA format
       const writer = new FastaWriter();
       const formatted = writer.formatSequence({
-        format: 'fasta',
+        format: "fasta",
         id: sequence.id,
         sequence: sequence.sequence,
         length: sequence.length,
-        ...(sequence.description !== null &&
-          sequence.description !== undefined &&
-          sequence.description !== '' && { description: sequence.description }),
+        ...(sequence.description && { description: sequence.description }),
       } as FastaSequence);
 
       currentWriter.write(formatted);
@@ -119,8 +174,8 @@ export async function splitBySize(
 
     throw new SplitError(
       `Failed to split sequences: ${error instanceof Error ? error.message : String(error)}`,
-      'splitBySize',
-      'by-size'
+      "splitBySize",
+      "by-size"
     );
   }
 }
@@ -131,11 +186,11 @@ export async function splitBySize(
 export async function splitByParts(
   sequences: AsyncIterable<AbstractSequence>,
   numParts: number,
-  outputDir: string = './split',
-  prefix: string = 'part'
+  outputDir: string = "./split",
+  prefix: string = "part"
 ): Promise<SplitSummary> {
   if (numParts <= 0) {
-    throw new SplitError(`Invalid numParts: ${numParts}`, 'splitByParts');
+    throw new SplitError(`Invalid numParts: ${numParts}`, "splitByParts");
   }
 
   // Collect sequences to determine total count
@@ -166,8 +221,8 @@ export async function splitByParts(
 export async function splitById(
   sequences: AsyncIterable<AbstractSequence>,
   idPattern: RegExp,
-  outputDir: string = './split',
-  prefix: string = 'group'
+  outputDir: string = "./split",
+  prefix: string = "group"
 ): Promise<SplitSummary> {
   const writers = new Map<string, Bun.FileSink>();
   const filesCreated: string[] = [];
@@ -177,11 +232,11 @@ export async function splitById(
     for await (const sequence of sequences) {
       // Extract group ID
       const match = idPattern.exec(sequence.id);
-      const groupId = match?.[1] ?? match?.[0] ?? 'ungrouped';
+      const groupId = match?.[1] ?? match?.[0] ?? "ungrouped";
 
       // Get or create writer
       if (!writers.has(groupId)) {
-        const filePath = outputDir + '/' + prefix + '_' + groupId + '.fasta';
+        const filePath = outputDir + "/" + prefix + "_" + groupId + ".fasta";
         const writer = Bun.file(filePath).writer();
         writers.set(groupId, writer);
         filesCreated.push(filePath);
@@ -194,13 +249,11 @@ export async function splitById(
       // Write sequence
       const fastaWriter = new FastaWriter();
       const formatted = fastaWriter.formatSequence({
-        format: 'fasta',
+        format: "fasta",
         id: sequence.id,
         sequence: sequence.sequence,
         length: sequence.length,
-        ...(sequence.description !== null &&
-          sequence.description !== undefined &&
-          sequence.description !== '' && { description: sequence.description }),
+        ...(sequence.description && { description: sequence.description }),
       } as FastaSequence);
 
       writer.write(formatted);
@@ -225,7 +278,7 @@ export async function splitById(
 
     throw new SplitError(
       `Failed to split by ID: ${error instanceof Error ? error.message : String(error)}`,
-      'splitById'
+      "splitById"
     );
   }
 }
@@ -246,23 +299,27 @@ export class SplitProcessor {
     source: AsyncIterable<AbstractSequence>,
     options: SplitOptions
   ): AsyncIterable<SplitResult> {
-    this.validateOptions(options);
+    // Direct ArkType validation
+    const validationResult = SplitOptionsSchema(options);
+    if (validationResult instanceof type.errors) {
+      throw new ValidationError(`Invalid split options: ${validationResult.summary}`);
+    }
 
     try {
       switch (options.mode) {
-        case 'by-size':
+        case "by-size":
           yield* this.processBySize(source, options);
           break;
-        case 'by-parts':
+        case "by-parts":
           yield* this.processByParts(source, options);
           break;
-        case 'by-length':
+        case "by-length":
           yield* this.processByLength(source, options);
           break;
-        case 'by-id':
+        case "by-id":
           yield* this.processById(source, options);
           break;
-        case 'by-region':
+        case "by-region":
           yield* this.processByRegion(source, options);
           break;
       }
@@ -300,20 +357,20 @@ export class SplitProcessor {
     options: SplitOptions
   ): AsyncIterable<SplitResult> {
     const sequencesPerFile = options.sequencesPerFile ?? 1000;
-    const outputDir = options.outputDir ?? './split';
-    const prefix = options.filePrefix ?? 'part';
-    const extension = options.fileExtension ?? '.fasta';
+    const outputDir = options.outputDir ?? "./split";
+    const prefix = options.filePrefix ?? "part";
+    const extension = options.fileExtension ?? ".fasta";
 
     let currentPart = 1;
     let currentCount = 0;
     let currentWriter: Bun.FileSink | null = null;
     let isFirstSequence = true;
-    let outputFormat: 'fasta' | 'fastq' = 'fasta';
+    let outputFormat: "fasta" | "fastq" = "fasta";
 
     for await (const sequence of source) {
       // Detect format from first sequence for writing
       if (isFirstSequence) {
-        outputFormat = 'quality' in sequence ? 'fastq' : 'fasta';
+        outputFormat = "quality" in sequence ? "fastq" : "fasta";
         isFirstSequence = false;
       }
 
@@ -334,21 +391,17 @@ export class SplitProcessor {
       currentCount++;
 
       // Write sequence in detected format (content) regardless of extension (user choice)
-      if (outputFormat === 'fastq' && 'quality' in sequence) {
+      if (outputFormat === "fastq" && "quality" in sequence) {
         const writer = new FastqWriter();
         currentWriter.write(writer.formatSequence(sequence as FastqSequence));
       } else {
         const writer = new FastaWriter();
         const fastaSeq: FastaSequence = {
-          format: 'fasta',
+          format: "fasta",
           id: sequence.id,
           sequence: sequence.sequence,
           length: sequence.length,
-          ...(sequence.description !== undefined &&
-            sequence.description !== null &&
-            sequence.description !== '' && {
-              description: sequence.description,
-            }),
+          ...(sequence.description && { description: sequence.description }),
         };
         currentWriter.write(writer.formatSequence(fastaSeq));
       }
@@ -367,8 +420,8 @@ export class SplitProcessor {
     options: SplitOptions
   ): AsyncIterable<SplitResult> {
     const numParts = options.numParts ?? 2;
-    const outputDir = options.outputDir ?? './split';
-    const prefix = options.filePrefix ?? 'part';
+    const outputDir = options.outputDir ?? "./split";
+    const prefix = options.filePrefix ?? "part";
 
     // Collection is legitimate here - need total count for round-robin distribution
     const sequences: AbstractSequence[] = [];
@@ -379,8 +432,8 @@ export class SplitProcessor {
     if (sequences.length === 0) return;
 
     const sequencesPerPart = Math.ceil(sequences.length / numParts);
-    const outputFormat = sequences.length > 0 && 'quality' in sequences[0]! ? 'fastq' : 'fasta';
-    const extension = options.fileExtension ?? '.fasta';
+    const outputFormat = sequences.length > 0 && "quality" in sequences[0]! ? "fastq" : "fasta";
+    const extension = options.fileExtension ?? ".fasta";
     const writers = new Map<number, Bun.FileSink>();
 
     try {
@@ -401,19 +454,19 @@ export class SplitProcessor {
         const writer = writers.get(partId);
         if (writer) {
           // Write in appropriate format
-          if (outputFormat === 'fastq' && 'quality' in sequence) {
+          if (outputFormat === "fastq" && "quality" in sequence) {
             const fastqWriter = new FastqWriter();
             writer.write(fastqWriter.formatSequence(sequence as FastqSequence));
           } else {
             const fastaWriter = new FastaWriter();
             const fastaSeq: FastaSequence = {
-              format: 'fasta',
+              format: "fasta",
               id: sequence.id,
               sequence: sequence.sequence,
               length: sequence.length,
               ...(sequence.description !== undefined &&
                 sequence.description !== null &&
-                sequence.description !== '' && {
+                sequence.description !== "" && {
                   description: sequence.description,
                 }),
             };
@@ -443,21 +496,21 @@ export class SplitProcessor {
     options: SplitOptions
   ): AsyncIterable<SplitResult> {
     const basesPerFile = options.basesPerFile ?? 1000000;
-    const outputDir = options.outputDir ?? './split';
-    const prefix = options.filePrefix ?? 'part';
-    const extension = options.fileExtension ?? '.fasta';
+    const outputDir = options.outputDir ?? "./split";
+    const prefix = options.filePrefix ?? "part";
+    const extension = options.fileExtension ?? ".fasta";
 
     let currentBases = 0;
     let currentPart = 1;
     let currentCount = 0;
     let currentWriter: Bun.FileSink | null = null;
     let isFirstSequence = true;
-    let outputFormat: 'fasta' | 'fastq' = 'fasta';
+    let outputFormat: "fasta" | "fastq" = "fasta";
 
     for await (const sequence of source) {
       // Detect format from first sequence for writing
       if (isFirstSequence) {
-        outputFormat = 'quality' in sequence ? 'fastq' : 'fasta';
+        outputFormat = "quality" in sequence ? "fastq" : "fasta";
         isFirstSequence = false;
       }
 
@@ -477,21 +530,17 @@ export class SplitProcessor {
       }
 
       // Write sequence in detected format regardless of file extension
-      if (outputFormat === 'fastq' && 'quality' in sequence) {
+      if (outputFormat === "fastq" && "quality" in sequence) {
         const writer = new FastqWriter();
         currentWriter.write(writer.formatSequence(sequence as FastqSequence));
       } else {
         const writer = new FastaWriter();
         const fastaSeq: FastaSequence = {
-          format: 'fasta',
+          format: "fasta",
           id: sequence.id,
           sequence: sequence.sequence,
           length: sequence.length,
-          ...(sequence.description !== undefined &&
-            sequence.description !== null &&
-            sequence.description !== '' && {
-              description: sequence.description,
-            }),
+          ...(sequence.description && { description: sequence.description }),
         };
         currentWriter.write(writer.formatSequence(fastaSeq));
       }
@@ -513,28 +562,28 @@ export class SplitProcessor {
     options: SplitOptions
   ): AsyncIterable<SplitResult> {
     const regex = new RegExp(options.idRegex!);
-    const outputDir = options.outputDir ?? './split';
-    const prefix = options.filePrefix ?? 'group';
+    const outputDir = options.outputDir ?? "./split";
+    const prefix = options.filePrefix ?? "group";
 
     const writers = new Map<string, Bun.FileSink>();
     const counts = new Map<string, number>();
     let isFirstSequence = true;
-    let outputFormat: 'fasta' | 'fastq' = 'fasta';
+    let outputFormat: "fasta" | "fastq" = "fasta";
 
     try {
       for await (const sequence of source) {
         // Detect format from first sequence
         if (isFirstSequence) {
-          outputFormat = 'quality' in sequence ? 'fastq' : 'fasta';
+          outputFormat = "quality" in sequence ? "fastq" : "fasta";
           isFirstSequence = false;
         }
 
         const match = sequence.id.match(regex);
-        const groupId = match?.[1] ?? match?.[0] ?? 'ungrouped';
+        const groupId = match?.[1] ?? match?.[0] ?? "ungrouped";
 
         // Get or create writer for this group
         if (!writers.has(groupId)) {
-          const extension = options.fileExtension ?? '.fasta';
+          const extension = options.fileExtension ?? ".fasta";
           const filePath = `${outputDir}/${prefix}_${groupId}${extension}`;
           const writer = Bun.file(filePath).writer();
           writers.set(groupId, writer);
@@ -547,26 +596,26 @@ export class SplitProcessor {
 
         // Write sequence in appropriate format
         const writer = writers.get(groupId)!;
-        if (outputFormat === 'fastq' && 'quality' in sequence) {
+        if (outputFormat === "fastq" && "quality" in sequence) {
           const fastqWriter = new FastqWriter();
           writer.write(fastqWriter.formatSequence(sequence as FastqSequence));
         } else {
           const fastaWriter = new FastaWriter();
           const fastaSeq: FastaSequence = {
-            format: 'fasta',
+            format: "fasta",
             id: sequence.id,
             sequence: sequence.sequence,
             length: sequence.length,
             ...(sequence.description !== undefined &&
               sequence.description !== null &&
-              sequence.description !== '' && {
+              sequence.description !== "" && {
                 description: sequence.description,
               }),
           };
           writer.write(fastaWriter.formatSequence(fastaSeq));
         }
 
-        const extension = options.fileExtension ?? '.fasta';
+        const extension = options.fileExtension ?? ".fasta";
         yield {
           ...sequence,
           outputFile: `${outputDir}/${prefix}_${groupId}${extension}`,
@@ -586,11 +635,11 @@ export class SplitProcessor {
     options: SplitOptions
   ): AsyncIterable<SplitResult> {
     const regionId = options.region!; // Keep original format for partId
-    const outputDir = options.outputDir ?? './split';
-    const prefix = options.filePrefix ?? 'region';
+    const outputDir = options.outputDir ?? "./split";
+    const prefix = options.filePrefix ?? "region";
 
-    const extension = options.fileExtension ?? '.fasta';
-    const fileNameSafe = regionId.replace(/[^a-zA-Z0-9]/g, '_');
+    const extension = options.fileExtension ?? ".fasta";
+    const fileNameSafe = regionId.replace(/[^a-zA-Z0-9]/g, "_");
     const filePath = `${outputDir}/${prefix}_${fileNameSafe}${extension}`;
 
     const writer = Bun.file(filePath).writer();
@@ -604,13 +653,13 @@ export class SplitProcessor {
         // Write to file
         const fastaWriter = new FastaWriter();
         const formatted = fastaWriter.formatSequence({
-          format: 'fasta',
+          format: "fasta",
           id: sequence.id,
           sequence: sequence.sequence,
           length: sequence.length,
           ...(sequence.description !== null &&
             sequence.description !== undefined &&
-            sequence.description !== '' && {
+            sequence.description !== "" && {
               description: sequence.description,
             }),
         } as FastaSequence);
@@ -650,130 +699,5 @@ export class SplitProcessor {
     }
 
     return filesCreated.map((file) => fileCounts.get(file) ?? 0);
-  }
-
-  /**
-   * Validate split options
-   */
-  private validateOptions(options: SplitOptions): void {
-    if (!options.mode) {
-      throw new SplitError('Split mode is required', '');
-    }
-
-    this.validateMemoryOptions(options);
-    this.validateModeSpecificOptions(options);
-  }
-
-  /**
-   * Validate memory-related options
-   */
-  private validateMemoryOptions(options: SplitOptions): void {
-    if (options.maxMemoryMB !== undefined && options.maxMemoryMB <= 0) {
-      throw new SplitError(
-        `Invalid maxMemoryMB: ${options.maxMemoryMB}`,
-        'validateOptions',
-        options.mode
-      );
-    }
-    if (options.bufferSize !== undefined && options.bufferSize <= 0) {
-      throw new SplitError(
-        `Invalid bufferSize: ${options.bufferSize}`,
-        'validateOptions',
-        options.mode
-      );
-    }
-  }
-
-  /**
-   * Validate mode-specific options
-   */
-  private validateModeSpecificOptions(options: SplitOptions): void {
-    switch (options.mode) {
-      case 'by-size':
-        this.validateBySizeOptions(options);
-        break;
-      case 'by-parts':
-        this.validateByPartsOptions(options);
-        break;
-      case 'by-length':
-        this.validateByLengthOptions(options);
-        break;
-      case 'by-id':
-        this.validateByIdOptions(options);
-        break;
-      case 'by-region':
-        this.validateByRegionOptions(options);
-        break;
-      default:
-        throw new SplitError(`Unsupported split mode: ${options.mode}`, options.mode);
-    }
-  }
-
-  private validateBySizeOptions(options: SplitOptions): void {
-    if (options.sequencesPerFile !== undefined && options.sequencesPerFile <= 0) {
-      throw new SplitError(
-        `Invalid sequencesPerFile: ${options.sequencesPerFile}`,
-        'processBySize',
-        options.mode
-      );
-    }
-  }
-
-  private validateByPartsOptions(options: SplitOptions): void {
-    if (options.numParts !== undefined && options.numParts <= 0) {
-      throw new SplitError(`Invalid numParts: ${options.numParts}`, 'processByParts', options.mode);
-    }
-  }
-
-  private validateByLengthOptions(options: SplitOptions): void {
-    if (options.basesPerFile !== undefined && options.basesPerFile <= 0) {
-      throw new SplitError(
-        `Invalid basesPerFile: ${options.basesPerFile}`,
-        'processByLength',
-        options.mode
-      );
-    }
-  }
-
-  private validateByIdOptions(options: SplitOptions): void {
-    if (options.idRegex === undefined || options.idRegex === null || options.idRegex === '') {
-      throw new SplitError('idRegex is required for by-id mode', options.mode);
-    }
-
-    try {
-      new RegExp(options.idRegex);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new SplitError(
-        `Invalid regex pattern '${options.idRegex}': ${errorMessage}`,
-        'splitByRegex',
-        options.mode,
-        `Pattern: ${options.idRegex}`
-      );
-    }
-  }
-
-  private validateByRegionOptions(options: SplitOptions): void {
-    if (options.region === undefined || options.region === null || options.region === '') {
-      throw new SplitError('region is required for by-region mode', options.mode);
-    }
-
-    const regionMatch = options.region.match(/^(.+):(\d+)-(\d+)$/);
-    if (!regionMatch) {
-      throw new SplitError(
-        `Invalid region format: ${options.region} (expected chr:start-end)`,
-        options.mode
-      );
-    }
-
-    const [, , startStr, endStr] = regionMatch;
-    const start = parseInt(startStr!, 10);
-    const end = parseInt(endStr!, 10);
-    if (start >= end) {
-      throw new SplitError(
-        `Invalid region coordinates: start (${start}) must be < end (${end})`,
-        options.mode
-      );
-    }
   }
 }

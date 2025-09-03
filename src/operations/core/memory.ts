@@ -9,10 +9,10 @@
  * Memory management strategy for operations
  */
 export enum MemoryStrategy {
-  STREAMING = 'streaming', // Pure streaming, O(1) memory
-  BUFFERED = 'buffered', // Small buffer for performance
-  EXTERNAL = 'external', // Disk-based for huge datasets
-  BLOOM_FILTER = 'bloom_filter', // Probabilistic for deduplication
+  STREAMING = "streaming", // Pure streaming, O(1) memory
+  BUFFERED = "buffered", // Small buffer for performance
+  EXTERNAL = "external", // Disk-based for huge datasets
+  BLOOM_FILTER = "bloom_filter", // Probabilistic for deduplication
 }
 
 /**
@@ -50,7 +50,7 @@ export class DefaultMemoryMonitor implements MemoryMonitor {
   }
 
   suggestGC(): void {
-    if (typeof global !== 'undefined' && global.gc) {
+    if (typeof global !== "undefined" && global.gc) {
       global.gc();
     }
   }
@@ -68,7 +68,7 @@ export class ExternalSorter<T> {
 
   constructor(
     private readonly chunkSize: number = 100_000_000, // 100MB chunks
-    private readonly tempDir: string = '/tmp',
+    private readonly tempDir: string = "/tmp",
     private readonly serialize: (item: T) => string,
     private readonly deserialize: (line: string) => T
   ) {}
@@ -123,7 +123,7 @@ export class ExternalSorter<T> {
    */
   private async writeChunk(chunk: T[]): Promise<void> {
     const fileName = `${this.tempDir}/sort_${Date.now()}_${this.chunkIndex++}.tmp`;
-    const lines = chunk.map((item) => this.serialize(item)).join('\n');
+    const lines = chunk.map((item) => this.serialize(item)).join("\n");
     const file = Bun.file(fileName);
     await Bun.write(file, lines);
     this.chunkFiles.push(fileName);
@@ -179,7 +179,7 @@ export class ExternalSorter<T> {
   private async createFileIterator(fileName: string): Promise<AsyncIterator<T>> {
     const file = Bun.file(fileName);
     const text = await file.text();
-    const lines = text.split('\n').filter((line) => line.length > 0);
+    const lines = text.split("\n").filter((line) => line.length > 0);
     let index = 0;
     const deserialize = this.deserialize;
 
@@ -190,7 +190,7 @@ export class ExternalSorter<T> {
         }
         const line = lines[index++];
         const value =
-          line !== undefined && line !== null && line !== '' ? deserialize(line) : undefined;
+          line !== undefined && line !== null && line !== "" ? deserialize(line) : undefined;
         return { done: false, value: value as T };
       },
     };
@@ -374,7 +374,7 @@ export class DiskCache<T> {
   private readonly tempDir: string;
 
   constructor(
-    tempDir: string = '/tmp',
+    tempDir: string = "/tmp",
     private readonly serialize: (item: T) => string,
     private readonly deserialize: (data: string) => T
   ) {
@@ -396,7 +396,7 @@ export class DiskCache<T> {
    */
   async get(key: string): Promise<T | undefined> {
     const fileName = this.cacheFiles.get(key);
-    if (fileName === undefined || fileName === null || fileName === '') return undefined;
+    if (fileName === undefined || fileName === null || fileName === "") return undefined;
 
     try {
       const file = Bun.file(fileName);
@@ -419,7 +419,7 @@ export class DiskCache<T> {
    */
   async delete(key: string): Promise<boolean> {
     const fileName = this.cacheFiles.get(key);
-    if (fileName === undefined || fileName === null || fileName === '') return false;
+    if (fileName === undefined || fileName === null || fileName === "") return false;
 
     try {
       await Bun.file(fileName).unlink();

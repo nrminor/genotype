@@ -9,7 +9,7 @@
 /**
  * Supported JavaScript runtimes
  */
-export type Runtime = 'node' | 'deno' | 'bun';
+export type Runtime = "node" | "deno" | "bun";
 
 /**
  * Runtime-specific capabilities
@@ -37,37 +37,37 @@ export interface RuntimeCapabilities {
  */
 export const detectRuntime = (): Runtime => {
   // Tiger Style: Assert function preconditions
-  console.assert(typeof globalThis === 'object', 'globalThis must be available');
+  console.assert(typeof globalThis === "object", "globalThis must be available");
 
   // Check for Deno first (most specific)
   if (
-    typeof (globalThis as any).Deno !== 'undefined' &&
-    typeof (globalThis as any).Deno.version !== 'undefined' &&
-    typeof (globalThis as any).Deno.version.deno === 'string'
+    typeof (globalThis as any).Deno !== "undefined" &&
+    typeof (globalThis as any).Deno.version !== "undefined" &&
+    typeof (globalThis as any).Deno.version.deno === "string"
   ) {
-    return 'deno';
+    return "deno";
   }
 
   // Check for Bun (has process but different from Node)
   if (
-    typeof (globalThis as any).Bun !== 'undefined' &&
-    typeof (globalThis as any).Bun.version === 'string'
+    typeof (globalThis as any).Bun !== "undefined" &&
+    typeof (globalThis as any).Bun.version === "string"
   ) {
-    return 'bun';
+    return "bun";
   }
 
   // Check for Node.js (has process and versions)
   if (
-    typeof (globalThis as any).process !== 'undefined' &&
-    typeof (globalThis as any).process.versions === 'object' &&
-    typeof (globalThis as any).process.versions.node === 'string'
+    typeof (globalThis as any).process !== "undefined" &&
+    typeof (globalThis as any).process.versions === "object" &&
+    typeof (globalThis as any).process.versions.node === "string"
   ) {
-    return 'node';
+    return "node";
   }
 
   // Default to Node.js if environment is ambiguous
   // This handles edge cases in testing environments
-  return 'node';
+  return "node";
 };
 
 /**
@@ -81,11 +81,11 @@ export const detectRuntime = (): Runtime => {
  */
 export const getRuntimeCapabilities = (runtime: Runtime): RuntimeCapabilities => {
   // Tiger Style: Assert function arguments
-  console.assert(typeof runtime === 'string', 'runtime must be a string');
-  console.assert(['node', 'deno', 'bun'].includes(runtime), 'runtime must be valid');
+  console.assert(typeof runtime === "string", "runtime must be a string");
+  console.assert(["node", "deno", "bun"].includes(runtime), "runtime must be valid");
 
   switch (runtime) {
-    case 'node':
+    case "node":
       return {
         hasFileSystem: true,
         hasStreams: true,
@@ -94,7 +94,7 @@ export const getRuntimeCapabilities = (runtime: Runtime): RuntimeCapabilities =>
         supportsWorkers: true,
       };
 
-    case 'deno':
+    case "deno":
       return {
         hasFileSystem: true,
         hasStreams: true,
@@ -103,7 +103,7 @@ export const getRuntimeCapabilities = (runtime: Runtime): RuntimeCapabilities =>
         supportsWorkers: true,
       };
 
-    case 'bun':
+    case "bun":
       return {
         hasFileSystem: true,
         hasStreams: true,
@@ -126,7 +126,7 @@ export const getRuntimeCapabilities = (runtime: Runtime): RuntimeCapabilities =>
  */
 export const supportsFeature = (feature: keyof RuntimeCapabilities): boolean => {
   // Tiger Style: Assert function arguments
-  console.assert(typeof feature === 'string', 'feature must be a string');
+  console.assert(typeof feature === "string", "feature must be a string");
 
   const runtime = detectRuntime();
   const capabilities = getRuntimeCapabilities(runtime);
@@ -141,31 +141,31 @@ export const supportsFeature = (feature: keyof RuntimeCapabilities): boolean => 
  */
 export const getRuntimeGlobals = (runtime: Runtime): Record<string, unknown> => {
   // Tiger Style: Assert function arguments
-  console.assert(typeof runtime === 'string', 'runtime must be a string');
-  console.assert(['node', 'deno', 'bun'].includes(runtime), 'runtime must be valid');
+  console.assert(typeof runtime === "string", "runtime must be a string");
+  console.assert(["node", "deno", "bun"].includes(runtime), "runtime must be valid");
 
   switch (runtime) {
-    case 'node':
+    case "node":
       return {
-        fs: (globalThis as any).require?.('fs'),
-        path: (globalThis as any).require?.('path'),
-        stream: (globalThis as any).require?.('stream'),
+        fs: (globalThis as any).require?.("fs"),
+        path: (globalThis as any).require?.("path"),
+        stream: (globalThis as any).require?.("stream"),
         process: (globalThis as any).process,
       };
 
-    case 'deno':
+    case "deno":
       return {
         Deno: (globalThis as any).Deno,
         TextDecoder: globalThis.TextDecoder,
         TextEncoder: globalThis.TextEncoder,
       };
 
-    case 'bun':
+    case "bun":
       return {
         Bun: (globalThis as any).Bun,
         process: (globalThis as any).process,
-        fs: (globalThis as any).require?.('fs'),
-        path: (globalThis as any).require?.('path'),
+        fs: (globalThis as any).require?.("fs"),
+        path: (globalThis as any).require?.("path"),
       };
 
     default:
@@ -184,17 +184,17 @@ export const getRuntimeGlobals = (runtime: Runtime): Record<string, unknown> => 
  */
 export const getOptimalBufferSize = (runtime: Runtime): number => {
   // Tiger Style: Assert function arguments
-  console.assert(typeof runtime === 'string', 'runtime must be a string');
-  console.assert(['node', 'deno', 'bun'].includes(runtime), 'runtime must be valid');
+  console.assert(typeof runtime === "string", "runtime must be a string");
+  console.assert(["node", "deno", "bun"].includes(runtime), "runtime must be valid");
 
   switch (runtime) {
-    case 'node':
+    case "node":
       return 65536; // 64KB - Node.js default buffer size
 
-    case 'deno':
+    case "deno":
       return 32768; // 32KB - Deno's optimized size
 
-    case 'bun':
+    case "bun":
       // Bun is highly optimized for I/O operations and can handle larger buffers
       // efficiently, especially for genomic files which benefit from larger chunks
       return 262144; // 256KB - Bun can handle much larger buffers efficiently
@@ -219,14 +219,14 @@ export const getRuntimeInfo = (): Record<string, unknown> => {
     // Runtime-specific version information
     version: ((): string => {
       switch (runtime) {
-        case 'node':
-          return (globalThis as any).process?.versions?.node ?? 'unknown';
-        case 'deno':
-          return (globalThis as any).Deno?.version?.deno ?? 'unknown';
-        case 'bun':
-          return (globalThis as any).Bun?.version ?? 'unknown';
+        case "node":
+          return (globalThis as any).process?.versions?.node ?? "unknown";
+        case "deno":
+          return (globalThis as any).Deno?.version?.deno ?? "unknown";
+        case "bun":
+          return (globalThis as any).Bun?.version ?? "unknown";
         default:
-          return 'unknown';
+          return "unknown";
       }
     })(),
   };

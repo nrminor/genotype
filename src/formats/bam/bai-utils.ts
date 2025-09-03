@@ -16,9 +16,9 @@ import type {
   BAIBinNumber,
   VirtualOffsetUtils as VirtualOffsetUtilsType,
   BinningUtils as BinningUtilsType,
-} from '../../types';
-import { VirtualOffsetSchema, BAIBinNumberSchema } from '../../types';
-import { BamError } from '../../errors';
+} from "../../types";
+import { VirtualOffsetSchema, BAIBinNumberSchema } from "../../types";
+import { BamError } from "../../errors";
 
 // Constants for virtual offset calculations
 const BLOCK_OFFSET_BITS = 48;
@@ -48,11 +48,11 @@ export const VirtualOffsetUtils: VirtualOffsetUtilsType = {
     // Tiger Style: Assert function arguments
     console.assert(
       Number.isInteger(blockOffset) && blockOffset >= 0,
-      'blockOffset must be non-negative integer'
+      "blockOffset must be non-negative integer"
     );
     console.assert(
       Number.isInteger(uncompressedOffset) && uncompressedOffset >= 0,
-      'uncompressedOffset must be non-negative integer'
+      "uncompressedOffset must be non-negative integer"
     );
 
     // Validate 48-bit block offset limit
@@ -60,7 +60,7 @@ export const VirtualOffsetUtils: VirtualOffsetUtilsType = {
       throw new BamError(
         `Block offset ${blockOffset} exceeds ${BLOCK_OFFSET_BITS}-bit limit (${(1 << BLOCK_OFFSET_BITS) - 1})`,
         undefined,
-        'virtual_offset'
+        "virtual_offset"
       );
     }
 
@@ -69,7 +69,7 @@ export const VirtualOffsetUtils: VirtualOffsetUtilsType = {
       throw new BamError(
         `Uncompressed offset ${uncompressedOffset} exceeds 16-bit limit (${UNCOMPRESSED_OFFSET_LIMIT - 1})`,
         undefined,
-        'virtual_offset'
+        "virtual_offset"
       );
     }
 
@@ -77,14 +77,14 @@ export const VirtualOffsetUtils: VirtualOffsetUtilsType = {
     const virtualOffset = (BigInt(blockOffset) << 16n) | BigInt(uncompressedOffset);
 
     // Tiger Style: Assert postconditions
-    console.assert(virtualOffset >= 0n, 'virtual offset must be non-negative');
+    console.assert(virtualOffset >= 0n, "virtual offset must be non-negative");
 
     const result = VirtualOffsetSchema(virtualOffset);
-    if (typeof result !== 'bigint') {
+    if (typeof result !== "bigint") {
       throw new BamError(
         `Virtual offset validation failed: ${result.toString()}`,
         undefined,
-        'virtual_offset'
+        "virtual_offset"
       );
     }
     return result;
@@ -101,8 +101,8 @@ export const VirtualOffsetUtils: VirtualOffsetUtilsType = {
     uncompressedOffset: number;
   } {
     // Tiger Style: Assert function arguments
-    console.assert(typeof virtualOffset === 'bigint', 'virtualOffset must be bigint');
-    console.assert(virtualOffset >= 0n, 'virtualOffset must be non-negative');
+    console.assert(typeof virtualOffset === "bigint", "virtualOffset must be bigint");
+    console.assert(virtualOffset >= 0n, "virtualOffset must be non-negative");
 
     // Extract components using bitwise operations
     const blockOffset = Number(virtualOffset >> 16n);
@@ -111,13 +111,13 @@ export const VirtualOffsetUtils: VirtualOffsetUtilsType = {
     // Tiger Style: Assert extracted values are valid
     console.assert(
       Number.isInteger(blockOffset) && blockOffset >= 0,
-      'extracted blockOffset must be valid'
+      "extracted blockOffset must be valid"
     );
     console.assert(
       Number.isInteger(uncompressedOffset) && uncompressedOffset >= 0,
-      'extracted uncompressedOffset must be valid'
+      "extracted uncompressedOffset must be valid"
     );
-    console.assert(uncompressedOffset < 65536, 'extracted uncompressedOffset must be < 65536');
+    console.assert(uncompressedOffset < 65536, "extracted uncompressedOffset must be < 65536");
 
     return { blockOffset, uncompressedOffset };
   },
@@ -130,8 +130,8 @@ export const VirtualOffsetUtils: VirtualOffsetUtilsType = {
    */
   compare(a: VirtualOffset, b: VirtualOffset): number {
     // Tiger Style: Assert function arguments
-    console.assert(typeof a === 'bigint', 'first offset must be bigint');
-    console.assert(typeof b === 'bigint', 'second offset must be bigint');
+    console.assert(typeof a === "bigint", "first offset must be bigint");
+    console.assert(typeof b === "bigint", "second offset must be bigint");
 
     if (a < b) return -1;
     if (a > b) return 1;
@@ -166,14 +166,14 @@ export const BinningUtils: BinningUtilsType = {
    */
   calculateBin(start: number, end: number): BAIBinNumber {
     // Tiger Style: Assert function arguments
-    console.assert(Number.isInteger(start) && start >= 0, 'start must be non-negative integer');
-    console.assert(Number.isInteger(end) && end >= 0, 'end must be non-negative integer');
+    console.assert(Number.isInteger(start) && start >= 0, "start must be non-negative integer");
+    console.assert(Number.isInteger(end) && end >= 0, "end must be non-negative integer");
 
     if (end <= start) {
       throw new BamError(
         `Invalid coordinate range: end (${end}) must be > start (${start})`,
         undefined,
-        'coordinates'
+        "coordinates"
       );
     }
 
@@ -183,7 +183,7 @@ export const BinningUtils: BinningUtilsType = {
       throw new BamError(
         `Coordinates exceed UCSC binning limit: start=${start}, end=${end} (max 536870912)`,
         undefined,
-        'coordinates'
+        "coordinates"
       );
     }
 
@@ -224,16 +224,16 @@ export const BinningUtils: BinningUtilsType = {
     // Tiger Style: Assert calculated bin is valid
     console.assert(
       Number.isInteger(binNumber) && binNumber >= 0,
-      'calculated bin must be non-negative integer'
+      "calculated bin must be non-negative integer"
     );
-    console.assert(binNumber <= 37448, 'calculated bin must be within UCSC scheme limit');
+    console.assert(binNumber <= 37448, "calculated bin must be within UCSC scheme limit");
 
     const result = BAIBinNumberSchema(binNumber);
-    if (typeof result !== 'number') {
+    if (typeof result !== "number") {
       throw new BamError(
         `Bin number validation failed: ${result.toString()}`,
         undefined,
-        'bin_number'
+        "bin_number"
       );
     }
     return result;
@@ -249,14 +249,14 @@ export const BinningUtils: BinningUtilsType = {
    */
   getOverlappingBins(start: number, end: number): readonly BAIBinNumber[] {
     // Tiger Style: Assert function arguments
-    console.assert(Number.isInteger(start) && start >= 0, 'start must be non-negative integer');
-    console.assert(Number.isInteger(end) && end >= 0, 'end must be non-negative integer');
+    console.assert(Number.isInteger(start) && start >= 0, "start must be non-negative integer");
+    console.assert(Number.isInteger(end) && end >= 0, "end must be non-negative integer");
 
     if (end <= start) {
       throw new BamError(
         `Invalid coordinate range: end (${end}) must be > start (${start})`,
         undefined,
-        'coordinates'
+        "coordinates"
       );
     }
 
@@ -307,20 +307,20 @@ export const BinningUtils: BinningUtilsType = {
     // Validate all bins and convert to branded type
     const validatedBins = uniqueBins.map((bin) => {
       const result = BAIBinNumberSchema(bin);
-      if (typeof result !== 'number') {
+      if (typeof result !== "number") {
         throw new BamError(
           `Bin number validation failed for bin ${bin}: ${result.toString()}`,
           undefined,
-          'bin_number'
+          "bin_number"
         );
       }
       return result;
     });
 
     // Tiger Style: Assert result is reasonable
-    console.assert(validatedBins.length > 0, 'must have at least one overlapping bin');
-    console.assert(validatedBins.length <= 50, 'should not have excessive overlapping bins');
-    console.assert(validatedBins[0] === 0, 'bin 0 should always be included');
+    console.assert(validatedBins.length > 0, "must have at least one overlapping bin");
+    console.assert(validatedBins.length <= 50, "should not have excessive overlapping bins");
+    console.assert(validatedBins[0] === 0, "bin 0 should always be included");
 
     return validatedBins;
   },
@@ -332,10 +332,10 @@ export const BinningUtils: BinningUtilsType = {
    */
   getParentBin(binNumber: BAIBinNumber): BAIBinNumber | null {
     // Tiger Style: Assert function arguments
-    console.assert(typeof binNumber === 'number', 'binNumber must be number');
+    console.assert(typeof binNumber === "number", "binNumber must be number");
     console.assert(
       Number.isInteger(binNumber) && binNumber >= 0,
-      'binNumber must be non-negative integer'
+      "binNumber must be non-negative integer"
     );
 
     // Bin 0 is the root - no parent
@@ -373,16 +373,16 @@ export const BinningUtils: BinningUtilsType = {
       throw new BamError(
         `Invalid bin number for parent calculation: ${binNumber}`,
         undefined,
-        'bin_traversal'
+        "bin_traversal"
       );
     }
 
     const result = BAIBinNumberSchema(parentBin);
-    if (typeof result !== 'number') {
+    if (typeof result !== "number") {
       throw new BamError(
         `Parent bin validation failed for bin ${parentBin}: ${result.toString()}`,
         undefined,
-        'bin_number'
+        "bin_number"
       );
     }
     return result;
@@ -395,10 +395,10 @@ export const BinningUtils: BinningUtilsType = {
    */
   getChildBins(binNumber: BAIBinNumber): readonly BAIBinNumber[] {
     // Tiger Style: Assert function arguments
-    console.assert(typeof binNumber === 'number', 'binNumber must be number');
+    console.assert(typeof binNumber === "number", "binNumber must be number");
     console.assert(
       Number.isInteger(binNumber) && binNumber >= 0,
-      'binNumber must be non-negative integer'
+      "binNumber must be non-negative integer"
     );
 
     const children: number[] = [];
@@ -442,18 +442,18 @@ export const BinningUtils: BinningUtilsType = {
     // Validate and convert to branded types
     const validatedChildren = children.map((bin) => {
       const result = BAIBinNumberSchema(bin);
-      if (typeof result !== 'number') {
+      if (typeof result !== "number") {
         throw new BamError(
           `Child bin validation failed for bin ${bin}: ${result.toString()}`,
           undefined,
-          'bin_number'
+          "bin_number"
         );
       }
       return result;
     });
 
     // Tiger Style: Assert result is reasonable
-    console.assert(validatedChildren.length <= 8, 'should not have more than 8 children per bin');
+    console.assert(validatedChildren.length <= 8, "should not have more than 8 children per bin");
 
     return validatedChildren;
   },
@@ -465,7 +465,7 @@ export const BinningUtils: BinningUtilsType = {
    */
   isValidBin(binNumber: number): boolean {
     // Tiger Style: Assert function arguments
-    console.assert(typeof binNumber === 'number', 'binNumber must be number');
+    console.assert(typeof binNumber === "number", "binNumber must be number");
 
     if (!Number.isInteger(binNumber) || binNumber < 0) {
       return false;
@@ -493,11 +493,11 @@ export function calculateLinearInterval(position: number, intervalSize = 16384):
   // Tiger Style: Assert function arguments
   console.assert(
     Number.isInteger(position) && position >= 0,
-    'position must be non-negative integer'
+    "position must be non-negative integer"
   );
   console.assert(
     Number.isInteger(intervalSize) && intervalSize > 0,
-    'intervalSize must be positive integer'
+    "intervalSize must be positive integer"
   );
 
   const interval = Math.floor(position / intervalSize);
@@ -505,7 +505,7 @@ export function calculateLinearInterval(position: number, intervalSize = 16384):
   // Tiger Style: Assert result is valid
   console.assert(
     Number.isInteger(interval) && interval >= 0,
-    'calculated interval must be non-negative integer'
+    "calculated interval must be non-negative integer"
   );
 
   return interval;
@@ -525,15 +525,15 @@ export function updateLinearIndex(
   intervalSize = 16384
 ): void {
   // Tiger Style: Assert function arguments
-  console.assert(Array.isArray(linearIndex), 'linearIndex must be an array');
+  console.assert(Array.isArray(linearIndex), "linearIndex must be an array");
   console.assert(
     Number.isInteger(position) && position >= 0,
-    'position must be non-negative integer'
+    "position must be non-negative integer"
   );
-  console.assert(typeof virtualOffset === 'bigint', 'virtualOffset must be bigint');
+  console.assert(typeof virtualOffset === "bigint", "virtualOffset must be bigint");
   console.assert(
     Number.isInteger(intervalSize) && intervalSize > 0,
-    'intervalSize must be positive integer'
+    "intervalSize must be positive integer"
   );
 
   const interval = calculateLinearInterval(position, intervalSize);
@@ -549,8 +549,8 @@ export function updateLinearIndex(
   }
 
   // Tiger Style: Assert postconditions
-  console.assert(linearIndex.length > interval, 'array must be extended to include interval');
-  console.assert(linearIndex[interval] !== 0n, 'interval must have non-zero virtual offset');
+  console.assert(linearIndex.length > interval, "array must be extended to include interval");
+  console.assert(linearIndex[interval] !== 0n, "interval must have non-zero virtual offset");
 }
 
 /**
@@ -564,8 +564,8 @@ export function mergeChunks(
   maxGap = 65536
 ): { beginOffset: VirtualOffset; endOffset: VirtualOffset }[] {
   // Tiger Style: Assert function arguments
-  console.assert(Array.isArray(chunks), 'chunks must be an array');
-  console.assert(Number.isInteger(maxGap) && maxGap >= 0, 'maxGap must be non-negative integer');
+  console.assert(Array.isArray(chunks), "chunks must be an array");
+  console.assert(Number.isInteger(maxGap) && maxGap >= 0, "maxGap must be non-negative integer");
 
   if (chunks.length === 0) {
     return [];
@@ -574,7 +574,7 @@ export function mergeChunks(
   // Validate chunks are sorted
   for (let i = 1; i < chunks.length; i++) {
     if (chunks[i]!.beginOffset <= chunks[i - 1]!.beginOffset) {
-      throw new BamError(`Chunks must be sorted by beginOffset`, undefined, 'chunk_merge');
+      throw new BamError(`Chunks must be sorted by beginOffset`, undefined, "chunk_merge");
     }
   }
 
@@ -597,8 +597,8 @@ export function mergeChunks(
   merged.push(current);
 
   // Tiger Style: Assert result is valid
-  console.assert(merged.length <= chunks.length, 'merged chunks should not exceed original count');
-  console.assert(merged.length > 0, 'should have at least one merged chunk');
+  console.assert(merged.length <= chunks.length, "merged chunks should not exceed original count");
+  console.assert(merged.length > 0, "should have at least one merged chunk");
 
   return merged;
 }
@@ -620,19 +620,19 @@ export function estimateBAIMemoryUsage(
   // Tiger Style: Assert function arguments
   console.assert(
     Number.isInteger(referenceCount) && referenceCount >= 0,
-    'referenceCount must be non-negative integer'
+    "referenceCount must be non-negative integer"
   );
   console.assert(
     Number.isFinite(avgBinsPerRef) && avgBinsPerRef >= 0,
-    'avgBinsPerRef must be non-negative number'
+    "avgBinsPerRef must be non-negative number"
   );
   console.assert(
     Number.isFinite(avgChunksPerBin) && avgChunksPerBin >= 0,
-    'avgChunksPerBin must be non-negative number'
+    "avgChunksPerBin must be non-negative number"
   );
   console.assert(
     Number.isFinite(avgLinearIntervals) && avgLinearIntervals >= 0,
-    'avgLinearIntervals must be non-negative number'
+    "avgLinearIntervals must be non-negative number"
   );
 
   // Estimate per-reference costs
@@ -652,7 +652,7 @@ export function estimateBAIMemoryUsage(
   const totalMemory = referenceCount * memoryPerRef + 1024; // Base index object overhead
 
   // Tiger Style: Assert result is reasonable
-  console.assert(totalMemory >= 0, 'estimated memory must be non-negative');
+  console.assert(totalMemory >= 0, "estimated memory must be non-negative");
 
   return Math.ceil(totalMemory);
 }

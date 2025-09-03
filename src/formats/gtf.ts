@@ -15,8 +15,8 @@
  * - Missing attributes
  */
 
-import type { Strand, ParserOptions } from '../types';
-import { ValidationError, ParseError, GenotypeError } from '../errors';
+import type { Strand, ParserOptions } from "../types";
+import { ValidationError, ParseError, GenotypeError } from "../errors";
 
 // =============================================================================
 // TYPES AND INTERFACES
@@ -84,14 +84,14 @@ export function validateGtfCoordinates(
   if (start < 1) {
     return {
       valid: false,
-      error: 'Start coordinate must be >= 1 (GTF is 1-based)',
+      error: "Start coordinate must be >= 1 (GTF is 1-based)",
     };
   }
 
   if (end < start) {
     return {
       valid: false,
-      error: 'End coordinate must be >= start coordinate',
+      error: "End coordinate must be >= start coordinate",
     };
   }
 
@@ -104,12 +104,12 @@ export function validateGtfCoordinates(
 export function parseGtfAttributes(attributeString: string): Record<string, string> {
   const attributes: Record<string, string> = {};
 
-  if (!attributeString || attributeString.trim() === '') {
+  if (!attributeString || attributeString.trim() === "") {
     return attributes;
   }
 
   // Split by semicolon, handling quoted values
-  const parts = attributeString.split(';');
+  const parts = attributeString.split(";");
 
   for (const part of parts) {
     const trimmed = part.trim();
@@ -122,7 +122,7 @@ export function parseGtfAttributes(attributeString: string): Record<string, stri
     const key = match[1]?.trim();
     let value = match[2]?.trim();
 
-    if (key === undefined || key === '' || value === undefined || value === '') continue;
+    if (key === undefined || key === "" || value === undefined || value === "") continue;
 
     // Remove quotes if present
     if (value.startsWith('"') && value.endsWith('"')) {
@@ -142,14 +142,14 @@ export function parseGtfAttributes(attributeString: string): Record<string, stri
  * Validate strand annotation for GTF
  */
 export function validateGtfStrand(strand: string): strand is Strand {
-  return strand === '+' || strand === '-' || strand === '.';
+  return strand === "+" || strand === "-" || strand === ".";
 }
 
 /**
  * Parse score field (can be '.' for missing)
  */
 export function parseGtfScore(scoreStr: string): number | null {
-  if (scoreStr === '.' || scoreStr === '') {
+  if (scoreStr === "." || scoreStr === "") {
     return null;
   }
 
@@ -165,7 +165,7 @@ export function parseGtfScore(scoreStr: string): number | null {
  * Parse frame field (can be '.' for missing)
  */
 export function parseGtfFrame(frameStr: string): number | null {
-  if (frameStr === '.' || frameStr === '') {
+  if (frameStr === "." || frameStr === "") {
     return null;
   }
 
@@ -192,18 +192,18 @@ export class GtfParser {
       skipValidation: options.skipValidation ?? false,
       maxLineLength: options.maxLineLength ?? 1_000_000,
       trackLineNumbers: options.trackLineNumbers ?? true,
-      qualityEncoding: options.qualityEncoding ?? 'phred33',
+      qualityEncoding: options.qualityEncoding ?? "phred33",
       parseQualityScores: options.parseQualityScores ?? false,
       parseAttributeValues: options.parseAttributeValues ?? false,
       onError:
         options.onError ??
         ((error: string, lineNumber?: number): void => {
-          throw new ParseError(error, 'GTF', lineNumber);
+          throw new ParseError(error, "GTF", lineNumber);
         }),
       onWarning:
         options.onWarning ??
         ((warning: string, lineNumber?: number): void => {
-          console.warn(`GTF Warning (line ${lineNumber ?? 'unknown'}): ${warning}`);
+          console.warn(`GTF Warning (line ${lineNumber ?? "unknown"}): ${warning}`);
         }),
     };
 
@@ -232,23 +232,23 @@ export class GtfParser {
    */
   async *parseFile(
     filePath: string,
-    options?: import('../types').FileReaderOptions
+    options?: import("../types").FileReaderOptions
   ): AsyncIterable<GtfFeature> {
-    if (typeof filePath !== 'string' || filePath.length === 0) {
-      throw new ValidationError('filePath must be a non-empty string');
+    if (typeof filePath !== "string" || filePath.length === 0) {
+      throw new ValidationError("filePath must be a non-empty string");
     }
 
-    const { createStream } = await import('../io/file-reader');
-    const { StreamUtils } = await import('../io/stream-utils');
+    const { createStream } = await import("../io/file-reader");
+    const { StreamUtils } = await import("../io/stream-utils");
 
     try {
       const stream = await createStream(filePath, options);
-      const lines = StreamUtils.readLines(stream, options?.encoding || 'utf8');
+      const lines = StreamUtils.readLines(stream, options?.encoding || "utf8");
       yield* this.parseLinesFromAsyncIterable(lines);
     } catch (error) {
       throw new GenotypeError(
         `Failed to parse GTF file '${filePath}': ${error instanceof Error ? error.message : String(error)}`,
-        'GTF_PARSE_ERROR',
+        "GTF_PARSE_ERROR",
         undefined,
         undefined
       );
@@ -275,7 +275,7 @@ export class GtfParser {
       const trimmedLine = line.trim();
 
       // Skip empty lines and comments
-      if (!trimmedLine || trimmedLine.startsWith('#') || trimmedLine.startsWith('//')) {
+      if (!trimmedLine || trimmedLine.startsWith("#") || trimmedLine.startsWith("//")) {
         continue;
       }
 
@@ -297,12 +297,12 @@ export class GtfParser {
    * Parse a single GTF line into a feature
    */
   private parseLine(line: string, lineNumber: number): GtfFeature | null {
-    const fields = line.split('\t');
+    const fields = line.split("\t");
 
     if (fields.length !== 9) {
       throw new GenotypeError(
         `GTF format requires exactly 9 tab-separated fields, got ${fields.length}`,
-        'GTF_FIELD_COUNT_ERROR',
+        "GTF_FIELD_COUNT_ERROR",
         lineNumber
       );
     }
@@ -322,46 +322,46 @@ export class GtfParser {
     // Validate required fields
     if (
       seqname === undefined ||
-      seqname === '' ||
+      seqname === "" ||
       source === undefined ||
-      source === '' ||
+      source === "" ||
       feature === undefined ||
-      feature === '' ||
+      feature === "" ||
       startStr === undefined ||
-      startStr === '' ||
+      startStr === "" ||
       endStr === undefined ||
-      endStr === '' ||
+      endStr === "" ||
       strandStr === undefined ||
-      strandStr === ''
+      strandStr === ""
     ) {
-      throw new GenotypeError('Missing required GTF fields', 'GTF_MISSING_FIELDS', lineNumber);
+      throw new GenotypeError("Missing required GTF fields", "GTF_MISSING_FIELDS", lineNumber);
     }
 
     // Parse coordinates
-    const start = this.parseInteger(startStr, 'start', lineNumber);
-    const end = this.parseInteger(endStr, 'end', lineNumber);
+    const start = this.parseInteger(startStr, "start", lineNumber);
+    const end = this.parseInteger(endStr, "end", lineNumber);
 
     // Validate coordinates
     const coordValidation = validateGtfCoordinates(start, end);
     if (!coordValidation.valid) {
-      throw new GenotypeError(coordValidation.error!, 'GTF_COORDINATE_ERROR', lineNumber);
+      throw new GenotypeError(coordValidation.error!, "GTF_COORDINATE_ERROR", lineNumber);
     }
 
     // Parse optional fields
-    const score = scoreStr !== undefined && scoreStr !== '' ? parseGtfScore(scoreStr) : null;
-    const frame = frameStr !== undefined && frameStr !== '' ? parseGtfFrame(frameStr) : null;
+    const score = scoreStr !== undefined && scoreStr !== "" ? parseGtfScore(scoreStr) : null;
+    const frame = frameStr !== undefined && frameStr !== "" ? parseGtfFrame(frameStr) : null;
 
     // Validate strand
     if (validateGtfStrand(strandStr) === false) {
       throw new GenotypeError(
         `Invalid strand '${strandStr}', must be '+', '-', or '.'`,
-        'GTF_STRAND_ERROR',
+        "GTF_STRAND_ERROR",
         lineNumber
       );
     }
 
     // Parse attributes
-    const attributes = parseGtfAttributes(attributeStr !== undefined ? attributeStr : '');
+    const attributes = parseGtfAttributes(attributeStr !== undefined ? attributeStr : "");
 
     // Check required attributes
     if (this.options.requiredAttributes) {
@@ -369,7 +369,7 @@ export class GtfParser {
         if (!(required in attributes)) {
           throw new GenotypeError(
             `Required attribute '${required}' not found`,
-            'GTF_MISSING_ATTRIBUTE',
+            "GTF_MISSING_ATTRIBUTE",
             lineNumber
           );
         }
@@ -401,7 +401,7 @@ export class GtfParser {
     if (isNaN(parsed)) {
       throw new GenotypeError(
         `Invalid ${fieldName}: '${value}' is not a valid integer`,
-        'GTF_INVALID_INTEGER',
+        "GTF_INVALID_INTEGER",
         lineNumber
       );
     }
@@ -443,7 +443,7 @@ export class GtfParser {
         const line = rawLine.trim();
 
         // Skip empty lines and comments
-        if (!line || line.startsWith('#') || line.startsWith('//')) {
+        if (!line || line.startsWith("#") || line.startsWith("//")) {
           continue;
         }
 
@@ -469,7 +469,7 @@ export class GtfParser {
     } catch (error) {
       throw new GenotypeError(
         `GTF parsing failed at line ${lineNumber}: ${error instanceof Error ? error.message : String(error)}`,
-        'GTF_PARSE_ERROR',
+        "GTF_PARSE_ERROR",
         lineNumber
       );
     }
@@ -494,13 +494,13 @@ export class GtfWriter {
       feature.feature,
       feature.start.toString(),
       feature.end.toString(),
-      feature.score !== null ? feature.score.toString() : '.',
+      feature.score !== null ? feature.score.toString() : ".",
       feature.strand,
-      feature.frame !== null ? feature.frame.toString() : '.',
+      feature.frame !== null ? feature.frame.toString() : ".",
       this.formatAttributes(feature.attributes),
     ];
 
-    return fields.join('\t');
+    return fields.join("\t");
   }
 
   /**
@@ -515,14 +515,14 @@ export class GtfWriter {
       parts.push(`${key} ${quotedValue}`);
     }
 
-    return parts.join('; ') + (parts.length > 0 ? ';' : '');
+    return parts.join("; ") + (parts.length > 0 ? ";" : "");
   }
 
   /**
    * Format multiple features as string
    */
   formatFeatures(features: GtfFeature[]): string {
-    return features.map((feature) => this.formatFeature(feature)).join('\n');
+    return features.map((feature) => this.formatFeature(feature)).join("\n");
   }
 
   /**
@@ -537,7 +537,7 @@ export class GtfWriter {
 
     try {
       for await (const feature of features) {
-        const formatted = this.formatFeature(feature) + '\n';
+        const formatted = this.formatFeature(feature) + "\n";
         await writer.write(encoder.encode(formatted));
       }
     } finally {
@@ -557,7 +557,7 @@ export function detectGtfFormat(data: string): boolean {
   const trimmed = data.trim();
   const lines = trimmed.split(/\r?\n/).filter((line) => {
     const trimmed = line.trim();
-    return trimmed !== '' && !line.startsWith('#') && !line.startsWith('//');
+    return trimmed !== "" && !line.startsWith("#") && !line.startsWith("//");
   });
 
   if (lines.length === 0) return false;
@@ -565,21 +565,21 @@ export function detectGtfFormat(data: string): boolean {
   // Check first few data lines
   for (let i = 0; i < Math.min(3, lines.length); i++) {
     const line = lines[i];
-    if (line === undefined || line === '') return false;
+    if (line === undefined || line === "") return false;
 
-    const fields = line.split('\t');
+    const fields = line.split("\t");
     if (fields.length !== 9) return false;
 
     // Check if coordinates are valid integers
-    const start = parseInt(fields[3] !== undefined ? fields[3] : '', 10);
-    const end = parseInt(fields[4] !== undefined ? fields[4] : '', 10);
+    const start = parseInt(fields[3] !== undefined ? fields[3] : "", 10);
+    const end = parseInt(fields[4] !== undefined ? fields[4] : "", 10);
     if (isNaN(start) || isNaN(end) || start < 1 || end < start) {
       return false;
     }
 
     // Check strand
     const strand = fields[6];
-    if (strand === undefined || strand === '' || validateGtfStrand(strand) === false) {
+    if (strand === undefined || strand === "" || validateGtfStrand(strand) === false) {
       return false;
     }
   }
@@ -593,7 +593,7 @@ export function detectGtfFormat(data: string): boolean {
 export function countGtfFeatures(data: string): number {
   return data.split(/\r?\n/).filter((line) => {
     const trimmed = line.trim();
-    return trimmed !== '' && !trimmed.startsWith('#') && !trimmed.startsWith('//');
+    return trimmed !== "" && !trimmed.startsWith("#") && !trimmed.startsWith("//");
   }).length;
 }
 

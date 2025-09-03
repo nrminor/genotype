@@ -18,7 +18,7 @@
  *   bun run examples/seqkit-fq2fa.ts raw.fastq --trim --min-length 50 --validate
  */
 
-import { FastqParser, seqops } from '../src';
+import { FastqParser, seqops } from "../src";
 
 interface Fq2FaOptions {
   output?: string;
@@ -41,9 +41,9 @@ interface Fq2FaOptions {
 function parseArguments(): { inputFile: string; options: Fq2FaOptions } {
   const args = process.argv.slice(2);
 
-  if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
+  if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
     showHelp();
-    process.exit(args.includes('--help') || args.includes('-h') ? 0 : 1);
+    process.exit(args.includes("--help") || args.includes("-h") ? 0 : 1);
   }
 
   const inputFile = args[0];
@@ -54,8 +54,8 @@ function parseArguments(): { inputFile: string; options: Fq2FaOptions } {
     const nextArg = args[i + 1];
 
     switch (arg) {
-      case '--output':
-      case '-o':
+      case "--output":
+      case "-o":
         if (!nextArg) {
           console.error(`Error: ${arg} requires an output file path`);
           process.exit(1);
@@ -64,11 +64,11 @@ function parseArguments(): { inputFile: string; options: Fq2FaOptions } {
         i++;
         break;
 
-      case '--quality-filter':
+      case "--quality-filter":
         options.qualityFilter = true;
         break;
 
-      case '--min-quality':
+      case "--min-quality":
         if (!nextArg || isNaN(Number(nextArg))) {
           console.error(`Error: ${arg} requires a numeric quality score`);
           process.exit(1);
@@ -78,11 +78,11 @@ function parseArguments(): { inputFile: string; options: Fq2FaOptions } {
         i++;
         break;
 
-      case '--trim':
+      case "--trim":
         options.trim = true;
         break;
 
-      case '--trim-threshold':
+      case "--trim-threshold":
         if (!nextArg || isNaN(Number(nextArg))) {
           console.error(`Error: ${arg} requires a numeric quality threshold`);
           process.exit(1);
@@ -92,19 +92,19 @@ function parseArguments(): { inputFile: string; options: Fq2FaOptions } {
         i++;
         break;
 
-      case '--clean':
+      case "--clean":
         options.clean = true;
         break;
 
-      case '--remove-gaps':
+      case "--remove-gaps":
         options.removeGaps = true;
         break;
 
-      case '--replace-ambiguous':
+      case "--replace-ambiguous":
         options.replaceAmbiguous = true;
         break;
 
-      case '--min-length':
+      case "--min-length":
         if (!nextArg || isNaN(Number(nextArg))) {
           console.error(`Error: ${arg} requires a numeric length`);
           process.exit(1);
@@ -113,7 +113,7 @@ function parseArguments(): { inputFile: string; options: Fq2FaOptions } {
         i++;
         break;
 
-      case '--max-length':
+      case "--max-length":
         if (!nextArg || isNaN(Number(nextArg))) {
           console.error(`Error: ${arg} requires a numeric length`);
           process.exit(1);
@@ -122,23 +122,23 @@ function parseArguments(): { inputFile: string; options: Fq2FaOptions } {
         i++;
         break;
 
-      case '--validate':
+      case "--validate":
         options.validate = true;
         break;
 
-      case '--preserve-description':
+      case "--preserve-description":
         options.preserveDescription = true;
         break;
 
-      case '--add-quality-info':
+      case "--add-quality-info":
         options.addQualityInfo = true;
         break;
 
-      case '--stats':
+      case "--stats":
         options.stats = true;
         break;
 
-      case '--skip-empty':
+      case "--skip-empty":
         options.skipEmptySequences = true;
         break;
 
@@ -229,8 +229,8 @@ Quality Metrics Included:
 `);
 }
 
-function calculateAverageQuality(quality: string, encoding: 'phred33' | 'phred64'): number {
-  const offset = encoding === 'phred33' ? 33 : 64;
+function calculateAverageQuality(quality: string, encoding: "phred33" | "phred64"): number {
+  const offset = encoding === "phred33" ? 33 : 64;
   let totalScore = 0;
 
   for (let i = 0; i < quality.length; i++) {
@@ -267,7 +267,7 @@ async function main(): Promise<void> {
 
     // Step 1: Quality operations
     if (options.qualityFilter || options.trim || options.minQuality !== undefined) {
-      appliedOperations.push('quality control');
+      appliedOperations.push("quality control");
       pipeline = pipeline.quality({
         ...(options.minQuality !== undefined && {
           minScore: options.minQuality,
@@ -278,17 +278,17 @@ async function main(): Promise<void> {
           trimWindow: 4,
         }),
       });
-      console.error(`   ✓ Quality filtering enabled (min score: ${options.minQuality || 'auto'})`);
+      console.error(`   ✓ Quality filtering enabled (min score: ${options.minQuality || "auto"})`);
     }
 
     // Step 2: Sequence cleaning
     if (options.clean || options.removeGaps || options.replaceAmbiguous) {
-      appliedOperations.push('cleaning');
+      appliedOperations.push("cleaning");
       pipeline = pipeline.clean({
         ...(options.removeGaps && { removeGaps: true }),
         ...(options.replaceAmbiguous && {
           replaceAmbiguous: true,
-          replaceChar: 'N',
+          replaceChar: "N",
         }),
       });
       console.error(`   ✓ Sequence cleaning enabled`);
@@ -296,7 +296,7 @@ async function main(): Promise<void> {
 
     // Step 3: Length filtering
     if (options.minLength !== undefined || options.maxLength !== undefined) {
-      appliedOperations.push('length filtering');
+      appliedOperations.push("length filtering");
       pipeline = pipeline.filter({
         ...(options.minLength !== undefined && {
           minLength: options.minLength,
@@ -306,16 +306,16 @@ async function main(): Promise<void> {
         }),
       });
       console.error(
-        `   ✓ Length filtering: ${options.minLength || 0}-${options.maxLength || '∞'} bp`
+        `   ✓ Length filtering: ${options.minLength || 0}-${options.maxLength || "∞"} bp`
       );
     }
 
     // Step 4: Validation
     if (options.validate) {
-      appliedOperations.push('validation');
+      appliedOperations.push("validation");
       pipeline = pipeline.validate({
-        mode: 'normal',
-        action: 'reject',
+        mode: "normal",
+        action: "reject",
       });
       console.error(`   ✓ Sequence validation enabled`);
     }
@@ -341,10 +341,10 @@ async function main(): Promise<void> {
 
     for await (const seq of pipeline) {
       // Count input statistics from original FASTQ if available
-      if ('quality' in seq) {
+      if ("quality" in seq) {
         const avgQuality = calculateAverageQuality(
           seq.quality as string,
-          (seq.qualityEncoding as 'phred33' | 'phred64') || 'phred33'
+          (seq.qualityEncoding as "phred33" | "phred64") || "phred33"
         );
         totalQualitySum += avgQuality;
         qualityCount++;
@@ -361,10 +361,10 @@ async function main(): Promise<void> {
         header += ` ${seq.description}`;
       }
 
-      if (options.addQualityInfo && 'quality' in seq) {
+      if (options.addQualityInfo && "quality" in seq) {
         const avgQuality = calculateAverageQuality(
           seq.quality as string,
-          (seq.qualityEncoding as 'phred33' | 'phred64') || 'phred33'
+          (seq.qualityEncoding as "phred33" | "phred64") || "phred33"
         );
         header += ` avgQ=${avgQuality.toFixed(1)}`;
       }
@@ -422,7 +422,7 @@ async function main(): Promise<void> {
       }
 
       if (appliedOperations.length > 0) {
-        console.error(`   Pipeline: ${appliedOperations.join(' → ')}`);
+        console.error(`   Pipeline: ${appliedOperations.join(" → ")}`);
       }
     }
 
@@ -460,13 +460,13 @@ async function main(): Promise<void> {
     }
   } catch (error) {
     if (error instanceof Error) {
-      if (error.message.includes('ENOENT')) {
+      if (error.message.includes("ENOENT")) {
         console.error(`Error: Input file '${inputFile}' not found`);
         console.error(`Check that the file exists and the path is correct.`);
-      } else if (error.message.includes('not a valid FASTQ')) {
+      } else if (error.message.includes("not a valid FASTQ")) {
         console.error(`Error: File '${inputFile}' is not a valid FASTQ file`);
         console.error(`Ensure the file is in FASTQ format with proper structure.`);
-      } else if (error.message.includes('quality encoding')) {
+      } else if (error.message.includes("quality encoding")) {
         console.error(`Error: Could not detect quality score encoding`);
         console.error(`File may be corrupted or have mixed encodings.`);
       } else {

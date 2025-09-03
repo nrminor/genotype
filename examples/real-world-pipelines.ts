@@ -7,10 +7,10 @@
  * for common bioinformatics tasks using the SeqOps library.
  */
 
-import { promises as fs } from 'fs';
-import { FastqParser } from '../src/formats/fastq';
-import { seqops } from '../src/operations';
-import type { AbstractSequence } from '../src/types';
+import { promises as fs } from "fs";
+import { FastqParser } from "../src/formats/fastq";
+import { seqops } from "../src/operations";
+import type { AbstractSequence } from "../src/types";
 
 // ============================================================================
 // Pipeline 1: Illumina Read Quality Control
@@ -24,12 +24,12 @@ import type { AbstractSequence } from '../src/types';
  * - Generates QC statistics
  */
 async function illuminaQualityControl(inputFile: string, outputFile: string) {
-  console.log('\n📊 Pipeline 1: Illumina Read Quality Control\n');
+  console.log("\n📊 Pipeline 1: Illumina Read Quality Control\n");
   console.log(`Processing: ${inputFile}`);
 
   // Parse FASTQ file
   const parser = new FastqParser();
-  const fileContent = await fs.readFile(inputFile, 'utf-8');
+  const fileContent = await fs.readFile(inputFile, "utf-8");
   const reads = parser.parseString(fileContent);
 
   // QC Pipeline
@@ -40,7 +40,7 @@ async function illuminaQualityControl(inputFile: string, outputFile: string) {
     // Step 2: Clean sequences
     .clean({
       replaceAmbiguous: true, // Replace N bases
-      replaceChar: 'A', // With A (arbitrary but deterministic)
+      replaceChar: "A", // With A (arbitrary but deterministic)
       trimWhitespace: true, // Clean up any formatting issues
     })
 
@@ -49,14 +49,14 @@ async function illuminaQualityControl(inputFile: string, outputFile: string) {
 
     // Step 4: Validate sequences
     .validate({
-      mode: 'normal',
-      action: 'reject', // Remove invalid sequences
+      mode: "normal",
+      action: "reject", // Remove invalid sequences
     })
 
     // Get statistics before writing
     .stats({ detailed: true });
 
-  console.log('\nQC Statistics:');
+  console.log("\nQC Statistics:");
   console.log(`  Total sequences: ${qcStats.numSequences}`);
   console.log(`  Average length: ${qcStats.avgLength.toFixed(1)} bp`);
   console.log(`  N50: ${qcStats.n50} bp`);
@@ -67,9 +67,9 @@ async function illuminaQualityControl(inputFile: string, outputFile: string) {
   // Write cleaned reads
   await seqops(reads)
     .quality({ minScore: 20 })
-    .clean({ replaceAmbiguous: true, replaceChar: 'A', trimWhitespace: true })
+    .clean({ replaceAmbiguous: true, replaceChar: "A", trimWhitespace: true })
     .filter({ minLength: 35, maxLength: 151 })
-    .validate({ mode: 'normal', action: 'reject' })
+    .validate({ mode: "normal", action: "reject" })
     .writeFastq(outputFile);
 
   console.log(`\n✅ Cleaned reads written to: ${outputFile}`);
@@ -86,29 +86,29 @@ async function illuminaQualityControl(inputFile: string, outputFile: string) {
  * - Generate assembly-ready sequences
  */
 async function genomeAssemblyPrep() {
-  console.log('\n🧬 Pipeline 2: Genome Assembly Preprocessing\n');
+  console.log("\n🧬 Pipeline 2: Genome Assembly Preprocessing\n");
 
   // Simulated long reads for demo
   const longReads = async function* (): AsyncIterable<AbstractSequence> {
     // Simulate PacBio/Nanopore long reads
     yield {
-      id: 'read_001',
-      sequence: 'ATCGATCG'.repeat(500) + 'NNNN' + 'GCTAGCTA'.repeat(300),
+      id: "read_001",
+      sequence: "ATCGATCG".repeat(500) + "NNNN" + "GCTAGCTA".repeat(300),
       length: 6400,
     };
     yield {
-      id: 'read_002',
-      sequence: 'GGCCAATT'.repeat(100), // Short contaminant
+      id: "read_002",
+      sequence: "GGCCAATT".repeat(100), // Short contaminant
       length: 800,
     };
     yield {
-      id: 'read_003',
-      sequence: 'ATCGATCG'.repeat(1000) + 'AAAAAAAAAAAA', // Poly-A tail
+      id: "read_003",
+      sequence: "ATCGATCG".repeat(1000) + "AAAAAAAAAAAA", // Poly-A tail
       length: 8012,
     };
     yield {
-      id: 'read_004',
-      sequence: 'GCGCGCGC'.repeat(750),
+      id: "read_004",
+      sequence: "GCGCGCGC".repeat(750),
       length: 6000,
     };
   };
@@ -120,7 +120,7 @@ async function genomeAssemblyPrep() {
     // Step 2: Remove low-complexity sequences
     .filter((seq) => {
       // Check for sequence complexity (simple entropy check)
-      const bases = new Set(seq.sequence.split(''));
+      const bases = new Set(seq.sequence.split(""));
       return bases.size > 2; // Must have more than 2 different bases
     })
 
@@ -128,7 +128,7 @@ async function genomeAssemblyPrep() {
     .clean({
       removeGaps: true,
       replaceAmbiguous: true,
-      replaceChar: 'N', // Standard for assembly
+      replaceChar: "N", // Standard for assembly
     })
 
     // Step 4: Transform to uppercase (standard for assemblers)
@@ -137,7 +137,7 @@ async function genomeAssemblyPrep() {
     // Collect results
     .collect();
 
-  console.log('Assembly-ready sequences:');
+  console.log("Assembly-ready sequences:");
   for (const read of assemblyReady) {
     const gcContent = (((read.sequence.match(/[GC]/g) || []).length / read.length) * 100).toFixed(
       1
@@ -159,23 +159,23 @@ async function genomeAssemblyPrep() {
  * - Check for secondary structures
  */
 async function primerDesignPipeline() {
-  console.log('\n🔬 Pipeline 3: Primer/Probe Design Pipeline\n');
+  console.log("\n🔬 Pipeline 3: Primer/Probe Design Pipeline\n");
 
   // Target sequences (e.g., genes of interest)
   const targetGenes = async function* (): AsyncIterable<AbstractSequence> {
     yield {
-      id: 'BRCA1_exon11',
-      sequence: 'ATCGATCGATCGCGCGCGCGATCGATCGATCGCGCGCGCGATCGATCGATCG',
+      id: "BRCA1_exon11",
+      sequence: "ATCGATCGATCGCGCGCGCGATCGATCGATCGCGCGCGCGATCGATCGATCG",
       length: 52,
     };
     yield {
-      id: 'BRCA2_exon10',
-      sequence: 'GGCCGGCCGGCCAATTAATTGGCCGGCCGGCCAATTAATTGGCC',
+      id: "BRCA2_exon10",
+      sequence: "GGCCGGCCGGCCAATTAATTGGCCGGCCGGCCAATTAATTGGCC",
       length: 44,
     };
     yield {
-      id: 'TP53_exon5',
-      sequence: 'ATATATATATGCGCGCGCGCATATATATATATGCGCGCGCGCAT',
+      id: "TP53_exon5",
+      sequence: "ATATATATATGCGCGCGCGCATATATATATATGCGCGCGCGCAT",
       length: 44,
     };
   };
@@ -189,9 +189,9 @@ async function primerDesignPipeline() {
 
     // Step 3: Ensure no ambiguous bases
     .validate({
-      mode: 'strict',
+      mode: "strict",
       allowAmbiguous: false,
-      action: 'reject',
+      action: "reject",
     })
 
     // Step 4: Convert to uppercase
@@ -199,7 +199,7 @@ async function primerDesignPipeline() {
 
     .collect();
 
-  console.log('Primer design candidates:');
+  console.log("Primer design candidates:");
   for (const candidate of primerCandidates) {
     const gcContent = (
       ((candidate.sequence.match(/[GC]/g) || []).length / candidate.length) *
@@ -233,26 +233,26 @@ function calculateMeltingTemp(sequence: string): number {
  * - Prepare for alignment
  */
 async function comparativeGenomics() {
-  console.log('\n🔄 Pipeline 4: Comparative Genomics Pipeline\n');
+  console.log("\n🔄 Pipeline 4: Comparative Genomics Pipeline\n");
 
   // Orthologous sequences from different species
   const orthologs = async function* (): AsyncIterable<AbstractSequence> {
     yield {
-      id: 'human_GAPDH',
-      description: 'Homo sapiens GAPDH',
-      sequence: 'atcgatcgatcgATCGATCGatcgatcg',
+      id: "human_GAPDH",
+      description: "Homo sapiens GAPDH",
+      sequence: "atcgatcgatcgATCGATCGatcgatcg",
       length: 28,
     };
     yield {
-      id: 'mouse_GAPDH',
-      description: 'Mus musculus GAPDH',
-      sequence: 'atcgatcgatcgATCGATCGatcgatcg',
+      id: "mouse_GAPDH",
+      description: "Mus musculus GAPDH",
+      sequence: "atcgatcgatcgATCGATCGatcgatcg",
       length: 28,
     };
     yield {
-      id: 'rat_GAPDH',
-      description: 'Rattus norvegicus GAPDH',
-      sequence: 'atcgatcgatcgATCGATCGatcgatca', // Slight variation
+      id: "rat_GAPDH",
+      description: "Rattus norvegicus GAPDH",
+      sequence: "atcgatcgatcgATCGATCGatcgatca", // Slight variation
       length: 28,
     };
   };
@@ -269,16 +269,16 @@ async function comparativeGenomics() {
 
     // Step 3: Validate
     .validate({
-      mode: 'normal',
+      mode: "normal",
       allowRNA: false, // DNA only
-      action: 'reject',
+      action: "reject",
     })
 
     // Step 4: Add species prefix for clarity
     // Note: annotate() not yet implemented, using transform as workaround
     .collect();
 
-  console.log('Sequences ready for multiple alignment:');
+  console.log("Sequences ready for multiple alignment:");
   for (const seq of alignmentReady) {
     console.log(`  ${seq.id}: ${seq.sequence}`);
     if (seq.description) {
@@ -287,7 +287,7 @@ async function comparativeGenomics() {
   }
 
   // Calculate pairwise similarity
-  console.log('\nPairwise similarities:');
+  console.log("\nPairwise similarities:");
   for (let i = 0; i < alignmentReady.length; i++) {
     for (let j = i + 1; j < alignmentReady.length; j++) {
       const seq1 = alignmentReady[i];
@@ -319,28 +319,28 @@ function calculateSimilarity(seq1: string, seq2: string): number {
  * - Format for annotation tools
  */
 async function bacterialGenomePrep() {
-  console.log('\n🦠 Pipeline 5: Bacterial Genome Annotation Prep\n');
+  console.log("\n🦠 Pipeline 5: Bacterial Genome Annotation Prep\n");
 
   // Simulated bacterial genome contigs
   const contigs = async function* (): AsyncIterable<AbstractSequence> {
     yield {
-      id: 'contig_001',
-      sequence: 'ATCGATCG'.repeat(1250), // 10kb contig
+      id: "contig_001",
+      sequence: "ATCGATCG".repeat(1250), // 10kb contig
       length: 10000,
     };
     yield {
-      id: 'contig_002',
-      sequence: 'NNNNNNNN'.repeat(10), // Low quality contig
+      id: "contig_002",
+      sequence: "NNNNNNNN".repeat(10), // Low quality contig
       length: 80,
     };
     yield {
-      id: 'contig_003',
-      sequence: 'GCGCGCGC'.repeat(625), // 5kb contig
+      id: "contig_003",
+      sequence: "GCGCGCGC".repeat(625), // 5kb contig
       length: 5000,
     };
     yield {
-      id: 'contig_004',
-      sequence: 'AAAAAAAA'.repeat(50), // Low complexity
+      id: "contig_004",
+      sequence: "AAAAAAAA".repeat(50), // Low complexity
       length: 400,
     };
   };
@@ -360,17 +360,17 @@ async function bacterialGenomePrep() {
     // Step 3: Check for complexity
     .filter((seq) => {
       // Simple complexity check
-      const uniqueBases = new Set(seq.sequence.substring(0, 100).split(''));
+      const uniqueBases = new Set(seq.sequence.substring(0, 100).split(""));
       return uniqueBases.size >= 3; // At least 3 different bases
     })
 
     // Step 4: Standardize for annotation
     .transform({ upperCase: true })
-    .validate({ mode: 'normal', action: 'fix', fixChar: 'N' })
+    .validate({ mode: "normal", action: "fix", fixChar: "N" })
 
     .collect();
 
-  console.log('Contigs ready for annotation:');
+  console.log("Contigs ready for annotation:");
   for (const contig of annotationReady) {
     const gcContent = (
       ((contig.sequence.match(/[GC]/g) || []).length / contig.length) *
@@ -387,10 +387,10 @@ async function bacterialGenomePrep() {
 // ============================================================================
 
 async function main() {
-  console.log('================================================');
-  console.log('    Real-World Bioinformatics Pipelines        ');
-  console.log('             Using SeqOps Library               ');
-  console.log('================================================');
+  console.log("================================================");
+  console.log("    Real-World Bioinformatics Pipelines        ");
+  console.log("             Using SeqOps Library               ");
+  console.log("================================================");
 
   try {
     // Note: Some pipelines are demonstrations with generated data
@@ -412,18 +412,18 @@ async function main() {
     // Uncomment to run with real data:
     // await illuminaQualityControl('input.fastq', 'output_clean.fastq');
 
-    console.log('\n================================================');
-    console.log('         All Pipelines Complete!                ');
-    console.log('================================================\n');
+    console.log("\n================================================");
+    console.log("         All Pipelines Complete!                ");
+    console.log("================================================\n");
 
-    console.log('These pipelines demonstrate:');
-    console.log('  ✓ Quality control and filtering');
-    console.log('  ✓ Sequence transformation and cleaning');
-    console.log('  ✓ Format conversion and validation');
-    console.log('  ✓ Statistical analysis');
-    console.log('  ✓ Real-world bioinformatics workflows\n');
+    console.log("These pipelines demonstrate:");
+    console.log("  ✓ Quality control and filtering");
+    console.log("  ✓ Sequence transformation and cleaning");
+    console.log("  ✓ Format conversion and validation");
+    console.log("  ✓ Statistical analysis");
+    console.log("  ✓ Real-world bioinformatics workflows\n");
   } catch (error) {
-    console.error('Error in pipeline:', error);
+    console.error("Error in pipeline:", error);
     process.exit(1);
   }
 }

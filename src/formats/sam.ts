@@ -11,7 +11,7 @@
  * - Streaming architecture for memory efficiency
  */
 
-import { type } from 'arktype';
+import { type } from "arktype";
 import type {
   SAMAlignment,
   SAMHeader,
@@ -20,7 +20,7 @@ import type {
   CIGARString,
   MAPQScore,
   ParserOptions,
-} from '../types';
+} from "../types";
 import {
   SAMAlignmentSchema,
   SAMHeaderSchema,
@@ -28,8 +28,8 @@ import {
   CIGAROperationSchema,
   MAPQScoreSchema,
   SAMTagSchema,
-} from '../types';
-import { SamError, ValidationError } from '../errors';
+} from "../types";
+import { SamError, ValidationError } from "../errors";
 
 /**
  * Streaming SAM parser with comprehensive validation
@@ -69,14 +69,14 @@ export class SAMParser {
    */
   constructor(options: ParserOptions = {}) {
     // Tiger Style: Assert constructor arguments
-    if (typeof options !== 'object') {
-      throw new ValidationError('options must be an object');
+    if (typeof options !== "object") {
+      throw new ValidationError("options must be an object");
     }
     this.options = {
       skipValidation: false,
       maxLineLength: 10_000_000, // 10MB max line length for long reads
       trackLineNumbers: true,
-      qualityEncoding: 'phred33',
+      qualityEncoding: "phred33",
       parseQualityScores: false,
       onError: (error: string, lineNumber?: number): void => {
         throw new SamError(error, undefined, undefined, lineNumber);
@@ -97,8 +97,8 @@ export class SAMParser {
    */
   async *parseString(data: string): AsyncIterable<SAMAlignment | SAMHeader> {
     // Tiger Style: Assert function arguments
-    if (typeof data !== 'string') {
-      throw new ValidationError('data must be a string');
+    if (typeof data !== "string") {
+      throw new ValidationError("data must be a string");
     }
     const lines = data.split(/\r?\n/);
     yield* this.parseLines(lines);
@@ -124,22 +124,22 @@ export class SAMParser {
    */
   async *parseFile(
     filePath: string,
-    options?: import('../types').FileReaderOptions
+    options?: import("../types").FileReaderOptions
   ): AsyncIterable<SAMAlignment | SAMHeader> {
     // Tiger Style: Assert function arguments
-    if (typeof filePath !== 'string') {
-      throw new ValidationError('filePath must be a string');
+    if (typeof filePath !== "string") {
+      throw new ValidationError("filePath must be a string");
     }
     if (filePath.length === 0) {
-      throw new ValidationError('filePath must not be empty');
+      throw new ValidationError("filePath must not be empty");
     }
-    if (options && typeof options !== 'object') {
-      throw new ValidationError('options must be an object if provided');
+    if (options && typeof options !== "object") {
+      throw new ValidationError("options must be an object if provided");
     }
 
     // Import I/O modules dynamically to avoid circular dependencies
-    const { createStream } = await import('../io/file-reader');
-    const { StreamUtils } = await import('../io/stream-utils');
+    const { createStream } = await import("../io/file-reader");
+    const { StreamUtils } = await import("../io/stream-utils");
 
     try {
       // Validate file path and create stream
@@ -147,7 +147,7 @@ export class SAMParser {
       const stream = await createStream(validatedPath, options);
 
       // Convert binary stream to lines and parse
-      const lines = StreamUtils.readLines(stream, options?.encoding || 'utf8');
+      const lines = StreamUtils.readLines(stream, options?.encoding || "utf8");
       yield* this.parseLinesFromAsyncIterable(lines);
     } catch (error) {
       // Re-throw with enhanced context
@@ -155,7 +155,7 @@ export class SAMParser {
         throw new SamError(
           `Failed to parse SAM file '${filePath}': ${error.message}`,
           undefined,
-          'file',
+          "file",
           undefined,
           error.stack
         );
@@ -176,10 +176,10 @@ export class SAMParser {
   ): AsyncIterable<SAMAlignment | SAMHeader> {
     // Tiger Style: Assert function arguments
     if (!Array.isArray(lines)) {
-      throw new ValidationError('lines must be an array');
+      throw new ValidationError("lines must be an array");
     }
     if (!Number.isInteger(startLineNumber) || startLineNumber < 0) {
-      throw new ValidationError('startLineNumber must be non-negative integer');
+      throw new ValidationError("startLineNumber must be non-negative integer");
     }
 
     for (let i = 0; i < lines.length; i++) {
@@ -199,7 +199,7 @@ export class SAMParser {
       }
 
       try {
-        if (line.startsWith('@')) {
+        if (line.startsWith("@")) {
           // Header line
           yield this.parseHeader(line, currentLineNumber);
         } else {
@@ -230,14 +230,14 @@ export class SAMParser {
   }
 
   private validateHeaderInputs(headerLine: string, lineNumber: number): void {
-    if (typeof headerLine !== 'string') {
-      throw new ValidationError('headerLine must be a string');
+    if (typeof headerLine !== "string") {
+      throw new ValidationError("headerLine must be a string");
     }
-    if (!headerLine.startsWith('@')) {
+    if (!headerLine.startsWith("@")) {
       throw new ValidationError('headerLine must start with "@"');
     }
     if (!Number.isInteger(lineNumber) || lineNumber <= 0) {
-      throw new ValidationError('lineNumber must be positive integer');
+      throw new ValidationError("lineNumber must be positive integer");
     }
   }
 
@@ -245,20 +245,20 @@ export class SAMParser {
     headerLine: string,
     lineNumber: number
   ): {
-    headerType: 'HD' | 'SQ' | 'RG' | 'PG' | 'CO';
+    headerType: "HD" | "SQ" | "RG" | "PG" | "CO";
     parts: string[];
   } {
-    const parts = headerLine.slice(1).split('\t');
+    const parts = headerLine.slice(1).split("\t");
     if (parts.length === 0) {
-      throw new SamError('Empty header line', undefined, 'header', lineNumber, headerLine);
+      throw new SamError("Empty header line", undefined, "header", lineNumber, headerLine);
     }
 
-    const headerType = parts[0] as 'HD' | 'SQ' | 'RG' | 'PG' | 'CO';
-    if (!['HD', 'SQ', 'RG', 'PG', 'CO'].includes(headerType)) {
+    const headerType = parts[0] as "HD" | "SQ" | "RG" | "PG" | "CO";
+    if (!["HD", "SQ", "RG", "PG", "CO"].includes(headerType)) {
       throw new SamError(
         `Invalid header type: ${headerType}`,
         undefined,
-        'header',
+        "header",
         lineNumber,
         headerLine
       );
@@ -269,25 +269,25 @@ export class SAMParser {
 
   private parseHeaderFields(
     parts: string[],
-    headerType: 'HD' | 'SQ' | 'RG' | 'PG' | 'CO',
+    headerType: "HD" | "SQ" | "RG" | "PG" | "CO",
     lineNumber: number,
     headerLine: string
   ): Record<string, string> {
     const fields: Record<string, string> = {};
 
-    if (headerType === 'CO') {
-      fields.comment = parts.slice(1).join('\t');
+    if (headerType === "CO") {
+      fields.comment = parts.slice(1).join("\t");
       return fields;
     }
 
     for (let i = 1; i < parts.length; i++) {
       const field = parts[i]!;
-      const colonIndex = field.indexOf(':');
+      const colonIndex = field.indexOf(":");
       if (colonIndex === -1) {
         throw new SamError(
           `Invalid header field format: ${field}`,
           undefined,
-          'header',
+          "header",
           lineNumber,
           headerLine
         );
@@ -302,12 +302,12 @@ export class SAMParser {
   }
 
   private buildHeader(
-    headerType: 'HD' | 'SQ' | 'RG' | 'PG' | 'CO',
+    headerType: "HD" | "SQ" | "RG" | "PG" | "CO",
     fields: Record<string, string>,
     lineNumber: number
   ): SAMHeader {
     return {
-      format: 'sam-header',
+      format: "sam-header",
       type: headerType,
       fields,
       ...(this.options.trackLineNumbers && { lineNumber }),
@@ -325,7 +325,7 @@ export class SAMParser {
         throw new SamError(
           `Invalid SAM header: ${validation.summary}`,
           undefined,
-          'header',
+          "header",
           lineNumber,
           headerLine
         );
@@ -337,7 +337,7 @@ export class SAMParser {
       throw new SamError(
         `Header validation failed: ${error instanceof Error ? error.message : String(error)}`,
         undefined,
-        'header',
+        "header",
         lineNumber,
         headerLine
       );
@@ -349,17 +349,17 @@ export class SAMParser {
     lineNumber: number,
     headerLine: string
   ): void {
-    if (header.format !== 'sam-header') {
+    if (header.format !== "sam-header") {
       throw new SamError(
-        'result format must be sam-header',
+        "result format must be sam-header",
         undefined,
-        'header',
+        "header",
         lineNumber,
         headerLine
       );
     }
-    if (!['HD', 'SQ', 'RG', 'PG', 'CO'].includes(header.type)) {
-      throw new SamError('header type must be valid', undefined, 'header', lineNumber, headerLine);
+    if (!["HD", "SQ", "RG", "PG", "CO"].includes(header.type)) {
+      throw new SamError("header type must be valid", undefined, "header", lineNumber, headerLine);
     }
   }
 
@@ -379,24 +379,24 @@ export class SAMParser {
   }
 
   private validateAlignmentInputs(alignmentLine: string, lineNumber: number): void {
-    if (typeof alignmentLine !== 'string') {
-      throw new ValidationError('alignmentLine must be a string');
+    if (typeof alignmentLine !== "string") {
+      throw new ValidationError("alignmentLine must be a string");
     }
-    if (alignmentLine.startsWith('@')) {
+    if (alignmentLine.startsWith("@")) {
       throw new ValidationError('alignmentLine must not start with "@"');
     }
     if (!Number.isInteger(lineNumber) || lineNumber <= 0) {
-      throw new ValidationError('lineNumber must be positive integer');
+      throw new ValidationError("lineNumber must be positive integer");
     }
   }
 
   private parseAlignmentFields(alignmentLine: string, lineNumber: number): string[] {
-    const fields = alignmentLine.split('\t');
+    const fields = alignmentLine.split("\t");
     if (fields.length < 11) {
       throw new SamError(
         `Insufficient fields: expected 11, got ${fields.length}`,
-        fields[0] !== undefined && fields[0] !== null && fields[0] !== '' ? fields[0] : 'unknown',
-        'alignment',
+        fields[0] !== undefined && fields[0] !== null && fields[0] !== "" ? fields[0] : "unknown",
+        "alignment",
         lineNumber,
         alignmentLine
       );
@@ -406,7 +406,7 @@ export class SAMParser {
 
   private buildAlignmentFromFields(fields: string[], lineNumber: number): SAMAlignment {
     const qname = fields[0]!;
-    const alignmentLine = fields.join('\t');
+    const alignmentLine = fields.join("\t");
 
     // Parse mandatory fields
     const flag = this.parseFlag(fields[1]!, lineNumber);
@@ -426,7 +426,7 @@ export class SAMParser {
     const tags = fields.length > 11 ? this.parseTags(fields.slice(11), lineNumber) : undefined;
 
     return {
-      format: 'sam',
+      format: "sam",
       qname,
       flag,
       rname,
@@ -453,13 +453,13 @@ export class SAMParser {
     alignmentLine: string
   ): void {
     if (isNaN(pos) || pos < 0) {
-      throw new SamError(`Invalid position: ${fields[3]}`, qname, 'pos', lineNumber, alignmentLine);
+      throw new SamError(`Invalid position: ${fields[3]}`, qname, "pos", lineNumber, alignmentLine);
     }
     if (isNaN(pnext) || pnext < 0) {
       throw new SamError(
         `Invalid mate position: ${fields[7]}`,
         qname,
-        'pnext',
+        "pnext",
         lineNumber,
         alignmentLine
       );
@@ -468,7 +468,7 @@ export class SAMParser {
       throw new SamError(
         `Invalid template length: ${fields[8]}`,
         qname,
-        'tlen',
+        "tlen",
         lineNumber,
         alignmentLine
       );
@@ -490,7 +490,7 @@ export class SAMParser {
         throw new SamError(
           `Invalid SAM alignment: ${validation.summary}`,
           alignment.qname,
-          'alignment',
+          "alignment",
           lineNumber,
           alignmentLine
         );
@@ -502,7 +502,7 @@ export class SAMParser {
       throw new SamError(
         `Alignment validation failed: ${error instanceof Error ? error.message : String(error)}`,
         alignment.qname,
-        'alignment',
+        "alignment",
         lineNumber,
         alignmentLine
       );
@@ -516,23 +516,23 @@ export class SAMParser {
   ): void {
     const qname = alignment.qname;
 
-    if (alignment.format !== 'sam') {
+    if (alignment.format !== "sam") {
       throw new SamError(
-        'result format must be sam',
+        "result format must be sam",
         qname,
-        'alignment',
+        "alignment",
         lineNumber,
         alignmentLine
       );
     }
-    if (typeof alignment.qname !== 'string') {
-      throw new SamError('qname must be string', qname, 'alignment', lineNumber, alignmentLine);
+    if (typeof alignment.qname !== "string") {
+      throw new SamError("qname must be string", qname, "alignment", lineNumber, alignmentLine);
     }
     if (alignment.pos < 0) {
       throw new SamError(
-        'position must be non-negative',
+        "position must be non-negative",
         qname,
-        'alignment',
+        "alignment",
         lineNumber,
         alignmentLine
       );
@@ -547,26 +547,26 @@ export class SAMParser {
    */
   private parseFlag(flagStr: string, lineNumber: number): SAMFlag {
     // Tiger Style: Assert function arguments
-    if (typeof flagStr !== 'string') {
-      throw new ValidationError('flagStr must be a string');
+    if (typeof flagStr !== "string") {
+      throw new ValidationError("flagStr must be a string");
     }
     if (!Number.isInteger(lineNumber) || lineNumber <= 0) {
-      throw new ValidationError('lineNumber must be positive integer');
+      throw new ValidationError("lineNumber must be positive integer");
     }
 
     const flag = parseInt(flagStr);
     if (isNaN(flag)) {
-      throw new SamError(`Invalid FLAG: not a number: ${flagStr}`, undefined, 'flag', lineNumber);
+      throw new SamError(`Invalid FLAG: not a number: ${flagStr}`, undefined, "flag", lineNumber);
     }
 
     const result = SAMFlagSchema(flag);
-    if (typeof result === 'number') {
+    if (typeof result === "number") {
       return result;
     } else {
       const errorMessage = Array.isArray(result)
-        ? result.map((e) => e.message).join(', ')
+        ? result.map((e) => e.message).join(", ")
         : String(result);
-      throw new SamError(`Invalid FLAG: ${errorMessage}`, undefined, 'flag', lineNumber);
+      throw new SamError(`Invalid FLAG: ${errorMessage}`, undefined, "flag", lineNumber);
     }
   }
 
@@ -578,26 +578,26 @@ export class SAMParser {
    */
   private parseMAPQ(mapqStr: string, lineNumber: number): MAPQScore {
     // Tiger Style: Assert function arguments
-    if (typeof mapqStr !== 'string') {
-      throw new ValidationError('mapqStr must be a string');
+    if (typeof mapqStr !== "string") {
+      throw new ValidationError("mapqStr must be a string");
     }
     if (!Number.isInteger(lineNumber) || lineNumber <= 0) {
-      throw new ValidationError('lineNumber must be positive integer');
+      throw new ValidationError("lineNumber must be positive integer");
     }
 
     const mapq = parseInt(mapqStr);
     if (isNaN(mapq)) {
-      throw new SamError(`Invalid MAPQ: not a number: ${mapqStr}`, undefined, 'mapq', lineNumber);
+      throw new SamError(`Invalid MAPQ: not a number: ${mapqStr}`, undefined, "mapq", lineNumber);
     }
 
     const result = MAPQScoreSchema(mapq);
-    if (typeof result === 'number') {
+    if (typeof result === "number") {
       return result;
     } else {
       const errorMessage = Array.isArray(result)
-        ? result.map((e) => e.message).join(', ')
+        ? result.map((e) => e.message).join(", ")
         : String(result);
-      throw new SamError(`Invalid MAPQ: ${errorMessage}`, undefined, 'mapq', lineNumber);
+      throw new SamError(`Invalid MAPQ: ${errorMessage}`, undefined, "mapq", lineNumber);
     }
   }
 
@@ -609,26 +609,26 @@ export class SAMParser {
    */
   private parseCIGAR(cigarStr: string, lineNumber: number): CIGARString {
     // Tiger Style: Assert function arguments
-    if (typeof cigarStr !== 'string') {
-      throw new ValidationError('cigarStr must be a string');
+    if (typeof cigarStr !== "string") {
+      throw new ValidationError("cigarStr must be a string");
     }
     if (!Number.isInteger(lineNumber) || lineNumber <= 0) {
-      throw new ValidationError('lineNumber must be positive integer');
+      throw new ValidationError("lineNumber must be positive integer");
     }
 
     // Handle special case for unmapped reads
-    if (cigarStr === '*') {
+    if (cigarStr === "*") {
       return cigarStr as CIGARString;
     }
 
     const result = CIGAROperationSchema(cigarStr);
-    if (typeof result === 'string') {
+    if (typeof result === "string") {
       return result;
     } else {
       const errorMessage = Array.isArray(result)
-        ? result.map((e) => e.message).join(', ')
+        ? result.map((e) => e.message).join(", ")
         : String(result);
-      throw new SamError(`Invalid CIGAR: ${errorMessage}`, undefined, 'cigar', lineNumber);
+      throw new SamError(`Invalid CIGAR: ${errorMessage}`, undefined, "cigar", lineNumber);
     }
   }
 
@@ -654,32 +654,32 @@ export class SAMParser {
 
   private validateTagInputs(tagFields: string[], lineNumber: number): void {
     if (!Array.isArray(tagFields)) {
-      throw new ValidationError('tagFields must be an array');
+      throw new ValidationError("tagFields must be an array");
     }
     if (!Number.isInteger(lineNumber) || lineNumber <= 0) {
-      throw new ValidationError('lineNumber must be positive integer');
+      throw new ValidationError("lineNumber must be positive integer");
     }
   }
 
   private parseTagField(tagField: string, lineNumber: number): SAMTag {
-    const parts = tagField.split(':');
+    const parts = tagField.split(":");
     if (parts.length < 3) {
       throw new SamError(
         `Invalid tag format: ${tagField} (expected TAG:TYPE:VALUE)`,
         undefined,
-        'tag',
+        "tag",
         lineNumber
       );
     }
 
     const tag = parts[0];
-    const type = (parts[1] ?? '') as 'A' | 'i' | 'f' | 'Z' | 'H' | 'B';
-    const valueStr = parts.slice(2).join(':'); // Rejoin in case value contains colons
+    const type = (parts[1] ?? "") as "A" | "i" | "f" | "Z" | "H" | "B";
+    const valueStr = parts.slice(2).join(":"); // Rejoin in case value contains colons
 
     const value = this.parseTagValue(type, valueStr, tag, lineNumber);
     const samTag: SAMTag = {
-      tag: tag ?? '',
-      type: type as 'A' | 'i' | 'f' | 'Z' | 'H' | 'B',
+      tag: tag ?? "",
+      type: type as "A" | "i" | "f" | "Z" | "H" | "B",
       value,
     };
 
@@ -688,26 +688,26 @@ export class SAMParser {
   }
 
   private parseTagValue(
-    type: 'A' | 'i' | 'f' | 'Z' | 'H' | 'B',
+    type: "A" | "i" | "f" | "Z" | "H" | "B",
     valueStr: string,
     tag: string | undefined,
     lineNumber: number
   ): string | number {
     try {
       switch (type) {
-        case 'A':
-        case 'Z':
-        case 'H':
-        case 'B':
+        case "A":
+        case "Z":
+        case "H":
+        case "B":
           return valueStr;
-        case 'i': {
+        case "i": {
           const value = parseInt(valueStr);
           if (isNaN(value)) {
             throw new Error(`Invalid integer value: ${valueStr}`);
           }
           return value;
         }
-        case 'f': {
+        case "f": {
           const value = parseFloat(valueStr);
           if (isNaN(value)) {
             throw new Error(`Invalid float value: ${valueStr}`);
@@ -721,7 +721,7 @@ export class SAMParser {
       throw new SamError(
         `Invalid tag value for ${tag}: ${error instanceof Error ? error.message : String(error)}`,
         undefined,
-        'tag',
+        "tag",
         lineNumber
       );
     }
@@ -736,7 +736,7 @@ export class SAMParser {
       throw new SamError(
         `SAM tag must be 2 alphanumeric characters: ${samTag.tag}`,
         undefined,
-        'tag',
+        "tag",
         lineNumber
       );
     }
@@ -744,13 +744,13 @@ export class SAMParser {
 
   private assertTagPostconditions(tags: SAMTag[], tagFields: string[], lineNumber: number): void {
     if (!Array.isArray(tags)) {
-      throw new SamError('result must be an array', undefined, 'tag', lineNumber);
+      throw new SamError("result must be an array", undefined, "tag", lineNumber);
     }
     if (tags.length > tagFields.length) {
       throw new SamError(
-        'result length must not exceed input length',
+        "result length must not exceed input length",
         undefined,
-        'tag',
+        "tag",
         lineNumber
       );
     }
@@ -764,24 +764,24 @@ export class SAMParser {
    */
   private async validateFilePath(filePath: string): Promise<string> {
     // Tiger Style: Assert function arguments
-    if (typeof filePath !== 'string') {
-      throw new ValidationError('filePath must be a string');
+    if (typeof filePath !== "string") {
+      throw new ValidationError("filePath must be a string");
     }
     if (filePath.length === 0) {
-      throw new ValidationError('filePath must not be empty');
+      throw new ValidationError("filePath must not be empty");
     }
 
     // Import FileReader functions dynamically to avoid circular dependencies
-    const { exists, getMetadata } = await import('../io/file-reader');
+    const { exists, getMetadata } = await import("../io/file-reader");
 
     // Check if file exists and is readable
     if (!(await exists(filePath))) {
       throw new SamError(
         `SAM file not found or not accessible: ${filePath}`,
         undefined,
-        'file',
+        "file",
         undefined,
-        'Please check that the file exists and you have read permissions'
+        "Please check that the file exists and you have read permissions"
       );
     }
 
@@ -793,9 +793,9 @@ export class SAMParser {
         throw new SamError(
           `SAM file is not readable: ${filePath}`,
           undefined,
-          'file',
+          "file",
           undefined,
-          'Check file permissions'
+          "Check file permissions"
         );
       }
 
@@ -812,7 +812,7 @@ export class SAMParser {
       throw new SamError(
         `Failed to validate SAM file: ${error instanceof Error ? error.message : String(error)}`,
         undefined,
-        'file',
+        "file",
         undefined,
         filePath
       );
@@ -830,8 +830,8 @@ export class SAMParser {
     lines: AsyncIterable<string>
   ): AsyncIterable<SAMAlignment | SAMHeader> {
     // Tiger Style: Assert function arguments
-    if (typeof lines !== 'object' || !(Symbol.asyncIterator in lines)) {
-      throw new ValidationError('lines must be async iterable');
+    if (typeof lines !== "object" || !(Symbol.asyncIterator in lines)) {
+      throw new ValidationError("lines must be async iterable");
     }
 
     let lineNumber = 0;
@@ -854,7 +854,7 @@ export class SAMParser {
         }
 
         try {
-          if (line.startsWith('@')) {
+          if (line.startsWith("@")) {
             // Header line
             yield this.parseHeader(line, lineNumber);
           } else {
@@ -875,15 +875,15 @@ export class SAMParser {
       throw new SamError(
         `SAM parsing failed at line ${lineNumber}: ${error instanceof Error ? error.message : String(error)}`,
         undefined,
-        'parsing',
+        "parsing",
         lineNumber,
-        'Check file format and content'
+        "Check file format and content"
       );
     }
 
     // Tiger Style: Assert postconditions
     if (lineNumber < 0) {
-      throw new SamError('line number must be non-negative', undefined, 'parsing', lineNumber);
+      throw new SamError("line number must be non-negative", undefined, "parsing", lineNumber);
     }
   }
 }
@@ -946,8 +946,8 @@ export class SAMWriter {
     } = {}
   ) {
     // Tiger Style: Assert constructor arguments
-    if (typeof options !== 'object') {
-      throw new ValidationError('options must be an object');
+    if (typeof options !== "object") {
+      throw new ValidationError("options must be an object");
     }
 
     this.options = {
@@ -957,20 +957,20 @@ export class SAMWriter {
         options.onError ||
         ((error: string, record?: SAMAlignment | SAMHeader): void => {
           const recordInfo = record
-            ? (record as any).format === 'sam'
+            ? (record as any).format === "sam"
               ? (record as SAMAlignment).qname
               : (record as SAMHeader).type
-            : 'unknown';
+            : "unknown";
           throw new SamError(error, recordInfo, undefined, record?.lineNumber);
         }),
       onWarning:
         options.onWarning ||
         ((warning: string, record?: SAMAlignment | SAMHeader): void => {
           const recordInfo = record
-            ? (record as any).format === 'sam'
+            ? (record as any).format === "sam"
               ? (record as SAMAlignment).qname
               : (record as SAMHeader).type
-            : 'unknown';
+            : "unknown";
           console.warn(`SAM Writer Warning: ${warning} (record: ${recordInfo})`);
         }),
     };
@@ -992,7 +992,7 @@ export class SAMWriter {
   writeString(records: Array<SAMAlignment | SAMHeader>): string {
     // Tiger Style: Assert function arguments
     if (!Array.isArray(records)) {
-      throw new ValidationError('records must be an array');
+      throw new ValidationError("records must be an array");
     }
 
     const lines: string[] = [];
@@ -1001,9 +1001,9 @@ export class SAMWriter {
       const record = records[i];
 
       try {
-        if (record && record.format === 'sam-header') {
+        if (record && record.format === "sam-header") {
           lines.push(this.formatHeader(record as SAMHeader));
-        } else if (record && record.format === 'sam') {
+        } else if (record && record.format === "sam") {
           lines.push(this.formatAlignment(record as SAMAlignment));
         } else {
           this.options.onError(`Invalid record format: ${(record as any).format}`, record);
@@ -1016,10 +1016,10 @@ export class SAMWriter {
 
     // Tiger Style: Assert postconditions
     if (lines.length > records.length) {
-      throw new SamError('output lines should not exceed input records', undefined, 'writing');
+      throw new SamError("output lines should not exceed input records", undefined, "writing");
     }
 
-    return lines.join('\n');
+    return lines.join("\n");
   }
 
   /**
@@ -1038,20 +1038,20 @@ export class SAMWriter {
   async writeFile(
     filePath: string,
     records: Array<SAMAlignment | SAMHeader>,
-    options?: { encoding?: 'utf8' | 'binary'; mode?: number }
+    options?: { encoding?: "utf8" | "binary"; mode?: number }
   ): Promise<void> {
     // Tiger Style: Assert function arguments
-    if (typeof filePath !== 'string') {
-      throw new ValidationError('filePath must be a string');
+    if (typeof filePath !== "string") {
+      throw new ValidationError("filePath must be a string");
     }
     if (filePath.length === 0) {
-      throw new ValidationError('filePath must not be empty');
+      throw new ValidationError("filePath must not be empty");
     }
     if (!Array.isArray(records)) {
-      throw new ValidationError('records must be an array');
+      throw new ValidationError("records must be an array");
     }
-    if (options && typeof options !== 'object') {
-      throw new ValidationError('options must be an object if provided');
+    if (options && typeof options !== "object") {
+      throw new ValidationError("options must be an object if provided");
     }
 
     try {
@@ -1063,7 +1063,7 @@ export class SAMWriter {
       throw new SamError(
         `Failed to write SAM file '${filePath}': ${error instanceof Error ? error.message : String(error)}`,
         undefined,
-        'file',
+        "file",
         undefined,
         error instanceof Error ? error.stack : undefined
       );
@@ -1094,10 +1094,10 @@ export class SAMWriter {
   ): Promise<void> {
     // Tiger Style: Assert function arguments
     if (!(stream instanceof WritableStream)) {
-      throw new ValidationError('stream must be a WritableStream');
+      throw new ValidationError("stream must be a WritableStream");
     }
-    if (typeof records !== 'object' || !(Symbol.asyncIterator in records)) {
-      throw new ValidationError('records must be async iterable');
+    if (typeof records !== "object" || !(Symbol.asyncIterator in records)) {
+      throw new ValidationError("records must be async iterable");
     }
 
     const writer = stream.getWriter();
@@ -1108,16 +1108,16 @@ export class SAMWriter {
         let formattedLine: string;
 
         try {
-          if (record.format === 'sam-header') {
+          if (record.format === "sam-header") {
             formattedLine = this.formatHeader(record);
-          } else if (record.format === 'sam') {
+          } else if (record.format === "sam") {
             formattedLine = this.formatAlignment(record);
           } else {
             this.options.onError(`Invalid record format: ${(record as any).format}`, record);
             continue;
           }
 
-          await writer.write(encoder.encode(formattedLine + '\n'));
+          await writer.write(encoder.encode(formattedLine + "\n"));
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
           this.options.onError(`Failed to format record: ${errorMsg}`, record);
@@ -1136,11 +1136,11 @@ export class SAMWriter {
    */
   private formatHeader(header: SAMHeader): string {
     // Tiger Style: Assert function arguments
-    if (header === null || typeof header !== 'object') {
-      throw new ValidationError('header must be an object');
+    if (header === null || typeof header !== "object") {
+      throw new ValidationError("header must be an object");
     }
-    if (header.format !== 'sam-header') {
-      throw new ValidationError('header format must be sam-header');
+    if (header.format !== "sam-header") {
+      throw new ValidationError("header format must be sam-header");
     }
 
     // Validate header if validation is enabled
@@ -1151,7 +1151,7 @@ export class SAMWriter {
           throw new SamError(
             `Invalid SAM header: ${validation.summary}`,
             undefined,
-            'header',
+            "header",
             header.lineNumber
           );
         }
@@ -1162,7 +1162,7 @@ export class SAMWriter {
         throw new SamError(
           `Header validation failed: ${error instanceof Error ? error.message : String(error)}`,
           undefined,
-          'header',
+          "header",
           header.lineNumber
         );
       }
@@ -1171,38 +1171,38 @@ export class SAMWriter {
     let line = `@${header.type}`;
 
     // Format fields based on header type
-    if (header.type === 'CO') {
+    if (header.type === "CO") {
       // Comment headers store the entire comment in fields.comment
       if (
         header.fields.comment !== undefined &&
         header.fields.comment !== null &&
-        header.fields.comment !== ''
+        header.fields.comment !== ""
       ) {
         line += `\t${header.fields.comment}`;
       }
     } else {
       // Other headers have key:value pairs
       for (const [key, value] of Object.entries(header.fields)) {
-        if (value !== undefined && value !== '') {
+        if (value !== undefined && value !== "") {
           line += `\t${key}:${value}`;
         }
       }
     }
 
     // Tiger Style: Assert postconditions
-    if (!line.startsWith('@')) {
+    if (!line.startsWith("@")) {
       throw new SamError(
-        'formatted header must start with @',
+        "formatted header must start with @",
         undefined,
-        'header',
+        "header",
         header.lineNumber
       );
     }
     if (!line.includes(header.type)) {
       throw new SamError(
-        'formatted header must include type',
+        "formatted header must include type",
         undefined,
-        'header',
+        "header",
         header.lineNumber
       );
     }
@@ -1218,11 +1218,11 @@ export class SAMWriter {
    */
   private formatAlignment(alignment: SAMAlignment): string {
     // Tiger Style: Assert function arguments
-    if (alignment === null || typeof alignment !== 'object') {
-      throw new ValidationError('alignment must be an object');
+    if (alignment === null || typeof alignment !== "object") {
+      throw new ValidationError("alignment must be an object");
     }
-    if (alignment.format !== 'sam') {
-      throw new ValidationError('alignment format must be sam');
+    if (alignment.format !== "sam") {
+      throw new ValidationError("alignment format must be sam");
     }
 
     // Validate alignment if validation is enabled
@@ -1233,7 +1233,7 @@ export class SAMWriter {
           throw new SamError(
             `Invalid SAM alignment: ${validation.summary}`,
             alignment.qname,
-            'alignment',
+            "alignment",
             alignment.lineNumber
           );
         }
@@ -1244,7 +1244,7 @@ export class SAMWriter {
         throw new SamError(
           `Alignment validation failed: ${error instanceof Error ? error.message : String(error)}`,
           alignment.qname,
-          'alignment',
+          "alignment",
           alignment.lineNumber
         );
       }
@@ -1273,30 +1273,30 @@ export class SAMWriter {
       }
     }
 
-    const line = fields.join('\t');
+    const line = fields.join("\t");
 
     // Tiger Style: Assert postconditions
     if (fields.length < 11) {
       throw new SamError(
-        'formatted alignment must have at least 11 fields',
+        "formatted alignment must have at least 11 fields",
         alignment.qname,
-        'alignment',
+        "alignment",
         alignment.lineNumber
       );
     }
-    if (line.startsWith('@')) {
+    if (line.startsWith("@")) {
       throw new SamError(
-        'formatted alignment must not start with @',
+        "formatted alignment must not start with @",
         alignment.qname,
-        'alignment',
+        "alignment",
         alignment.lineNumber
       );
     }
-    if (!line.includes('\t')) {
+    if (!line.includes("\t")) {
       throw new SamError(
-        'formatted alignment must contain tabs',
+        "formatted alignment must contain tabs",
         alignment.qname,
-        'alignment',
+        "alignment",
         alignment.lineNumber
       );
     }
@@ -1312,14 +1312,14 @@ export class SAMWriter {
    */
   private formatTag(tag: SAMTag): string {
     // Tiger Style: Assert function arguments
-    if (tag === null || typeof tag !== 'object') {
-      throw new ValidationError('tag must be an object');
+    if (tag === null || typeof tag !== "object") {
+      throw new ValidationError("tag must be an object");
     }
-    if (typeof tag.tag !== 'string') {
-      throw new ValidationError('tag.tag must be a string');
+    if (typeof tag.tag !== "string") {
+      throw new ValidationError("tag.tag must be a string");
     }
-    if (typeof tag.type !== 'string') {
-      throw new ValidationError('tag.type must be a string');
+    if (typeof tag.type !== "string") {
+      throw new ValidationError("tag.type must be a string");
     }
 
     // Validate tag if validation is enabled
@@ -1327,7 +1327,7 @@ export class SAMWriter {
       try {
         const validation = SAMTagSchema(tag);
         if (validation instanceof type.errors) {
-          throw new SamError(`Invalid SAM tag: ${validation.summary}`, undefined, 'tag');
+          throw new SamError(`Invalid SAM tag: ${validation.summary}`, undefined, "tag");
         }
       } catch (error) {
         if (error instanceof SamError) {
@@ -1336,7 +1336,7 @@ export class SAMWriter {
         throw new SamError(
           `Tag validation failed: ${error instanceof Error ? error.message : String(error)}`,
           undefined,
-          'tag'
+          "tag"
         );
       }
     }
@@ -1344,32 +1344,32 @@ export class SAMWriter {
     // Format value based on type
     let formattedValue: string;
     switch (tag.type) {
-      case 'A':
+      case "A":
         formattedValue = String(tag.value);
         break;
-      case 'i':
+      case "i":
         formattedValue = String(tag.value);
         break;
-      case 'f':
+      case "f":
         formattedValue = String(tag.value);
         break;
-      case 'Z':
-      case 'H':
-      case 'B':
+      case "Z":
+      case "H":
+      case "B":
         formattedValue = String(tag.value);
         break;
       default:
-        throw new SamError(`Unsupported tag type: ${tag.type}`, undefined, 'tag');
+        throw new SamError(`Unsupported tag type: ${tag.type}`, undefined, "tag");
     }
 
     const formatted = `${tag.tag}:${tag.type}:${formattedValue}`;
 
     // Tiger Style: Assert postconditions
-    if (!formatted.includes(':')) {
-      throw new SamError('formatted tag must contain colons', undefined, 'tag');
+    if (!formatted.includes(":")) {
+      throw new SamError("formatted tag must contain colons", undefined, "tag");
     }
     if (!formatted.startsWith(tag.tag)) {
-      throw new SamError('formatted tag must start with tag name', undefined, 'tag');
+      throw new SamError("formatted tag must start with tag name", undefined, "tag");
     }
 
     return formatted;
@@ -1394,13 +1394,13 @@ export const SAMUtils = {
 
     // Check for SAM alignment lines (must have exactly 11 or more tab-separated fields)
     return lines.some((line) => {
-      if (line.startsWith('@')) return false;
-      const fields = line.split('\t');
+      if (line.startsWith("@")) return false;
+      const fields = line.split("\t");
       return (
         fields.length >= 11 &&
-        /^\d+$/.test(fields[1] ?? '') && // FLAG must be numeric
-        /^\d+$/.test(fields[3] ?? '') && // POS must be numeric
-        /^\d+$/.test(fields[4] ?? '')
+        /^\d+$/.test(fields[1] ?? "") && // FLAG must be numeric
+        /^\d+$/.test(fields[3] ?? "") && // POS must be numeric
+        /^\d+$/.test(fields[4] ?? "")
       ); // MAPQ must be numeric
     });
   },
@@ -1442,7 +1442,7 @@ export const SAMUtils = {
    * Parse CIGAR string into operations
    */
   parseCIGAROperations(cigar: string): Array<{ operation: string; length: number }> {
-    if (cigar === '*') return [];
+    if (cigar === "*") return [];
 
     const operations = cigar.match(/\d+[MIDNSHPX=]/g) || [];
     return operations.map((op) => ({
@@ -1455,11 +1455,11 @@ export const SAMUtils = {
    * Calculate alignment span on reference
    */
   calculateReferenceSpan(cigar: string): number {
-    if (cigar === '*') return 0;
+    if (cigar === "*") return 0;
 
     const operations = this.parseCIGAROperations(cigar);
     return operations
-      .filter((op) => 'MDN=X'.includes(op.operation))
+      .filter((op) => "MDN=X".includes(op.operation))
       .reduce((sum, op) => sum + op.length, 0);
   },
 };

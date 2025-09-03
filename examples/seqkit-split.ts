@@ -16,7 +16,7 @@
  *   bun run examples/seqkit-split.ts --region chr1:1000-2000 genome.fa
  */
 
-import { FastaParser, seqops } from '../src';
+import { FastaParser, seqops } from "../src";
 
 async function main() {
   const args = process.argv.slice(2);
@@ -25,49 +25,49 @@ async function main() {
   let inputFile: string | undefined;
   let mode: string | undefined;
   let value: string | undefined;
-  let outputDir = './split';
+  let outputDir = "./split";
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
 
-    if (arg?.startsWith('--')) {
+    if (arg?.startsWith("--")) {
       const option = arg.slice(2);
       const nextArg = args[i + 1];
 
       switch (option) {
-        case 'size':
-        case 's':
-          mode = 'by-size';
+        case "size":
+        case "s":
+          mode = "by-size";
           value = nextArg;
           i++; // Skip next arg
           break;
-        case 'length':
-        case 'l':
-          mode = 'by-length';
+        case "length":
+        case "l":
+          mode = "by-length";
           value = nextArg;
           i++;
           break;
-        case 'parts':
-        case 'p':
-          mode = 'by-parts';
+        case "parts":
+        case "p":
+          mode = "by-parts";
           value = nextArg;
           i++;
           break;
-        case 'id':
-        case 'i':
-          mode = 'by-id';
+        case "id":
+        case "i":
+          mode = "by-id";
           value = nextArg;
           i++;
           break;
-        case 'region':
-        case 'r':
-          mode = 'by-region';
+        case "region":
+        case "r":
+          mode = "by-region";
           value = nextArg;
           i++;
           break;
-        case 'output-dir':
-        case 'o':
-          outputDir = nextArg || './split';
+        case "output-dir":
+        case "o":
+          outputDir = nextArg || "./split";
           i++;
           break;
         default:
@@ -134,8 +134,8 @@ Examples:
     let result;
 
     switch (mode) {
-      case 'by-size': {
-        const count = parseInt(process.argv[4] || '1000', 10);
+      case "by-size": {
+        const count = parseInt(process.argv[4] || "1000", 10);
         if (isNaN(count) || count <= 0) {
           throw new Error(`Invalid count: ${process.argv[4]}`);
         }
@@ -145,8 +145,8 @@ Examples:
         break;
       }
 
-      case 'by-length': {
-        const bases = parseInt(process.argv[4] || '1000000', 10);
+      case "by-length": {
+        const bases = parseInt(process.argv[4] || "1000000", 10);
         if (isNaN(bases) || bases <= 0) {
           throw new Error(`Invalid base count: ${process.argv[4]}`);
         }
@@ -156,8 +156,8 @@ Examples:
         break;
       }
 
-      case 'by-parts': {
-        const parts = parseInt(process.argv[4] || '4', 10);
+      case "by-parts": {
+        const parts = parseInt(process.argv[4] || "4", 10);
         if (isNaN(parts) || parts <= 0) {
           throw new Error(`Invalid part count: ${process.argv[4]}`);
         }
@@ -166,28 +166,28 @@ Examples:
         break;
       }
 
-      case 'by-id': {
+      case "by-id": {
         const pattern = process.argv[4];
         if (!pattern) {
-          throw new Error('ID pattern required for by-id mode');
+          throw new Error("ID pattern required for by-id mode");
         }
 
         result = await seqops(sequences).splitById(new RegExp(pattern));
         break;
       }
 
-      case 'by-region': {
+      case "by-region": {
         const region = process.argv[4];
         if (!region) {
-          throw new Error('Region required for by-region mode (format: chr:start-end)');
+          throw new Error("Region required for by-region mode (format: chr:start-end)");
         }
 
         // Full options example
         result = await seqops(sequences).split({
-          mode: 'by-region',
+          mode: "by-region",
           region,
-          filePrefix: 'region',
-          outputDir: './split',
+          filePrefix: "region",
+          outputDir: "./split",
         });
         break;
       }
@@ -200,7 +200,7 @@ Examples:
     console.error(`📊 Results:`);
     console.error(`   Files created: ${result.filesCreated.length}`);
     console.error(`   Total sequences: ${result.totalSequences}`);
-    console.error(`   Sequences per file: [${result.sequencesPerFile.join(', ')}]`);
+    console.error(`   Sequences per file: [${result.sequencesPerFile.join(", ")}]`);
 
     console.error(`\n📁 Output files:`);
     for (const file of result.filesCreated) {

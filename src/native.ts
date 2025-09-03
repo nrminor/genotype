@@ -1,7 +1,7 @@
-import { dlopen } from 'bun:ffi';
-import { join } from 'path';
-import { existsSync } from 'fs';
-import os from 'os';
+import { dlopen } from "bun:ffi";
+import { join } from "path";
+import { existsSync } from "fs";
+import os from "os";
 
 /**
  * Determine the Zig target triple for the current platform
@@ -14,32 +14,32 @@ function getPlatformTarget(): string {
   const arch = os.arch();
 
   // Tiger Style: Assert function preconditions
-  if (typeof platform !== 'string' || platform.length === 0) {
-    throw new Error('platform must be non-empty string');
+  if (typeof platform !== "string" || platform.length === 0) {
+    throw new Error("platform must be non-empty string");
   }
-  if (typeof arch !== 'string' || arch.length === 0) {
-    throw new Error('arch must be non-empty string');
+  if (typeof arch !== "string" || arch.length === 0) {
+    throw new Error("arch must be non-empty string");
   }
 
   const platformMap: Record<string, string> = {
-    darwin: 'macos',
-    win32: 'windows',
-    linux: 'linux',
+    darwin: "macos",
+    win32: "windows",
+    linux: "linux",
   };
 
   const archMap: Record<string, string> = {
-    x64: 'x86_64',
-    arm64: 'aarch64',
+    x64: "x86_64",
+    arm64: "aarch64",
   };
 
   const zigPlatform =
     platformMap[platform] !== undefined &&
     platformMap[platform] !== null &&
-    platformMap[platform] !== ''
+    platformMap[platform] !== ""
       ? platformMap[platform]
       : platform;
   const zigArch =
-    archMap[arch] !== undefined && archMap[arch] !== null && archMap[arch] !== ''
+    archMap[arch] !== undefined && archMap[arch] !== null && archMap[arch] !== ""
       ? archMap[arch]
       : arch;
 
@@ -58,22 +58,22 @@ function findLibrary(): string {
   const target = getPlatformTarget();
 
   // Tiger Style: Assert function preconditions
-  if (typeof target !== 'string' || !target.includes('-')) {
-    throw new Error('target must be valid platform-arch string');
+  if (typeof target !== "string" || !target.includes("-")) {
+    throw new Error("target must be valid platform-arch string");
   }
 
   // Use Rust's conventional target directory structure
-  const cargoTargetDir = join(__dirname, '..', 'target', 'release');
+  const cargoTargetDir = join(__dirname, "..", "target", "release");
 
   // Complete library name logic following Rust conventions
-  const [_arch, os] = target.split('-');
+  const [_arch, os] = target.split("-");
   const getLibraryName = (platform: string): string => {
-    const prefix = platform === 'windows' ? '' : 'lib';
-    const extension = platform === 'windows' ? '.dll' : platform === 'macos' ? '.dylib' : '.so';
+    const prefix = platform === "windows" ? "" : "lib";
+    const extension = platform === "windows" ? ".dll" : platform === "macos" ? ".dylib" : ".so";
     return `${prefix}genotype${extension}`; // Matches Cargo.toml [lib] name
   };
 
-  const libraryName = getLibraryName(os !== undefined && os !== null && os !== '' ? os : 'linux');
+  const libraryName = getLibraryName(os !== undefined && os !== null && os !== "" ? os : "linux");
   const targetLibPath = join(cargoTargetDir, libraryName);
 
   if (existsSync(targetLibPath)) {
@@ -103,13 +103,13 @@ function getGenotypeLib(libPath?: string): {
   };
 } {
   const resolvedLibPath =
-    libPath !== undefined && libPath !== null && libPath !== '' ? libPath : findLibrary();
+    libPath !== undefined && libPath !== null && libPath !== "" ? libPath : findLibrary();
 
   // Only expose what we actually implement - honest interface
   return dlopen(resolvedLibPath, {
     calculate_gc_content: {
-      args: ['ptr', 'usize'],
-      returns: 'f64',
+      args: ["ptr", "usize"],
+      returns: "f64",
     },
   });
 }
@@ -180,11 +180,11 @@ class FFIGenotypeLib implements LibGenotype {
 
   public calculateGCContent(sequence: string): number {
     // Tiger Style: Assert function arguments
-    if (typeof sequence !== 'string') {
-      throw new Error('sequence must be string');
+    if (typeof sequence !== "string") {
+      throw new Error("sequence must be string");
     }
     if (sequence.length > 1000000) {
-      throw new Error('sequence too long (max 1M chars for safety)');
+      throw new Error("sequence too long (max 1M chars for safety)");
     }
 
     if (sequence.length === 0) return 0.0;
@@ -192,7 +192,7 @@ class FFIGenotypeLib implements LibGenotype {
     // Validate sequence contains only valid nucleotide codes
     const validBases = /^[ACGTUacgtuRYSWKMBDHVN\-.*\s]*$/;
     if (!validBases.test(sequence)) {
-      throw new Error('sequence contains invalid nucleotide characters');
+      throw new Error("sequence contains invalid nucleotide characters");
     }
 
     const sequenceBytes = this.encoder.encode(sequence);
@@ -220,8 +220,8 @@ let genotypeLib: LibGenotype | undefined;
  */
 export function setGenotypeLibPath(libPath: string): void {
   // Tiger Style: Assert function arguments
-  if (typeof libPath !== 'string' || libPath.length === 0) {
-    throw new Error('libPath must be non-empty string');
+  if (typeof libPath !== "string" || libPath.length === 0) {
+    throw new Error("libPath must be non-empty string");
   }
 
   genotypeLibPath = libPath;

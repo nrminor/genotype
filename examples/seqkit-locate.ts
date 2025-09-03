@@ -17,38 +17,38 @@
  * Usage: bun examples/seqkit-locate.ts
  */
 
-import { seqops } from '../src/operations';
-import type { FastaSequence, MotifLocation } from '../src/types';
+import { seqops } from "../src/operations";
+import type { FastaSequence, MotifLocation } from "../src/types";
 
 // Sample genomic sequences for demonstration
 const sampleSequences: FastaSequence[] = [
   {
-    format: 'fasta',
-    id: 'promoter_region_1',
-    sequence: 'ATATAAGGCCTTAATAGGTCCCGGGAAATATAAGCTTATCGATCGATCG',
+    format: "fasta",
+    id: "promoter_region_1",
+    sequence: "ATATAAGGCCTTAATAGGTCCCGGGAAATATAAGCTTATCGATCGATCG",
     length: 48,
-    description: 'Promoter region with TATA box and restriction sites',
+    description: "Promoter region with TATA box and restriction sites",
   },
   {
-    format: 'fasta',
-    id: 'coding_sequence_1',
-    sequence: 'ATGAAATTTCCCGGATCCATCGATCGATCGTAGCTGAATTCGATCGATAA',
+    format: "fasta",
+    id: "coding_sequence_1",
+    sequence: "ATGAAATTTCCCGGATCCATCGATCGATCGTAGCTGAATTCGATCGATAA",
     length: 49,
-    description: 'Coding sequence with start codon and enzyme sites',
+    description: "Coding sequence with start codon and enzyme sites",
   },
   {
-    format: 'fasta',
-    id: 'regulatory_element',
-    sequence: 'GCGCGCTATAAAGGCCAAATTGGCCGCGCATATTTGCGCGCGCGCGCGC',
+    format: "fasta",
+    id: "regulatory_element",
+    sequence: "GCGCGCTATAAAGGCCAAATTGGCCGCGCATATTTGCGCGCGCGCGCGC",
     length: 47,
-    description: 'Regulatory element with palindromic sequences',
+    description: "Regulatory element with palindromic sequences",
   },
   {
-    format: 'fasta',
-    id: 'repetitive_sequence',
-    sequence: 'ATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCG',
+    format: "fasta",
+    id: "repetitive_sequence",
+    sequence: "ATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCG",
     length: 46,
-    description: 'Repetitive sequence for testing overlapping matches',
+    description: "Repetitive sequence for testing overlapping matches",
   },
 ];
 
@@ -68,10 +68,10 @@ async function collectResults<T>(iterable: AsyncIterable<T>): Promise<T[]> {
  */
 function displayLocations(locations: MotifLocation[], title: string): void {
   console.log(`\n${title}`);
-  console.log('='.repeat(title.length));
+  console.log("=".repeat(title.length));
 
   if (locations.length === 0) {
-    console.log('No matches found.');
+    console.log("No matches found.");
     return;
   }
 
@@ -84,11 +84,11 @@ function displayLocations(locations: MotifLocation[], title: string): void {
     console.log(`  Score: ${location.score.toFixed(3)} (${location.mismatches} mismatches)`);
 
     if (location.context) {
-      const upstream = location.context.upstream || '';
-      const downstream = location.context.downstream || '';
+      const upstream = location.context.upstream || "";
+      const downstream = location.context.downstream || "";
       console.log(`  Context: ${upstream}[${location.matchedSequence}]${downstream}`);
     }
-    console.log('');
+    console.log("");
   }
 }
 
@@ -96,54 +96,54 @@ function displayLocations(locations: MotifLocation[], title: string): void {
  * Example 1: Basic exact pattern matching
  */
 async function basicPatternMatching(): Promise<void> {
-  console.log('\n🔍 EXAMPLE 1: Basic Pattern Matching');
+  console.log("\n🔍 EXAMPLE 1: Basic Pattern Matching");
 
   // Find ATCG motifs in all sequences
-  const locations = await collectResults(seqops.from(sampleSequences).locate('ATCG'));
+  const locations = await collectResults(seqops.from(sampleSequences).locate("ATCG"));
 
-  displayLocations(locations, 'ATCG Pattern Matches');
+  displayLocations(locations, "ATCG Pattern Matches");
 }
 
 /**
  * Example 2: Finding transcription factor binding sites
  */
 async function findTFBindingSites(): Promise<void> {
-  console.log('\n🧬 EXAMPLE 2: Transcription Factor Binding Sites');
+  console.log("\n🧬 EXAMPLE 2: Transcription Factor Binding Sites");
 
   // Find TATA box motifs with up to 1 mismatch
   const tataBoxes = await collectResults(
     seqops.from(sampleSequences).locate({
-      pattern: 'TATAAA',
+      pattern: "TATAAA",
       allowMismatches: 1,
       ignoreCase: true,
     })
   );
 
-  displayLocations(tataBoxes, 'TATA Box Binding Sites (≤1 mismatch)');
+  displayLocations(tataBoxes, "TATA Box Binding Sites (≤1 mismatch)");
 
   // Find GC-rich regulatory elements
   const gcBoxes = await collectResults(
     seqops.from(sampleSequences).locate({
       pattern: /GC[CG][CG]GC/,
-      outputFormat: 'default',
+      outputFormat: "default",
     })
   );
 
-  displayLocations(gcBoxes, 'GC-rich Regulatory Elements (regex)');
+  displayLocations(gcBoxes, "GC-rich Regulatory Elements (regex)");
 }
 
 /**
  * Example 3: Restriction enzyme site mapping
  */
 async function mapRestrictionSites(): Promise<void> {
-  console.log('\n✂️  EXAMPLE 3: Restriction Enzyme Site Mapping');
+  console.log("\n✂️  EXAMPLE 3: Restriction Enzyme Site Mapping");
 
   // Common restriction enzyme recognition sequences
   const enzymes = [
-    { name: 'EcoRI', pattern: 'GAATTC' },
-    { name: 'BamHI', pattern: 'GGATCC' },
-    { name: 'HindIII', pattern: 'AAGCTT' },
-    { name: 'SacI', pattern: 'GAGCTC' },
+    { name: "EcoRI", pattern: "GAATTC" },
+    { name: "BamHI", pattern: "GGATCC" },
+    { name: "HindIII", pattern: "AAGCTT" },
+    { name: "SacI", pattern: "GAGCTC" },
   ];
 
   for (const enzyme of enzymes) {
@@ -164,61 +164,61 @@ async function mapRestrictionSites(): Promise<void> {
  * Example 4: Fuzzy matching for variant detection
  */
 async function fuzzyMatching(): Promise<void> {
-  console.log('\n🎯 EXAMPLE 4: Fuzzy Matching for Sequence Variants');
+  console.log("\n🎯 EXAMPLE 4: Fuzzy Matching for Sequence Variants");
 
   // Find sequences similar to a reference motif
   const fuzzyMatches = await collectResults(
     seqops.from(sampleSequences).locate({
-      pattern: 'ATATAAGG',
+      pattern: "ATATAAGG",
       allowMismatches: 2,
       maxMatches: 5,
     })
   );
 
-  displayLocations(fuzzyMatches, 'Fuzzy Matches for ATATAAGG (≤2 mismatches)');
+  displayLocations(fuzzyMatches, "Fuzzy Matches for ATATAAGG (≤2 mismatches)");
 }
 
 /**
  * Example 5: Both-strand searching for palindromes
  */
 async function palindromeSearch(): Promise<void> {
-  console.log('\n🔄 EXAMPLE 5: Palindromic Sequence Detection');
+  console.log("\n🔄 EXAMPLE 5: Palindromic Sequence Detection");
 
   // Search for palindromic restriction sites
   const palindromes = await collectResults(
     seqops.from(sampleSequences).locate({
-      pattern: 'GGCC',
+      pattern: "GGCC",
       searchBothStrands: true,
       allowOverlaps: false,
     })
   );
 
-  displayLocations(palindromes, 'Palindromic GGCC Sites (both strands)');
+  displayLocations(palindromes, "Palindromic GGCC Sites (both strands)");
 }
 
 /**
  * Example 6: Complex regulatory motif analysis
  */
 async function complexMotifAnalysis(): Promise<void> {
-  console.log('\n📊 EXAMPLE 6: Complex Motif Analysis');
+  console.log("\n📊 EXAMPLE 6: Complex Motif Analysis");
 
   // Create a custom sequence with known motifs
   const analysisSeqs: FastaSequence[] = [
     {
-      format: 'fasta',
-      id: 'test_promoter',
-      sequence: 'ATATAAGGCTATAAGGGCCCAATTGCTGCAGAATTCGGATCCATCGATCGTAGCTTCGA',
+      format: "fasta",
+      id: "test_promoter",
+      sequence: "ATATAAGGCTATAAGGGCCCAATTGCTGCAGAATTCGGATCCATCGATCGTAGCTTCGA",
       length: 57,
-      description: 'Test promoter with multiple regulatory elements',
+      description: "Test promoter with multiple regulatory elements",
     },
   ];
 
   // Find all significant motifs
   const motifs = [
-    { name: 'TATA Box', pattern: 'TATAAG', mismatches: 1 },
-    { name: 'CCAAT Box', pattern: 'CCAAT', mismatches: 0 },
-    { name: 'GC Box', pattern: 'GGCCC', mismatches: 1 },
-    { name: 'Start Codon', pattern: 'ATG', mismatches: 0 },
+    { name: "TATA Box", pattern: "TATAAG", mismatches: 1 },
+    { name: "CCAAT Box", pattern: "CCAAT", mismatches: 0 },
+    { name: "GC Box", pattern: "GGCCC", mismatches: 1 },
+    { name: "Start Codon", pattern: "ATG", mismatches: 0 },
   ];
 
   for (const motif of motifs) {
@@ -240,19 +240,19 @@ async function complexMotifAnalysis(): Promise<void> {
  * Example 7: BED format output simulation
  */
 async function bedFormatOutput(): Promise<void> {
-  console.log('\n📋 EXAMPLE 7: BED-style Output Format');
+  console.log("\n📋 EXAMPLE 7: BED-style Output Format");
 
   const bedStyle = await collectResults(
     seqops.from(sampleSequences).locate({
-      pattern: 'ATCG',
-      outputFormat: 'bed',
+      pattern: "ATCG",
+      outputFormat: "bed",
       maxMatches: 10,
     })
   );
 
-  console.log('\nBED-style Output (no context):');
-  console.log('sequence_id\tstart\tend\tstrand\tmatch\tscore');
-  console.log('-'.repeat(60));
+  console.log("\nBED-style Output (no context):");
+  console.log("sequence_id\tstart\tend\tstrand\tmatch\tscore");
+  console.log("-".repeat(60));
 
   for (const location of bedStyle) {
     console.log(
@@ -265,21 +265,21 @@ async function bedFormatOutput(): Promise<void> {
  * Example 8: Performance demonstration with overlapping matches
  */
 async function performanceDemo(): Promise<void> {
-  console.log('\n⚡ EXAMPLE 8: Overlapping Matches Performance');
+  console.log("\n⚡ EXAMPLE 8: Overlapping Matches Performance");
 
   // Test with and without overlapping matches
   const startTime = performance.now();
 
   const overlapAllowed = await collectResults(
     seqops.from(sampleSequences).locate({
-      pattern: 'ATCG',
+      pattern: "ATCG",
       allowOverlaps: true,
     })
   );
 
   const overlapFiltered = await collectResults(
     seqops.from(sampleSequences).locate({
-      pattern: 'ATCG',
+      pattern: "ATCG",
       allowOverlaps: false,
     })
   );
@@ -290,16 +290,16 @@ async function performanceDemo(): Promise<void> {
   console.log(`Overlaps allowed: ${overlapAllowed.length} matches`);
   console.log(`Overlaps filtered: ${overlapFiltered.length} matches`);
 
-  displayLocations(overlapFiltered.slice(0, 5), 'First 5 Non-overlapping ATCG Matches');
+  displayLocations(overlapFiltered.slice(0, 5), "First 5 Non-overlapping ATCG Matches");
 }
 
 /**
  * Main execution function
  */
 async function main(): Promise<void> {
-  console.log('🧬 GenoType Locate Operation Examples');
-  console.log('=====================================');
-  console.log('This script demonstrates various motif location finding capabilities.');
+  console.log("🧬 GenoType Locate Operation Examples");
+  console.log("=====================================");
+  console.log("This script demonstrates various motif location finding capabilities.");
 
   try {
     await basicPatternMatching();
@@ -311,16 +311,16 @@ async function main(): Promise<void> {
     await bedFormatOutput();
     await performanceDemo();
 
-    console.log('\n✅ All examples completed successfully!');
-    console.log('\n💡 Key Features Demonstrated:');
-    console.log('  • Exact and fuzzy pattern matching');
-    console.log('  • Both-strand searching with reverse complement');
-    console.log('  • Multiple output formats (default, BED)');
-    console.log('  • Overlap filtering and scoring');
-    console.log('  • Bioinformatics-specific motif finding');
-    console.log('  • Performance optimizations');
+    console.log("\n✅ All examples completed successfully!");
+    console.log("\n💡 Key Features Demonstrated:");
+    console.log("  • Exact and fuzzy pattern matching");
+    console.log("  • Both-strand searching with reverse complement");
+    console.log("  • Multiple output formats (default, BED)");
+    console.log("  • Overlap filtering and scoring");
+    console.log("  • Bioinformatics-specific motif finding");
+    console.log("  • Performance optimizations");
   } catch (error) {
-    console.error('❌ Error running examples:', error);
+    console.error("❌ Error running examples:", error);
     process.exit(1);
   }
 }

@@ -14,9 +14,9 @@
  * - Bun-specific optimizations
  */
 
-import { describe, it, expect, beforeEach } from 'bun:test';
-import { BAMParser, BAMUtils } from '../../src/formats/bam';
-import { readBlockHeader, detectFormat } from '../../src/formats/bam/bgzf';
+import { describe, it, expect, beforeEach } from "bun:test";
+import { BAMParser, BAMUtils } from "../../src/formats/bam";
+import { readBlockHeader, detectFormat } from "../../src/formats/bam/bgzf";
 import {
   readInt32LE,
   readUInt16LE,
@@ -25,13 +25,13 @@ import {
   decodeSequence,
   parseBinaryCIGAR,
   isValidBAMMagic,
-} from '../../src/formats/bam/binary';
-import { BamError } from '../../src/errors';
-import type { BAMHeader } from '../../src/types';
+} from "../../src/formats/bam/binary";
+import { BamError } from "../../src/errors";
+import type { BAMHeader } from "../../src/types";
 
-describe.skip('BinaryParser', () => {
-  describe('readInt32LE', () => {
-    it('should read 32-bit little-endian integers correctly', () => {
+describe.skip("BinaryParser", () => {
+  describe("readInt32LE", () => {
+    it("should read 32-bit little-endian integers correctly", () => {
       const buffer = new ArrayBuffer(8);
       const view = new DataView(buffer);
 
@@ -43,7 +43,7 @@ describe.skip('BinaryParser', () => {
       expect(readInt32LE(view, 4)).toBe(-1);
     });
 
-    it('should throw error for out-of-bounds access', () => {
+    it("should throw error for out-of-bounds access", () => {
       const buffer = new ArrayBuffer(4);
       const view = new DataView(buffer);
 
@@ -52,8 +52,8 @@ describe.skip('BinaryParser', () => {
     });
   });
 
-  describe('readUInt16LE', () => {
-    it('should read 16-bit little-endian unsigned integers correctly', () => {
+  describe("readUInt16LE", () => {
+    it("should read 16-bit little-endian unsigned integers correctly", () => {
       const buffer = new ArrayBuffer(4);
       const view = new DataView(buffer);
 
@@ -65,8 +65,8 @@ describe.skip('BinaryParser', () => {
     });
   });
 
-  describe('readUInt8', () => {
-    it('should read 8-bit unsigned integers correctly', () => {
+  describe("readUInt8", () => {
+    it("should read 8-bit unsigned integers correctly", () => {
       const buffer = new ArrayBuffer(2);
       const view = new DataView(buffer);
 
@@ -78,27 +78,27 @@ describe.skip('BinaryParser', () => {
     });
   });
 
-  describe('readCString', () => {
-    it('should read null-terminated strings correctly', () => {
+  describe("readCString", () => {
+    it("should read null-terminated strings correctly", () => {
       const buffer = new ArrayBuffer(15); // Larger buffer
       const view = new DataView(buffer);
 
       // Write "hello\0world\0"
-      const text = new TextEncoder().encode('hello\0world\0');
+      const text = new TextEncoder().encode("hello\0world\0");
       for (let i = 0; i < text.length; i++) {
         view.setUint8(i, text[i]);
       }
 
       const result1 = readCString(view, 0, 15);
-      expect(result1.value).toBe('hello');
+      expect(result1.value).toBe("hello");
       expect(result1.bytesRead).toBe(6);
 
       const result2 = readCString(view, 6, 9);
-      expect(result2.value).toBe('world');
+      expect(result2.value).toBe("world");
       expect(result2.bytesRead).toBe(6);
     });
 
-    it('should throw error for non-terminated strings', () => {
+    it("should throw error for non-terminated strings", () => {
       const buffer = new ArrayBuffer(5);
       const view = new DataView(buffer);
 
@@ -111,38 +111,38 @@ describe.skip('BinaryParser', () => {
     });
   });
 
-  describe('decodeSequence', () => {
-    it('should decode 4-bit packed sequences correctly', () => {
+  describe("decodeSequence", () => {
+    it("should decode 4-bit packed sequences correctly", () => {
       // Test sequence "ACGT" (1,2,4,8 in 4-bit encoding)
       const buffer = new Uint8Array([0x12, 0x48]); // 0001 0010, 0100 1000
 
       const result = decodeSequence(buffer, 4);
-      expect(result).toBe('ACGT');
+      expect(result).toBe("ACGT");
     });
 
-    it('should handle odd-length sequences', () => {
+    it("should handle odd-length sequences", () => {
       // Test sequence "ACG" (1,2,4 in 4-bit encoding)
       const buffer = new Uint8Array([0x12, 0x40]); // 0001 0010, 0100 0000
 
       const result = decodeSequence(buffer, 3);
-      expect(result).toBe('ACG');
+      expect(result).toBe("ACG");
     });
 
-    it('should handle empty sequences', () => {
+    it("should handle empty sequences", () => {
       const buffer = new Uint8Array(0);
       const result = decodeSequence(buffer, 0);
-      expect(result).toBe('');
+      expect(result).toBe("");
     });
 
-    it('should throw error for insufficient buffer', () => {
+    it("should throw error for insufficient buffer", () => {
       const buffer = new Uint8Array([0x12]);
 
       expect(() => decodeSequence(buffer, 4)).toThrow(BamError);
     });
   });
 
-  describe('parseBinaryCIGAR', () => {
-    it('should parse binary CIGAR operations correctly', () => {
+  describe("parseBinaryCIGAR", () => {
+    it("should parse binary CIGAR operations correctly", () => {
       const buffer = new ArrayBuffer(12);
       const view = new DataView(buffer);
 
@@ -153,7 +153,7 @@ describe.skip('BinaryParser', () => {
       view.setUint32(8, (3 << 4) | 2, true); // 3D (D=2)
 
       const result = parseBinaryCIGAR(view, 0, 3);
-      expect(result).toBe('10M5I3D');
+      expect(result).toBe("10M5I3D");
     });
 
     it('should return "*" for zero operations', () => {
@@ -161,10 +161,10 @@ describe.skip('BinaryParser', () => {
       const view = new DataView(buffer);
 
       const result = parseBinaryCIGAR(view, 0, 0);
-      expect(result).toBe('*');
+      expect(result).toBe("*");
     });
 
-    it('should throw error for invalid operation types', () => {
+    it("should throw error for invalid operation types", () => {
       const buffer = new ArrayBuffer(4);
       const view = new DataView(buffer);
 
@@ -174,27 +174,27 @@ describe.skip('BinaryParser', () => {
     });
   });
 
-  describe('isValidBAMMagic', () => {
-    it('should validate correct BAM magic bytes', () => {
+  describe("isValidBAMMagic", () => {
+    it("should validate correct BAM magic bytes", () => {
       const magic = new Uint8Array([0x42, 0x41, 0x4d, 0x01]); // "BAM\1"
       expect(isValidBAMMagic(magic)).toBe(true);
     });
 
-    it('should reject incorrect magic bytes', () => {
+    it("should reject incorrect magic bytes", () => {
       const magic = new Uint8Array([0x42, 0x41, 0x4d, 0x00]); // "BAM\0"
       expect(isValidBAMMagic(magic)).toBe(false);
     });
 
-    it('should reject insufficient data', () => {
+    it("should reject insufficient data", () => {
       const magic = new Uint8Array([0x42, 0x41, 0x4d]); // Too short
       expect(isValidBAMMagic(magic)).toBe(false);
     });
   });
 });
 
-describe('BGZFReader', () => {
-  describe('detectFormat', () => {
-    it('should detect valid BGZF format', () => {
+describe("BGZFReader", () => {
+  describe("detectFormat", () => {
+    it("should detect valid BGZF format", () => {
       // Create complete minimal BGZF block (26 bytes total)
       const header = new Uint8Array([
         0x1f,
@@ -231,14 +231,14 @@ describe('BGZFReader', () => {
       expect(detectFormat(header)).toBe(true);
     });
 
-    it('should reject non-BGZF data', () => {
+    it("should reject non-BGZF data", () => {
       const data = new Uint8Array([0x00, 0x01, 0x02, 0x03]);
       expect(detectFormat(data)).toBe(false);
     });
   });
 
-  describe('readBlockHeader', () => {
-    it('should parse valid BGZF block header', () => {
+  describe("readBlockHeader", () => {
+    it("should parse valid BGZF block header", () => {
       // Create complete BGZF block with minimal data
       const blockData = new Uint8Array(26); // Minimum block size
 
@@ -268,7 +268,7 @@ describe('BGZFReader', () => {
       expect(block.offset).toBe(0);
     });
 
-    it('should throw error for invalid magic bytes', () => {
+    it("should throw error for invalid magic bytes", () => {
       const blockData = new Uint8Array(26);
       blockData[0] = 0x00; // Invalid magic
 
@@ -277,20 +277,20 @@ describe('BGZFReader', () => {
   });
 });
 
-describe('BAMParser', () => {
+describe("BAMParser", () => {
   let parser: BAMParser;
 
   beforeEach(() => {
     parser = new BAMParser();
   });
 
-  describe('constructor', () => {
-    it('should create parser with default options', () => {
+  describe("constructor", () => {
+    it("should create parser with default options", () => {
       const parser = new BAMParser();
       expect(parser).toBeInstanceOf(BAMParser);
     });
 
-    it('should accept custom options', () => {
+    it("should accept custom options", () => {
       let errorCalled = false;
       const onError = () => {
         errorCalled = true;
@@ -303,20 +303,20 @@ describe('BAMParser', () => {
     });
   });
 
-  describe('format detection', () => {
-    it('should detect BAM format correctly', () => {
+  describe("format detection", () => {
+    it("should detect BAM format correctly", () => {
       const bamMagic = new Uint8Array([0x42, 0x41, 0x4d, 0x01]);
       expect(BAMUtils.detectFormat(bamMagic)).toBe(true);
     });
 
-    it('should reject non-BAM data', () => {
+    it("should reject non-BAM data", () => {
       const nonBam = new Uint8Array([0x00, 0x01, 0x02, 0x03]);
       expect(BAMUtils.detectFormat(nonBam)).toBe(false);
     });
   });
 
-  describe('BGZF detection', () => {
-    it('should detect BGZF format', () => {
+  describe("BGZF detection", () => {
+    it("should detect BGZF format", () => {
       const bgzfHeader = new Uint8Array([
         0x1f, 0x8b, 0x08, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0x06, 0x00, 0x42, 0x43, 0x02,
         0x00, 0x19, 0x00,
@@ -327,8 +327,8 @@ describe('BAMParser', () => {
     });
   });
 
-  describe('error handling', () => {
-    it('should handle invalid BAM magic bytes', async () => {
+  describe("error handling", () => {
+    it("should handle invalid BAM magic bytes", async () => {
       const invalidData = new Uint8Array([0x00, 0x01, 0x02, 0x03]);
       const stream = new ReadableStream({
         start(controller) {
@@ -345,7 +345,7 @@ describe('BAMParser', () => {
       expect(result.done).toBe(true);
     });
 
-    it('should handle corrupted BGZF blocks', async () => {
+    it("should handle corrupted BGZF blocks", async () => {
       // Create invalid BGZF block
       const corruptedBlock = new Uint8Array(18);
       corruptedBlock[0] = 0x1f;
@@ -369,8 +369,8 @@ describe('BAMParser', () => {
     });
   });
 
-  describe('streaming behavior', () => {
-    it('should handle empty streams', async () => {
+  describe("streaming behavior", () => {
+    it("should handle empty streams", async () => {
       const stream = new ReadableStream({
         start(controller) {
           controller.close();
@@ -385,7 +385,7 @@ describe('BAMParser', () => {
       expect(results).toHaveLength(0);
     });
 
-    it('should handle incomplete data gracefully', async () => {
+    it("should handle incomplete data gracefully", async () => {
       // Create incomplete BAM header
       const incompleteHeader = new Uint8Array([0x42, 0x41, 0x4d, 0x01, 0x10]);
       const stream = new ReadableStream({
@@ -405,18 +405,18 @@ describe('BAMParser', () => {
   });
 });
 
-describe('Integration tests', () => {
-  describe('Real-world scenarios', () => {
-    it('should handle typical sequencer output characteristics', () => {
+describe("Integration tests", () => {
+  describe("Real-world scenarios", () => {
+    it("should handle typical sequencer output characteristics", () => {
       // Test parameters that match real Oxford Nanopore / PacBio data
       const longReadLength = 50000; // 50kb read
-      const complexCigar = '1000M500I200D2000M1000S'; // Complex CIGAR
+      const complexCigar = "1000M500I200D2000M1000S"; // Complex CIGAR
 
       expect(longReadLength).toBeGreaterThan(10000);
       expect(complexCigar.length).toBeGreaterThan(10);
     });
 
-    it('should handle multi-gigabyte file sizes conceptually', () => {
+    it("should handle multi-gigabyte file sizes conceptually", () => {
       // Ensure our buffer management can handle large files
       const maxFileSize = 100 * 1024 * 1024 * 1024; // 100GB
       const chunkSize = 64 * 1024; // 64KB chunks
@@ -427,37 +427,37 @@ describe('Integration tests', () => {
     });
   });
 
-  describe('Compatibility with samtools', () => {
-    it('should handle standard BAM header structure', () => {
+  describe("Compatibility with samtools", () => {
+    it("should handle standard BAM header structure", () => {
       // Verify we handle the same header format as samtools
-      const standardHeaderFields = ['HD', 'SQ', 'RG', 'PG', 'CO'];
-      expect(standardHeaderFields).toContain('HD');
-      expect(standardHeaderFields).toContain('SQ');
+      const standardHeaderFields = ["HD", "SQ", "RG", "PG", "CO"];
+      expect(standardHeaderFields).toContain("HD");
+      expect(standardHeaderFields).toContain("SQ");
     });
 
-    it('should handle standard CIGAR operations', () => {
-      const standardOps = ['M', 'I', 'D', 'N', 'S', 'H', 'P', '=', 'X'];
+    it("should handle standard CIGAR operations", () => {
+      const standardOps = ["M", "I", "D", "N", "S", "H", "P", "=", "X"];
       expect(standardOps).toHaveLength(9);
-      expect(standardOps).toContain('M');
-      expect(standardOps).toContain('=');
+      expect(standardOps).toContain("M");
+      expect(standardOps).toContain("=");
     });
   });
 
-  describe('Bun-specific optimizations', () => {
-    it('should detect Bun runtime for optimization paths', () => {
+  describe("Bun-specific optimizations", () => {
+    it("should detect Bun runtime for optimization paths", () => {
       // Test that we can detect Bun runtime
-      const isBun = typeof Bun !== 'undefined';
+      const isBun = typeof Bun !== "undefined";
       if (isBun) {
         expect(Bun.version).toBeDefined();
-        expect(typeof Bun.file).toBe('function');
+        expect(typeof Bun.file).toBe("function");
         // Note: Bun.gunzip might not be available in all versions
         if (Bun.gunzip) {
-          expect(typeof Bun.gunzip).toBe('function');
+          expect(typeof Bun.gunzip).toBe("function");
         }
       }
     });
 
-    it('should use optimized buffer operations', () => {
+    it("should use optimized buffer operations", () => {
       // Test efficient buffer concatenation
       const buf1 = new Uint8Array([1, 2, 3]);
       const buf2 = new Uint8Array([4, 5, 6]);
@@ -469,31 +469,31 @@ describe('Integration tests', () => {
       expect(combined).toEqual(new Uint8Array([1, 2, 3, 4, 5, 6]));
     });
 
-    it('should handle large sequence arrays efficiently', () => {
+    it("should handle large sequence arrays efficiently", () => {
       // Test optimized string building
       const length = 1000;
       const chars = new Array(length);
 
       for (let i = 0; i < length; i++) {
-        chars[i] = 'A';
+        chars[i] = "A";
       }
 
-      const sequence = chars.join('');
+      const sequence = chars.join("");
       expect(sequence.length).toBe(length);
-      expect(sequence[0]).toBe('A');
-      expect(sequence[length - 1]).toBe('A');
+      expect(sequence[0]).toBe("A");
+      expect(sequence[length - 1]).toBe("A");
     });
   });
 });
 
-describe('Essential BAM invariants', () => {
+describe("Essential BAM invariants", () => {
   let parser: BAMParser;
 
   beforeEach(() => {
     parser = new BAMParser();
   });
 
-  it('should maintain round-trip consistency between binary and text', async () => {
+  it("should maintain round-trip consistency between binary and text", async () => {
     // Ensures binary parsing maintains data integrity
     const bamMagic = new Uint8Array([0x42, 0x41, 0x4d, 0x01]);
     expect(BAMUtils.detectFormat(bamMagic)).toBe(true);
@@ -505,7 +505,7 @@ describe('Essential BAM invariants', () => {
     expect(readInt32LE(view, 0)).toBe(12345);
   });
 
-  it('should stream binary data efficiently', async () => {
+  it("should stream binary data efficiently", async () => {
     // Verifies streaming functionality for large BAM files
     const testData = new Uint8Array(1000);
     testData.fill(0);
@@ -527,7 +527,7 @@ describe('Essential BAM invariants', () => {
     expect(processed || true).toBe(true); // Either processed records or handled gracefully
   });
 
-  it('should handle one example of malformed binary data', async () => {
+  it("should handle one example of malformed binary data", async () => {
     // Single malformed data test - not exhaustive edge cases
     const invalidMagic = new Uint8Array([0xff, 0xff, 0xff, 0xff]);
     expect(BAMUtils.detectFormat(invalidMagic)).toBe(false);
@@ -538,9 +538,9 @@ describe('Essential BAM invariants', () => {
   });
 });
 
-describe('Edge cases and error recovery', () => {
-  describe('Malformed data handling', () => {
-    it('should handle truncated files', async () => {
+describe("Edge cases and error recovery", () => {
+  describe("Malformed data handling", () => {
+    it("should handle truncated files", async () => {
       const parser = new BAMParser();
       const truncatedData = new Uint8Array([0x42, 0x41, 0x4d]); // Incomplete magic
       const stream = new ReadableStream({
@@ -558,7 +558,7 @@ describe('Edge cases and error recovery', () => {
       expect(result.done).toBe(true);
     });
 
-    it('should handle invalid sequence encodings', () => {
+    it("should handle invalid sequence encodings", () => {
       // Create truly invalid encoding (nibbles > 15 don't exist in lookup table)
       // 0xFF = 1111 1111, so both nibbles are 15, which maps to 'N' - this is valid
       // We need to create a scenario that actually fails
@@ -566,10 +566,10 @@ describe('Edge cases and error recovery', () => {
 
       // This should succeed since all values 0-15 are valid in the lookup table
       const result = decodeSequence(buffer, 4);
-      expect(result).toBe('NNNN'); // All 15s map to 'N'
+      expect(result).toBe("NNNN"); // All 15s map to 'N'
     });
 
-    it('should handle extremely large block sizes', () => {
+    it("should handle extremely large block sizes", () => {
       const buffer = new ArrayBuffer(20);
       const view = new DataView(buffer);
 
@@ -592,8 +592,8 @@ describe('Edge cases and error recovery', () => {
     });
   });
 
-  describe('Resource limits', () => {
-    it('should enforce reasonable limits on string lengths', () => {
+  describe("Resource limits", () => {
+    it("should enforce reasonable limits on string lengths", () => {
       const buffer = new ArrayBuffer(10);
       const view = new DataView(buffer);
 
@@ -606,9 +606,9 @@ describe('Edge cases and error recovery', () => {
       expect(() => readCString(view, 0, 5)).toThrow(BamError);
     });
 
-    it('should handle zero-length sequences', () => {
+    it("should handle zero-length sequences", () => {
       const result = decodeSequence(new Uint8Array(0), 0);
-      expect(result).toBe('');
+      expect(result).toBe("");
     });
   });
 });

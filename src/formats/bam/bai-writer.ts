@@ -23,11 +23,11 @@ import type {
   BAIBinNumber,
   BAMAlignment,
   FilePath,
-} from '../../types';
-import { FilePathSchema } from '../../types';
-import { BamError } from '../../errors';
+} from "../../types";
+import { FilePathSchema } from "../../types";
+import { BamError } from "../../errors";
 // BinaryParser import removed - not used in current implementation
-import { VirtualOffsetUtils, BinningUtils, updateLinearIndex, mergeChunks } from './bai-utils';
+import { VirtualOffsetUtils, BinningUtils, updateLinearIndex, mergeChunks } from "./bai-utils";
 
 /**
  * Internal bin accumulator for efficient index generation
@@ -91,16 +91,16 @@ export class BAIWriter {
    */
   constructor(outputPath: string, options: BAIWriterOptions = {}) {
     // Tiger Style: Assert constructor arguments
-    console.assert(typeof outputPath === 'string', 'outputPath must be a string');
-    console.assert(outputPath.length > 0, 'outputPath must not be empty');
-    console.assert(typeof options === 'object', 'options must be an object');
+    console.assert(typeof outputPath === "string", "outputPath must be a string");
+    console.assert(outputPath.length > 0, "outputPath must not be empty");
+    console.assert(typeof options === "object", "options must be an object");
 
     const validatedPath = FilePathSchema(outputPath);
-    if (typeof validatedPath !== 'string') {
+    if (typeof validatedPath !== "string") {
       throw new BamError(
         `Invalid output path: ${validatedPath.toString()}`,
         undefined,
-        'file_path'
+        "file_path"
       );
     }
     this.outputPath = validatedPath;
@@ -118,9 +118,9 @@ export class BAIWriter {
     // Tiger Style: Assert initialized state
     console.assert(
       this.referenceAccumulators.size === 0,
-      'reference accumulators must be empty initially'
+      "reference accumulators must be empty initially"
     );
-    console.assert(this.totalAlignments === 0, 'alignment count must be zero initially');
+    console.assert(this.totalAlignments === 0, "alignment count must be zero initially");
   }
 
   /**
@@ -132,20 +132,20 @@ export class BAIWriter {
    */
   async generateIndex(bamFilePath: string, referenceNames?: string[]): Promise<BAIIndex> {
     // Tiger Style: Assert function arguments
-    console.assert(typeof bamFilePath === 'string', 'bamFilePath must be a string');
-    console.assert(bamFilePath.length > 0, 'bamFilePath must not be empty');
+    console.assert(typeof bamFilePath === "string", "bamFilePath must be a string");
+    console.assert(bamFilePath.length > 0, "bamFilePath must not be empty");
     console.assert(
       !referenceNames || Array.isArray(referenceNames),
-      'referenceNames must be array if provided'
+      "referenceNames must be array if provided"
     );
 
     if (this.isFinalized) {
-      throw new BamError('BAI writer has already been finalized', undefined, 'writer_state');
+      throw new BamError("BAI writer has already been finalized", undefined, "writer_state");
     }
 
     try {
       // Import BAMParser dynamically to avoid circular dependencies
-      const { BAMParser } = await import('../bam');
+      const { BAMParser } = await import("../bam");
       const parser = new BAMParser({
         skipValidation: !this.options.validateAlignments,
         onError: (error): void => {
@@ -163,10 +163,10 @@ export class BAIWriter {
       for await (const record of parser.parseFile(bamFilePath)) {
         // Check for cancellation
         if (this.options.signal?.aborted) {
-          throw new BamError('Index generation cancelled by user', undefined, 'cancelled');
+          throw new BamError("Index generation cancelled by user", undefined, "cancelled");
         }
 
-        if (record.format === 'bam') {
+        if (record.format === "bam") {
           const bamAlignment = record as BAMAlignment;
 
           // Calculate virtual offset (simplified - in real implementation would track BGZF blocks)
@@ -200,7 +200,7 @@ export class BAIWriter {
       throw new BamError(
         `Failed to generate BAI index from ${bamFilePath}: ${error instanceof Error ? error.message : String(error)}`,
         undefined,
-        'index_generation',
+        "index_generation",
         undefined,
         `BAM file: ${bamFilePath}`
       );
@@ -215,15 +215,15 @@ export class BAIWriter {
    */
   async addAlignment(alignment: BAMAlignment, virtualOffset: VirtualOffset): Promise<void> {
     // Tiger Style: Assert function arguments
-    console.assert(typeof alignment === 'object', 'alignment must be an object');
-    console.assert(alignment.format === 'bam', 'alignment must be BAM format');
-    console.assert(typeof virtualOffset === 'bigint', 'virtualOffset must be bigint');
+    console.assert(typeof alignment === "object", "alignment must be an object");
+    console.assert(alignment.format === "bam", "alignment must be BAM format");
+    console.assert(typeof virtualOffset === "bigint", "virtualOffset must be bigint");
 
     if (this.isFinalized) {
       throw new BamError(
-        'Cannot add alignment: BAI writer has been finalized',
+        "Cannot add alignment: BAI writer has been finalized",
         alignment.qname,
-        'writer_state'
+        "writer_state"
       );
     }
 
@@ -234,7 +234,7 @@ export class BAIWriter {
       }
 
       // Skip unmapped alignments (they don't contribute to index)
-      if (alignment.rname === '*' || alignment.pos <= 0) {
+      if (alignment.rname === "*" || alignment.pos <= 0) {
         return;
       }
 
@@ -301,7 +301,7 @@ export class BAIWriter {
       throw new BamError(
         `Failed to add alignment to index: ${error instanceof Error ? error.message : String(error)}`,
         alignment.qname,
-        'alignment_processing',
+        "alignment_processing",
         undefined,
         `Reference: ${alignment.rname}, Position: ${alignment.pos}`
       );
@@ -315,7 +315,7 @@ export class BAIWriter {
    */
   async finalize(): Promise<BAIIndex> {
     if (this.isFinalized) {
-      throw new BamError('BAI writer has already been finalized', undefined, 'writer_state');
+      throw new BamError("BAI writer has already been finalized", undefined, "writer_state");
     }
 
     try {
@@ -364,7 +364,7 @@ export class BAIWriter {
           linearIndex,
           ...(this.referenceNames[refId] !== undefined &&
           this.referenceNames[refId] !== null &&
-          this.referenceNames[refId] !== ''
+          this.referenceNames[refId] !== ""
             ? { referenceName: this.referenceNames[refId] }
             : {}),
         };
@@ -376,7 +376,7 @@ export class BAIWriter {
       const index: BAIIndex = {
         referenceCount: references.length,
         references,
-        version: '1.0',
+        version: "1.0",
         createdAt: new Date(),
         sourceFile: this.outputPath,
       };
@@ -389,9 +389,9 @@ export class BAIWriter {
       // Tiger Style: Assert postconditions
       console.assert(
         validatedIndex.referenceCount === references.length,
-        'reference count must match'
+        "reference count must match"
       );
-      console.assert(this.isFinalized, 'writer must be finalized');
+      console.assert(this.isFinalized, "writer must be finalized");
 
       console.log(
         `Finalized BAI index: ${this.totalAlignments} alignments, ${references.length} references`
@@ -402,7 +402,7 @@ export class BAIWriter {
       throw new BamError(
         `Failed to finalize BAI index: ${error instanceof Error ? error.message : String(error)}`,
         undefined,
-        'finalization'
+        "finalization"
       );
     }
   }
@@ -414,8 +414,8 @@ export class BAIWriter {
    */
   async writeIndex(index: BAIIndex): Promise<void> {
     // Tiger Style: Assert function arguments
-    console.assert(typeof index === 'object', 'index must be an object');
-    console.assert(index.referenceCount >= 0, 'reference count must be non-negative');
+    console.assert(typeof index === "object", "index must be an object");
+    console.assert(index.referenceCount >= 0, "reference count must be non-negative");
 
     try {
       // Use index directly (skip schema validation for now due to ArkType complexity)
@@ -432,7 +432,7 @@ export class BAIWriter {
       throw new BamError(
         `Failed to write BAI index to ${this.outputPath}: ${error instanceof Error ? error.message : String(error)}`,
         undefined,
-        'file_write',
+        "file_write",
         undefined,
         `Output path: ${this.outputPath}`
       );
@@ -455,13 +455,13 @@ export class BAIWriter {
    */
   setReferenceNames(names: string[]): void {
     // Tiger Style: Assert function arguments
-    console.assert(Array.isArray(names), 'names must be an array');
+    console.assert(Array.isArray(names), "names must be an array");
 
     if (this.isFinalized) {
       throw new BamError(
-        'Cannot set reference names: BAI writer has been finalized',
+        "Cannot set reference names: BAI writer has been finalized",
         undefined,
-        'writer_state'
+        "writer_state"
       );
     }
 
@@ -470,7 +470,7 @@ export class BAIWriter {
     // Tiger Style: Assert postconditions
     console.assert(
       this.referenceNames.length === names.length,
-      'reference names must be copied correctly'
+      "reference names must be copied correctly"
     );
   }
 
@@ -511,11 +511,11 @@ export class BAIWriter {
    */
   private validateAlignment(alignment: BAMAlignment): void {
     if (alignment.pos < 0) {
-      throw new BamError(`Invalid position: ${alignment.pos}`, alignment.qname, 'pos');
+      throw new BamError(`Invalid position: ${alignment.pos}`, alignment.qname, "pos");
     }
 
-    if (alignment.rname !== '*' && alignment.pos === 0) {
-      throw new BamError('Mapped alignment cannot have position 0', alignment.qname, 'pos');
+    if (alignment.rname !== "*" && alignment.pos === 0) {
+      throw new BamError("Mapped alignment cannot have position 0", alignment.qname, "pos");
     }
 
     // Additional validation could be added here
@@ -527,7 +527,7 @@ export class BAIWriter {
   private getReferenceFidFromAlignment(alignment: BAMAlignment): number {
     // In a real implementation, this would map reference names to IDs
     // For now, return a simple hash-based mapping
-    if (alignment.rname === '*') {
+    if (alignment.rname === "*") {
       return -1; // Unmapped
     }
 
@@ -549,7 +549,7 @@ export class BAIWriter {
   private calculateAlignmentEnd(alignment: BAMAlignment): number {
     const start = alignment.pos - 1; // Convert to 0-based
 
-    if (alignment.cigar === '*') {
+    if (alignment.cigar === "*") {
       // No CIGAR data, assume point alignment
       return start + 1;
     }
@@ -563,7 +563,7 @@ export class BAIWriter {
       const operation = op.slice(-1);
 
       // Operations that consume reference: M, D, N, =, X
-      if ('MDN=X'.includes(operation)) {
+      if ("MDN=X".includes(operation)) {
         refLength += length;
       }
     }
@@ -684,23 +684,23 @@ export class BAIWriter {
     try {
       // Use Bun.write for optimal performance when available
       if (
-        typeof globalThis !== 'undefined' &&
-        'Bun' in globalThis &&
+        typeof globalThis !== "undefined" &&
+        "Bun" in globalThis &&
         globalThis.Bun !== undefined &&
         globalThis.Bun !== null &&
-        typeof globalThis.Bun.write === 'function'
+        typeof globalThis.Bun.write === "function"
       ) {
         await globalThis.Bun.write(this.outputPath, data);
         return;
       }
 
       // Fallback to other runtime file APIs would go here
-      throw new Error('No supported file write method available');
+      throw new Error("No supported file write method available");
     } catch (error) {
       throw new BamError(
         `Failed to write binary data: ${error instanceof Error ? error.message : String(error)}`,
         undefined,
-        'file_io',
+        "file_io",
         undefined,
         `Output: ${this.outputPath}, Size: ${data.length} bytes`
       );

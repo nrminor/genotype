@@ -9,21 +9,21 @@
  * - Automatic quality encoding detection
  */
 
-import { type } from 'arktype';
+import { type } from "arktype";
 import {
   getErrorSuggestion,
   ParseError,
   QualityError,
   SequenceError,
   ValidationError,
-} from '../errors';
-import type { FastqSequence, ParserOptions, QualityEncoding } from '../types';
-import { SequenceSchema } from '../types';
+} from "../errors";
+import type { FastqSequence, ParserOptions, QualityEncoding } from "../types";
+import { SequenceSchema } from "../types";
 
 /**
  * Convert ASCII quality string to numeric scores
  */
-export function toNumbers(qualityString: string, encoding: QualityEncoding = 'phred33'): number[] {
+export function toNumbers(qualityString: string, encoding: QualityEncoding = "phred33"): number[] {
   const scores: number[] = [];
   const offset = getOffset(encoding);
 
@@ -32,7 +32,7 @@ export function toNumbers(qualityString: string, encoding: QualityEncoding = 'ph
     const score = ascii - offset;
 
     // Validate score range
-    if (encoding === 'solexa') {
+    if (encoding === "solexa") {
       // Solexa scores can be negative
       scores.push(score);
     } else {
@@ -40,7 +40,7 @@ export function toNumbers(qualityString: string, encoding: QualityEncoding = 'ph
       if (score < 0) {
         throw new QualityError(
           `Invalid quality score: ASCII ${ascii} gives score ${score} (should be >= 0)`,
-          'unknown',
+          "unknown",
           encoding
         );
       }
@@ -54,9 +54,9 @@ export function toNumbers(qualityString: string, encoding: QualityEncoding = 'ph
 /**
  * Convert numeric scores to ASCII quality string
  */
-export function toString(scores: number[], encoding: QualityEncoding = 'phred33'): string {
+export function toString(scores: number[], encoding: QualityEncoding = "phred33"): string {
   const offset = getOffset(encoding);
-  return scores.map((score) => String.fromCharCode(score + offset)).join('');
+  return scores.map((score) => String.fromCharCode(score + offset)).join("");
 }
 
 /**
@@ -64,11 +64,11 @@ export function toString(scores: number[], encoding: QualityEncoding = 'phred33'
  */
 export function getOffset(encoding: QualityEncoding): number {
   switch (encoding) {
-    case 'phred33':
+    case "phred33":
       return 33;
-    case 'phred64':
+    case "phred64":
       return 64;
-    case 'solexa':
+    case "solexa":
       return 64;
     default:
       throw new Error(`Unknown quality encoding: ${encoding}`);
@@ -90,18 +90,18 @@ export function detectEncoding(qualityString: string): QualityEncoding {
 
   // Decision logic based on ASCII ranges
   if (minAscii >= 33 && maxAscii <= 73) {
-    return 'phred33'; // Standard Illumina 1.8+
+    return "phred33"; // Standard Illumina 1.8+
   } else if (minAscii >= 64 && maxAscii <= 104) {
-    return 'phred64'; // Illumina 1.3-1.7
+    return "phred64"; // Illumina 1.3-1.7
   } else if (minAscii >= 59 && maxAscii <= 104) {
-    return 'solexa'; // Solexa/early Illumina
+    return "solexa"; // Solexa/early Illumina
   } else if (minAscii >= 33 && maxAscii <= 126) {
     // Could be either, default to phred33
-    return 'phred33';
+    return "phred33";
   } else {
     throw new QualityError(
       `Cannot detect quality encoding: ASCII range ${minAscii}-${maxAscii}`,
-      'unknown'
+      "unknown"
     );
   }
 }
@@ -118,7 +118,7 @@ export function calculateStats(scores: number[]): {
   q75: number;
 } {
   if (scores.length === 0) {
-    throw new QualityError('Cannot calculate stats for empty quality array', 'unknown');
+    throw new QualityError("Cannot calculate stats for empty quality array", "unknown");
   }
 
   const sorted = [...scores].sort((a, b) => a - b);
@@ -160,10 +160,10 @@ export class FastqParser {
       skipValidation: false,
       maxLineLength: 1_000_000,
       trackLineNumbers: true,
-      qualityEncoding: 'phred33',
+      qualityEncoding: "phred33",
       parseQualityScores: false, // Lazy loading by default
       onError: (error: string, lineNumber?: number): void => {
-        throw new ParseError(error, 'FASTQ', lineNumber);
+        throw new ParseError(error, "FASTQ", lineNumber);
       },
       onWarning: (warning: string, lineNumber?: number): void => {
         console.warn(`FASTQ Warning (line ${lineNumber}): ${warning}`);
@@ -198,22 +198,22 @@ export class FastqParser {
    */
   async *parseFile(
     filePath: string,
-    options?: import('../types').FileReaderOptions
+    options?: import("../types").FileReaderOptions
   ): AsyncIterable<FastqSequence> {
     // Tiger Style: Assert function arguments
-    if (typeof filePath !== 'string') {
-      throw new ValidationError('filePath must be a string');
+    if (typeof filePath !== "string") {
+      throw new ValidationError("filePath must be a string");
     }
     if (filePath.length === 0) {
-      throw new ValidationError('filePath must not be empty');
+      throw new ValidationError("filePath must not be empty");
     }
-    if (options && typeof options !== 'object') {
-      throw new ValidationError('options must be an object if provided');
+    if (options && typeof options !== "object") {
+      throw new ValidationError("options must be an object if provided");
     }
 
     // Import I/O modules dynamically to avoid circular dependencies
-    const { createStream } = await import('../io/file-reader');
-    const { StreamUtils } = await import('../io/stream-utils');
+    const { createStream } = await import("../io/file-reader");
+    const { StreamUtils } = await import("../io/stream-utils");
 
     try {
       // Validate file path and create stream
@@ -221,14 +221,14 @@ export class FastqParser {
       const stream = await createStream(validatedPath, options);
 
       // Convert binary stream to lines and parse
-      const lines = StreamUtils.readLines(stream, options?.encoding || 'utf8');
+      const lines = StreamUtils.readLines(stream, options?.encoding || "utf8");
       yield* this.parseLinesFromAsyncIterable(lines);
     } catch (error) {
       // Re-throw with enhanced context
       if (error instanceof Error) {
         throw new ParseError(
           `Failed to parse FASTQ file '${filePath}': ${error.message}`,
-          'FASTQ',
+          "FASTQ",
           undefined,
           error.stack
         );
@@ -243,7 +243,7 @@ export class FastqParser {
   async *parse(stream: ReadableStream<Uint8Array>): AsyncIterable<FastqSequence> {
     const reader = stream.getReader();
     const decoder = new TextDecoder();
-    let buffer = '';
+    let buffer = "";
     let lineNumber = 0;
 
     try {
@@ -262,7 +262,7 @@ export class FastqParser {
 
         const lines = buffer.split(/\r?\n/);
         const poppedLine = lines.pop();
-        buffer = poppedLine !== undefined ? poppedLine : '';
+        buffer = poppedLine !== undefined ? poppedLine : "";
 
         if (lines.length > 0) {
           yield* this.parseLines(lines, lineNumber);
@@ -335,45 +335,45 @@ export class FastqParser {
     const [headerLine, sequenceLine, separatorLine, qualityLine] = lines;
 
     // Validate header line
-    if (headerLine === undefined || headerLine === null || !headerLine.startsWith('@')) {
+    if (headerLine === undefined || headerLine === null || !headerLine.startsWith("@")) {
       throw new ParseError(
         'FASTQ header must start with "@"',
-        'FASTQ',
+        "FASTQ",
         startLineNumber,
         headerLine
       );
     }
 
     // Parse header
-    const header = (headerLine ?? '').slice(1);
+    const header = (headerLine ?? "").slice(1);
     const firstSpace = header.search(/\s/);
     const id = firstSpace === -1 ? header : header.slice(0, firstSpace);
     const description = firstSpace === -1 ? undefined : header.slice(firstSpace + 1).trim();
 
     // Validate sequence
-    const sequence = this.cleanSequence(sequenceLine ?? '', startLineNumber + 1);
+    const sequence = this.cleanSequence(sequenceLine ?? "", startLineNumber + 1);
 
     // Validate separator (should be '+' optionally followed by ID)
-    if (separatorLine === undefined || separatorLine === null || !separatorLine.startsWith('+')) {
+    if (separatorLine === undefined || separatorLine === null || !separatorLine.startsWith("+")) {
       throw new ParseError(
         'FASTQ separator must start with "+"',
-        'FASTQ',
+        "FASTQ",
         startLineNumber + 2,
         separatorLine
       );
     }
 
     // Validate quality scores
-    const quality = this.validateQuality(qualityLine ?? '', sequence, id, startLineNumber + 3);
+    const quality = this.validateQuality(qualityLine ?? "", sequence, id, startLineNumber + 3);
 
     // Detect or use specified quality encoding
     const qualityEncoding = this.detectOrUseEncoding(quality, id);
 
     // Build FASTQ sequence object
     const fastqSequence: FastqSequence = {
-      format: 'fastq',
+      format: "fastq",
       id,
-      ...(description !== undefined && description !== null && description !== ''
+      ...(description !== undefined && description !== null && description !== ""
         ? { description }
         : {}),
       sequence,
@@ -433,10 +433,10 @@ export class FastqParser {
    * Clean and validate sequence data
    */
   private cleanSequence(sequenceLine: string, lineNumber: number): string {
-    const cleaned = sequenceLine.replace(/\s/g, '');
+    const cleaned = sequenceLine.replace(/\s/g, "");
 
     if (!cleaned) {
-      throw new SequenceError('Empty sequence found', 'unknown', lineNumber, sequenceLine);
+      throw new SequenceError("Empty sequence found", "unknown", lineNumber, sequenceLine);
     }
 
     if (!this.options.skipValidation) {
@@ -448,7 +448,7 @@ export class FastqParser {
 
         throw new SequenceError(
           `Invalid sequence characters found. ${suggestion}`,
-          'unknown',
+          "unknown",
           lineNumber,
           sequenceLine
         );
@@ -467,7 +467,7 @@ export class FastqParser {
     sequenceId: string,
     lineNumber: number
   ): string {
-    const quality = qualityLine.replace(/\s/g, '');
+    const quality = qualityLine.replace(/\s/g, "");
 
     if (quality.length !== sequence.length) {
       throw new QualityError(
@@ -486,7 +486,7 @@ export class FastqParser {
    * Detect quality encoding or use specified encoding
    */
   private detectOrUseEncoding(quality: string, sequenceId: string): QualityEncoding {
-    if (this.options.qualityEncoding && this.options.qualityEncoding !== 'phred33') {
+    if (this.options.qualityEncoding && this.options.qualityEncoding !== "phred33") {
       return this.options.qualityEncoding;
     }
 
@@ -497,7 +497,7 @@ export class FastqParser {
         `Could not detect quality encoding for sequence '${sequenceId}': ${error instanceof Error ? error.message : String(error)}. Using phred33 as fallback`,
         undefined
       );
-      return 'phred33';
+      return "phred33";
     }
   }
 
@@ -509,23 +509,23 @@ export class FastqParser {
    */
   private async validateFilePath(filePath: string): Promise<string> {
     // Tiger Style: Assert function arguments
-    if (typeof filePath !== 'string') {
-      throw new ValidationError('filePath must be a string');
+    if (typeof filePath !== "string") {
+      throw new ValidationError("filePath must be a string");
     }
     if (filePath.length === 0) {
-      throw new ValidationError('filePath must not be empty');
+      throw new ValidationError("filePath must not be empty");
     }
 
     // Import FileReader functions dynamically to avoid circular dependencies
-    const { exists, getMetadata } = await import('../io/file-reader');
+    const { exists, getMetadata } = await import("../io/file-reader");
 
     // Check if file exists and is readable
     if (!(await exists(filePath))) {
       throw new ParseError(
         `FASTQ file not found or not accessible: ${filePath}`,
-        'FASTQ',
+        "FASTQ",
         undefined,
-        'Please check that the file exists and you have read permissions'
+        "Please check that the file exists and you have read permissions"
       );
     }
 
@@ -536,9 +536,9 @@ export class FastqParser {
       if (!metadata.readable) {
         throw new ParseError(
           `FASTQ file is not readable: ${filePath}`,
-          'FASTQ',
+          "FASTQ",
           undefined,
-          'Check file permissions'
+          "Check file permissions"
         );
       }
 
@@ -554,7 +554,7 @@ export class FastqParser {
       if (error instanceof ParseError) throw error;
       throw new ParseError(
         `Failed to validate FASTQ file: ${error instanceof Error ? error.message : String(error)}`,
-        'FASTQ',
+        "FASTQ",
         undefined,
         filePath
       );
@@ -572,8 +572,8 @@ export class FastqParser {
     lines: AsyncIterable<string>
   ): AsyncIterable<FastqSequence> {
     // Tiger Style: Assert function arguments
-    if (typeof lines !== 'object' || !(Symbol.asyncIterator in lines)) {
-      throw new ValidationError('lines must be async iterable');
+    if (typeof lines !== "object" || !(Symbol.asyncIterator in lines)) {
+      throw new ValidationError("lines must be async iterable");
     }
 
     let lineNumber = 0;
@@ -622,9 +622,9 @@ export class FastqParser {
       if (lineBuffer.length > 0) {
         const error = new ParseError(
           `Incomplete FASTQ record: expected 4 lines, got ${lineBuffer.length}`,
-          'FASTQ',
+          "FASTQ",
           lineNumber,
-          `Record starts with: ${lineBuffer[0] !== undefined && lineBuffer[0] !== null && lineBuffer[0] !== '' ? lineBuffer[0] : 'unknown'}`
+          `Record starts with: ${lineBuffer[0] !== undefined && lineBuffer[0] !== null && lineBuffer[0] !== "" ? lineBuffer[0] : "unknown"}`
         );
 
         if (!this.options.skipValidation) {
@@ -641,15 +641,15 @@ export class FastqParser {
 
       throw new ParseError(
         `FASTQ parsing failed at line ${lineNumber}: ${error instanceof Error ? error.message : String(error)}`,
-        'FASTQ',
+        "FASTQ",
         lineNumber,
-        'Check file format and content'
+        "Check file format and content"
       );
     }
 
     // Tiger Style: Assert postconditions
     if (lineNumber < 0) {
-      throw new ParseError('line number must be non-negative', 'FASTQ');
+      throw new ParseError("line number must be non-negative", "FASTQ");
     }
   }
 }
@@ -667,7 +667,7 @@ export class FastqWriter {
       includeDescription?: boolean;
     } = {}
   ) {
-    this.qualityEncoding = options.qualityEncoding || 'phred33';
+    this.qualityEncoding = options.qualityEncoding || "phred33";
     this.includeDescription = options.includeDescription ?? true;
   }
 
@@ -681,7 +681,7 @@ export class FastqWriter {
       this.includeDescription === true &&
       sequence.description !== undefined &&
       sequence.description !== null &&
-      sequence.description !== ''
+      sequence.description !== ""
     ) {
       header += ` ${sequence.description}`;
     }
@@ -700,7 +700,7 @@ export class FastqWriter {
    * Format multiple sequences as string
    */
   formatSequences(sequences: FastqSequence[]): string {
-    return sequences.map((seq) => this.formatSequence(seq)).join('\n');
+    return sequences.map((seq) => this.formatSequence(seq)).join("\n");
   }
 
   /**
@@ -715,7 +715,7 @@ export class FastqWriter {
 
     try {
       for await (const sequence of sequences) {
-        const formatted = this.formatSequence(sequence) + '\n';
+        const formatted = this.formatSequence(sequence) + "\n";
         await writer.write(encoder.encode(formatted));
       }
     } finally {
@@ -736,8 +736,8 @@ export const FastqUtils = {
     const lines = trimmed.split(/\r?\n/);
     return (
       lines.length >= 4 &&
-      (lines[0]?.startsWith('@') ?? false) &&
-      (lines[2]?.startsWith('+') ?? false)
+      (lines[0]?.startsWith("@") ?? false) &&
+      (lines[2]?.startsWith("+") ?? false)
     );
   },
 
@@ -779,16 +779,16 @@ export const FastqUtils = {
       return { valid: false, error: `Expected 4 lines, got ${lines.length}` };
     }
 
-    if (lines[0] === undefined || lines[0] === null || !lines[0].startsWith('@')) {
-      return { valid: false, error: 'Header must start with @' };
+    if (lines[0] === undefined || lines[0] === null || !lines[0].startsWith("@")) {
+      return { valid: false, error: "Header must start with @" };
     }
 
-    if (lines[2] === undefined || lines[2] === null || !lines[2].startsWith('+')) {
-      return { valid: false, error: 'Separator must start with +' };
+    if (lines[2] === undefined || lines[2] === null || !lines[2].startsWith("+")) {
+      return { valid: false, error: "Separator must start with +" };
     }
 
-    const seqLen = (lines[1] ?? '').replace(/\s/g, '').length;
-    const qualLen = (lines[3] ?? '').replace(/\s/g, '').length;
+    const seqLen = (lines[1] ?? "").replace(/\s/g, "").length;
+    const qualLen = (lines[3] ?? "").replace(/\s/g, "").length;
 
     if (seqLen !== qualLen) {
       return {

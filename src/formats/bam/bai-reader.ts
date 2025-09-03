@@ -24,11 +24,11 @@ import type {
   VirtualOffset,
   BAIBinNumber,
   FilePath,
-} from '../../types';
-import { VirtualOffsetSchema, BAIBinNumberSchema, FilePathSchema } from '../../types';
-import { BamError } from '../../errors';
-import { readInt32LE, readUInt32LE } from './binary';
-import { VirtualOffsetUtils, BinningUtils } from './bai-utils';
+} from "../../types";
+import { VirtualOffsetSchema, BAIBinNumberSchema, FilePathSchema } from "../../types";
+import { BamError } from "../../errors";
+import { readInt32LE, readUInt32LE } from "./binary";
+import { VirtualOffsetUtils, BinningUtils } from "./bai-utils";
 
 // Constants for BAI reader configuration
 const DEFAULT_BUFFER_SIZE = 64 * 1024; // 64KB default buffer size
@@ -71,13 +71,13 @@ export class BAIReader {
    */
   constructor(filePath: string, options: BAIReaderOptions = {}) {
     // Tiger Style: Assert constructor arguments
-    console.assert(typeof filePath === 'string', 'filePath must be a string');
-    console.assert(filePath.length > 0, 'filePath must not be empty');
-    console.assert(typeof options === 'object', 'options must be an object');
+    console.assert(typeof filePath === "string", "filePath must be a string");
+    console.assert(filePath.length > 0, "filePath must not be empty");
+    console.assert(typeof options === "object", "options must be an object");
 
     const validatedPath = FilePathSchema(filePath);
-    if (typeof validatedPath !== 'string') {
-      throw new BamError(`Invalid file path: ${validatedPath.toString()}`, undefined, 'file_path');
+    if (typeof validatedPath !== "string") {
+      throw new BamError(`Invalid file path: ${validatedPath.toString()}`, undefined, "file_path");
     }
     this.filePath = validatedPath;
     this.options = {
@@ -106,7 +106,7 @@ export class BAIReader {
       throw new BamError(
         `BAI file too small: ${totalBytes} bytes (minimum 8 for header)`,
         undefined,
-        'file_format',
+        "file_format",
         undefined,
         `File: ${this.filePath}`
       );
@@ -126,13 +126,13 @@ export class BAIReader {
     const magic = new Uint8Array(view.buffer, view.byteOffset, 4);
     if (!this.isValidBAIMagic(magic)) {
       throw new BamError(
-        'Invalid BAI magic bytes - file may be corrupted or not a BAI file',
+        "Invalid BAI magic bytes - file may be corrupted or not a BAI file",
         undefined,
-        'file_format',
+        "file_format",
         undefined,
         `Expected: "BAI\\1", Found: ${Array.from(magic)
-          .map((b) => `0x${b.toString(16).padStart(2, '0')}`)
-          .join(' ')}`
+          .map((b) => `0x${b.toString(16).padStart(2, "0")}`)
+          .join(" ")}`
       );
     }
     offset += 4;
@@ -142,7 +142,7 @@ export class BAIReader {
     offset += 4;
 
     if (referenceCount < 0) {
-      throw new BamError(`Invalid reference count: ${referenceCount}`, undefined, 'file_format');
+      throw new BamError(`Invalid reference count: ${referenceCount}`, undefined, "file_format");
     }
 
     if (referenceCount > 100000) {
@@ -172,7 +172,7 @@ export class BAIReader {
           throw new BamError(
             `Unexpected end of file while reading reference ${refId}`,
             undefined,
-            'file_format'
+            "file_format"
           );
         }
 
@@ -189,7 +189,7 @@ export class BAIReader {
         throw new BamError(
           `Failed to parse reference ${refId}: ${error instanceof Error ? error.message : String(error)}`,
           undefined,
-          'reference_parsing',
+          "reference_parsing",
           offset,
           `Reference ID: ${refId}, Offset: ${offset}`
         );
@@ -206,16 +206,16 @@ export class BAIReader {
     const index: BAIIndex = {
       referenceCount,
       references,
-      version: '1.0',
+      version: "1.0",
       createdAt: new Date(),
       sourceFile: this.filePath,
     };
 
     // Tiger Style: Assert postconditions
-    console.assert(index.referenceCount === referenceCount, 'reference count must match');
+    console.assert(index.referenceCount === referenceCount, "reference count must match");
     console.assert(
       index.references.length === referenceCount,
-      'references array length must match'
+      "references array length must match"
     );
 
     return index;
@@ -239,7 +239,7 @@ export class BAIReader {
 
     try {
       // Tiger Style: Assert preconditions
-      console.assert(this.filePath.length > 0, 'file path must be valid');
+      console.assert(this.filePath.length > 0, "file path must be valid");
 
       const startTime = Date.now();
       const fileData = await this.readFileData();
@@ -293,7 +293,7 @@ export class BAIReader {
       throw new BamError(
         `Failed to read BAI index: ${error instanceof Error ? error.message : String(error)}`,
         undefined,
-        'index_loading',
+        "index_loading",
         undefined,
         `File: ${this.filePath}`
       );
@@ -312,16 +312,16 @@ export class BAIReader {
     // Tiger Style: Assert function arguments
     console.assert(
       Number.isInteger(referenceId) && referenceId >= 0,
-      'referenceId must be non-negative integer'
+      "referenceId must be non-negative integer"
     );
-    console.assert(Number.isInteger(start) && start >= 0, 'start must be non-negative integer');
-    console.assert(Number.isInteger(end) && end >= 0, 'end must be non-negative integer');
+    console.assert(Number.isInteger(start) && start >= 0, "start must be non-negative integer");
+    console.assert(Number.isInteger(end) && end >= 0, "end must be non-negative integer");
 
     if (end <= start) {
       throw new BamError(
         `Invalid query region: end (${end}) must be > start (${start})`,
         undefined,
-        'query_coordinates'
+        "query_coordinates"
       );
     }
 
@@ -332,7 +332,7 @@ export class BAIReader {
       throw new BamError(
         `Reference ID ${referenceId} out of bounds (max ${index.referenceCount - 1})`,
         undefined,
-        'query_coordinates'
+        "query_coordinates"
       );
     }
 
@@ -341,7 +341,7 @@ export class BAIReader {
       throw new BamError(
         `Reference ${referenceId} not found in index`,
         undefined,
-        'query_reference'
+        "query_reference"
       );
     }
 
@@ -384,15 +384,15 @@ export class BAIReader {
       };
 
       // Tiger Style: Assert result is valid
-      console.assert(result.chunks.length >= 0, 'chunks array must be valid');
-      console.assert(result.referenceId === referenceId, 'reference ID must match query');
+      console.assert(result.chunks.length >= 0, "chunks array must be valid");
+      console.assert(result.referenceId === referenceId, "reference ID must match query");
 
       return result;
     } catch (error) {
       throw new BamError(
         `Query failed for region ${referenceId}:${start}-${end}: ${error instanceof Error ? error.message : String(error)}`,
         undefined,
-        'region_query',
+        "region_query",
         undefined,
         `Reference: ${referenceId}, Region: ${start}-${end}`
       );
@@ -409,7 +409,7 @@ export class BAIReader {
     // Tiger Style: Assert function arguments
     console.assert(
       Number.isInteger(referenceId) && referenceId >= 0,
-      'referenceId must be non-negative integer'
+      "referenceId must be non-negative integer"
     );
 
     const index = await this.readIndex();
@@ -418,7 +418,7 @@ export class BAIReader {
       throw new BamError(
         `Reference ID ${referenceId} out of bounds (max ${index.referenceCount - 1})`,
         undefined,
-        'reference_id'
+        "reference_id"
       );
     }
 
@@ -427,14 +427,14 @@ export class BAIReader {
       throw new BamError(
         `Reference ${referenceId} not found in index`,
         undefined,
-        'reference_access'
+        "reference_access"
       );
     }
 
     // Tiger Style: Assert postconditions
     console.assert(
       reference.linearIndex.intervals.length >= 0,
-      'linear index must have valid intervals'
+      "linear index must have valid intervals"
     );
 
     return reference.linearIndex;
@@ -595,11 +595,11 @@ export class BAIReader {
     try {
       // Use Bun.file() for optimal performance when available
       if (
-        typeof globalThis !== 'undefined' &&
-        'Bun' in globalThis &&
+        typeof globalThis !== "undefined" &&
+        "Bun" in globalThis &&
         globalThis.Bun !== undefined &&
         globalThis.Bun !== null &&
-        typeof globalThis.Bun.file === 'function'
+        typeof globalThis.Bun.file === "function"
       ) {
         const file = globalThis.Bun.file(this.filePath);
         const arrayBuffer = await file.arrayBuffer();
@@ -607,12 +607,12 @@ export class BAIReader {
       }
 
       // Fallback to other runtime file APIs would go here
-      throw new Error('No supported file I/O method available');
+      throw new Error("No supported file I/O method available");
     } catch (error) {
       throw new BamError(
         `Failed to read BAI file: ${error instanceof Error ? error.message : String(error)}`,
         undefined,
-        'file_io',
+        "file_io",
         undefined,
         `File: ${this.filePath}`
       );
@@ -685,11 +685,11 @@ export class BAIReader {
       for (let i = 0; i < numIntervals; i++) {
         const intervalOffset = BAIReader.readUInt64LE(view, currentOffset);
         const validatedOffset = VirtualOffsetSchema(intervalOffset);
-        if (typeof validatedOffset !== 'bigint') {
+        if (typeof validatedOffset !== "bigint") {
           throw new BamError(
             `Invalid virtual offset at interval ${i}: ${validatedOffset.toString()}`,
             undefined,
-            'virtual_offset'
+            "virtual_offset"
           );
         }
         intervals.push(validatedOffset);
@@ -714,7 +714,7 @@ export class BAIReader {
       throw new BamError(
         `Failed to parse reference at offset ${offset}: ${error instanceof Error ? error.message : String(error)}`,
         undefined,
-        'reference_parsing',
+        "reference_parsing",
         offset
       );
     }
@@ -733,8 +733,8 @@ export class BAIReader {
       currentOffset += 4;
 
       const validatedBinId = BAIBinNumberSchema(binId) as BAIBinNumber;
-      if (typeof validatedBinId !== 'object' || !validatedBinId) {
-        throw new BamError(`Invalid bin ID ${binId}`, undefined, 'bin_id');
+      if (typeof validatedBinId !== "object" || !validatedBinId) {
+        throw new BamError(`Invalid bin ID ${binId}`, undefined, "bin_id");
       }
 
       // Read number of chunks
@@ -754,11 +754,11 @@ export class BAIReader {
       for (let chunkIdx = 0; chunkIdx < numChunks; chunkIdx++) {
         const beginOffsetRaw = BAIReader.readUInt64LE(view, currentOffset);
         const beginOffsetValidated = VirtualOffsetSchema(beginOffsetRaw);
-        if (typeof beginOffsetValidated !== 'bigint') {
+        if (typeof beginOffsetValidated !== "bigint") {
           throw new BamError(
             `Invalid begin offset for chunk ${chunkIdx}: ${beginOffsetValidated.toString()}`,
             undefined,
-            'virtual_offset'
+            "virtual_offset"
           );
         }
         const beginOffset = beginOffsetValidated;
@@ -766,11 +766,11 @@ export class BAIReader {
 
         const endOffsetRaw = BAIReader.readUInt64LE(view, currentOffset);
         const endOffsetValidated = VirtualOffsetSchema(endOffsetRaw);
-        if (typeof endOffsetValidated !== 'bigint') {
+        if (typeof endOffsetValidated !== "bigint") {
           throw new BamError(
             `Invalid end offset for chunk ${chunkIdx}: ${endOffsetValidated.toString()}`,
             undefined,
-            'virtual_offset'
+            "virtual_offset"
           );
         }
         const endOffset = endOffsetValidated;
@@ -796,7 +796,7 @@ export class BAIReader {
       throw new BamError(
         `Failed to parse bin at offset ${offset}: ${error instanceof Error ? error.message : String(error)}`,
         undefined,
-        'bin_parsing',
+        "bin_parsing",
         offset
       );
     }
@@ -920,14 +920,14 @@ export class BAIReader {
    */
   private static readUInt64LE(view: DataView, offset: number): bigint {
     // Tiger Style: Assert function arguments
-    console.assert(view instanceof DataView, 'view must be DataView');
-    console.assert(Number.isInteger(offset) && offset >= 0, 'offset must be non-negative integer');
+    console.assert(view instanceof DataView, "view must be DataView");
+    console.assert(Number.isInteger(offset) && offset >= 0, "offset must be non-negative integer");
 
     if (offset + 8 > view.byteLength) {
       throw new BamError(
         `Cannot read uint64 at offset ${offset}: buffer too small (${view.byteLength} bytes)`,
         undefined,
-        'binary'
+        "binary"
       );
     }
 
@@ -938,7 +938,7 @@ export class BAIReader {
     const result = (BigInt(high) << 32n) | BigInt(low);
 
     // Tiger Style: Assert postconditions
-    console.assert(result >= 0n, 'result must be non-negative');
+    console.assert(result >= 0n, "result must be non-negative");
 
     return result;
   }

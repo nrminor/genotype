@@ -40,7 +40,7 @@
  * @since v0.1.0
  */
 
-import { reverseComplement } from './sequence-manipulation';
+import { reverseComplement } from "./sequence-manipulation";
 
 /**
  * Genetic code identifiers matching NCBI standards
@@ -101,70 +101,70 @@ interface GeneticCodeDefinition {
  * This is the standard genetic code (NCBI #1)
  */
 const STANDARD_CODE: CodonTable = {
-  TTT: 'F',
-  TTC: 'F',
-  TTA: 'L',
-  TTG: 'L',
-  TCT: 'S',
-  TCC: 'S',
-  TCA: 'S',
-  TCG: 'S',
-  TAT: 'Y',
-  TAC: 'Y',
-  TAA: '*',
-  TAG: '*',
-  TGT: 'C',
-  TGC: 'C',
-  TGA: '*',
-  TGG: 'W',
-  CTT: 'L',
-  CTC: 'L',
-  CTA: 'L',
-  CTG: 'L',
-  CCT: 'P',
-  CCC: 'P',
-  CCA: 'P',
-  CCG: 'P',
-  CAT: 'H',
-  CAC: 'H',
-  CAA: 'Q',
-  CAG: 'Q',
-  CGT: 'R',
-  CGC: 'R',
-  CGA: 'R',
-  CGG: 'R',
-  ATT: 'I',
-  ATC: 'I',
-  ATA: 'I',
-  ATG: 'M',
-  ACT: 'T',
-  ACC: 'T',
-  ACA: 'T',
-  ACG: 'T',
-  AAT: 'N',
-  AAC: 'N',
-  AAA: 'K',
-  AAG: 'K',
-  AGT: 'S',
-  AGC: 'S',
-  AGA: 'R',
-  AGG: 'R',
-  GTT: 'V',
-  GTC: 'V',
-  GTA: 'V',
-  GTG: 'V',
-  GCT: 'A',
-  GCC: 'A',
-  GCA: 'A',
-  GCG: 'A',
-  GAT: 'D',
-  GAC: 'D',
-  GAA: 'E',
-  GAG: 'E',
-  GGT: 'G',
-  GGC: 'G',
-  GGA: 'G',
-  GGG: 'G',
+  TTT: "F",
+  TTC: "F",
+  TTA: "L",
+  TTG: "L",
+  TCT: "S",
+  TCC: "S",
+  TCA: "S",
+  TCG: "S",
+  TAT: "Y",
+  TAC: "Y",
+  TAA: "*",
+  TAG: "*",
+  TGT: "C",
+  TGC: "C",
+  TGA: "*",
+  TGG: "W",
+  CTT: "L",
+  CTC: "L",
+  CTA: "L",
+  CTG: "L",
+  CCT: "P",
+  CCC: "P",
+  CCA: "P",
+  CCG: "P",
+  CAT: "H",
+  CAC: "H",
+  CAA: "Q",
+  CAG: "Q",
+  CGT: "R",
+  CGC: "R",
+  CGA: "R",
+  CGG: "R",
+  ATT: "I",
+  ATC: "I",
+  ATA: "I",
+  ATG: "M",
+  ACT: "T",
+  ACC: "T",
+  ACA: "T",
+  ACG: "T",
+  AAT: "N",
+  AAC: "N",
+  AAA: "K",
+  AAG: "K",
+  AGT: "S",
+  AGC: "S",
+  AGA: "R",
+  AGG: "R",
+  GTT: "V",
+  GTC: "V",
+  GTA: "V",
+  GTG: "V",
+  GCT: "A",
+  GCC: "A",
+  GCA: "A",
+  GCG: "A",
+  GAT: "D",
+  GAC: "D",
+  GAA: "E",
+  GAG: "E",
+  GGT: "G",
+  GGC: "G",
+  GGA: "G",
+  GGG: "G",
 };
 
 /**
@@ -177,10 +177,10 @@ const GENETIC_CODES: Map<number, GeneticCodeDefinition> = new Map([
     1,
     {
       id: 1,
-      name: 'Standard',
-      shortName: 'SGC0',
+      name: "Standard",
+      shortName: "SGC0",
       codons: STANDARD_CODE,
-      startCodons: ['TTG', 'CTG', 'ATG'],
+      startCodons: ["TTG", "CTG", "ATG"],
     },
   ],
 
@@ -194,16 +194,16 @@ const GENETIC_CODES: Map<number, GeneticCodeDefinition> = new Map([
     2,
     {
       id: 2,
-      name: 'Vertebrate Mitochondrial',
-      shortName: 'VMt',
+      name: "Vertebrate Mitochondrial",
+      shortName: "VMt",
       codons: {
         ...STANDARD_CODE,
-        AGA: '*', // Stop codon (not Arg) - mitochondrial-specific termination
-        AGG: '*', // Stop codon (not Arg) - mitochondrial-specific termination
-        ATA: 'M', // Methionine (not Ile) - alternative start codon
-        TGA: 'W', // Tryptophan (not stop) - essential for Trp synthesis
+        AGA: "*", // Stop codon (not Arg) - mitochondrial-specific termination
+        AGG: "*", // Stop codon (not Arg) - mitochondrial-specific termination
+        ATA: "M", // Methionine (not Ile) - alternative start codon
+        TGA: "W", // Tryptophan (not stop) - essential for Trp synthesis
       },
-      startCodons: ['ATT', 'ATC', 'ATA', 'ATG', 'GTG'], // Expanded start codon set
+      startCodons: ["ATT", "ATC", "ATA", "ATG", "GTG"], // Expanded start codon set
     },
   ],
 
@@ -212,20 +212,20 @@ const GENETIC_CODES: Map<number, GeneticCodeDefinition> = new Map([
     3,
     {
       id: 3,
-      name: 'Yeast Mitochondrial',
-      shortName: 'YMt',
+      name: "Yeast Mitochondrial",
+      shortName: "YMt",
       codons: {
         ...STANDARD_CODE,
-        ATA: 'M', // M instead of I
-        CTT: 'T',
-        CTC: 'T',
-        CTA: 'T',
-        CTG: 'T', // T instead of L
-        TGA: 'W', // W instead of stop
-        CGA: '*',
-        CGC: '*', // Stops instead of R
+        ATA: "M", // M instead of I
+        CTT: "T",
+        CTC: "T",
+        CTA: "T",
+        CTG: "T", // T instead of L
+        TGA: "W", // W instead of stop
+        CGA: "*",
+        CGC: "*", // Stops instead of R
       },
-      startCodons: ['ATA', 'ATG'],
+      startCodons: ["ATA", "ATG"],
     },
   ],
 
@@ -234,13 +234,13 @@ const GENETIC_CODES: Map<number, GeneticCodeDefinition> = new Map([
     4,
     {
       id: 4,
-      name: 'Mold Mitochondrial',
-      shortName: 'MMt',
+      name: "Mold Mitochondrial",
+      shortName: "MMt",
       codons: {
         ...STANDARD_CODE,
-        TGA: 'W', // W instead of stop
+        TGA: "W", // W instead of stop
       },
-      startCodons: ['TTA', 'TTG', 'CTG', 'ATT', 'ATC', 'ATA', 'ATG', 'GTG'],
+      startCodons: ["TTA", "TTG", "CTG", "ATT", "ATC", "ATA", "ATG", "GTG"],
     },
   ],
 
@@ -249,16 +249,16 @@ const GENETIC_CODES: Map<number, GeneticCodeDefinition> = new Map([
     5,
     {
       id: 5,
-      name: 'Invertebrate Mitochondrial',
-      shortName: 'IMt',
+      name: "Invertebrate Mitochondrial",
+      shortName: "IMt",
       codons: {
         ...STANDARD_CODE,
-        AGA: 'S',
-        AGG: 'S', // S instead of R
-        ATA: 'M', // M instead of I
-        TGA: 'W', // W instead of stop
+        AGA: "S",
+        AGG: "S", // S instead of R
+        ATA: "M", // M instead of I
+        TGA: "W", // W instead of stop
       },
-      startCodons: ['TTG', 'ATT', 'ATC', 'ATA', 'ATG', 'GTG'],
+      startCodons: ["TTG", "ATT", "ATC", "ATA", "ATG", "GTG"],
     },
   ],
 
@@ -271,14 +271,14 @@ const GENETIC_CODES: Map<number, GeneticCodeDefinition> = new Map([
     6,
     {
       id: 6,
-      name: 'Ciliate Nuclear',
-      shortName: 'CNu',
+      name: "Ciliate Nuclear",
+      shortName: "CNu",
       codons: {
         ...STANDARD_CODE,
-        TAA: 'Q', // Glutamine (not stop) - amber codon reassignment
-        TAG: 'Q', // Glutamine (not stop) - ochre codon reassignment
+        TAA: "Q", // Glutamine (not stop) - amber codon reassignment
+        TAG: "Q", // Glutamine (not stop) - ochre codon reassignment
       },
-      startCodons: ['ATG'], // Standard initiation only
+      startCodons: ["ATG"], // Standard initiation only
     },
   ],
 
@@ -287,16 +287,16 @@ const GENETIC_CODES: Map<number, GeneticCodeDefinition> = new Map([
     9,
     {
       id: 9,
-      name: 'Echinoderm Mitochondrial',
-      shortName: 'EMt',
+      name: "Echinoderm Mitochondrial",
+      shortName: "EMt",
       codons: {
         ...STANDARD_CODE,
-        AAA: 'N', // N instead of K
-        AGA: 'S',
-        AGG: 'S', // S instead of R
-        TGA: 'W', // W instead of stop
+        AAA: "N", // N instead of K
+        AGA: "S",
+        AGG: "S", // S instead of R
+        TGA: "W", // W instead of stop
       },
-      startCodons: ['ATG', 'GTG'],
+      startCodons: ["ATG", "GTG"],
     },
   ],
 
@@ -305,13 +305,13 @@ const GENETIC_CODES: Map<number, GeneticCodeDefinition> = new Map([
     10,
     {
       id: 10,
-      name: 'Euplotid Nuclear',
-      shortName: 'ENu',
+      name: "Euplotid Nuclear",
+      shortName: "ENu",
       codons: {
         ...STANDARD_CODE,
-        TGA: 'C', // C instead of stop
+        TGA: "C", // C instead of stop
       },
-      startCodons: ['ATG'],
+      startCodons: ["ATG"],
     },
   ],
 
@@ -320,10 +320,10 @@ const GENETIC_CODES: Map<number, GeneticCodeDefinition> = new Map([
     11,
     {
       id: 11,
-      name: 'Bacterial and Plant Plastid',
-      shortName: 'BPl',
+      name: "Bacterial and Plant Plastid",
+      shortName: "BPl",
       codons: STANDARD_CODE, // Same as standard
-      startCodons: ['TTG', 'CTG', 'ATT', 'ATC', 'ATA', 'ATG', 'GTG'],
+      startCodons: ["TTG", "CTG", "ATT", "ATC", "ATA", "ATG", "GTG"],
     },
   ],
 
@@ -332,13 +332,13 @@ const GENETIC_CODES: Map<number, GeneticCodeDefinition> = new Map([
     12,
     {
       id: 12,
-      name: 'Alternative Yeast Nuclear',
-      shortName: 'AYN',
+      name: "Alternative Yeast Nuclear",
+      shortName: "AYN",
       codons: {
         ...STANDARD_CODE,
-        CTG: 'S', // S instead of L
+        CTG: "S", // S instead of L
       },
-      startCodons: ['CTG', 'ATG'],
+      startCodons: ["CTG", "ATG"],
     },
   ],
 
@@ -347,16 +347,16 @@ const GENETIC_CODES: Map<number, GeneticCodeDefinition> = new Map([
     13,
     {
       id: 13,
-      name: 'Ascidian Mitochondrial',
-      shortName: 'AMt',
+      name: "Ascidian Mitochondrial",
+      shortName: "AMt",
       codons: {
         ...STANDARD_CODE,
-        AGA: 'G',
-        AGG: 'G', // G instead of R
-        ATA: 'M', // M instead of I
-        TGA: 'W', // W instead of stop
+        AGA: "G",
+        AGG: "G", // G instead of R
+        ATA: "M", // M instead of I
+        TGA: "W", // W instead of stop
       },
-      startCodons: ['TTG', 'ATA', 'ATG', 'GTG'],
+      startCodons: ["TTG", "ATA", "ATG", "GTG"],
     },
   ],
 
@@ -365,17 +365,17 @@ const GENETIC_CODES: Map<number, GeneticCodeDefinition> = new Map([
     14,
     {
       id: 14,
-      name: 'Alternative Flatworm Mitochondrial',
-      shortName: 'AFMt',
+      name: "Alternative Flatworm Mitochondrial",
+      shortName: "AFMt",
       codons: {
         ...STANDARD_CODE,
-        AAA: 'N', // N instead of K
-        AGA: 'S',
-        AGG: 'S', // S instead of R
-        TAA: 'Y', // Y instead of stop
-        TGA: 'W', // W instead of stop
+        AAA: "N", // N instead of K
+        AGA: "S",
+        AGG: "S", // S instead of R
+        TAA: "Y", // Y instead of stop
+        TGA: "W", // W instead of stop
       },
-      startCodons: ['ATG'],
+      startCodons: ["ATG"],
     },
   ],
 
@@ -384,13 +384,13 @@ const GENETIC_CODES: Map<number, GeneticCodeDefinition> = new Map([
     16,
     {
       id: 16,
-      name: 'Chlorophycean Mitochondrial',
-      shortName: 'CMt',
+      name: "Chlorophycean Mitochondrial",
+      shortName: "CMt",
       codons: {
         ...STANDARD_CODE,
-        TAG: 'L', // L instead of stop
+        TAG: "L", // L instead of stop
       },
-      startCodons: ['ATG'],
+      startCodons: ["ATG"],
     },
   ],
 
@@ -399,17 +399,17 @@ const GENETIC_CODES: Map<number, GeneticCodeDefinition> = new Map([
     21,
     {
       id: 21,
-      name: 'Trematode Mitochondrial',
-      shortName: 'TMt',
+      name: "Trematode Mitochondrial",
+      shortName: "TMt",
       codons: {
         ...STANDARD_CODE,
-        TGA: 'W', // W instead of stop
-        ATA: 'M', // M instead of I
-        AGA: 'S',
-        AGG: 'S', // S instead of R
-        AAA: 'N', // N instead of K
+        TGA: "W", // W instead of stop
+        ATA: "M", // M instead of I
+        AGA: "S",
+        AGG: "S", // S instead of R
+        AAA: "N", // N instead of K
       },
-      startCodons: ['ATG', 'GTG'],
+      startCodons: ["ATG", "GTG"],
     },
   ],
 
@@ -418,14 +418,14 @@ const GENETIC_CODES: Map<number, GeneticCodeDefinition> = new Map([
     22,
     {
       id: 22,
-      name: 'Scenedesmus obliquus Mitochondrial',
-      shortName: 'SoMt',
+      name: "Scenedesmus obliquus Mitochondrial",
+      shortName: "SoMt",
       codons: {
         ...STANDARD_CODE,
-        TCA: '*', // Stop instead of S
-        TAG: 'L', // L instead of stop
+        TCA: "*", // Stop instead of S
+        TAG: "L", // L instead of stop
       },
-      startCodons: ['ATG'],
+      startCodons: ["ATG"],
     },
   ],
 
@@ -434,13 +434,13 @@ const GENETIC_CODES: Map<number, GeneticCodeDefinition> = new Map([
     23,
     {
       id: 23,
-      name: 'Thraustochytrium Mitochondrial',
-      shortName: 'ThMt',
+      name: "Thraustochytrium Mitochondrial",
+      shortName: "ThMt",
       codons: {
         ...STANDARD_CODE,
-        TTA: '*', // Stop instead of L
+        TTA: "*", // Stop instead of L
       },
-      startCodons: ['ATT', 'ATG', 'GTG'],
+      startCodons: ["ATT", "ATG", "GTG"],
     },
   ],
 
@@ -452,15 +452,15 @@ const GENETIC_CODES: Map<number, GeneticCodeDefinition> = new Map([
     24,
     {
       id: 24,
-      name: 'Rhabdopleuridae Mitochondrial',
-      shortName: 'RMt',
+      name: "Rhabdopleuridae Mitochondrial",
+      shortName: "RMt",
       codons: {
         ...STANDARD_CODE,
-        AGA: 'S',
-        AGG: 'K', // S and K instead of R
-        TGA: 'W', // W instead of stop
+        AGA: "S",
+        AGG: "K", // S and K instead of R
+        TGA: "W", // W instead of stop
       },
-      startCodons: ['TTG', 'CTG', 'ATG', 'GTG'],
+      startCodons: ["TTG", "CTG", "ATG", "GTG"],
     },
   ],
 
@@ -469,13 +469,13 @@ const GENETIC_CODES: Map<number, GeneticCodeDefinition> = new Map([
     25,
     {
       id: 25,
-      name: 'Candidate Division SR1',
-      shortName: 'SR1',
+      name: "Candidate Division SR1",
+      shortName: "SR1",
       codons: {
         ...STANDARD_CODE,
-        TGA: 'G', // G instead of stop
+        TGA: "G", // G instead of stop
       },
-      startCodons: ['TTG', 'ATG', 'GTG'],
+      startCodons: ["TTG", "ATG", "GTG"],
     },
   ],
 
@@ -484,13 +484,13 @@ const GENETIC_CODES: Map<number, GeneticCodeDefinition> = new Map([
     26,
     {
       id: 26,
-      name: 'Pachysolen tannophilus Nuclear',
-      shortName: 'PtN',
+      name: "Pachysolen tannophilus Nuclear",
+      shortName: "PtN",
       codons: {
         ...STANDARD_CODE,
-        CTG: 'A', // A instead of L
+        CTG: "A", // A instead of L
       },
-      startCodons: ['CTG', 'ATG'],
+      startCodons: ["CTG", "ATG"],
     },
   ],
 
@@ -499,15 +499,15 @@ const GENETIC_CODES: Map<number, GeneticCodeDefinition> = new Map([
     27,
     {
       id: 27,
-      name: 'Karyorelict Nuclear',
-      shortName: 'KNu',
+      name: "Karyorelict Nuclear",
+      shortName: "KNu",
       codons: {
         ...STANDARD_CODE,
-        TAA: 'Q',
-        TAG: 'Q', // Q instead of stop
-        TGA: 'W', // W instead of stop
+        TAA: "Q",
+        TAG: "Q", // Q instead of stop
+        TGA: "W", // W instead of stop
       },
-      startCodons: ['ATG'],
+      startCodons: ["ATG"],
     },
   ],
 
@@ -516,15 +516,15 @@ const GENETIC_CODES: Map<number, GeneticCodeDefinition> = new Map([
     28,
     {
       id: 28,
-      name: 'Condylostoma Nuclear',
-      shortName: 'CoNu',
+      name: "Condylostoma Nuclear",
+      shortName: "CoNu",
       codons: {
         ...STANDARD_CODE,
-        TAA: 'Q',
-        TAG: 'Q', // Q instead of stop
-        TGA: 'W', // W instead of stop
+        TAA: "Q",
+        TAG: "Q", // Q instead of stop
+        TGA: "W", // W instead of stop
       },
-      startCodons: ['ATG'],
+      startCodons: ["ATG"],
     },
   ],
 
@@ -533,14 +533,14 @@ const GENETIC_CODES: Map<number, GeneticCodeDefinition> = new Map([
     29,
     {
       id: 29,
-      name: 'Mesodinium Nuclear',
-      shortName: 'MeNu',
+      name: "Mesodinium Nuclear",
+      shortName: "MeNu",
       codons: {
         ...STANDARD_CODE,
-        TAA: 'Y',
-        TAG: 'Y', // Y instead of stop
+        TAA: "Y",
+        TAG: "Y", // Y instead of stop
       },
-      startCodons: ['ATG'],
+      startCodons: ["ATG"],
     },
   ],
 
@@ -549,14 +549,14 @@ const GENETIC_CODES: Map<number, GeneticCodeDefinition> = new Map([
     30,
     {
       id: 30,
-      name: 'Peritrich Nuclear',
-      shortName: 'PeNu',
+      name: "Peritrich Nuclear",
+      shortName: "PeNu",
       codons: {
         ...STANDARD_CODE,
-        TAA: 'E',
-        TAG: 'E', // E instead of stop
+        TAA: "E",
+        TAG: "E", // E instead of stop
       },
-      startCodons: ['ATG'],
+      startCodons: ["ATG"],
     },
   ],
 
@@ -565,15 +565,15 @@ const GENETIC_CODES: Map<number, GeneticCodeDefinition> = new Map([
     31,
     {
       id: 31,
-      name: 'Blastocrithidia Nuclear',
-      shortName: 'BNu',
+      name: "Blastocrithidia Nuclear",
+      shortName: "BNu",
       codons: {
         ...STANDARD_CODE,
-        TAA: 'E',
-        TAG: 'E', // E instead of stop
-        TGA: 'W', // W instead of stop
+        TAA: "E",
+        TAG: "E", // E instead of stop
+        TGA: "W", // W instead of stop
       },
-      startCodons: ['ATG'],
+      startCodons: ["ATG"],
     },
   ],
 
@@ -582,13 +582,13 @@ const GENETIC_CODES: Map<number, GeneticCodeDefinition> = new Map([
     32,
     {
       id: 32,
-      name: 'Balanophoraceae Plastid',
-      shortName: 'BaPl',
+      name: "Balanophoraceae Plastid",
+      shortName: "BaPl",
       codons: {
         ...STANDARD_CODE,
-        TAG: 'W', // W instead of stop
+        TAG: "W", // W instead of stop
       },
-      startCodons: ['TTG', 'CTG', 'ATT', 'ATC', 'ATA', 'ATG', 'GTG'],
+      startCodons: ["TTG", "CTG", "ATT", "ATC", "ATA", "ATG", "GTG"],
     },
   ],
 
@@ -597,16 +597,16 @@ const GENETIC_CODES: Map<number, GeneticCodeDefinition> = new Map([
     33,
     {
       id: 33,
-      name: 'Cephalodiscidae Mitochondrial',
-      shortName: 'CeMt',
+      name: "Cephalodiscidae Mitochondrial",
+      shortName: "CeMt",
       codons: {
         ...STANDARD_CODE,
-        AGA: 'S', // S instead of R
-        AGG: 'K', // K instead of R
-        TAA: 'Y', // Y instead of stop
-        TGA: 'W', // W instead of stop
+        AGA: "S", // S instead of R
+        AGG: "K", // K instead of R
+        TAA: "Y", // Y instead of stop
+        TGA: "W", // W instead of stop
       },
-      startCodons: ['TTG', 'CTG', 'ATG', 'GTG'],
+      startCodons: ["TTG", "CTG", "ATG", "GTG"],
     },
   ],
 ]);
@@ -658,11 +658,11 @@ export function translate(
   frame: 0 | 1 | 2 = 0
 ): string {
   // Tiger Style: Assert inputs
-  if (!sequence || typeof sequence !== 'string') {
-    throw new Error('Sequence must be a non-empty string');
+  if (!sequence || typeof sequence !== "string") {
+    throw new Error("Sequence must be a non-empty string");
   }
   if (frame < 0 || frame > 2) {
-    throw new Error('Frame must be 0, 1, or 2');
+    throw new Error("Frame must be 0, 1, or 2");
   }
 
   const code = GENETIC_CODES.get(codeId);
@@ -671,14 +671,14 @@ export function translate(
   }
 
   // Prepare sequence - uppercase and convert RNA to DNA
-  const dna = sequence.toUpperCase().replace(/U/g, 'T');
+  const dna = sequence.toUpperCase().replace(/U/g, "T");
 
   // Start from frame position
-  let protein = '';
+  let protein = "";
   for (let i = frame; i + 2 < dna.length; i += 3) {
     const codon = dna.substring(i, i + 3);
     const aa = code.codons[codon];
-    protein += aa !== undefined && aa !== null && aa !== '' ? aa : 'X'; // X for unknown codons
+    protein += aa !== undefined && aa !== null && aa !== "" ? aa : "X"; // X for unknown codons
   }
 
   return protein;
@@ -696,20 +696,20 @@ export function translateSixFrames(
   codeId: GeneticCode = GeneticCode.STANDARD
 ): Record<string, string> {
   // Tiger Style: Assert input
-  if (!sequence || typeof sequence !== 'string') {
-    throw new Error('Sequence must be a non-empty string');
+  if (!sequence || typeof sequence !== "string") {
+    throw new Error("Sequence must be a non-empty string");
   }
 
   // Get reverse complement
   const revComp = reverseComplement(sequence);
 
   return {
-    '+1': translate(sequence, codeId, 0),
-    '+2': translate(sequence, codeId, 1),
-    '+3': translate(sequence, codeId, 2),
-    '-1': translate(revComp, codeId, 0),
-    '-2': translate(revComp, codeId, 1),
-    '-3': translate(revComp, codeId, 2),
+    "+1": translate(sequence, codeId, 0),
+    "+2": translate(sequence, codeId, 1),
+    "+3": translate(sequence, codeId, 2),
+    "-1": translate(revComp, codeId, 0),
+    "-2": translate(revComp, codeId, 1),
+    "-3": translate(revComp, codeId, 2),
   };
 }
 
@@ -731,16 +731,16 @@ export function findORFs(
   start: number;
   end: number;
   frame: number;
-  strand: '+' | '-';
+  strand: "+" | "-";
   length: number;
   protein: string;
 }> {
   // Tiger Style: Assert inputs
-  if (!sequence || typeof sequence !== 'string') {
-    throw new Error('Sequence must be a non-empty string');
+  if (!sequence || typeof sequence !== "string") {
+    throw new Error("Sequence must be a non-empty string");
   }
   if (minLength < 1) {
-    throw new Error('Minimum length must be positive');
+    throw new Error("Minimum length must be positive");
   }
 
   const code = GENETIC_CODES.get(codeId);
@@ -752,23 +752,23 @@ export function findORFs(
     start: number;
     end: number;
     frame: number;
-    strand: '+' | '-';
+    strand: "+" | "-";
     length: number;
     protein: string;
   }> = [];
 
   // Process both strands
   const sequences = {
-    '+': sequence,
-    '-': reverseComplement(sequence),
+    "+": sequence,
+    "-": reverseComplement(sequence),
   };
 
   for (const [strand, seq] of Object.entries(sequences)) {
-    const dna = seq.toUpperCase().replace(/U/g, 'T');
+    const dna = seq.toUpperCase().replace(/U/g, "T");
 
     // Check all three frames
     for (let frame = 0; frame < 3; frame++) {
-      const frameResult = processFrameForORFs(dna, frame, strand as '+' | '-', code, minLength);
+      const frameResult = processFrameForORFs(dna, frame, strand as "+" | "-", code, minLength);
       orfs.push(...frameResult);
     }
   }
@@ -783,14 +783,14 @@ export function findORFs(
 function processFrameForORFs(
   dna: string,
   frame: number,
-  strand: '+' | '-',
+  strand: "+" | "-",
   code: GeneticCodeDefinition,
   minLength: number
 ): Array<{
   start: number;
   end: number;
   frame: number;
-  strand: '+' | '-';
+  strand: "+" | "-";
   length: number;
   protein: string;
 }> {
@@ -798,20 +798,20 @@ function processFrameForORFs(
     start: number;
     end: number;
     frame: number;
-    strand: '+' | '-';
+    strand: "+" | "-";
     length: number;
     protein: string;
   }> = [];
 
   let inOrf = false;
   let orfStart = -1;
-  let orfProtein = '';
+  let orfProtein = "";
 
   for (let i = frame; i + 2 < dna.length; i += 3) {
     const codon = dna.substring(i, i + 3);
     const aa = code.codons[codon];
 
-    if (aa === undefined || aa === null || aa === '') continue;
+    if (aa === undefined || aa === null || aa === "") continue;
 
     // Check for start codon
     if (!inOrf && code.startCodons.includes(codon)) {
@@ -824,19 +824,19 @@ function processFrameForORFs(
     if (!inOrf) continue;
 
     // Handle stop codon
-    if (code.codons[codon] === '*') {
+    if (code.codons[codon] === "*") {
       if (orfProtein.length >= minLength) {
         frameOrfs.push({
           start: orfStart,
           end: i + 1,
-          frame: strand === '+' ? frame + 1 : -(frame + 1),
+          frame: strand === "+" ? frame + 1 : -(frame + 1),
           strand,
           length: orfProtein.length,
           protein: orfProtein,
         });
       }
       inOrf = false;
-      orfProtein = '';
+      orfProtein = "";
       continue;
     }
 
@@ -849,7 +849,7 @@ function processFrameForORFs(
     frameOrfs.push({
       start: orfStart,
       end: dna.length - 1,
-      frame: strand === '+' ? frame + 1 : -(frame + 1),
+      frame: strand === "+" ? frame + 1 : -(frame + 1),
       strand,
       length: orfProtein.length,
       protein: orfProtein,
@@ -888,7 +888,7 @@ export function isStartCodon(codon: string, codeId: GeneticCode = GeneticCode.ST
   const code = GENETIC_CODES.get(codeId);
   if (!code) return false;
 
-  const normalizedCodon = codon.toUpperCase().replace(/U/g, 'T');
+  const normalizedCodon = codon.toUpperCase().replace(/U/g, "T");
   return code.startCodons.includes(normalizedCodon);
 }
 
@@ -899,8 +899,95 @@ export function isStopCodon(codon: string, codeId: GeneticCode = GeneticCode.STA
   const code = GENETIC_CODES.get(codeId);
   if (!code) return false;
 
-  const normalizedCodon = codon.toUpperCase().replace(/U/g, 'T');
-  return code.codons[normalizedCodon] === '*';
+  const normalizedCodon = codon.toUpperCase().replace(/U/g, "T");
+  return code.codons[normalizedCodon] === "*";
+}
+
+/**
+ * Check if a codon is an alternative start codon
+ *
+ * Alternative start codons (CTG, TTG, GTG) are used in some organisms
+ * and contexts, particularly in bacterial and mitochondrial translation.
+ *
+ * @param codon - Codon to check
+ * @returns True if codon is an alternative start codon
+ *
+ * @example
+ * ```typescript
+ * isAlternativeStart('CTG'); // true
+ * isAlternativeStart('ATG'); // false (standard start, not alternative)
+ * ```
+ */
+export function isAlternativeStart(codon: string): boolean {
+  const alternativeStarts = ["CTG", "TTG", "GTG"];
+  const normalizedCodon = codon.toUpperCase().replace(/U/g, "T");
+  return alternativeStarts.includes(normalizedCodon);
+}
+
+/**
+ * Translate a single codon to amino acid, handling ambiguity
+ *
+ * Core primitive for genetic code translation that handles both
+ * exact and ambiguous codon matching.
+ *
+ * @param codon - 3-base codon to translate
+ * @param codonTable - Genetic code mapping table
+ * @returns Single-letter amino acid code or 'X' for unknown
+ *
+ * @example
+ * ```typescript
+ * const table = getGeneticCode(1).codons;
+ * translateCodon('ATG', table); // 'M'
+ * translateCodon('NTG', table); // 'X' (ambiguous)
+ * ```
+ *
+ * 🔥 NATIVE: Codon lookup - perfect for optimized hash tables
+ */
+export function translateCodon(
+  codon: string,
+  codonTable: { readonly [codon: string]: string }
+): string {
+  // Direct translation for exact matches
+  const directTranslation = codonTable[codon];
+  if (directTranslation !== undefined) {
+    return directTranslation;
+  }
+
+  // Handle ambiguous codons by expanding possibilities
+  const { expandAmbiguous } = require("./sequence-validation");
+
+  // Get all possible amino acids for this ambiguous codon
+  const possibleAminoAcids = new Set<string>();
+
+  // Simple approach: expand each base and try all combinations
+  let results = [""];
+  for (const base of codon) {
+    const possibilities = expandAmbiguous(base);
+    const newResults: string[] = [];
+
+    for (const result of results) {
+      for (const possibility of possibilities) {
+        newResults.push(result + possibility);
+      }
+    }
+    results = newResults;
+  }
+
+  // Check each possible codon
+  for (const possibleCodon of results) {
+    const aa = codonTable[possibleCodon];
+    if (aa) {
+      possibleAminoAcids.add(aa);
+    }
+  }
+
+  // If all possibilities give same amino acid, return it
+  if (possibleAminoAcids.size === 1) {
+    return Array.from(possibleAminoAcids)[0] ?? "X";
+  }
+
+  // Multiple possibilities or no translation found
+  return "X";
 }
 
 // =============================================================================

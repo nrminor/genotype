@@ -9,9 +9,10 @@
  * @since v0.1.0
  */
 
-import type { AbstractSequence, FastqSequence } from '../types';
-import type { QualityOptions, Processor } from './types';
-import * as qualityUtils from './core/encoding';
+import type { AbstractSequence, FastqSequence } from "../types";
+import { findQualityTrimEnd, findQualityTrimStart } from "./core/calculations";
+import * as qualityUtils from "./core/encoding";
+import type { Processor, QualityOptions } from "./types";
 
 /**
  * Processor for FASTQ quality operations
@@ -64,7 +65,7 @@ export class QualityProcessor implements Processor<QualityOptions> {
    * @returns True if sequence is FASTQ
    */
   private isFastq(seq: AbstractSequence): seq is FastqSequence {
-    return 'quality' in seq && typeof seq.quality === 'string';
+    return "quality" in seq && typeof seq.quality === "string";
   }
 
   /**
@@ -77,23 +78,15 @@ export class QualityProcessor implements Processor<QualityOptions> {
   private processQuality(seq: FastqSequence, options: QualityOptions): FastqSequence | null {
     let sequence = seq.sequence;
     let quality = seq.quality;
-    const encoding = options.encoding || 'phred33';
+    const encoding = options.encoding || "phred33";
 
     // Quality trimming
     if (options.trim === true) {
       const trimmed = this.qualityTrim(
         sequence,
         quality,
-        options.trimThreshold !== undefined &&
-          options.trimThreshold !== null &&
-          !Number.isNaN(options.trimThreshold)
-          ? options.trimThreshold
-          : 20,
-        options.trimWindow !== undefined &&
-          options.trimWindow !== null &&
-          !Number.isNaN(options.trimWindow)
-          ? options.trimWindow
-          : 4,
+        options.trimThreshold ?? 20,
+        options.trimWindow ?? 4,
         encoding,
         options.trimFromStart,
         options.trimFromEnd
@@ -152,7 +145,7 @@ export class QualityProcessor implements Processor<QualityOptions> {
     quality: string,
     threshold: number,
     windowSize: number,
-    encoding: 'phred33' | 'phred64',
+    encoding: "phred33" | "phred64",
     trimStart?: boolean,
     trimEnd?: boolean
   ): { sequence: string; quality: string } | null {
@@ -165,12 +158,12 @@ export class QualityProcessor implements Processor<QualityOptions> {
 
     // Trim from 5' end
     if (fromStart) {
-      start = this.findTrimStart(quality, threshold, windowSize, encoding);
+      start = findQualityTrimStart(quality, threshold, windowSize, encoding);
     }
 
     // Trim from 3' end
     if (fromEnd && start < end) {
-      end = this.findTrimEnd(quality, threshold, windowSize, encoding, start);
+      end = findQualityTrimEnd(quality, threshold, windowSize, encoding, start);
     }
 
     // Check if anything remains
@@ -182,71 +175,5 @@ export class QualityProcessor implements Processor<QualityOptions> {
       sequence: sequence.slice(start, end),
       quality: quality.slice(start, end),
     };
-  }
-
-  /**
-   * Find trim position from start of sequence
-   *
-   * NATIVE_CANDIDATE: Sliding window quality calculation.
-   * Native implementation would avoid string slicing
-   * and repeated quality score conversions.
-   *
-   * @param quality - Quality string
-   * @param threshold - Quality threshold
-   * @param windowSize - Window size
-   * @param encoding - Quality encoding
-   * @returns Start position for trimming
-   */
-  private findTrimStart(
-    quality: string,
-    threshold: number,
-    windowSize: number,
-    encoding: 'phred33' | 'phred64'
-  ): number {
-    // NATIVE_CANDIDATE: Hot loop with string slicing and quality calculations
-    for (let i = 0; i <= quality.length - windowSize; i++) {
-      const window = quality.slice(i, i + windowSize);
-      const avgQual = qualityUtils.averageQuality(window, encoding);
-
-      if (avgQual >= threshold) {
-        return i;
-      }
-    }
-
-    return quality.length; // No good quality found
-  }
-
-  /**
-   * Find trim position from end of sequence
-   *
-   * NATIVE_CANDIDATE: Sliding window quality calculation.
-   * Native implementation would avoid string slicing
-   * and repeated quality score conversions.
-   *
-   * @param quality - Quality string
-   * @param threshold - Quality threshold
-   * @param windowSize - Window size
-   * @param encoding - Quality encoding
-   * @param start - Start position (don't trim before this)
-   * @returns End position for trimming
-   */
-  private findTrimEnd(
-    quality: string,
-    threshold: number,
-    windowSize: number,
-    encoding: 'phred33' | 'phred64',
-    start: number
-  ): number {
-    // NATIVE_CANDIDATE: Hot loop with string slicing and quality calculations
-    for (let i = quality.length - windowSize; i >= start; i--) {
-      const window = quality.slice(i, i + windowSize);
-      const avgQual = qualityUtils.averageQuality(window, encoding);
-
-      if (avgQual >= threshold) {
-        return i + windowSize;
-      }
-    }
-
-    return start; // No good quality found
   }
 }

@@ -9,7 +9,7 @@
  * Usage: bun run examples/seqkit-seq.ts <input.fasta|input.fastq>
  */
 
-import { FastaParser, FastqParser, seqops } from '../src';
+import { FastaParser, FastqParser, seqops } from "../src";
 
 async function main() {
   const inputFile = process.argv[2];
@@ -39,7 +39,7 @@ const processed = await seqops(genome)
   try {
     // Auto-detect format
     const isNGS =
-      inputFile.toLowerCase().includes('.fq') || inputFile.toLowerCase().includes('.fastq');
+      inputFile.toLowerCase().includes(".fq") || inputFile.toLowerCase().includes(".fastq");
 
     if (isNGS) {
       // NGS quality control workflow
@@ -53,7 +53,7 @@ const processed = await seqops(genome)
         .stats({ includeQuality: true });
 
       console.error(`Processed ${stats.numSequences} reads`);
-      console.error(`Average quality: Q${stats.avgQuality?.toFixed(0) || 'N/A'}`);
+      console.error(`Average quality: Q${stats.avgQuality?.toFixed(0) || "N/A"}`);
       console.error(`Average length: ${Math.round(stats.avgLength)}bp`);
     } else {
       // Genome analysis workflow

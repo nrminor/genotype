@@ -16,13 +16,20 @@
  * @since v0.1.0
  */
 
-import { type } from 'arktype';
-import type { AbstractSequence, FastqSequence, BedInterval } from '../types';
-import { SequenceError } from '../errors';
-import { reverseComplement } from './core/sequence-manipulation';
-import { BedParser } from '../formats/bed';
-import { GtfParser, type GtfFeature } from '../formats/gtf';
-import { createOptionsValidator } from './core/validation-utils';
+import { type } from "arktype";
+import { SequenceError, ValidationError } from "../errors";
+import { BedParser } from "../formats/bed";
+import { type GtfFeature, GtfParser } from "../formats/gtf";
+import type { AbstractSequence, BedInterval, FastqSequence } from "../types";
+import {
+  type ParsedCoordinates,
+  parseEndPosition,
+  parseStartPosition,
+  validateFinalCoordinates,
+  validateRegionParts,
+  validateRegionString,
+} from "./core/coordinates";
+import { reverseComplement } from "./core/sequence-manipulation";
 
 // =============================================================================
 // TYPES AND INTERFACES
@@ -86,7 +93,7 @@ export interface SubseqOptions {
 
   // Strand handling
   /** Strand orientation for extraction */
-  strand?: '+' | '-' | 'both';
+  strand?: "+" | "-" | "both";
   /** Reverse complement if on minus strand */
   reverseComplementMinus?: boolean;
 
@@ -108,114 +115,99 @@ export interface SubseqOptions {
  */
 const SubseqOptionsSchema = type({
   // Region specification
-  'region?': 'string',
-  'regions?': 'string[]',
-  'start?': 'number',
-  'end?': 'number',
+  "region?": "string",
+  "regions?": "string[]",
+  "start?": "number",
+  "end?": "number",
 
   // File-based regions
-  'bedFile?': 'string',
-  'bedRegions?': 'object[]',
-  'gtfFile?': 'string',
-  'gtfFeatures?': 'object[]',
-  'featureType?': 'string',
+  "bedFile?": "string",
+  "bedRegions?": "object[]",
+  "gtfFile?": "string",
+  "gtfFeatures?": "object[]",
+  "featureType?": "string",
 
   // ID-based filtering
-  'idPattern?': 'RegExp',
-  'idList?': 'string[]',
+  "idPattern?": "RegExp",
+  "idList?": "string[]",
 
   // Flanking sequences
-  'upstream?': 'number>=0',
-  'downstream?': 'number>=0',
-  'onlyFlank?': 'boolean',
+  "upstream?": "number>=0",
+  "downstream?": "number>=0",
+  "onlyFlank?": "boolean",
 
   // Coordinate system
-  'oneBased?': 'boolean',
+  "oneBased?": "boolean",
 
   // Strand handling
-  'strand?': "'+' | '-' | 'both'",
-  'reverseComplementMinus?': 'boolean',
+  "strand?": "'+' | '-' | 'both'",
+  "reverseComplementMinus?": "boolean",
 
   // Circular sequences
-  'circular?': 'boolean',
+  "circular?": "boolean",
 
   // Output options
-  'includeCoordinates?': 'boolean',
-  'coordinateSeparator?': 'string',
-  'concatenate?': 'boolean',
+  "includeCoordinates?": "boolean",
+  "coordinateSeparator?": "string",
+  "concatenate?": "boolean",
+}).narrow((options, ctx) => {
+  // onlyFlank requires upstream or downstream
+  if (options.onlyFlank === true && !options.upstream && !options.downstream) {
+    return ctx.reject({
+      expected: "upstream or downstream required with onlyFlank",
+      path: ["onlyFlank"],
+      description: "onlyFlank=true requires either upstream or downstream to be specified",
+    });
+  }
+
+  // Mutually exclusive region specifications
+  const regionSpecs = [
+    !!options.region,
+    !!options.regions,
+    !!(options.start || options.end),
+    !!options.bedFile,
+    !!options.bedRegions,
+    !!options.gtfFile,
+    !!options.gtfFeatures,
+    !!options.idList,
+  ].filter(Boolean);
+
+  if (regionSpecs.length > 1) {
+    return ctx.reject({
+      expected: "only one region specification method",
+      path: ["region", "regions", "start", "end", "bedFile", "gtfFile"],
+      description:
+        "Choose only one: region string, coordinate pair, BED file, GTF file, or ID list",
+    });
+  }
+
+  // Require at least one region specification (allow idPattern alone)
+  const hasIdPatternOnly = !!options.idPattern && regionSpecs.length === 0;
+  if (regionSpecs.length === 0 && !hasIdPatternOnly) {
+    return ctx.reject({
+      expected: "at least one region specification method",
+      path: ["region", "start", "bedFile", "gtfFile", "idPattern"],
+      description: "Specify region, coordinates, BED/GTF file, ID list, or ID pattern",
+    });
+  }
+
+  // Start/end coordinate validation
+  if (options.start !== undefined && options.end !== undefined && options.start >= options.end) {
+    return ctx.reject({
+      expected: "start < end",
+      actual: `start=${options.start}, end=${options.end}`,
+      path: ["start", "end"],
+      description: "Start position must be less than end position",
+    });
+  }
+
+  return true;
 });
 
 /**
- * Common validation function for subseq options using the new pattern
+ * Parsed region specification - re-exports core coordinates interface
  */
-const validateSubseqOptions = createOptionsValidator<SubseqOptions>(SubseqOptionsSchema, [
-  // Upstream/downstream validation
-  (options: SubseqOptions) => {
-    if (options.upstream !== undefined && options.upstream < 0) {
-      throw new Error('Upstream value must be non-negative');
-    }
-    if (options.downstream !== undefined && options.downstream < 0) {
-      throw new Error('Downstream value must be non-negative');
-    }
-    if (
-      options.onlyFlank === true &&
-      options.upstream === undefined &&
-      options.downstream === undefined
-    ) {
-      throw new Error('onlyFlank requires upstream or downstream to be specified');
-    }
-  },
-  // Mutually exclusive region specifications validator
-  (options: SubseqOptions) => {
-    const regionSpecs = [
-      options.region !== undefined,
-      options.regions !== undefined,
-      options.start !== undefined || options.end !== undefined,
-      options.bedFile !== undefined,
-      options.bedRegions !== undefined,
-      options.gtfFile !== undefined,
-      options.gtfFeatures !== undefined,
-      options.idList !== undefined,
-      // Note: idPattern is a sequence filter, not a region specification, so it's excluded here
-    ].filter(Boolean);
-
-    if (regionSpecs.length > 1) {
-      throw new Error(
-        'Only one region specification method allowed: region, regions, start/end, bedFile, bedRegions, gtfFile, gtfFeatures, or idList'
-      );
-    }
-
-    // Allow idPattern alone as a valid extraction method (extracts entire matching sequences)
-    const hasIdPatternOnly = options.idPattern !== undefined && regionSpecs.length === 0;
-    if (regionSpecs.length === 0 && !hasIdPatternOnly) {
-      throw new Error('At least one region specification is required');
-    }
-  },
-  // Start/end coordinate validation
-  (options: SubseqOptions) => {
-    if (options.start !== undefined && options.end !== undefined) {
-      if (options.start >= options.end) {
-        throw new Error('Start position must be less than end position');
-      }
-    }
-  },
-]);
-
-/**
- * Parsed region specification
- *
- * Internal representation of a region after parsing from string format.
- */
-export interface ParsedRegion {
-  /** Start position (0-based, inclusive) */
-  start: number;
-  /** End position (0-based, exclusive) */
-  end: number;
-  /** Original region string for reference */
-  original: string;
-  /** Whether region uses negative indices */
-  hasNegativeIndices: boolean;
-}
+export type ParsedRegion = ParsedCoordinates;
 
 /**
  * Extracted subsequence with metadata
@@ -228,7 +220,7 @@ export interface ExtractedSubsequence<T extends AbstractSequence> extends Abstra
   /** Region that was extracted */
   region: ParsedRegion;
   /** Strand if reverse complemented */
-  strand?: '+' | '-';
+  strand?: "+" | "-";
   /** Original sequence type information */
   _originalType?: T;
 }
@@ -288,7 +280,11 @@ export class SubseqExtractor {
     sequences: AsyncIterable<T>,
     options: SubseqOptions
   ): AsyncIterable<T> {
-    validateSubseqOptions(options);
+    // Direct ArkType validation
+    const validationResult = SubseqOptionsSchema(options);
+    if (validationResult instanceof type.errors) {
+      throw new ValidationError(`Invalid subseq options: ${validationResult.summary}`);
+    }
 
     try {
       for await (const sequence of sequences) {
@@ -297,9 +293,9 @@ export class SubseqExtractor {
     } catch (error) {
       throw new SequenceError(
         `Subsequence extraction failed: ${error instanceof Error ? error.message : String(error)}`,
-        '<subseq>',
+        "<subseq>",
         undefined,
-        'Check region specifications and sequence lengths'
+        "Check region specifications and sequence lengths"
       );
     }
   }
@@ -313,12 +309,12 @@ export class SubseqExtractor {
     options: SubseqOptions
   ): AsyncIterable<T> {
     // Early return for sequences that don't match ID filters
-    if (!this.shouldProcessSequence(sequence.id, options)) {
+    if (!shouldProcessSequence(sequence.id, options)) {
       return;
     }
 
     // Handle ID-only filtering (return whole sequence)
-    if (this.isIdOnlyFiltering(options)) {
+    if (isIdOnlyFiltering(options)) {
       yield sequence;
       return;
     }
@@ -331,41 +327,6 @@ export class SubseqExtractor {
    * Check if sequence should be processed based on ID filters
    * @private
    */
-  private shouldProcessSequence(sequenceId: string, options: SubseqOptions): boolean {
-    if (options.idPattern !== undefined || options.idList !== undefined) {
-      return this.matchesIdFilter(sequenceId, options);
-    }
-    return true;
-  }
-
-  /**
-   * Check if this is ID-only filtering (no region extraction)
-   * @private
-   */
-  private isIdOnlyFiltering(options: SubseqOptions): boolean {
-    const hasIdFilter = options.idPattern !== undefined || options.idList !== undefined;
-    const hasRegions = this.hasRegionSpecifications(options);
-    return hasIdFilter && !hasRegions;
-  }
-
-  /**
-   * Check if options contain any region specifications
-   * @private
-   */
-  private hasRegionSpecifications(options: SubseqOptions): boolean {
-    return (
-      options.region !== undefined ||
-      options.regions !== undefined ||
-      options.start !== undefined ||
-      options.end !== undefined ||
-      options.upstream !== undefined ||
-      options.downstream !== undefined ||
-      options.bedRegions !== undefined ||
-      options.gtfFeatures !== undefined ||
-      options.bedFile !== undefined ||
-      options.gtfFile !== undefined
-    );
-  }
 
   /**
    * Process sequence regions with concatenation support
@@ -375,8 +336,8 @@ export class SubseqExtractor {
     sequence: T,
     options: SubseqOptions
   ): AsyncIterable<T> {
-    if (!this.hasRegionSpecifications(options)) {
-      throw new Error('No extraction criteria specified');
+    if (!hasRegionSpecifications(options)) {
+      throw new Error("No extraction criteria specified");
     }
 
     const extractedRegions: T[] = [];
@@ -403,13 +364,13 @@ export class SubseqExtractor {
     extractedRegions: T[]
   ): AsyncIterable<T> {
     // Extract by region strings
-    if (this.hasRegionStrings(options)) {
+    if (hasRegionStrings(options)) {
       yield* this.extractByRegionStrings(sequence, options, extractedRegions);
       return;
     }
 
     // Extract by coordinates with flanking
-    if (this.hasCoordinateSpec(options)) {
+    if (hasCoordinateSpec(options)) {
       const extracted = this.extractWithCoordinates(sequence, options);
       if (extracted !== null) {
         yield extracted;
@@ -429,28 +390,7 @@ export class SubseqExtractor {
       return;
     }
 
-    throw new Error('No extraction criteria specified');
-  }
-
-  /**
-   * Check if options have region strings
-   * @private
-   */
-  private hasRegionStrings(options: SubseqOptions): boolean {
-    return options.region !== undefined || options.regions !== undefined;
-  }
-
-  /**
-   * Check if options have coordinate specifications
-   * @private
-   */
-  private hasCoordinateSpec(options: SubseqOptions): boolean {
-    return (
-      options.start !== undefined ||
-      options.end !== undefined ||
-      options.upstream !== undefined ||
-      options.downstream !== undefined
-    );
+    throw new Error("No extraction criteria specified");
   }
 
   /**
@@ -479,37 +419,40 @@ export class SubseqExtractor {
    * - Could be optimized with pre-compiled regex or state machine
    * - Expected speedup: 5-10x
    */
-  parseRegion(region: string, sequenceLength: number, oneBased: boolean = true): ParsedRegion {
+  parseRegion(
+    region: string,
+    sequenceLength: number,
+    oneBased: boolean = true,
+    circular: boolean = false
+  ): ParsedRegion {
     // Tiger Style: Validate input early
-    this.validateRegionString(region);
+    validateRegionString(region);
 
-    const parts = region.split(':');
+    const parts = region.split(":");
     if (parts.length !== 2) {
       throw new Error(`Invalid region format: ${region} (expected "start:end")`);
     }
 
     const [startStr, endStr] = parts;
-    this.validateRegionParts(startStr, endStr, region);
+    validateRegionParts(startStr, endStr, region);
 
     // After validation, we know these are defined
     const validStartStr = startStr!;
     const validEndStr = endStr!;
 
     let hasNegativeIndices = false;
-    const start = this.parseStartPosition(
-      validStartStr,
-      sequenceLength,
-      oneBased,
-      hasNegativeIndices
-    );
-    const end = this.parseEndPosition(validEndStr, sequenceLength, oneBased, hasNegativeIndices);
+    const start = parseStartPosition(validStartStr, sequenceLength, oneBased, hasNegativeIndices);
+    const end = parseEndPosition(validEndStr, sequenceLength, oneBased, hasNegativeIndices);
 
     hasNegativeIndices = start.hasNegative || end.hasNegative;
 
-    const finalStart = this.clampCoordinate(start.value, 0, sequenceLength);
-    const finalEnd = this.clampCoordinate(end.value, 0, sequenceLength);
+    const finalStart = clampCoordinate(start.value, 0, sequenceLength);
+    const finalEnd = clampCoordinate(end.value, 0, sequenceLength);
 
-    this.validateFinalCoordinates(finalStart, finalEnd, sequenceLength, oneBased);
+    // Skip coordinate validation for circular sequences (start >= end is allowed)
+    if (!circular) {
+      validateFinalCoordinates(finalStart, finalEnd, sequenceLength, region);
+    }
 
     return {
       start: finalStart,
@@ -519,151 +462,9 @@ export class SubseqExtractor {
     };
   }
 
-  /**
-   * Validate region string format
-   * @private
-   */
-  private validateRegionString(region: string): void {
-    if (region.length === 0 || region.trim() === '') {
-      throw new Error('Region string cannot be empty');
-    }
-  }
-
-  /**
-   * Validate region parts after splitting
-   * @private
-   */
-  private validateRegionParts(
-    startStr: string | undefined,
-    endStr: string | undefined,
-    region: string
-  ): void {
-    if (startStr === undefined || endStr === undefined) {
-      throw new Error(`Invalid region format: ${region} (missing start or end)`);
-    }
-  }
-
-  /**
-   * Parse start position with negative index handling
-   * @private
-   */
-  private parseStartPosition(
-    startStr: string,
-    sequenceLength: number,
-    oneBased: boolean,
-    _hasNegativeIndices: boolean
-  ): { value: number; hasNegative: boolean } {
-    if (startStr.length === 0 || startStr === '') {
-      return { value: 0, hasNegative: false };
-    }
-
-    const parsed = parseInt(startStr, 10);
-    if (isNaN(parsed)) {
-      throw new Error(`Invalid start position: ${startStr}`);
-    }
-
-    if (parsed < 0) {
-      return {
-        value: Math.max(0, sequenceLength + parsed),
-        hasNegative: true,
-      };
-    }
-
-    if (oneBased && parsed > 0) {
-      return { value: parsed - 1, hasNegative: false }; // Convert to 0-based
-    }
-
-    return { value: parsed, hasNegative: false };
-  }
-
-  /**
-   * Parse end position with negative index handling
-   * @private
-   */
-  private parseEndPosition(
-    endStr: string,
-    sequenceLength: number,
-    _oneBased: boolean,
-    _hasNegativeIndices: boolean
-  ): { value: number; hasNegative: boolean } {
-    if (endStr.length === 0 || endStr === '' || endStr === '-1') {
-      return { value: sequenceLength, hasNegative: false };
-    }
-
-    const parsed = parseInt(endStr, 10);
-    if (isNaN(parsed)) {
-      throw new Error(`Invalid end position: ${endStr}`);
-    }
-
-    if (parsed < 0) {
-      return {
-        value: sequenceLength + parsed + 1,
-        hasNegative: true,
-      };
-    }
-
-    // For 1-based, end is inclusive, keep as-is (becomes exclusive in 0-based)
-    // For 0-based, end is already exclusive
-    return { value: parsed, hasNegative: false };
-  }
-
-  /**
-   * Clamp coordinate to valid range
-   * @private
-   */
-  private clampCoordinate(value: number, min: number, max: number): number {
-    if (value < min) return min;
-    if (value > max) return max;
-    return value;
-  }
-
-  /**
-   * Validate final coordinates
-   * @private
-   */
-  private validateFinalCoordinates(
-    start: number,
-    end: number,
-    sequenceLength: number,
-    oneBased: boolean
-  ): void {
-    // Check if start position is beyond sequence length
-    const displayStart = oneBased ? start + 1 : start;
-    if (displayStart > sequenceLength) {
-      throw new Error(
-        `Start position (${displayStart}) exceeds sequence length (${sequenceLength})`
-      );
-    }
-    // Note: Allow start >= end for circular sequences (handled in extraction)
-  }
-
   // =============================================================================
   // PRIVATE IMPLEMENTATION
   // =============================================================================
-
-  /**
-   * Check if sequence ID matches filter criteria
-   * @private
-   */
-  private matchesIdFilter(id: string, options: SubseqOptions): boolean {
-    if (options.idPattern !== undefined) {
-      return options.idPattern.test(id);
-    }
-    if (options.idList !== undefined) {
-      return options.idList.includes(id);
-    }
-    return true;
-  }
-
-  /**
-   * Validate region format without parsing coordinates
-   * @private
-   */
-  private validateRegionFormat(region: string): void {
-    if (!region.includes(':')) {
-      throw new Error(`Invalid region format: ${region} (missing ':')`);
-    }
-  }
 
   /**
    * Extract a specific region from a sequence
@@ -682,8 +483,8 @@ export class SubseqExtractor {
   ): T | null {
     // Parse region if it's a string
     const region =
-      typeof regionStr === 'string'
-        ? this.parseRegion(regionStr, sequence.length, options.oneBased !== false)
+      typeof regionStr === "string"
+        ? this.parseRegion(regionStr, sequence.length, options.oneBased !== false, options.circular)
         : regionStr;
 
     // Apply flanking adjustments
@@ -788,30 +589,11 @@ export class SubseqExtractor {
     }
 
     // Handle strand if specified
-    if (options.strand === '-') {
+    if (options.strand === "-") {
       subseq = reverseComplement(subseq);
     }
 
     return subseq;
-  }
-
-  /**
-   * Extract with only flanking options (no specific region)
-   * @private
-   */
-  private extractWithFlanking<T extends AbstractSequence>(
-    sequence: T,
-    options: SubseqOptions
-  ): T | null {
-    // Use entire sequence as the "region"
-    const region: ParsedRegion = {
-      start: 0,
-      end: sequence.length,
-      original: `1:${sequence.length}`,
-      hasNegativeIndices: false,
-    };
-
-    return this.extractRegion(sequence, region, options);
   }
 
   /**
@@ -849,7 +631,7 @@ export class SubseqExtractor {
       return originalId;
     }
 
-    const sep = options.coordinateSeparator ?? ':';
+    const sep = options.coordinateSeparator ?? ":";
     const coordStr =
       options.oneBased !== false
         ? `${region.start + 1}${sep}${region.end}`
@@ -879,8 +661,8 @@ export class SubseqExtractor {
     );
 
     // Reverse quality if sequence was reverse complemented
-    if (options.strand === '-' && options.reverseComplementMinus !== false) {
-      quality = quality.split('').reverse().join('');
+    if (options.strand === "-" && options.reverseComplementMinus !== false) {
+      quality = quality.split("").reverse().join("");
     }
 
     return quality;
@@ -891,7 +673,7 @@ export class SubseqExtractor {
    * @private
    */
   private isFastqSequence(sequence: AbstractSequence): sequence is FastqSequence {
-    return 'quality' in sequence && typeof (sequence as FastqSequence).quality === 'string';
+    return "quality" in sequence && typeof (sequence as FastqSequence).quality === "string";
   }
 
   /**
@@ -991,7 +773,7 @@ export class SubseqExtractor {
     // Apply strand-specific reverse complement if needed
     if (
       extractedRegion !== null &&
-      feature.strand === '-' &&
+      feature.strand === "-" &&
       options.reverseComplementMinus !== false
     ) {
       const rcSeq = reverseComplement(extractedRegion.sequence);
@@ -1107,7 +889,7 @@ export class SubseqExtractor {
         `Failed to parse BED file: ${error instanceof Error ? error.message : String(error)}`,
         options.bedFile,
         undefined,
-        'Check BED file format and accessibility'
+        "Check BED file format and accessibility"
       );
     }
   }
@@ -1196,7 +978,7 @@ export class SubseqExtractor {
         `Failed to parse GTF file: ${error instanceof Error ? error.message : String(error)}`,
         options.gtfFile,
         undefined,
-        'Check GTF file format and accessibility'
+        "Check GTF file format and accessibility"
       );
     }
   }
@@ -1239,7 +1021,7 @@ export class SubseqExtractor {
     }
 
     // Concatenate all sequences
-    const concatenatedSeq = sequences.map((s) => s.sequence).join('');
+    const concatenatedSeq = sequences.map((s) => s.sequence).join("");
 
     // For quality scores (FASTQ), concatenate them too
     let concatenatedQuality: string | undefined;
@@ -1248,9 +1030,9 @@ export class SubseqExtractor {
         if (this.isFastqSequence(s)) {
           return s.quality;
         }
-        return '';
+        return "";
       });
-      concatenatedQuality = qualities.join('');
+      concatenatedQuality = qualities.join("");
     }
 
     // Use the first sequence as the template
@@ -1352,4 +1134,85 @@ export async function extractSingleRegion<T extends AbstractSequence>(
 
   // Return the extracted value or null
   return result.done === true ? null : result.value;
+}
+
+// =============================================================================
+// UTILITY FUNCTIONS (Module-level pure functions)
+// =============================================================================
+
+/**
+ * Check if sequence should be processed based on ID filtering
+ */
+function shouldProcessSequence(sequenceId: string, options: SubseqOptions): boolean {
+  if (options.idPattern || options.idList) {
+    return matchesIdFilter(sequenceId, options);
+  }
+  return true;
+}
+
+/**
+ * Check if options specify ID-only filtering (no region extraction)
+ */
+function isIdOnlyFiltering(options: SubseqOptions): boolean {
+  const hasIdFilter = !!(options.idPattern || options.idList);
+  const hasRegions = hasRegionSpecifications(options);
+  return hasIdFilter && !hasRegions;
+}
+
+/**
+ * Check if options contain any region specifications (excludes ID filtering)
+ */
+function hasRegionSpecifications(options: SubseqOptions): boolean {
+  return !!(
+    (
+      options.region ||
+      options.regions ||
+      options.start !== undefined ||
+      options.end !== undefined ||
+      options.bedFile ||
+      options.bedRegions ||
+      options.gtfFile ||
+      options.gtfFeatures
+    )
+    // Note: idList and idPattern are ID filters, not region specifications
+  );
+}
+
+/**
+ * Check if options have region string specifications
+ */
+function hasRegionStrings(options: SubseqOptions): boolean {
+  return !!(options.region || options.regions);
+}
+
+/**
+ * Check if options have coordinate specifications
+ */
+function hasCoordinateSpec(options: SubseqOptions): boolean {
+  return !!(
+    options.start !== undefined ||
+    options.end !== undefined ||
+    options.upstream ||
+    options.downstream
+  );
+}
+
+/**
+ * Check if sequence ID matches the configured filters
+ */
+function matchesIdFilter(id: string, options: SubseqOptions): boolean {
+  if (options.idPattern) {
+    return options.idPattern.test(id);
+  }
+  if (options.idList) {
+    return options.idList.includes(id);
+  }
+  return false;
+}
+
+/**
+ * Clamp coordinate to valid range
+ */
+function clampCoordinate(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
 }

@@ -1,32 +1,39 @@
+# Ignore everything by default
 *
 
-# Configuration files (root level)
+# === PROJECT CONFIGURATION ===
+# Package management and tooling config
 !/.gitignore
 !/package.json
 !/bun.lockb
 !/tsconfig.json
+!/biome.json
+!/biome.jsonc
+!/justfile
+
+# === RUST WORKSPACE ===
+# Workspace configuration
 !/Cargo.toml
+!/rust-analyzer.json
+!/rust-toolchain
+!/rust-toolchain.toml
+!/.rustfmt.toml
+!/rustfmt.toml
+!/clippy.toml
+!/.clippy.toml
+
+# Cross-compilation config
+!/Cross.toml
+
+# Documentation
 !/README.md
 !/AGENTS.md
 !/LICENSE
-!/justfile
-!/examples/
-!/examples/bam-writer-example.ts
 
-# Development tooling configuration
-!/.editorconfig
-!/.prettierignore
-!/eslint.config.js
-!/biome.json
-!/biome.jsonc
-
-!/examples/
-!/examples/*.ts
-
+# === SOURCE CODE ===
+# Main TypeScript source
 !/src/
-!/src/index.ts
-!/src/types.ts
-!/src/errors.ts
+!/src/*.ts
 !/src/formats/
 !/src/formats/*.ts
 !/src/formats/bam/
@@ -43,32 +50,38 @@
 !/src/operations/core/*.ts
 !/src/compression/
 !/src/compression/*.ts
-# Removed: Zig code migrated to Rust in src/native/
+
+# Native Rust code (and the TypeScript wrapper)
 !/src/native.ts
 !/src/native/
 !/src/native/Cargo.toml
 !/src/native/src/
 !/src/native/src/*.rs
 !/src/native/lib/
+
+# === EXAMPLES & DOCUMENTATION ===
+# Usage examples
+!/examples/
+!/examples/*.ts
+
+# === TESTS ===
+# Test files organized by module
 !/test/
 !/test/formats/
-!/test/formats/fasta.test.ts
-!/test/formats/fastq.test.ts
-!/test/formats/sam.test.ts
-!/test/formats/bam.test.ts
+!/test/formats/*.test.ts
 !/test/compression/
-!/test/compression/detector.test.ts
-!/test/compression/gzip.test.ts
-!/test/compression/integration.test.ts
+!/test/compression/*.test.ts
 !/test/io/
-!/test/io/file-reader.test.ts
-!/test/io/parser-integration.test.ts
+!/test/io/*.test.ts
+
+# Test data fixtures
 !/test/fixtures/
-!/test/fixtures/sample.fasta
-!/test/fixtures/sample.fastq
-!/test/fixtures/sample.bed
+!/test/fixtures/*.fasta
+!/test/fixtures/*.fastq
+!/test/fixtures/*.bed
+
+# === BUILD & DEPLOYMENT SCRIPTS ===
+# Automation scripts
 !/scripts/
-!/scripts/build.mjs
-!/scripts/pack.mjs
-!/scripts/publish.mjs
-!/scripts/demo.ts
+!/scripts/*.mjs
+!/scripts/*.ts

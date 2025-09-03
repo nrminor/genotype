@@ -27,10 +27,10 @@ export class BloomFilter {
   constructor(expectedItems: number, falsePositiveRate: number = 0.01) {
     // Tiger Style: Assert inputs
     if (expectedItems <= 0) {
-      throw new Error('Expected items must be positive');
+      throw new Error("Expected items must be positive");
     }
     if (falsePositiveRate <= 0 || falsePositiveRate >= 1) {
-      throw new Error('False positive rate must be between 0 and 1');
+      throw new Error("False positive rate must be between 0 and 1");
     }
 
     // Calculate optimal size and hash functions
@@ -254,7 +254,7 @@ export class BloomFilter {
    */
   union(other: BloomFilter): BloomFilter {
     if (this.numBits !== other.numBits || this.numHashes !== other.numHashes) {
-      throw new Error('Bloom filters must have same parameters for union');
+      throw new Error("Bloom filters must have same parameters for union");
     }
 
     const result = new BloomFilter(1, 0.01); // Dummy params, will override
@@ -282,7 +282,7 @@ export class BloomFilter {
    */
   intersection(other: BloomFilter): BloomFilter {
     if (this.numBits !== other.numBits || this.numHashes !== other.numHashes) {
-      throw new Error('Bloom filters must have same parameters for intersection');
+      throw new Error("Bloom filters must have same parameters for intersection");
     }
 
     const result = new BloomFilter(1, 0.01); // Dummy params, will override
@@ -320,10 +320,10 @@ export class CountingBloomFilter {
   constructor(expectedItems: number, falsePositiveRate: number = 0.01) {
     // Tiger Style: Assert inputs
     if (expectedItems <= 0) {
-      throw new Error('Expected items must be positive');
+      throw new Error("Expected items must be positive");
     }
     if (falsePositiveRate <= 0 || falsePositiveRate >= 1) {
-      throw new Error('False positive rate must be between 0 and 1');
+      throw new Error("False positive rate must be between 0 and 1");
     }
 
     // Similar setup to regular Bloom filter but with counters
@@ -472,13 +472,13 @@ export class ScalableBloomFilter {
   constructor(initialSize: number = 1000, targetFPR: number = 0.01, growthFactor: number = 2) {
     // Tiger Style: Assert inputs
     if (initialSize <= 0) {
-      throw new Error('Initial size must be positive');
+      throw new Error("Initial size must be positive");
     }
     if (targetFPR <= 0 || targetFPR >= 1) {
-      throw new Error('False positive rate must be between 0 and 1');
+      throw new Error("False positive rate must be between 0 and 1");
     }
     if (growthFactor <= 1) {
-      throw new Error('Growth factor must be greater than 1');
+      throw new Error("Growth factor must be greater than 1");
     }
 
     this.initialSize = initialSize;
@@ -544,7 +544,7 @@ export class ScalableBloomFilter {
     numFilters: number;
     totalItems: number;
     totalSizeBytes: number;
-    filters: Array<ReturnType<BloomFilter['getStats']>>;
+    filters: Array<ReturnType<BloomFilter["getStats"]>>;
   } {
     let totalSize = 0;
     const filterStats = [];

@@ -30,15 +30,15 @@
  */
 
 // Core compression components
-export { CompressionDetector } from './detector';
-export { GzipDecompressor } from './gzip';
-export { ZstdDecompressor } from './zstd';
+export { CompressionDetector } from "./detector";
+export { GzipDecompressor } from "./gzip";
+export { ZstdDecompressor } from "./zstd";
 
 // Import for internal use
-import { CompressionError } from '../errors';
-import type { CompressionFormat } from '../types';
-import { GzipDecompressor } from './gzip';
-import { ZstdDecompressor } from './zstd';
+import { CompressionError } from "../errors";
+import type { CompressionFormat } from "../types";
+import { GzipDecompressor } from "./gzip";
+import { ZstdDecompressor } from "./zstd";
 
 // Constants for file size thresholds
 const MIN_FILE_SIZE_FOR_COMPRESSION = 10_000;
@@ -51,17 +51,17 @@ export type {
   CompressionDetection,
   DecompressorOptions,
   CompressedStream,
-} from '../types';
+} from "../types";
 
 // Validation schema exports
 export {
   CompressionFormatSchema,
   CompressionDetectionSchema,
   DecompressorOptionsSchema,
-} from '../types';
+} from "../types";
 
 // Error exports
-export { CompressionError } from '../errors';
+export { CompressionError } from "../errors";
 
 /**
  * Factory function to create appropriate decompressor based on format
@@ -83,21 +83,21 @@ export function createDecompressor(
   format: CompressionFormat
 ): typeof GzipDecompressor | typeof ZstdDecompressor {
   switch (format) {
-    case 'gzip':
+    case "gzip":
       return GzipDecompressor;
-    case 'zstd':
+    case "zstd":
       return ZstdDecompressor;
-    case 'none':
+    case "none":
       throw new CompressionError(
-        'No decompression needed for uncompressed data',
-        'none',
-        'validate'
+        "No decompression needed for uncompressed data",
+        "none",
+        "validate"
       );
     default:
       throw new CompressionError(
         `Unsupported compression format: ${format}`,
         format as CompressionFormat,
-        'validate'
+        "validate"
       );
   }
 }
@@ -109,7 +109,7 @@ export function createDecompressor(
  * @returns Whether the format is supported by this library
  */
 export function isCompressionSupported(format: string): format is CompressionFormat {
-  return ['gzip', 'zstd', 'none'].includes(format);
+  return ["gzip", "zstd", "none"].includes(format);
 }
 
 /**
@@ -124,30 +124,30 @@ export function isCompressionSupported(format: string): format is CompressionFor
  */
 export function getRecommendedCompression(
   fileSize: number,
-  priority: 'speed' | 'size' | 'compatibility' = 'compatibility'
+  priority: "speed" | "size" | "compatibility" = "compatibility"
 ): CompressionFormat {
   // For compatibility, gzip is still the gold standard in genomics
-  if (priority === 'compatibility') {
-    return 'gzip';
+  if (priority === "compatibility") {
+    return "gzip";
   }
 
   // For very small files, compression overhead may not be worth it
   if (fileSize < MIN_FILE_SIZE_FOR_COMPRESSION) {
-    return 'none';
+    return "none";
   }
 
   // For speed-critical applications with modern runtimes
-  if (priority === 'speed' && fileSize > LARGE_FILE_SIZE_THRESHOLD) {
-    return 'zstd'; // Better decompression speed for large files
+  if (priority === "speed" && fileSize > LARGE_FILE_SIZE_THRESHOLD) {
+    return "zstd"; // Better decompression speed for large files
   }
 
   // For maximum compression (space-critical)
-  if (priority === 'size') {
-    return 'zstd'; // Generally better compression ratios than gzip
+  if (priority === "size") {
+    return "zstd"; // Generally better compression ratios than gzip
   }
 
   // Default recommendation
-  return 'gzip';
+  return "gzip";
 }
 
 /**
@@ -161,10 +161,10 @@ export function getRecommendedCompression(
  * @returns Estimated compression ratio (original_size / compressed_size)
  */
 export function estimateCompressionRatio(
-  dataType: 'sequence' | 'alignment' | 'variant' | 'annotation',
+  dataType: "sequence" | "alignment" | "variant" | "annotation",
   format: CompressionFormat
 ): number {
-  if (format === 'none') return 1.0;
+  if (format === "none") return 1.0;
 
   // Rough estimates based on genomic data characteristics
   const baseRatios = {

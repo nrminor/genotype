@@ -13,7 +13,7 @@
  * - ISIZE (4 bytes): Uncompressed data size
  */
 
-import { CompressionError } from '../../errors';
+import { CompressionError } from "../../errors";
 
 /**
  * BGZF compressor for creating BAM files
@@ -37,7 +37,7 @@ export class BGZFCompressor {
     } = {}
   ) {
     // Tiger Style: Assert constructor arguments
-    console.assert(typeof options === 'object', 'options must be an object');
+    console.assert(typeof options === "object", "options must be an object");
 
     this.compressionLevel = options.compressionLevel ?? 6; // Default to balanced compression
     this.blockSize = options.blockSize ?? 65536; // 64KB default uncompressed block size
@@ -45,11 +45,11 @@ export class BGZFCompressor {
     // Tiger Style: Validate configuration
     console.assert(
       this.compressionLevel >= 0 && this.compressionLevel <= 9,
-      'compression level must be between 0 and 9'
+      "compression level must be between 0 and 9"
     );
     console.assert(
       this.blockSize >= 1024 && this.blockSize <= 65536,
-      'block size must be between 1KB and 64KB'
+      "block size must be between 1KB and 64KB"
     );
   }
 
@@ -61,7 +61,7 @@ export class BGZFCompressor {
    */
   async compressBlock(data: Uint8Array): Promise<Uint8Array> {
     // Tiger Style: Assert function arguments
-    console.assert(data instanceof Uint8Array, 'data must be Uint8Array');
+    console.assert(data instanceof Uint8Array, "data must be Uint8Array");
 
     if (data.length === 0) {
       return this.createEmptyBlock();
@@ -70,8 +70,8 @@ export class BGZFCompressor {
     if (data.length > this.blockSize) {
       throw new CompressionError(
         `Data block too large: ${data.length} bytes (max ${this.blockSize})`,
-        'gzip',
-        'compress',
+        "gzip",
+        "compress",
         data.length,
         `Consider splitting data into smaller blocks or increasing blockSize`
       );
@@ -102,9 +102,9 @@ export class BGZFCompressor {
       result.set(footer, offset);
 
       // Tiger Style: Assert postconditions
-      console.assert(result.length >= 26, 'BGZF block must be at least 26 bytes');
-      console.assert(result.length <= 65536, 'BGZF block must not exceed 64KB');
-      console.assert(offset === totalSize, 'all data must be written to result');
+      console.assert(result.length >= 26, "BGZF block must be at least 26 bytes");
+      console.assert(result.length <= 65536, "BGZF block must not exceed 64KB");
+      console.assert(offset === totalSize, "all data must be written to result");
 
       return result;
     } catch (error) {
@@ -112,7 +112,7 @@ export class BGZFCompressor {
         throw error;
       }
 
-      throw CompressionError.fromSystemError('gzip', 'compress', error, data.length);
+      throw CompressionError.fromSystemError("gzip", "compress", error, data.length);
     }
   }
 
@@ -125,7 +125,7 @@ export class BGZFCompressor {
     // Tiger Style: Assert function arguments
     console.assert(
       Number.isInteger(blockSize) && blockSize > 0,
-      'blockSize must be positive integer'
+      "blockSize must be positive integer"
     );
 
     // BGZF header is 18 bytes
@@ -170,8 +170,8 @@ export class BGZFCompressor {
     view.setUint16(offset, blockSize - 1, true); // BC (little-endian)
 
     // Tiger Style: Assert postconditions
-    console.assert(header.length === 18, 'header must be exactly 18 bytes');
-    console.assert(offset + 2 === 18, 'all header bytes must be written');
+    console.assert(header.length === 18, "header must be exactly 18 bytes");
+    console.assert(offset + 2 === 18, "all header bytes must be written");
 
     return header;
   }
@@ -184,10 +184,10 @@ export class BGZFCompressor {
    */
   private createBGZFFooter(crc32: number, uncompressedSize: number): Uint8Array {
     // Tiger Style: Assert function arguments
-    console.assert(Number.isInteger(crc32) && crc32 >= 0, 'crc32 must be non-negative integer');
+    console.assert(Number.isInteger(crc32) && crc32 >= 0, "crc32 must be non-negative integer");
     console.assert(
       Number.isInteger(uncompressedSize) && uncompressedSize >= 0,
-      'uncompressedSize must be non-negative integer'
+      "uncompressedSize must be non-negative integer"
     );
 
     // BGZF footer is 8 bytes
@@ -201,7 +201,7 @@ export class BGZFCompressor {
     view.setUint32(4, uncompressedSize, true); // little-endian
 
     // Tiger Style: Assert postconditions
-    console.assert(footer.length === 8, 'footer must be exactly 8 bytes');
+    console.assert(footer.length === 8, "footer must be exactly 8 bytes");
 
     return footer;
   }
@@ -223,7 +223,7 @@ export class BGZFCompressor {
     ]);
 
     // Tiger Style: Assert postconditions
-    console.assert(emptyBlock.length === 28, 'empty block must be exactly 28 bytes');
+    console.assert(emptyBlock.length === 28, "empty block must be exactly 28 bytes");
 
     return emptyBlock;
   }
@@ -235,7 +235,7 @@ export class BGZFCompressor {
    */
   private async deflateData(data: Uint8Array): Promise<Uint8Array> {
     // Tiger Style: Assert function arguments
-    console.assert(data instanceof Uint8Array, 'data must be Uint8Array');
+    console.assert(data instanceof Uint8Array, "data must be Uint8Array");
 
     try {
       // Use Bun's native compression if available
@@ -248,10 +248,10 @@ export class BGZFCompressor {
     } catch (error) {
       throw new CompressionError(
         `Deflate compression failed: ${error instanceof Error ? error.message : String(error)}`,
-        'gzip',
-        'compress',
+        "gzip",
+        "compress",
         data.length,
-        'Try reducing compression level or using smaller blocks'
+        "Try reducing compression level or using smaller blocks"
       );
     }
   }
@@ -263,8 +263,8 @@ export class BGZFCompressor {
    */
   private async compressWithBun(data: Uint8Array): Promise<Uint8Array> {
     // Tiger Style: Assert function arguments and availability
-    console.assert(data instanceof Uint8Array, 'data must be Uint8Array');
-    console.assert(this.isBunAvailable(), 'Bun must be available');
+    console.assert(data instanceof Uint8Array, "data must be Uint8Array");
+    console.assert(this.isBunAvailable(), "Bun must be available");
 
     // Use Bun.gzipSync with raw deflate for BGZF compatibility
     const compressed = (
@@ -287,9 +287,9 @@ export class BGZFCompressor {
     // Bun.gzipSync returns full gzip stream, we need just the deflate part
     if (compressed.length < 18) {
       throw new CompressionError(
-        'Compressed data too small for gzip format',
-        'gzip',
-        'compress',
+        "Compressed data too small for gzip format",
+        "gzip",
+        "compress",
         data.length
       );
     }
@@ -299,10 +299,10 @@ export class BGZFCompressor {
     const deflateData = compressed.slice(10, compressed.length - 8);
 
     // Tiger Style: Assert postconditions
-    console.assert(deflateData.length > 0, 'deflate data must not be empty');
+    console.assert(deflateData.length > 0, "deflate data must not be empty");
     console.assert(
       deflateData.length < data.length || data.length < 100,
-      'compression should reduce size for non-trivial data'
+      "compression should reduce size for non-trivial data"
     );
 
     return deflateData;
@@ -315,20 +315,20 @@ export class BGZFCompressor {
    */
   private async compressWithStreams(data: Uint8Array): Promise<Uint8Array> {
     // Tiger Style: Assert function arguments
-    console.assert(data instanceof Uint8Array, 'data must be Uint8Array');
+    console.assert(data instanceof Uint8Array, "data must be Uint8Array");
 
-    if (typeof CompressionStream === 'undefined') {
+    if (typeof CompressionStream === "undefined") {
       throw new CompressionError(
-        'No compression method available - CompressionStream not supported',
-        'gzip',
-        'compress',
+        "No compression method available - CompressionStream not supported",
+        "gzip",
+        "compress",
         data.length,
-        'Consider using a runtime that supports CompressionStream or install a compression library'
+        "Consider using a runtime that supports CompressionStream or install a compression library"
       );
     }
 
     // Use raw deflate compression
-    const compressor = new CompressionStream('deflate');
+    const compressor = new CompressionStream("deflate");
     const writer = compressor.writable.getWriter();
     const reader = compressor.readable.getReader();
 
@@ -356,8 +356,8 @@ export class BGZFCompressor {
     }
 
     // Tiger Style: Assert postconditions
-    console.assert(result.length === totalLength, 'result length must match calculated total');
-    console.assert(result.length > 0, 'compressed data must not be empty');
+    console.assert(result.length === totalLength, "result length must match calculated total");
+    console.assert(result.length > 0, "compressed data must not be empty");
 
     return result;
   }
@@ -369,7 +369,7 @@ export class BGZFCompressor {
    */
   private async calculateCRC32(data: Uint8Array): Promise<number> {
     // Tiger Style: Assert function arguments
-    console.assert(data instanceof Uint8Array, 'data must be Uint8Array');
+    console.assert(data instanceof Uint8Array, "data must be Uint8Array");
 
     // Use optimized CRC32 calculation
     const crcTable = this.getCRC32Table();
@@ -377,20 +377,20 @@ export class BGZFCompressor {
     let crc = 0xffffffff;
     for (let i = 0; i < data.length; i++) {
       const byte = data[i];
-      console.assert(byte !== undefined, 'data byte must be defined');
+      console.assert(byte !== undefined, "data byte must be defined");
       const tableIndex = (crc ^ byte!) & 0xff;
       const tableValue = crcTable![tableIndex];
-      console.assert(tableValue !== undefined, 'CRC table value must be defined');
+      console.assert(tableValue !== undefined, "CRC table value must be defined");
       crc = tableValue! ^ (crc >>> 8);
     }
 
     const result = (crc ^ 0xffffffff) >>> 0;
 
     // Tiger Style: Assert postconditions
-    console.assert(Number.isInteger(result), 'CRC32 must be an integer');
+    console.assert(Number.isInteger(result), "CRC32 must be an integer");
     console.assert(
       result >= 0 && result <= 0xffffffff,
-      'CRC32 must be valid 32-bit unsigned integer'
+      "CRC32 must be valid 32-bit unsigned integer"
     );
 
     return result;
@@ -436,18 +436,18 @@ export class BGZFCompressor {
   ): Promise<void> {
     // Tiger Style: Assert function arguments
     console.assert(
-      writer !== undefined && writer !== null && typeof writer === 'object',
-      'writer must be an object'
+      writer !== undefined && writer !== null && typeof writer === "object",
+      "writer must be an object"
     );
-    console.assert(data instanceof Uint8Array, 'data must be Uint8Array');
-    console.assert('write' in writer, 'writer must have write method');
+    console.assert(data instanceof Uint8Array, "data must be Uint8Array");
+    console.assert("write" in writer, "writer must have write method");
 
     try {
       const compressedBlock = await this.compressBlock(data);
       await writer.write(compressedBlock);
 
       // Tiger Style: Assert postconditions
-      console.assert(compressedBlock.length > 0, 'compressed block must not be empty');
+      console.assert(compressedBlock.length > 0, "compressed block must not be empty");
     } catch (error) {
       if (error instanceof CompressionError) {
         throw error;
@@ -455,10 +455,10 @@ export class BGZFCompressor {
 
       throw new CompressionError(
         `Failed to write BGZF block: ${error instanceof Error ? error.message : String(error)}`,
-        'gzip',
-        'stream',
+        "gzip",
+        "stream",
         data.length,
-        'Check writer/stream status and available memory'
+        "Check writer/stream status and available memory"
       );
     }
   }
@@ -482,7 +482,7 @@ export class BGZFCompressor {
       transform: async (chunk, controller): Promise<void> => {
         try {
           // Tiger Style: Assert chunk validity
-          console.assert(chunk instanceof Uint8Array, 'chunk must be Uint8Array');
+          console.assert(chunk instanceof Uint8Array, "chunk must be Uint8Array");
 
           // Append chunk to buffer
           const newBuffer = new Uint8Array(buffer.length + chunk.length);
@@ -499,7 +499,7 @@ export class BGZFCompressor {
             buffer = buffer.slice(this.blockSize);
           }
         } catch (error) {
-          controller.error(CompressionError.fromSystemError('gzip', 'stream', error, chunk.length));
+          controller.error(CompressionError.fromSystemError("gzip", "stream", error, chunk.length));
         }
       },
 
@@ -516,7 +516,7 @@ export class BGZFCompressor {
           controller.enqueue(eofBlock);
         } catch (error) {
           controller.error(
-            CompressionError.fromSystemError('gzip', 'stream', error, buffer.length)
+            CompressionError.fromSystemError("gzip", "stream", error, buffer.length)
           );
         }
       },
@@ -529,10 +529,10 @@ export class BGZFCompressor {
    */
   private isBunAvailable(): boolean {
     return (
-      typeof globalThis !== 'undefined' &&
-      'Bun' in globalThis &&
+      typeof globalThis !== "undefined" &&
+      "Bun" in globalThis &&
       globalThis.Bun !== undefined &&
-      typeof globalThis.Bun.gzipSync === 'function'
+      typeof globalThis.Bun.gzipSync === "function"
     );
   }
 
@@ -551,7 +551,7 @@ export class BGZFCompressor {
       compressionLevel: this.compressionLevel,
       blockSize: this.blockSize,
       bunOptimized: this.isBunAvailable(),
-      streamingSupported: typeof CompressionStream !== 'undefined' || this.isBunAvailable(),
+      streamingSupported: typeof CompressionStream !== "undefined" || this.isBunAvailable(),
       maxBlockSize: 65536,
     };
   }

@@ -8,61 +8,20 @@
  * @since v0.1.0
  */
 
-import type { AbstractSequence } from '../types';
-import type { ValidateOptions, Processor } from './types';
-// Import IUPAC constants from core
-import { IUPAC_DNA, IUPAC_RNA, IUPAC_PROTEIN } from './core/sequence-validation';
+import type { AbstractSequence } from "../types";
+// Import IUPAC constants and validation primitives from core
+import {
+  IUPAC_DNA,
+  IUPAC_PROTEIN,
+  IUPAC_RNA,
+  ValidationMode,
+  SequenceType,
+  expandAmbiguous,
+} from "./core/sequence-validation";
+import type { Processor, ValidateOptions } from "./types";
 
-// =============================================================================
-// VALIDATION MODE CONSTANTS (moved from core/validation.ts)
-// =============================================================================
-
-export const ValidationMode = {
-  /**
-   * Strict validation using only standard bases
-   * DNA: A, C, G, T
-   * RNA: A, C, G, U
-   * Protein: 20 standard amino acids
-   */
-  STRICT: 'strict',
-
-  /**
-   * Normal validation including IUPAC ambiguity codes
-   * DNA/RNA: Standard bases + R, Y, S, W, K, M, B, D, H, V, N
-   * Protein: Standard amino acids (same as STRICT for now)
-   */
-  NORMAL: 'normal',
-
-  /**
-   * Permissive validation accepting any ASCII characters
-   * Useful for handling legacy data with non-standard encoding
-   */
-  PERMISSIVE: 'permissive',
-} as const;
-
-/**
- * Type for validation mode values
- */
-export type ValidationMode = (typeof ValidationMode)[keyof typeof ValidationMode];
-
-// =============================================================================
-// SEQUENCE TYPE CONSTANTS (moved from core/validation.ts)
-// =============================================================================
-
-/**
- * Sequence types for validation context
- */
-export const SequenceType = {
-  DNA: 'dna',
-  RNA: 'rna',
-  PROTEIN: 'protein',
-  UNKNOWN: 'unknown',
-} as const;
-
-/**
- * Type for sequence type values
- */
-export type SequenceType = (typeof SequenceType)[keyof typeof SequenceType];
+// Re-export core validation primitives for convenient access
+export { ValidationMode, SequenceType, expandAmbiguous } from "./core/sequence-validation";
 
 // =============================================================================
 // SEQUENCE VALIDATOR CLASS (moved from core/validation.ts)
@@ -106,7 +65,7 @@ export class SequenceValidator {
    * @param type - Sequence type for validation (default: DNA)
    * @throws {Error} When mode or type parameters are invalid
    */
-  constructor(mode: ValidationMode = 'normal', type: SequenceType = 'dna') {
+  constructor(mode: ValidationMode = "normal", type: SequenceType = "dna") {
     // Validate inputs
     const validModes = Object.values(ValidationMode) as readonly string[];
     const validTypes = Object.values(SequenceType) as readonly string[];
@@ -131,24 +90,24 @@ export class SequenceValidator {
    * @private
    */
   private computeValidationPattern(): RegExp {
-    if (this.mode === 'permissive') {
+    if (this.mode === "permissive") {
       // Permissive mode accepts everything
       return /^.*$/;
     }
 
     switch (this.type) {
-      case 'dna':
-        return this.mode === 'strict' ? /^[ACGTacgt.\-*]*$/i : IUPAC_DNA;
+      case "dna":
+        return this.mode === "strict" ? /^[ACGTacgt.\-*]*$/i : IUPAC_DNA;
 
-      case 'rna':
-        return this.mode === 'strict' ? /^[ACGUacgu.\-*]*$/i : IUPAC_RNA;
+      case "rna":
+        return this.mode === "strict" ? /^[ACGUacgu.\-*]*$/i : IUPAC_RNA;
 
-      case 'protein':
+      case "protein":
         return IUPAC_PROTEIN;
 
-      case 'unknown':
+      case "unknown":
         // For unknown types, use DNA pattern as most permissive nucleotide pattern
-        return this.mode === 'strict' ? /^[ACGTUacgtu.\-*]*$/i : IUPAC_DNA;
+        return this.mode === "strict" ? /^[ACGTUacgtu.\-*]*$/i : IUPAC_DNA;
 
       default:
         throw new Error(`Unsupported sequence type: ${this.type}`);
@@ -160,17 +119,17 @@ export class SequenceValidator {
    * @private
    */
   private computeCleaningPattern(): RegExp {
-    if (this.mode === 'permissive') {
+    if (this.mode === "permissive") {
       // Permissive mode accepts everything
       return /./;
     }
 
     switch (this.mode) {
-      case 'strict':
+      case "strict":
         // Only standard bases, gaps, and stop codons
         return /[ACGTUacgtu.\-*]/;
 
-      case 'normal':
+      case "normal":
         // Standard bases plus IUPAC ambiguity codes
         return /[ACGTURYSWKMBDHVNacgturyswkmbdhvn.\-*]/;
 
@@ -187,11 +146,6 @@ export class SequenceValidator {
    * @throws {Error} When sequence parameter is invalid
    */
   validate(sequence: string): boolean {
-    // Tiger Style: Assert preconditions
-    if (typeof sequence !== 'string') {
-      throw new Error('sequence must be a string');
-    }
-
     // Empty sequences are valid
     if (sequence.length === 0) {
       return true;
@@ -211,19 +165,17 @@ export class SequenceValidator {
    * @returns Cleaned sequence with invalid characters replaced
    * @throws {Error} When parameters are invalid
    */
-  clean(sequence: string, replaceChar: string = 'N'): string {
-    if (typeof sequence !== 'string') {
-      throw new Error('sequence must be a string');
-    }
-    if (typeof replaceChar !== 'string') {
-      throw new Error('replaceChar must be a string');
+  clean(sequence: string, replaceChar: string = "N"): string {
+    // Tiger Style: Only meaningful constraint validation
+    if (sequence.length === 0) {
+      return sequence;
     }
     if (replaceChar.length !== 1) {
-      throw new Error('replaceChar must be a single character');
+      throw new Error("replaceChar must be a single character");
     }
 
     // PERMISSIVE mode returns sequence unchanged
-    if (this.mode === 'permissive') {
+    if (this.mode === "permissive") {
       return sequence;
     }
 
@@ -233,7 +185,7 @@ export class SequenceValidator {
     }
 
     // Filter sequence, replacing invalid characters
-    let cleanedSequence = '';
+    let cleanedSequence = "";
 
     for (let i = 0; i < sequence.length; i++) {
       const char = sequence[i];
@@ -262,7 +214,7 @@ export class SequenceValidator {
   } {
     const errors: string[] = [];
     const warnings: string[] = [];
-    const { replaceChar = 'N', returnCleaned = false } = options;
+    const { replaceChar = "N", returnCleaned = false } = options;
 
     try {
       // Validate the original sequence
@@ -324,48 +276,6 @@ export class SequenceValidator {
   withSettings(mode?: ValidationMode, type?: SequenceType): SequenceValidator {
     return new SequenceValidator(mode ?? this.mode, type ?? this.type);
   }
-
-  /**
-   * Expand a single IUPAC ambiguity code to its constituent bases
-   */
-  static expandAmbiguous(base: string): string[] {
-    // Tiger Style: Assert preconditions
-    if (typeof base !== 'string') {
-      throw new Error('base must be a string');
-    }
-    if (base.length !== 1) {
-      throw new Error('base must be a single character');
-    }
-
-    // Convert to uppercase for consistent lookup
-    const upperBase = base.toUpperCase();
-
-    // IUPAC ambiguity code mapping
-    const expansionMap: Record<string, string[]> = {
-      // Two-base ambiguity codes
-      R: ['A', 'G'], // puRines
-      Y: ['C', 'T'], // pYrimidines
-      S: ['G', 'C'], // Strong bonds (3 H-bonds)
-      W: ['A', 'T'], // Weak bonds (2 H-bonds)
-      K: ['G', 'T'], // Keto groups
-      M: ['A', 'C'], // aMino groups
-
-      // Three-base ambiguity codes (complement codes)
-      B: ['C', 'G', 'T'], // not A
-      D: ['A', 'G', 'T'], // not C
-      H: ['A', 'C', 'T'], // not G
-      V: ['A', 'C', 'G'], // not T/U
-
-      // Four-base ambiguity code
-      N: ['A', 'C', 'G', 'T'], // aNy base
-
-      // Handle RNA uracil in ambiguity codes
-      U: ['U'], // Uracil (RNA equivalent of T)
-    };
-
-    // Return expansion if found, otherwise return the original base
-    return expansionMap[upperBase] || [upperBase];
-  }
 }
 
 /**
@@ -413,12 +323,12 @@ export class ValidateProcessor implements Processor<ValidateOptions> {
    * @returns Configured validator
    */
   private createValidator(options: ValidateOptions): SequenceValidator {
-    const mode = options.mode || 'normal';
+    const mode = options.mode || "normal";
 
     // Determine sequence type based on allowed characters
-    let type: 'dna' | 'rna' | 'unknown' = 'dna';
+    let type: "dna" | "rna" | "unknown" = "dna";
     if (options.allowRNA === true) {
-      type = 'rna';
+      type = "rna";
     }
 
     return new SequenceValidator(mode, type);
@@ -441,7 +351,7 @@ export class ValidateProcessor implements Processor<ValidateOptions> {
     options: ValidateOptions,
     validator: SequenceValidator
   ): AbstractSequence | null {
-    const action = options.action || 'reject';
+    const action = options.action || "reject";
 
     // Check if sequence is valid
     let validSequence = seq.sequence;
@@ -449,7 +359,7 @@ export class ValidateProcessor implements Processor<ValidateOptions> {
     // Apply additional validation constraints
     if (options.allowGaps !== true) {
       // NATIVE_CANDIDATE: Character filtering loop
-      validSequence = validSequence.replace(/[-.*]/g, '');
+      validSequence = validSequence.replace(/[-.*]/g, "");
     }
 
     // NATIVE_CANDIDATE: validate() performs character-by-character validation
@@ -470,19 +380,14 @@ export class ValidateProcessor implements Processor<ValidateOptions> {
 
     // Handle invalid sequences based on action
     switch (action) {
-      case 'reject':
+      case "reject":
         // Skip invalid sequences
         return null;
 
-      case 'fix': {
+      case "fix": {
         // Fix invalid sequences
         // NATIVE_CANDIDATE: clean() replaces invalid characters
-        const fixed = validator.clean(
-          validSequence,
-          options.fixChar !== undefined && options.fixChar !== null && options.fixChar !== ''
-            ? options.fixChar
-            : 'N'
-        );
+        const fixed = validator.clean(validSequence, options.fixChar ?? "N");
         return {
           ...seq,
           sequence: fixed,
@@ -490,7 +395,7 @@ export class ValidateProcessor implements Processor<ValidateOptions> {
         };
       }
 
-      case 'warn':
+      case "warn":
         // Log warning but keep sequence
         console.warn(`Invalid sequence: ${seq.id}`);
         return seq;

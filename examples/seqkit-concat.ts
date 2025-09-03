@@ -13,7 +13,7 @@
  *   bun run examples/seqkit-concat.ts chr*.fasta
  */
 
-import { seqops } from '../src';
+import { seqops } from "../src";
 
 async function main() {
   const inputFiles = process.argv.slice(2);

@@ -9,8 +9,8 @@
  * - Type-safe binary operations with bounds checking
  */
 
-import { BamError } from '../../errors';
-import type { BinaryContext } from '../../types';
+import { BamError } from "../../errors";
+import type { BinaryContext } from "../../types";
 
 // Module-level constants for magic numbers
 const MAX_UINT16_VALUE = 65535;
@@ -28,10 +28,10 @@ const MAX_ARRAY_SIZE = 10000;
 const JS_OBJECT_OVERHEAD = 200;
 
 // BAM sequence encoding lookup table
-const SEQ_DECODER = '=ACMGRSVTWYHKDBN';
+const SEQ_DECODER = "=ACMGRSVTWYHKDBN";
 
 // CIGAR operation lookup table
-const CIGAR_OPS = ['M', 'I', 'D', 'N', 'S', 'H', 'P', '=', 'X'];
+const CIGAR_OPS = ["M", "I", "D", "N", "S", "H", "P", "=", "X"];
 
 /**
  * Read a 32-bit signed integer in little-endian format
@@ -45,7 +45,7 @@ export function readInt32LE(view: DataView, offset: number): number {
     throw new BamError(
       `Cannot read int32 at offset ${offset}: buffer too small (${view.byteLength} bytes)`,
       undefined,
-      'binary'
+      "binary"
     );
   }
 
@@ -64,7 +64,7 @@ export function readUInt32LE(view: DataView, offset: number): number {
     throw new BamError(
       `Cannot read uint32 at offset ${offset}: buffer too small (${view.byteLength} bytes)`,
       undefined,
-      'binary'
+      "binary"
     );
   }
 
@@ -83,7 +83,7 @@ export function readUInt16LE(view: DataView, offset: number): number {
     throw new BamError(
       `Cannot read uint16 at offset ${offset}: buffer too small (${view.byteLength} bytes)`,
       undefined,
-      'binary'
+      "binary"
     );
   }
 
@@ -102,7 +102,7 @@ export function readUInt8(view: DataView, offset: number): number {
     throw new BamError(
       `Cannot read uint8 at offset ${offset}: buffer too small (${view.byteLength} bytes)`,
       undefined,
-      'binary'
+      "binary"
     );
   }
 
@@ -126,7 +126,7 @@ export function readCString(
     throw new BamError(
       `Cannot read string at offset ${offset}: buffer too small (${view.byteLength} bytes)`,
       undefined,
-      'binary'
+      "binary"
     );
   }
 
@@ -138,7 +138,7 @@ export function readCString(
 
     if (byte === 0) {
       // Found null terminator
-      const result = new TextDecoder('utf-8').decode(new Uint8Array(bytes));
+      const result = new TextDecoder("utf-8").decode(new Uint8Array(bytes));
       return { value: result, bytesRead: bytes.length + 1 }; // +1 for null terminator
     }
 
@@ -149,7 +149,7 @@ export function readCString(
   throw new BamError(
     `String not null-terminated within ${maxLength} bytes at offset ${offset}`,
     undefined,
-    'binary'
+    "binary"
   );
 }
 
@@ -166,7 +166,7 @@ export function readCString(
  */
 export function decodeSequence(buffer: Uint8Array, length: number): string {
   if (length === 0) {
-    return '';
+    return "";
   }
 
   const bytesNeeded = Math.ceil(length / 2);
@@ -174,7 +174,7 @@ export function decodeSequence(buffer: Uint8Array, length: number): string {
     throw new BamError(
       `Buffer too small for sequence: need ${bytesNeeded} bytes, have ${buffer.length}`,
       undefined,
-      'sequence'
+      "sequence"
     );
   }
 
@@ -186,7 +186,7 @@ export function decodeSequence(buffer: Uint8Array, length: number): string {
     const byte = buffer[byteIndex];
 
     if (byte === undefined) {
-      throw new BamError(`Sequence byte undefined at index ${byteIndex}`, undefined, 'sequence');
+      throw new BamError(`Sequence byte undefined at index ${byteIndex}`, undefined, "sequence");
     }
 
     // Extract 4-bit value (high nibble for even i, low nibble for odd i)
@@ -196,14 +196,14 @@ export function decodeSequence(buffer: Uint8Array, length: number): string {
       throw new BamError(
         `Invalid sequence encoding: ${nibble} at position ${i}`,
         undefined,
-        'sequence'
+        "sequence"
       );
     }
 
     chars[i] = SEQ_DECODER[nibble];
   }
 
-  return chars.join('');
+  return chars.join("");
 }
 
 /**
@@ -221,7 +221,7 @@ export function decodeSequence(buffer: Uint8Array, length: number): string {
  */
 export function parseBinaryCIGAR(view: DataView, offset: number, count: number): string {
   if (count === 0) {
-    return '*'; // BAM convention for no CIGAR
+    return "*"; // BAM convention for no CIGAR
   }
 
   const bytesNeeded = count * BYTES_PER_CIGAR_OP;
@@ -229,11 +229,11 @@ export function parseBinaryCIGAR(view: DataView, offset: number, count: number):
     throw new BamError(
       `Buffer too small for CIGAR: need ${bytesNeeded} bytes at offset ${offset}, have ${view.byteLength - offset}`,
       undefined,
-      'cigar'
+      "cigar"
     );
   }
 
-  let cigar = '';
+  let cigar = "";
   for (let i = 0; i < count; i++) {
     const opOffset = offset + i * BYTES_PER_CIGAR_OP;
     const opValue = view.getUint32(opOffset, true); // little-endian
@@ -245,12 +245,12 @@ export function parseBinaryCIGAR(view: DataView, offset: number, count: number):
       throw new BamError(
         `Invalid CIGAR operation type: ${opType} at position ${i}`,
         undefined,
-        'cigar'
+        "cigar"
       );
     }
 
     if (opLength === 0) {
-      throw new BamError(`Invalid CIGAR operation length: 0 at position ${i}`, undefined, 'cigar');
+      throw new BamError(`Invalid CIGAR operation length: 0 at position ${i}`, undefined, "cigar");
     }
 
     cigar += `${opLength}${CIGAR_OPS[opType]}`;
@@ -269,20 +269,20 @@ export function parseBinaryCIGAR(view: DataView, offset: number, count: number):
  */
 export function readFixedString(view: DataView, offset: number, length: number): string {
   if (length === 0) {
-    return '';
+    return "";
   }
 
   if (offset + length > view.byteLength) {
     throw new BamError(
       `Cannot read fixed string: need ${length} bytes at offset ${offset}, buffer has ${view.byteLength} bytes`,
       undefined,
-      'binary'
+      "binary"
     );
   }
 
   // Use Bun's optimized string decoding when available
   const bytes = new Uint8Array(view.buffer, view.byteOffset + offset, length);
-  const decoder = new TextDecoder('utf-8');
+  const decoder = new TextDecoder("utf-8");
   return decoder.decode(bytes);
 }
 
@@ -298,7 +298,7 @@ export function createContext(buffer: ArrayBuffer, offset = 0, littleEndian = tr
     throw new BamError(
       `Offset ${offset} exceeds buffer size ${buffer.byteLength}`,
       undefined,
-      'binary'
+      "binary"
     );
   }
 
@@ -391,14 +391,14 @@ export function parseAlignmentRecord(
  */
 export function decodeQualityScores(view: DataView, offset: number, length: number): string {
   if (length === 0) {
-    return '*';
+    return "*";
   }
 
   if (offset + length > view.byteLength) {
     throw new BamError(
       `Buffer too small for quality scores: need ${length} bytes at offset ${offset}`,
       undefined,
-      'qual'
+      "qual"
     );
   }
 
@@ -410,7 +410,7 @@ export function decodeQualityScores(view: DataView, offset: number, length: numb
 
     if (rawQual === UNAVAILABLE_QUALITY) {
       // 255 indicates unavailable quality
-      qualChars[i] = '*';
+      qualChars[i] = "*";
     } else {
       // Convert to Phred+33 format, cap at ASCII 126
       const phredQual = Math.min(rawQual + PHRED_OFFSET, MAX_ASCII_QUAL);
@@ -418,7 +418,7 @@ export function decodeQualityScores(view: DataView, offset: number, length: numb
     }
   }
 
-  return qualChars.join('');
+  return qualChars.join("");
 }
 
 /**
@@ -446,7 +446,7 @@ export function parseOptionalTags(
       const tagByte1 = tagData[offset];
       const tagByte2 = tagData[offset + 1];
       if (tagByte1 === undefined || tagByte2 === undefined) {
-        throw new Error('Tag name bytes are undefined');
+        throw new Error("Tag name bytes are undefined");
       }
       const tagName = String.fromCharCode(tagByte1, tagByte2);
       offset += 2;
@@ -454,7 +454,7 @@ export function parseOptionalTags(
       // Read tag type (1 byte)
       const tagTypeByte = tagData[offset];
       if (tagTypeByte === undefined) {
-        throw new Error('Tag type byte is undefined');
+        throw new Error("Tag type byte is undefined");
       }
       const tagType = String.fromCharCode(tagTypeByte);
       offset += 1;
@@ -470,7 +470,7 @@ export function parseOptionalTags(
       });
     } catch (error) {
       // Log tag parsing error with context for debugging
-      const errorContext = qname !== undefined && qname !== '' ? ` for read ${qname}` : '';
+      const errorContext = qname !== undefined && qname !== "" ? ` for read ${qname}` : "";
       console.warn(
         `BAM tag parsing failed at offset ${offset}${errorContext}: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -604,11 +604,11 @@ export function estimateMemoryUsage(record: ReturnType<typeof parseAlignmentReco
  */
 export function isBunOptimized(): boolean {
   return (
-    typeof globalThis !== 'undefined' &&
-    'Bun' in globalThis &&
+    typeof globalThis !== "undefined" &&
+    "Bun" in globalThis &&
     globalThis.Bun !== undefined &&
-    typeof globalThis.Bun.version === 'string' &&
-    typeof globalThis.Bun.file === 'function'
+    typeof globalThis.Bun.version === "string" &&
+    typeof globalThis.Bun.file === "function"
   );
 }
 
@@ -619,7 +619,7 @@ export function isBunOptimized(): boolean {
  */
 export function allocateBuffer(size: number): Uint8Array {
   if (!Number.isInteger(size) || size <= 0) {
-    throw new Error('Size must be positive integer');
+    throw new Error("Size must be positive integer");
   }
 
   return new Uint8Array(size);
@@ -635,7 +635,7 @@ function validateAlignmentBlock(blockSize: number, view: DataView, offset: numbe
     throw new BamError(
       `Alignment block too small: ${blockSize} bytes (minimum ${MIN_ALIGNMENT_BLOCK_SIZE})`,
       undefined,
-      'alignment'
+      "alignment"
     );
   }
 
@@ -643,7 +643,7 @@ function validateAlignmentBlock(blockSize: number, view: DataView, offset: numbe
     throw new BamError(
       `Buffer overflow reading alignment header: need ${MIN_ALIGNMENT_BLOCK_SIZE} bytes`,
       undefined,
-      'alignment'
+      "alignment"
     );
   }
 }
@@ -719,15 +719,15 @@ function parseAlignmentFixedFields(
  */
 function validateAlignmentFields(fields: ReturnType<typeof parseAlignmentFixedFields>): void {
   if (fields.readNameLength <= 0 || fields.readNameLength > MAX_UINT8_VALUE) {
-    throw new BamError(`Invalid read name length: ${fields.readNameLength}`, undefined, 'qname');
+    throw new BamError(`Invalid read name length: ${fields.readNameLength}`, undefined, "qname");
   }
 
   if (fields.seqLength < 0) {
-    throw new BamError(`Invalid sequence length: ${fields.seqLength}`, undefined, 'seq');
+    throw new BamError(`Invalid sequence length: ${fields.seqLength}`, undefined, "seq");
   }
 
   if (fields.numCigarOps < 0 || fields.numCigarOps > MAX_UINT16_VALUE) {
-    throw new BamError(`Invalid CIGAR operation count: ${fields.numCigarOps}`, undefined, 'cigar');
+    throw new BamError(`Invalid CIGAR operation count: ${fields.numCigarOps}`, undefined, "cigar");
   }
 }
 
@@ -807,7 +807,7 @@ function parseAlignmentReadName(
     throw new BamError(
       `Buffer overflow reading read name: need ${readNameLength} bytes`,
       undefined,
-      'qname'
+      "qname"
     );
   }
 
@@ -829,11 +829,11 @@ function parseAlignmentCigar(
     throw new BamError(
       `Buffer overflow reading CIGAR: need ${cigarBytesNeeded} bytes`,
       readName,
-      'cigar'
+      "cigar"
     );
   }
 
-  return numCigarOps > 0 ? parseBinaryCIGAR(view, offset, numCigarOps) : '*';
+  return numCigarOps > 0 ? parseBinaryCIGAR(view, offset, numCigarOps) : "*";
 }
 
 /**
@@ -851,12 +851,12 @@ function parseAlignmentSequence(
     throw new BamError(
       `Buffer overflow reading sequence: need ${seqBytesNeeded} bytes`,
       readName,
-      'seq'
+      "seq"
     );
   }
 
   if (seqLength === 0) {
-    return '*';
+    return "*";
   }
 
   const seqBuffer = new Uint8Array(view.buffer, view.byteOffset + offset, seqBytesNeeded);
@@ -877,11 +877,11 @@ function parseAlignmentQuality(
     throw new BamError(
       `Buffer overflow reading quality scores: need ${seqLength} bytes`,
       readName,
-      'qual'
+      "qual"
     );
   }
 
-  return seqLength > 0 ? decodeQualityScores(view, offset, seqLength) : '*';
+  return seqLength > 0 ? decodeQualityScores(view, offset, seqLength) : "*";
 }
 
 /**
@@ -908,26 +908,26 @@ function parseTagValue(
   bytesConsumed: number;
 } {
   switch (tagType) {
-    case 'A': // Character
+    case "A": // Character
       return parseCharacterTag(tagData, offset);
-    case 'c': // Signed 8-bit integer
+    case "c": // Signed 8-bit integer
       return parseInt8Tag(tagData, offset);
-    case 'C': // Unsigned 8-bit integer
+    case "C": // Unsigned 8-bit integer
       return parseUInt8Tag(tagData, offset);
-    case 's': // Signed 16-bit integer
+    case "s": // Signed 16-bit integer
       return parseInt16Tag(tagData, offset);
-    case 'S': // Unsigned 16-bit integer
+    case "S": // Unsigned 16-bit integer
       return parseUInt16Tag(tagData, offset);
-    case 'i': // Signed 32-bit integer
+    case "i": // Signed 32-bit integer
       return parseInt32Tag(tagData, offset);
-    case 'I': // Unsigned 32-bit integer
+    case "I": // Unsigned 32-bit integer
       return parseUInt32Tag(tagData, offset);
-    case 'f': // 32-bit float
+    case "f": // 32-bit float
       return parseFloatTag(tagData, offset);
-    case 'Z': // Null-terminated string
-    case 'H': // Hex string
+    case "Z": // Null-terminated string
+    case "H": // Hex string
       return parseStringTag(tagData, offset);
-    case 'B': // Array of numeric values
+    case "B": // Array of numeric values
       return parseArrayTag(tagData, offset);
     default:
       throw new Error(`Unsupported tag type: ${tagType}`);
@@ -942,12 +942,12 @@ function parseCharacterTag(
   offset: number
 ): { value: string; bytesConsumed: number } {
   if (offset >= tagData.length) {
-    throw new Error('Insufficient data for character tag');
+    throw new Error("Insufficient data for character tag");
   }
 
   const charByte = tagData[offset];
   if (charByte === undefined) {
-    throw new Error('Character tag byte is undefined');
+    throw new Error("Character tag byte is undefined");
   }
 
   return {
@@ -964,12 +964,12 @@ function parseInt8Tag(
   offset: number
 ): { value: number; bytesConsumed: number } {
   if (offset >= tagData.length) {
-    throw new Error('Insufficient data for int8 tag');
+    throw new Error("Insufficient data for int8 tag");
   }
 
   const int8Byte = tagData[offset];
   if (int8Byte === undefined) {
-    throw new Error('Int8 tag byte is undefined');
+    throw new Error("Int8 tag byte is undefined");
   }
 
   return {
@@ -986,12 +986,12 @@ function parseUInt8Tag(
   offset: number
 ): { value: number; bytesConsumed: number } {
   if (offset >= tagData.length) {
-    throw new Error('Insufficient data for uint8 tag');
+    throw new Error("Insufficient data for uint8 tag");
   }
 
   const uint8Byte = tagData[offset];
   if (uint8Byte === undefined) {
-    throw new Error('UInt8 tag byte is undefined');
+    throw new Error("UInt8 tag byte is undefined");
   }
 
   return {
@@ -1008,13 +1008,13 @@ function parseInt16Tag(
   offset: number
 ): { value: number; bytesConsumed: number } {
   if (offset + 2 > tagData.length) {
-    throw new Error('Insufficient data for int16 tag');
+    throw new Error("Insufficient data for int16 tag");
   }
 
   const int16Byte1 = tagData[offset];
   const int16Byte2 = tagData[offset + 1];
   if (int16Byte1 === undefined || int16Byte2 === undefined) {
-    throw new Error('Int16 tag bytes are undefined');
+    throw new Error("Int16 tag bytes are undefined");
   }
 
   return {
@@ -1031,13 +1031,13 @@ function parseUInt16Tag(
   offset: number
 ): { value: number; bytesConsumed: number } {
   if (offset + 2 > tagData.length) {
-    throw new Error('Insufficient data for uint16 tag');
+    throw new Error("Insufficient data for uint16 tag");
   }
 
   const uint16Byte1 = tagData[offset];
   const uint16Byte2 = tagData[offset + 1];
   if (uint16Byte1 === undefined || uint16Byte2 === undefined) {
-    throw new Error('UInt16 tag bytes are undefined');
+    throw new Error("UInt16 tag bytes are undefined");
   }
 
   return {
@@ -1054,7 +1054,7 @@ function parseInt32Tag(
   offset: number
 ): { value: number; bytesConsumed: number } {
   if (offset + 4 > tagData.length) {
-    throw new Error('Insufficient data for int32 tag');
+    throw new Error("Insufficient data for int32 tag");
   }
 
   const byte0 = tagData[offset];
@@ -1063,7 +1063,7 @@ function parseInt32Tag(
   const byte3 = tagData[offset + 3];
 
   if (byte0 === undefined || byte1 === undefined || byte2 === undefined || byte3 === undefined) {
-    throw new Error('Int32 tag bytes are undefined');
+    throw new Error("Int32 tag bytes are undefined");
   }
 
   const value = (byte0 | (byte1 << 8) | (byte2 << 16) | (byte3 << 24)) >>> 0;
@@ -1082,7 +1082,7 @@ function parseUInt32Tag(
   offset: number
 ): { value: number; bytesConsumed: number } {
   if (offset + 4 > tagData.length) {
-    throw new Error('Insufficient data for uint32 tag');
+    throw new Error("Insufficient data for uint32 tag");
   }
 
   const byte0 = tagData[offset];
@@ -1091,7 +1091,7 @@ function parseUInt32Tag(
   const byte3 = tagData[offset + 3];
 
   if (byte0 === undefined || byte1 === undefined || byte2 === undefined || byte3 === undefined) {
-    throw new Error('UInt32 tag bytes are undefined');
+    throw new Error("UInt32 tag bytes are undefined");
   }
 
   return {
@@ -1108,7 +1108,7 @@ function parseFloatTag(
   offset: number
 ): { value: number; bytesConsumed: number } {
   if (offset + 4 > tagData.length) {
-    throw new Error('Insufficient data for float tag');
+    throw new Error("Insufficient data for float tag");
   }
 
   const floatView = new DataView(tagData.buffer, tagData.byteOffset + offset, 4);
@@ -1132,10 +1132,10 @@ function parseStringTag(
   }
 
   if (nullPos >= tagData.length) {
-    throw new Error('Unterminated string tag');
+    throw new Error("Unterminated string tag");
   }
 
-  const value = new TextDecoder('utf-8').decode(tagData.slice(offset, nullPos));
+  const value = new TextDecoder("utf-8").decode(tagData.slice(offset, nullPos));
 
   return {
     value,
@@ -1151,13 +1151,13 @@ function parseArrayTag(
   offset: number
 ): { value: string; bytesConsumed: number } {
   if (offset + 5 > tagData.length) {
-    throw new Error('Insufficient data for array tag header');
+    throw new Error("Insufficient data for array tag header");
   }
 
   // Read array element type (1 byte)
   const arrayTypeByte = tagData[offset];
   if (arrayTypeByte === undefined) {
-    throw new Error('Array type byte is undefined');
+    throw new Error("Array type byte is undefined");
   }
   const arrayType = String.fromCharCode(arrayTypeByte);
 
@@ -1177,7 +1177,7 @@ function parseArrayTag(
   const arrayValues = parseArrayElements(tagData, headerOffset, arrayType, arrayCount, elementSize);
 
   return {
-    value: `[${arrayValues.join(',')}]`,
+    value: `[${arrayValues.join(",")}]`,
     bytesConsumed: 5 + arrayCount * elementSize,
   };
 }
@@ -1192,7 +1192,7 @@ function readArrayCount(tagData: Uint8Array, offset: number): number {
   const byte3 = tagData[offset + 3];
 
   if (byte0 === undefined || byte1 === undefined || byte2 === undefined || byte3 === undefined) {
-    throw new Error('Array count bytes are undefined');
+    throw new Error("Array count bytes are undefined");
   }
 
   return (byte0 | (byte1 << 8) | (byte2 << 16) | (byte3 << 24)) >>> 0;
@@ -1203,16 +1203,16 @@ function readArrayCount(tagData: Uint8Array, offset: number): number {
  */
 function getArrayElementSize(arrayType: string): number {
   switch (arrayType) {
-    case 'c':
-    case 'C':
+    case "c":
+    case "C":
       return 1; // 8-bit integers
-    case 's':
-    case 'S':
+    case "s":
+    case "S":
       return 2; // 16-bit integers
-    case 'i':
-    case 'I':
+    case "i":
+    case "I":
       return 4; // 32-bit integers
-    case 'f':
+    case "f":
       return 4; // 32-bit float
     default:
       throw new Error(`Unsupported array element type: ${arrayType}`);
@@ -1274,13 +1274,13 @@ function parseArrayElement(tagData: Uint8Array, offset: number, arrayType: strin
 
 function parseSignedInt8Element(tagData: Uint8Array, offset: number): number {
   const byte = tagData[offset];
-  if (byte === undefined) throw new Error('Int8 element byte is undefined');
+  if (byte === undefined) throw new Error("Int8 element byte is undefined");
   return new Int8Array([byte])[0] ?? 0;
 }
 
 function parseUnsignedInt8Element(tagData: Uint8Array, offset: number): number {
   const byte = tagData[offset];
-  if (byte === undefined) throw new Error('UInt8 element byte is undefined');
+  if (byte === undefined) throw new Error("UInt8 element byte is undefined");
   return byte;
 }
 
@@ -1288,7 +1288,7 @@ function parseSignedInt16Element(tagData: Uint8Array, offset: number): number {
   const byte0 = tagData[offset];
   const byte1 = tagData[offset + 1];
   if (byte0 === undefined || byte1 === undefined) {
-    throw new Error('Int16 element bytes are undefined');
+    throw new Error("Int16 element bytes are undefined");
   }
   return new Int16Array([byte0 | (byte1 << 8)])[0] ?? 0;
 }
@@ -1297,7 +1297,7 @@ function parseUnsignedInt16Element(tagData: Uint8Array, offset: number): number 
   const byte0 = tagData[offset];
   const byte1 = tagData[offset + 1];
   if (byte0 === undefined || byte1 === undefined) {
-    throw new Error('UInt16 element bytes are undefined');
+    throw new Error("UInt16 element bytes are undefined");
   }
   return byte0 | (byte1 << 8);
 }
@@ -1308,7 +1308,7 @@ function parseSignedInt32Element(tagData: Uint8Array, offset: number): number {
   const byte2 = tagData[offset + 2];
   const byte3 = tagData[offset + 3];
   if (byte0 === undefined || byte1 === undefined || byte2 === undefined || byte3 === undefined) {
-    throw new Error('Int32 element bytes are undefined');
+    throw new Error("Int32 element bytes are undefined");
   }
   const intValue = (byte0 | (byte1 << 8) | (byte2 << 16) | (byte3 << 24)) >>> 0;
   return new Int32Array([intValue])[0] ?? 0;
@@ -1320,7 +1320,7 @@ function parseUnsignedInt32Element(tagData: Uint8Array, offset: number): number 
   const byte2 = tagData[offset + 2];
   const byte3 = tagData[offset + 3];
   if (byte0 === undefined || byte1 === undefined || byte2 === undefined || byte3 === undefined) {
-    throw new Error('UInt32 element bytes are undefined');
+    throw new Error("UInt32 element bytes are undefined");
   }
   return (byte0 | (byte1 << 8) | (byte2 << 16) | (byte3 << 24)) >>> 0;
 }
@@ -1350,7 +1350,7 @@ function validateCigarConsistency(
   record: ReturnType<typeof parseAlignmentRecord>,
   warnings: string[]
 ): void {
-  if (record.cigar === '*' || record.sequence === '*') {
+  if (record.cigar === "*" || record.sequence === "*") {
     return;
   }
 
@@ -1362,7 +1362,7 @@ function validateCigarConsistency(
     const operation = op.slice(-1);
 
     // Operations that consume query sequence: M, I, S, =, X
-    if ('MIS=X'.includes(operation)) {
+    if ("MIS=X".includes(operation)) {
       queryConsumed += length;
     }
   }

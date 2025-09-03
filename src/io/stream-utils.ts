@@ -6,9 +6,9 @@
  * cross-platform compatibility.
  */
 
-import type { StreamChunk, LineProcessingResult, StreamStats } from '../types';
-import { StreamError, BufferError, MemoryError } from '../errors';
-import { detectRuntime } from './runtime';
+import type { StreamChunk, LineProcessingResult, StreamStats } from "../types";
+import { StreamError, BufferError, MemoryError } from "../errors";
+import { detectRuntime } from "./runtime";
 
 // Constants for stream processing
 const MAX_LINE_LENGTH = 1_000_000; // 1MB max line length
@@ -38,25 +38,25 @@ const MEMORY_CHECK_INTERVAL = 1000; // Check memory every 1000 lines
  */
 export async function* readLines(
   stream: ReadableStream<Uint8Array>,
-  encoding: 'utf8' | 'ascii' | 'binary' = 'utf8'
+  encoding: "utf8" | "ascii" | "binary" = "utf8"
 ): AsyncIterable<string> {
   // Tiger Style: Validate function arguments
   if (!(stream instanceof ReadableStream)) {
-    throw new StreamError('stream must be a ReadableStream', 'read');
+    throw new StreamError("stream must be a ReadableStream", "read");
   }
-  if (!['utf8', 'ascii', 'binary'].includes(encoding)) {
+  if (!["utf8", "ascii", "binary"].includes(encoding)) {
     throw new StreamError(
       `Invalid encoding: ${encoding}. Must be 'utf8', 'ascii', or 'binary'`,
-      'read'
+      "read"
     );
   }
 
   const reader = stream.getReader();
   // TextDecoder doesn't support 'ascii', use 'utf-8' for both utf8 and ascii
   // For binary encoding, use 'iso-8859-1' (which is the standard label for latin1)
-  const decoderEncoding: any = encoding === 'binary' ? 'iso-8859-1' : 'utf-8';
+  const decoderEncoding: any = encoding === "binary" ? "iso-8859-1" : "utf-8";
   const decoder = new TextDecoder(decoderEncoding);
-  let buffer = '';
+  let buffer = "";
   let lineCount = 0;
   let totalBytesProcessed = 0;
 
@@ -98,7 +98,7 @@ export async function* readLines(
         throw new BufferError(
           `Buffer overflow: ${buffer.length} bytes exceeds maximum ${MAX_BUFFER_SIZE}`,
           buffer.length,
-          'overflow'
+          "overflow"
         );
       }
     }
@@ -118,7 +118,7 @@ export async function* readLines(
     }
     throw new StreamError(
       `Line reading failed: ${error instanceof Error ? error.message : String(error)}`,
-      'read',
+      "read",
       totalBytesProcessed
     );
   } finally {
@@ -138,12 +138,12 @@ export async function* readLines(
  */
 export function processBuffer(buffer: string): LineProcessingResult {
   // Tiger Style: Validate function arguments
-  if (typeof buffer !== 'string') {
-    throw new BufferError('buffer must be a string', 0, 'overflow');
+  if (typeof buffer !== "string") {
+    throw new BufferError("buffer must be a string", 0, "overflow");
   }
 
   const lines: string[] = [];
-  let remainder = '';
+  let remainder = "";
   let currentPosition = 0;
   let lineStart = 0;
 
@@ -151,12 +151,12 @@ export function processBuffer(buffer: string): LineProcessingResult {
   while (currentPosition < buffer.length) {
     const char = buffer[currentPosition];
 
-    if (char === '\n') {
+    if (char === "\n") {
       // Unix line ending or end of Windows line ending
       let lineEnd = currentPosition;
 
       // Check for Windows line ending (\r\n)
-      if (currentPosition > 0 && buffer[currentPosition - 1] === '\r') {
+      if (currentPosition > 0 && buffer[currentPosition - 1] === "\r") {
         lineEnd = currentPosition - 1;
       }
 
@@ -167,7 +167,7 @@ export function processBuffer(buffer: string): LineProcessingResult {
         throw new BufferError(
           `Line too long: ${line.length} characters exceeds maximum ${MAX_LINE_LENGTH}`,
           line.length,
-          'overflow',
+          "overflow",
           `Line starts with: ${line.slice(0, 100)}...`
         );
       }
@@ -175,9 +175,9 @@ export function processBuffer(buffer: string): LineProcessingResult {
       lines.push(line);
       lineStart = currentPosition + 1;
     } else if (
-      char === '\r' &&
+      char === "\r" &&
       currentPosition + 1 < buffer.length &&
-      buffer[currentPosition + 1] !== '\n'
+      buffer[currentPosition + 1] !== "\n"
     ) {
       // Mac classic line ending (\r not followed by \n)
       const line = buffer.slice(lineStart, currentPosition);
@@ -186,7 +186,7 @@ export function processBuffer(buffer: string): LineProcessingResult {
         throw new BufferError(
           `Line too long: ${line.length} characters exceeds maximum ${MAX_LINE_LENGTH}`,
           line.length,
-          'overflow'
+          "overflow"
         );
       }
 
@@ -206,8 +206,8 @@ export function processBuffer(buffer: string): LineProcessingResult {
       throw new BufferError(
         `Incomplete line too long: ${remainder.length} characters exceeds maximum ${MAX_LINE_LENGTH}`,
         remainder.length,
-        'overflow',
-        'This might indicate a file without proper line endings'
+        "overflow",
+        "This might indicate a file without proper line endings"
       );
     }
   }
@@ -241,13 +241,13 @@ export async function* pipe<T, U>(
   if (
     input === null ||
     input === undefined ||
-    typeof input !== 'object' ||
+    typeof input !== "object" ||
     !(Symbol.asyncIterator in input)
   ) {
-    throw new StreamError('input must be async iterable', 'read');
+    throw new StreamError("input must be async iterable", "read");
   }
-  if (typeof transform !== 'function') {
-    throw new StreamError('transform must be a function', 'transform');
+  if (typeof transform !== "function") {
+    throw new StreamError("transform must be a function", "transform");
   }
 
   let index = 0;
@@ -262,7 +262,7 @@ export async function* pipe<T, U>(
       } catch (error) {
         throw new StreamError(
           `Transform failed at index ${index}: ${error instanceof Error ? error.message : String(error)}`,
-          'transform',
+          "transform",
           processedCount
         );
       }
@@ -273,7 +273,7 @@ export async function* pipe<T, U>(
     if (error instanceof StreamError) throw error;
     throw new StreamError(
       `Stream processing failed: ${error instanceof Error ? error.message : String(error)}`,
-      'read',
+      "read",
       processedCount
     );
   }
@@ -301,7 +301,7 @@ export async function* processChunks(
 ): AsyncIterable<StreamChunk & { stats: StreamStats }> {
   // Tiger Style: Validate function arguments
   if (!(stream instanceof ReadableStream)) {
-    throw new StreamError('stream must be a ReadableStream', 'read');
+    throw new StreamError("stream must be a ReadableStream", "read");
   }
 
   const reader = stream.getReader();
@@ -363,7 +363,7 @@ export async function* processChunks(
   } catch (error) {
     throw new StreamError(
       `Chunk processing failed: ${error instanceof Error ? error.message : String(error)}`,
-      'read',
+      "read",
       totalBytes
     );
   } finally {
@@ -389,13 +389,13 @@ export async function* batchLines(
   if (
     lines === null ||
     lines === undefined ||
-    typeof lines !== 'object' ||
+    typeof lines !== "object" ||
     !(Symbol.asyncIterator in lines)
   ) {
-    throw new StreamError('lines must be async iterable', 'read');
+    throw new StreamError("lines must be async iterable", "read");
   }
   if (!Number.isInteger(batchSize) || batchSize <= 0) {
-    throw new StreamError('batchSize must be positive integer', 'transform');
+    throw new StreamError("batchSize must be positive integer", "transform");
   }
 
   let batch: string[] = [];
@@ -420,7 +420,7 @@ export async function* batchLines(
   } catch (error) {
     throw new StreamError(
       `Batch processing failed: ${error instanceof Error ? error.message : String(error)}`,
-      'transform',
+      "transform",
       batchCount * batchSize
     );
   }
@@ -433,14 +433,14 @@ function checkMemoryUsage(bufferSize: number, totalProcessed: number): void {
   // Tiger Style: Validate function arguments
   if (!Number.isInteger(bufferSize) || bufferSize < 0) {
     throw new MemoryError(
-      'bufferSize must be non-negative integer',
-      'Invalid parameter passed to checkMemoryUsage'
+      "bufferSize must be non-negative integer",
+      "Invalid parameter passed to checkMemoryUsage"
     );
   }
   if (!Number.isInteger(totalProcessed) || totalProcessed < 0) {
     throw new MemoryError(
-      'totalProcessed must be non-negative integer',
-      'Invalid parameter passed to checkMemoryUsage'
+      "totalProcessed must be non-negative integer",
+      "Invalid parameter passed to checkMemoryUsage"
     );
   }
 
@@ -459,7 +459,7 @@ function checkMemoryUsage(bufferSize: number, totalProcessed: number): void {
   if (estimatedMemory > limit) {
     throw new MemoryError(
       `Memory usage ${estimatedMemory} bytes exceeds ${runtime} limit of ${limit} bytes`,
-      'Consider using smaller buffer sizes or processing files in chunks'
+      "Consider using smaller buffer sizes or processing files in chunks"
     );
   }
 }
@@ -472,17 +472,17 @@ function estimateMemoryUsage(): number {
 
   try {
     switch (runtime) {
-      case 'node': {
+      case "node": {
         const process = globalThis.process;
         return process?.memoryUsage?.()?.heapUsed || 0;
       }
 
-      case 'deno': {
+      case "deno": {
         // Deno doesn't expose memory usage directly
         return 0;
       }
 
-      case 'bun': {
+      case "bun": {
         // Bun has access to process.memoryUsage() and it's highly optimized
         const process = globalThis.process;
         const memoryUsage = process?.memoryUsage?.();

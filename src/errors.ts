@@ -16,7 +16,7 @@ export class GenotypeError extends Error {
     public readonly context?: string
   ) {
     super(message);
-    this.name = 'GenotypeError';
+    this.name = "GenotypeError";
   }
 
   /**
@@ -27,7 +27,7 @@ export class GenotypeError extends Error {
     if (this.lineNumber !== undefined && this.lineNumber !== null) {
       msg += ` (line ${this.lineNumber})`;
     }
-    if (this.context !== undefined && this.context !== null && this.context !== '') {
+    if (this.context !== undefined && this.context !== null && this.context !== "") {
       msg += `\nContext: ${this.context}`;
     }
     return msg;
@@ -39,8 +39,8 @@ export class GenotypeError extends Error {
  */
 export class ValidationError extends GenotypeError {
   constructor(message: string, lineNumber?: number, context?: string) {
-    super(message, 'VALIDATION_ERROR', lineNumber, context);
-    this.name = 'ValidationError';
+    super(message, "VALIDATION_ERROR", lineNumber, context);
+    this.name = "ValidationError";
   }
 }
 
@@ -54,8 +54,8 @@ export class ParseError extends GenotypeError {
     lineNumber?: number,
     context?: string
   ) {
-    super(message, 'PARSE_ERROR', lineNumber, context);
-    this.name = 'ParseError';
+    super(message, "PARSE_ERROR", lineNumber, context);
+    this.name = "ParseError";
   }
 }
 
@@ -65,21 +65,21 @@ export class ParseError extends GenotypeError {
 export class CompressionError extends GenotypeError {
   constructor(
     message: string,
-    public readonly format: 'gzip' | 'zstd' | 'none',
-    public readonly operation: 'detect' | 'decompress' | 'stream' | 'validate' | 'compress',
+    public readonly format: "gzip" | "zstd" | "none",
+    public readonly operation: "detect" | "decompress" | "stream" | "validate" | "compress",
     public readonly bytesProcessed?: number,
     context?: string
   ) {
-    super(message, 'COMPRESSION_ERROR', undefined, context);
-    this.name = 'CompressionError';
+    super(message, "COMPRESSION_ERROR", undefined, context);
+    this.name = "CompressionError";
   }
 
   /**
    * Create compression error from system error
    */
   static fromSystemError(
-    format: CompressionError['format'],
-    operation: CompressionError['operation'],
+    format: CompressionError["format"],
+    operation: CompressionError["operation"],
     systemError: unknown,
     bytesProcessed?: number
   ): CompressionError {
@@ -87,7 +87,7 @@ export class CompressionError extends GenotypeError {
     const suggestion = CompressionError.getSuggestionForCompressionError(format, errorMessage);
 
     return new CompressionError(
-      `${operation} operation failed for ${format}: ${errorMessage}${suggestion !== undefined && suggestion !== null && suggestion !== '' ? `. ${suggestion}` : ''}`,
+      `${operation} operation failed for ${format}: ${errorMessage}${suggestion !== undefined && suggestion !== null && suggestion !== "" ? `. ${suggestion}` : ""}`,
       format,
       operation,
       bytesProcessed,
@@ -99,25 +99,25 @@ export class CompressionError extends GenotypeError {
    * Get helpful suggestion based on compression error
    */
   private static getSuggestionForCompressionError(
-    format: CompressionError['format'],
+    format: CompressionError["format"],
     errorMessage: string
   ): string | undefined {
     const msg = errorMessage.toLowerCase();
 
-    if (msg.includes('magic') || msg.includes('header')) {
+    if (msg.includes("magic") || msg.includes("header")) {
       return `File may be corrupted or not actually ${format} compressed`;
     }
-    if (msg.includes('truncated') || msg.includes('unexpected end')) {
-      return 'File appears to be truncated or incomplete';
+    if (msg.includes("truncated") || msg.includes("unexpected end")) {
+      return "File appears to be truncated or incomplete";
     }
-    if (msg.includes('dictionary') && format === 'zstd') {
-      return 'ZSTD dictionary may be missing or invalid';
+    if (msg.includes("dictionary") && format === "zstd") {
+      return "ZSTD dictionary may be missing or invalid";
     }
-    if (msg.includes('crc') || msg.includes('checksum')) {
-      return 'Data integrity check failed - file may be corrupted';
+    if (msg.includes("crc") || msg.includes("checksum")) {
+      return "Data integrity check failed - file may be corrupted";
     }
-    if (msg.includes('memory') || msg.includes('allocation')) {
-      return 'Try reducing buffer size or processing file in smaller chunks';
+    if (msg.includes("memory") || msg.includes("allocation")) {
+      return "Try reducing buffer size or processing file in smaller chunks";
     }
 
     return `Try installing native compression libraries for better ${format} support`;
@@ -145,19 +145,19 @@ export class FileError extends GenotypeError {
   constructor(
     message: string,
     public readonly filePath: string,
-    public readonly operation: 'read' | 'write' | 'stat' | 'open' | 'close' | 'seek',
+    public readonly operation: "read" | "write" | "stat" | "open" | "close" | "seek",
     public readonly systemError?: unknown,
     context?: string
   ) {
-    super(message, 'FILE_ERROR', undefined, context);
-    this.name = 'FileError';
+    super(message, "FILE_ERROR", undefined, context);
+    this.name = "FileError";
   }
 
   /**
    * Create file error with system error context
    */
   static fromSystemError(
-    operation: FileError['operation'],
+    operation: FileError["operation"],
     filePath: string,
     systemError: unknown
   ): FileError {
@@ -165,7 +165,7 @@ export class FileError extends GenotypeError {
     const suggestion = FileError.getSuggestionForSystemError(errorMessage);
 
     return new FileError(
-      `${operation} operation failed: ${errorMessage}${suggestion !== undefined && suggestion !== null && suggestion !== '' ? `. ${suggestion}` : ''}`,
+      `${operation} operation failed: ${errorMessage}${suggestion !== undefined && suggestion !== null && suggestion !== "" ? `. ${suggestion}` : ""}`,
       filePath,
       operation,
       systemError,
@@ -179,23 +179,23 @@ export class FileError extends GenotypeError {
   private static getSuggestionForSystemError(errorMessage: string): string | undefined {
     const msg = errorMessage.toLowerCase();
 
-    if (msg.includes('enoent') || msg.includes('no such file')) {
-      return 'Check that the file path is correct and the file exists';
+    if (msg.includes("enoent") || msg.includes("no such file")) {
+      return "Check that the file path is correct and the file exists";
     }
-    if (msg.includes('eacces') || msg.includes('permission denied')) {
-      return 'Check file permissions or run with appropriate privileges';
+    if (msg.includes("eacces") || msg.includes("permission denied")) {
+      return "Check file permissions or run with appropriate privileges";
     }
-    if (msg.includes('eisdir') || msg.includes('is a directory')) {
-      return 'Path points to a directory, not a file';
+    if (msg.includes("eisdir") || msg.includes("is a directory")) {
+      return "Path points to a directory, not a file";
     }
-    if (msg.includes('emfile') || msg.includes('too many open files')) {
-      return 'Close unused file handles or increase system limits';
+    if (msg.includes("emfile") || msg.includes("too many open files")) {
+      return "Close unused file handles or increase system limits";
     }
-    if (msg.includes('enospc') || msg.includes('no space left')) {
-      return 'Free up disk space or use a different location';
+    if (msg.includes("enospc") || msg.includes("no space left")) {
+      return "Free up disk space or use a different location";
     }
-    if (msg.includes('timeout') || msg.includes('etimedout')) {
-      return 'Increase timeout or check network connectivity for remote files';
+    if (msg.includes("timeout") || msg.includes("etimedout")) {
+      return "Increase timeout or check network connectivity for remote files";
     }
 
     return undefined;
@@ -212,7 +212,7 @@ export class FileError extends GenotypeError {
       if (
         this.systemError.stack !== undefined &&
         this.systemError.stack !== null &&
-        this.systemError.stack !== ''
+        this.systemError.stack !== ""
       ) {
         msg += `\nStack: ${this.systemError.stack}`;
       }
@@ -230,8 +230,8 @@ export class MemoryError extends GenotypeError {
     message: string,
     public readonly suggestedAction?: string
   ) {
-    super(message, 'MEMORY_ERROR');
-    this.name = 'MemoryError';
+    super(message, "MEMORY_ERROR");
+    this.name = "MemoryError";
   }
 }
 
@@ -246,7 +246,7 @@ export class SequenceError extends ValidationError {
     context?: string
   ) {
     super(`Sequence '${sequenceId}': ${message}`, lineNumber, context);
-    this.name = 'SequenceError';
+    this.name = "SequenceError";
   }
 }
 
@@ -262,7 +262,7 @@ export class QualityError extends ValidationError {
     context?: string
   ) {
     super(`Quality scores for '${sequenceId}': ${message}`, lineNumber, context);
-    this.name = 'QualityError';
+    this.name = "QualityError";
   }
 }
 
@@ -278,8 +278,8 @@ export class BedError extends ParseError {
     lineNumber?: number,
     context?: string
   ) {
-    super(message, 'BED', lineNumber, context);
-    this.name = 'BedError';
+    super(message, "BED", lineNumber, context);
+    this.name = "BedError";
   }
 }
 
@@ -294,8 +294,8 @@ export class SamError extends ParseError {
     lineNumber?: number,
     context?: string
   ) {
-    super(message, 'SAM', lineNumber, context);
-    this.name = 'SamError';
+    super(message, "SAM", lineNumber, context);
+    this.name = "SamError";
   }
 }
 
@@ -310,8 +310,8 @@ export class BamError extends ParseError {
     public readonly blockOffset?: number,
     context?: string
   ) {
-    super(message, 'BAM', undefined, context);
-    this.name = 'BamError';
+    super(message, "BAM", undefined, context);
+    this.name = "BamError";
   }
 
   /**
@@ -361,13 +361,13 @@ export function createContextualError(
   const { lineNumber, context, data } = options;
   let contextStr = context;
 
-  if (data && (contextStr === undefined || contextStr === null || contextStr === '')) {
+  if (data && (contextStr === undefined || contextStr === null || contextStr === "")) {
     contextStr = Object.entries(data)
       .map(([key, value]) => `${key}: ${value}`)
-      .join(', ');
+      .join(", ");
   }
 
-  return new ErrorClass(message, 'CONTEXTUAL_ERROR', lineNumber, contextStr);
+  return new ErrorClass(message, "CONTEXTUAL_ERROR", lineNumber, contextStr);
 }
 
 /**
@@ -376,12 +376,12 @@ export function createContextualError(
 export const ERROR_SUGGESTIONS = {
   INVALID_FASTA_HEADER: 'FASTA headers must start with ">" followed by an identifier',
   INVALID_FASTQ_HEADER: 'FASTQ headers must start with "@" followed by an identifier',
-  SEQUENCE_QUALITY_MISMATCH: 'Sequence and quality strings must have the same length',
-  INVALID_NUCLEOTIDE: 'Use IUPAC nucleotide codes: A, C, G, T, U, R, Y, S, W, K, M, B, D, H, V, N',
-  INVALID_BED_COORDINATES: 'BED coordinates must be non-negative integers with start < end',
-  COMPRESSED_FILE_ERROR: 'Try installing appropriate compression libraries or check file integrity',
-  MEMORY_EXCEEDED: 'Consider using streaming API or processing file in chunks',
-  MALFORMED_LINE: 'Check for extra whitespace, special characters, or encoding issues',
+  SEQUENCE_QUALITY_MISMATCH: "Sequence and quality strings must have the same length",
+  INVALID_NUCLEOTIDE: "Use IUPAC nucleotide codes: A, C, G, T, U, R, Y, S, W, K, M, B, D, H, V, N",
+  INVALID_BED_COORDINATES: "BED coordinates must be non-negative integers with start < end",
+  COMPRESSED_FILE_ERROR: "Try installing appropriate compression libraries or check file integrity",
+  MEMORY_EXCEEDED: "Consider using streaming API or processing file in chunks",
+  MALFORMED_LINE: "Check for extra whitespace, special characters, or encoding issues",
 } as const;
 
 /**
@@ -390,12 +390,12 @@ export const ERROR_SUGGESTIONS = {
 export class StreamError extends GenotypeError {
   constructor(
     message: string,
-    public readonly streamType: 'read' | 'write' | 'transform',
+    public readonly streamType: "read" | "write" | "transform",
     public readonly bytesProcessed?: number,
     context?: string
   ) {
-    super(message, 'STREAM_ERROR', undefined, context);
-    this.name = 'StreamError';
+    super(message, "STREAM_ERROR", undefined, context);
+    this.name = "StreamError";
   }
 }
 
@@ -406,11 +406,11 @@ export class BufferError extends GenotypeError {
   constructor(
     message: string,
     public readonly bufferSize: number,
-    public readonly operation: 'allocate' | 'resize' | 'overflow' | 'underflow',
+    public readonly operation: "allocate" | "resize" | "overflow" | "underflow",
     context?: string
   ) {
-    super(message, 'BUFFER_ERROR', undefined, context);
-    this.name = 'BufferError';
+    super(message, "BUFFER_ERROR", undefined, context);
+    this.name = "BufferError";
   }
 }
 
@@ -424,8 +424,8 @@ export class TimeoutError extends GenotypeError {
     public readonly operation: string,
     context?: string
   ) {
-    super(message, 'TIMEOUT_ERROR', undefined, context);
-    this.name = 'TimeoutError';
+    super(message, "TIMEOUT_ERROR", undefined, context);
+    this.name = "TimeoutError";
   }
 }
 
@@ -435,12 +435,12 @@ export class TimeoutError extends GenotypeError {
 export class CompatibilityError extends GenotypeError {
   constructor(
     message: string,
-    public readonly runtime: 'node' | 'deno' | 'bun',
+    public readonly runtime: "node" | "deno" | "bun",
     public readonly feature: string,
     context?: string
   ) {
-    super(message, 'COMPATIBILITY_ERROR', undefined, context);
-    this.name = 'CompatibilityError';
+    super(message, "COMPATIBILITY_ERROR", undefined, context);
+    this.name = "CompatibilityError";
   }
 }
 
@@ -454,8 +454,8 @@ export class FormatDetectionError extends GenotypeError {
     public readonly detectedFormats: string[],
     context?: string
   ) {
-    super(message, 'FORMAT_DETECTION_ERROR', undefined, context);
-    this.name = 'FormatDetectionError';
+    super(message, "FORMAT_DETECTION_ERROR", undefined, context);
+    this.name = "FormatDetectionError";
   }
 }
 
@@ -463,9 +463,9 @@ export class FormatDetectionError extends GenotypeError {
  * Pattern search operation errors
  */
 export class GrepError extends GenotypeError {
-  constructor(message: string, code: string = 'GREP_ERROR', lineNumber?: number, context?: string) {
+  constructor(message: string, code: string = "GREP_ERROR", lineNumber?: number, context?: string) {
     super(message, code, lineNumber, context);
-    this.name = 'GrepError';
+    this.name = "GrepError";
   }
 }
 
@@ -475,18 +475,30 @@ export class GrepError extends GenotypeError {
 export class LocateError extends GenotypeError {
   constructor(
     message: string,
-    code: string = 'LOCATE_ERROR',
+    code: string = "LOCATE_ERROR",
     lineNumber?: number,
     context?: string
   ) {
     super(message, code, lineNumber, context);
-    this.name = 'LocateError';
+    this.name = "LocateError";
   }
 }
 
 /**
  * Concatenation operation errors
  */
+export class SplitError extends GenotypeError {
+  constructor(
+    message: string,
+    public readonly operation: string,
+    public readonly mode?: string,
+    public readonly splitContext?: string
+  ) {
+    super(message, "SPLIT_ERROR");
+    this.name = "SplitError";
+  }
+}
+
 export class ConcatError extends GenotypeError {
   constructor(
     message: string,
@@ -495,8 +507,8 @@ export class ConcatError extends GenotypeError {
     lineNumber?: number,
     context?: string
   ) {
-    super(message, 'CONCAT_ERROR', lineNumber, context);
-    this.name = 'ConcatError';
+    super(message, "CONCAT_ERROR", lineNumber, context);
+    this.name = "ConcatError";
   }
 
   /**
@@ -526,12 +538,12 @@ export class ConcatError extends GenotypeError {
     if (
       this.sourceContext !== undefined &&
       this.sourceContext !== null &&
-      this.sourceContext !== ''
+      this.sourceContext !== ""
     ) {
       msg += `\nSource: ${this.sourceContext}`;
     }
 
-    if (this.idConflict !== undefined && this.idConflict !== null && this.idConflict !== '') {
+    if (this.idConflict !== undefined && this.idConflict !== null && this.idConflict !== "") {
       msg += `\nConflicting ID: ${this.idConflict}`;
     }
 
@@ -553,7 +565,7 @@ export class CigarValidationError extends ValidationError {
     context?: string
   ) {
     super(message, lineNumber, context);
-    this.name = 'CigarValidationError';
+    this.name = "CigarValidationError";
   }
 
   /**
@@ -602,12 +614,12 @@ export class GenomicCoordinateError extends ValidationError {
     message: string,
     public readonly coordinate: number,
     public readonly maxExpected: number,
-    public readonly coordinateType: 'start' | 'end' | 'position',
+    public readonly coordinateType: "start" | "end" | "position",
     lineNumber?: number,
     context?: string
   ) {
     super(message, lineNumber, context);
-    this.name = 'GenomicCoordinateError';
+    this.name = "GenomicCoordinateError";
   }
 
   /**
@@ -615,7 +627,7 @@ export class GenomicCoordinateError extends ValidationError {
    */
   static forLargeCoordinate(
     coordinate: number,
-    coordinateType: 'start' | 'end' | 'position' = 'position',
+    coordinateType: "start" | "end" | "position" = "position",
     lineNumber?: number
   ): GenomicCoordinateError {
     const maxExpected = 300_000_000;
@@ -654,14 +666,14 @@ export class ChromosomeNamingError extends ValidationError {
     context?: string
   ) {
     super(message, lineNumber, context);
-    this.name = 'ChromosomeNamingError';
+    this.name = "ChromosomeNamingError";
   }
 
   /**
    * Create error for non-standard chromosome names
    */
   static forNonStandardName(chromosomeName: string, lineNumber?: number): ChromosomeNamingError {
-    const suggestedNames = ['chr1', 'chr2', 'chrX', 'chrY', 'chrM'];
+    const suggestedNames = ["chr1", "chr2", "chrX", "chrY", "chrM"];
 
     return new ChromosomeNamingError(
       `Non-standard chromosome name: '${chromosomeName}'`,
@@ -675,7 +687,7 @@ export class ChromosomeNamingError extends ValidationError {
   override toString(): string {
     let msg = super.toString();
     msg += `\nChromosome: ${this.chromosomeName}`;
-    msg += `\nSuggested standard names: ${this.suggestedNames.join(', ')}`;
+    msg += `\nSuggested standard names: ${this.suggestedNames.join(", ")}`;
     msg += `\nNote: Non-standard names may cause compatibility issues with downstream tools`;
     return msg;
   }
@@ -688,11 +700,11 @@ export class SecurityPathError extends GenotypeError {
   constructor(
     message: string,
     public readonly attemptedPath: string,
-    public readonly securityRisk: 'traversal' | 'sensitive-directory' | 'system-access',
+    public readonly securityRisk: "traversal" | "sensitive-directory" | "system-access",
     context?: string
   ) {
-    super(message, 'SECURITY_PATH_ERROR', undefined, context);
-    this.name = 'SecurityPathError';
+    super(message, "SECURITY_PATH_ERROR", undefined, context);
+    this.name = "SecurityPathError";
   }
 
   /**
@@ -702,7 +714,7 @@ export class SecurityPathError extends GenotypeError {
     return new SecurityPathError(
       `Access denied: path accesses sensitive system directory`,
       path,
-      'sensitive-directory',
+      "sensitive-directory",
       `Attempted path: ${path}`
     );
   }
@@ -722,14 +734,14 @@ export class SecurityPathError extends GenotypeError {
 export class ResourceLimitError extends ValidationError {
   constructor(
     message: string,
-    public readonly resourceType: 'buffer' | 'file-size' | 'timeout' | 'memory',
+    public readonly resourceType: "buffer" | "file-size" | "timeout" | "memory",
     public readonly actualValue: number,
     public readonly maxAllowed: number,
-    public readonly unit: 'bytes' | 'ms' | 'count',
+    public readonly unit: "bytes" | "ms" | "count",
     context?: string
   ) {
     super(message, undefined, context);
-    this.name = 'ResourceLimitError';
+    this.name = "ResourceLimitError";
   }
 
   /**
@@ -741,10 +753,10 @@ export class ResourceLimitError extends ValidationError {
 
     return new ResourceLimitError(
       `${operation} buffer size too large: ${actualMB}MB (maximum ${maxMB}MB)`,
-      'buffer',
+      "buffer",
       actualSize,
       maxSize,
-      'bytes',
+      "bytes",
       `Operation: ${operation}, Actual: ${actualSize} bytes, Max: ${maxSize} bytes`
     );
   }
@@ -762,10 +774,10 @@ export class ResourceLimitError extends ValidationError {
 
     return new ResourceLimitError(
       `${operation} timeout too long: ${actualMin} minutes (maximum ${maxMin} minutes)`,
-      'timeout',
+      "timeout",
       actualTimeout,
       maxTimeout,
-      'ms',
+      "ms",
       `Operation: ${operation}, Actual: ${actualTimeout}ms, Max: ${maxTimeout}ms`
     );
   }
@@ -787,20 +799,20 @@ export class ResourceLimitError extends ValidationError {
 export class BAIIndexError extends ValidationError {
   constructor(
     message: string,
-    public readonly indexComponent: 'chunk' | 'bin' | 'linear-index' | 'version' | 'interval-size',
+    public readonly indexComponent: "chunk" | "bin" | "linear-index" | "version" | "interval-size",
     public readonly value: number | string,
     public readonly recommendation?: string,
     context?: string
   ) {
     super(message, undefined, context);
-    this.name = 'BAIIndexError';
+    this.name = "BAIIndexError";
   }
 
   /**
    * Create error for performance-impacting BAI conditions
    */
   static forPerformanceImpact(
-    component: BAIIndexError['indexComponent'],
+    component: BAIIndexError["indexComponent"],
     value: number | string,
     threshold: number,
     unit: string
@@ -832,25 +844,25 @@ export class BAIIndexError extends ValidationError {
 export function getErrorSuggestion(error: GenotypeError): string | undefined {
   const message = error.message.toLowerCase();
 
-  if (message.includes('fasta') && message.includes('header')) {
+  if (message.includes("fasta") && message.includes("header")) {
     return ERROR_SUGGESTIONS.INVALID_FASTA_HEADER;
   }
-  if (message.includes('fastq') && message.includes('header')) {
+  if (message.includes("fastq") && message.includes("header")) {
     return ERROR_SUGGESTIONS.INVALID_FASTQ_HEADER;
   }
-  if (message.includes('quality') && message.includes('length')) {
+  if (message.includes("quality") && message.includes("length")) {
     return ERROR_SUGGESTIONS.SEQUENCE_QUALITY_MISMATCH;
   }
-  if (message.includes('nucleotide') || message.includes('sequence')) {
+  if (message.includes("nucleotide") || message.includes("sequence")) {
     return ERROR_SUGGESTIONS.INVALID_NUCLEOTIDE;
   }
-  if (message.includes('bed') && message.includes('coordinate')) {
+  if (message.includes("bed") && message.includes("coordinate")) {
     return ERROR_SUGGESTIONS.INVALID_BED_COORDINATES;
   }
-  if (message.includes('compression') || message.includes('gzip') || message.includes('zstd')) {
+  if (message.includes("compression") || message.includes("gzip") || message.includes("zstd")) {
     return ERROR_SUGGESTIONS.COMPRESSED_FILE_ERROR;
   }
-  if (message.includes('memory') || message.includes('allocation')) {
+  if (message.includes("memory") || message.includes("allocation")) {
     return ERROR_SUGGESTIONS.MEMORY_EXCEEDED;
   }
 

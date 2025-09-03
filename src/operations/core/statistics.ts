@@ -5,7 +5,7 @@
  * Uses Welford's algorithm for numerical stability in variance calculations
  */
 
-import type { AbstractSequence } from '../../types';
+import type { AbstractSequence } from "../../types";
 
 /**
  * Sequence statistics result
@@ -73,9 +73,9 @@ export class SequenceStatsAccumulator {
       sequence === null ||
       sequence.sequence === undefined ||
       sequence.sequence === null ||
-      sequence.sequence === ''
+      sequence.sequence === ""
     ) {
-      throw new Error('Valid sequence required for statistics');
+      throw new Error("Valid sequence required for statistics");
     }
 
     this.count++;
@@ -101,14 +101,14 @@ export class SequenceStatsAccumulator {
     const seq = sequence.sequence.toUpperCase();
     for (let i = 0; i < seq.length; i++) {
       const base = seq[i];
-      if (base !== undefined && base !== null && base !== '') {
+      if (base !== undefined && base !== null && base !== "") {
         this.baseCount[base] =
           (this.baseCount[base] !== undefined &&
           this.baseCount[base] !== null &&
           this.baseCount[base] !== 0
             ? this.baseCount[base]
             : 0) + 1;
-        if (base === 'G' || base === 'C' || base === 'S') {
+        if (base === "G" || base === "C" || base === "S") {
           this.gcCount++;
         }
       }
@@ -116,10 +116,10 @@ export class SequenceStatsAccumulator {
 
     // Update quality statistics if available (FASTQ)
     if (
-      'quality' in sequence &&
+      "quality" in sequence &&
       (sequence as any).quality !== undefined &&
       (sequence as any).quality !== null &&
-      (sequence as any).quality !== ''
+      (sequence as any).quality !== ""
     ) {
       const quality = (sequence as any).quality;
       for (let i = 0; i < quality.length; i++) {
@@ -340,7 +340,7 @@ Median length: ${stats.medianLength} bp
 N50: ${stats.n50} bp
 N90: ${stats.n90} bp
 GC content: ${(stats.gcContent * 100).toFixed(2)}%
-${stats.qualityStats ? `Mean quality: ${stats.qualityStats.meanQuality.toFixed(2)}` : ''}
+${stats.qualityStats ? `Mean quality: ${stats.qualityStats.meanQuality.toFixed(2)}` : ""}
     `.trim();
   }
 }

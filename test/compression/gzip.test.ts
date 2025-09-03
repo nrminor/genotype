@@ -5,16 +5,16 @@
  * optimizations and proper error handling.
  */
 
-import { describe, test, expect } from 'bun:test';
-import { GzipDecompressor } from '../../src/compression/gzip';
-import { CompressionError } from '../../src/errors';
+import { describe, test, expect } from "bun:test";
+import { GzipDecompressor } from "../../src/compression/gzip";
+import { CompressionError } from "../../src/errors";
 
 // Mock gzip data for testing (simplified header + data)
-const MOCK_FASTA_DATA = new TextEncoder().encode('>sequence1\nACGTACGT\n>sequence2\nGGCCTTAA\n');
+const MOCK_FASTA_DATA = new TextEncoder().encode(">sequence1\nACGTACGT\n>sequence2\nGGCCTTAA\n");
 
-describe('GzipDecompressor', () => {
-  describe('decompress', () => {
-    test('should reject invalid magic bytes', async () => {
+describe("GzipDecompressor", () => {
+  describe("decompress", () => {
+    test("should reject invalid magic bytes", async () => {
       const invalidData = new Uint8Array([0x50, 0x4b, 0x03, 0x04]); // ZIP magic
 
       await expect(GzipDecompressor.decompress(invalidData)).rejects.toThrow(CompressionError);
@@ -23,23 +23,23 @@ describe('GzipDecompressor', () => {
       );
     });
 
-    test('should reject empty data', async () => {
+    test("should reject empty data", async () => {
       const emptyData = new Uint8Array(0);
 
       await expect(GzipDecompressor.decompress(emptyData)).rejects.toThrow(CompressionError);
       await expect(GzipDecompressor.decompress(emptyData)).rejects.toThrow(/must not be empty/);
     });
 
-    test('should reject non-Uint8Array input', async () => {
+    test("should reject non-Uint8Array input", async () => {
       await expect(
         GzipDecompressor.decompress([0x1f, 0x8b] as unknown as Uint8Array)
       ).rejects.toThrow(CompressionError);
       await expect(
-        GzipDecompressor.decompress('gzip data' as unknown as Uint8Array)
+        GzipDecompressor.decompress("gzip data" as unknown as Uint8Array)
       ).rejects.toThrow(CompressionError);
     });
 
-    test('should handle size limits', async () => {
+    test("should handle size limits", async () => {
       const largeGzipHeader = new Uint8Array(1024 * 1024 * 20); // 20MB
       largeGzipHeader[0] = 0x1f;
       largeGzipHeader[1] = 0x8b;
@@ -54,14 +54,14 @@ describe('GzipDecompressor', () => {
       );
     });
 
-    test('should validate options', async () => {
+    test("should validate options", async () => {
       const validGzipData = new Uint8Array([0x1f, 0x8b, 0x08]);
       const invalidOptions = { bufferSize: -1 };
 
       await expect(GzipDecompressor.decompress(validGzipData, invalidOptions)).rejects.toThrow();
     });
 
-    test('should handle progress callbacks', async () => {
+    test("should handle progress callbacks", async () => {
       let progressCalled = false;
       let bytesProcessed = 0;
 
@@ -84,7 +84,7 @@ describe('GzipDecompressor', () => {
       expect(bytesProcessed).toBeGreaterThan(0);
     });
 
-    test('should handle abort signal', async () => {
+    test("should handle abort signal", async () => {
       const controller = new AbortController();
       const gzipData = new Uint8Array([0x1f, 0x8b, 0x08]);
 
@@ -102,8 +102,8 @@ describe('GzipDecompressor', () => {
     });
   });
 
-  describe('createStream', () => {
-    test('should create transform stream', () => {
+  describe("createStream", () => {
+    test("should create transform stream", () => {
       const stream = GzipDecompressor.createStream();
 
       expect(stream).toBeInstanceOf(TransformStream);
@@ -111,7 +111,7 @@ describe('GzipDecompressor', () => {
       expect(stream.writable).toBeInstanceOf(WritableStream);
     });
 
-    test('should accept custom options', () => {
+    test("should accept custom options", () => {
       const options = {
         bufferSize: 128 * 1024, // 128KB
         validateIntegrity: true,
@@ -122,16 +122,16 @@ describe('GzipDecompressor', () => {
       expect(stream).toBeInstanceOf(TransformStream);
     });
 
-    test('should validate options schema', () => {
+    test("should validate options schema", () => {
       const invalidOptions = {
         bufferSize: -1,
-        maxOutputSize: 'invalid' as unknown as number,
+        maxOutputSize: "invalid" as unknown as number,
       };
 
       expect(() => GzipDecompressor.createStream(invalidOptions)).toThrow();
     });
 
-    test.skip('should handle abort signal in stream', async () => {
+    test.skip("should handle abort signal in stream", async () => {
       const controller = new AbortController();
       const stream = GzipDecompressor.createStream({
         signal: controller.signal,
@@ -157,8 +157,8 @@ describe('GzipDecompressor', () => {
     });
   });
 
-  describe('wrapStream', () => {
-    test('should wrap readable stream', () => {
+  describe("wrapStream", () => {
+    test("should wrap readable stream", () => {
       const inputStream = new ReadableStream({
         start(controller) {
           controller.enqueue(new Uint8Array([0x1f, 0x8b, 0x08]));
@@ -171,16 +171,16 @@ describe('GzipDecompressor', () => {
       expect(decompressedStream).toBeInstanceOf(ReadableStream);
     });
 
-    test('should reject invalid input', () => {
+    test("should reject invalid input", () => {
       expect(() => GzipDecompressor.wrapStream(null as unknown as ReadableStream)).toThrow(
         CompressionError
       );
       expect(() =>
-        GzipDecompressor.wrapStream('not a stream' as unknown as ReadableStream)
+        GzipDecompressor.wrapStream("not a stream" as unknown as ReadableStream)
       ).toThrow(CompressionError);
     });
 
-    test('should apply custom options', () => {
+    test("should apply custom options", () => {
       const inputStream = new ReadableStream({
         start(controller) {
           controller.enqueue(new Uint8Array([0x1f, 0x8b]));
@@ -198,7 +198,7 @@ describe('GzipDecompressor', () => {
       expect(decompressedStream).toBeInstanceOf(ReadableStream);
     });
 
-    test('should handle streaming decompression', async () => {
+    test("should handle streaming decompression", async () => {
       const chunks = [
         new Uint8Array([0x1f, 0x8b, 0x08, 0x00]),
         new Uint8Array([0x00, 0x00, 0x00, 0x00]),
@@ -230,8 +230,8 @@ describe('GzipDecompressor', () => {
     });
   });
 
-  describe('runtime optimization detection', () => {
-    test('should handle different runtime environments', async () => {
+  describe("runtime optimization detection", () => {
+    test("should handle different runtime environments", async () => {
       // This test verifies the runtime detection logic works
       const gzipData = new Uint8Array([0x1f, 0x8b, 0x08]);
 
@@ -240,11 +240,11 @@ describe('GzipDecompressor', () => {
       } catch (error) {
         // Expected to fail with incomplete data, but shouldn't throw runtime errors
         expect(error).toBeInstanceOf(CompressionError);
-        expect(error.message).not.toContain('Unsupported runtime');
+        expect(error.message).not.toContain("Unsupported runtime");
       }
     });
 
-    test('should use appropriate buffer sizes', () => {
+    test("should use appropriate buffer sizes", () => {
       const stream1 = GzipDecompressor.createStream({ bufferSize: 32768 });
       const stream2 = GzipDecompressor.createStream({ bufferSize: 131072 });
 
@@ -253,31 +253,31 @@ describe('GzipDecompressor', () => {
     });
   });
 
-  describe('error handling', () => {
-    test('should provide detailed error messages', async () => {
+  describe("error handling", () => {
+    test("should provide detailed error messages", async () => {
       const truncatedGzip = new Uint8Array([0x1f, 0x8b]); // Too short
 
       try {
         await GzipDecompressor.decompress(truncatedGzip);
       } catch (error) {
         expect(error).toBeInstanceOf(CompressionError);
-        expect(error.format).toBe('gzip');
-        expect(error.operation).toBe('decompress');
+        expect(error.format).toBe("gzip");
+        expect(error.operation).toBe("decompress");
       }
     });
 
-    test('should handle system errors gracefully', async () => {
+    test("should handle system errors gracefully", async () => {
       const invalidGzip = new Uint8Array([0x1f, 0x8b, 0x08, 0x00, 0xff, 0xff, 0xff, 0xff]);
 
       try {
         await GzipDecompressor.decompress(invalidGzip);
       } catch (error) {
         expect(error).toBeInstanceOf(CompressionError);
-        expect(error.message).toContain('decompress operation failed');
+        expect(error.message).toContain("decompress operation failed");
       }
     });
 
-    test('should track bytes processed in errors', async () => {
+    test("should track bytes processed in errors", async () => {
       const partialGzip = new Uint8Array([0x1f, 0x8b, 0x08, 0x00]);
 
       try {
@@ -289,8 +289,8 @@ describe('GzipDecompressor', () => {
     });
   });
 
-  describe('memory management', () => {
-    test('should respect memory limits', async () => {
+  describe("memory management", () => {
+    test("should respect memory limits", async () => {
       const smallLimit = 1024; // 1KB limit
       const largeGzipHeader = new Uint8Array(2048); // 2KB data
       largeGzipHeader[0] = 0x1f;
@@ -303,7 +303,7 @@ describe('GzipDecompressor', () => {
       );
     });
 
-    test('should handle large buffer sizes', () => {
+    test("should handle large buffer sizes", () => {
       const largeBufferOptions = {
         bufferSize: 1024 * 1024, // 1MB buffer
       };
@@ -313,8 +313,8 @@ describe('GzipDecompressor', () => {
     });
   });
 
-  describe('integration scenarios', () => {
-    test('should work with genomic file patterns', async () => {
+  describe("integration scenarios", () => {
+    test("should work with genomic file patterns", async () => {
       // Simulate common genomic data patterns
       const fastaLikeData = new Uint8Array([0x1f, 0x8b, 0x08, 0x00]); // Gzip header start
 
@@ -323,11 +323,11 @@ describe('GzipDecompressor', () => {
       } catch (error) {
         // Expected to fail with incomplete data
         expect(error).toBeInstanceOf(CompressionError);
-        expect(error.format).toBe('gzip');
+        expect(error.format).toBe("gzip");
       }
     });
 
-    test('should handle streaming for large genomic files', async () => {
+    test("should handle streaming for large genomic files", async () => {
       let chunkCount = 0;
       const options = {
         onProgress: () => chunkCount++,

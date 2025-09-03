@@ -25,9 +25,9 @@
  * - IUPAC matching has overhead for ambiguous base expansion
  */
 
-import type { AbstractSequence } from '../../types';
-import { SequenceValidator } from '../validate';
-import { reverseComplement } from './sequence-manipulation';
+import type { AbstractSequence } from "../../types";
+import { expandAmbiguous } from "./sequence-validation";
+import { reverseComplement } from "./sequence-manipulation";
 
 // =============================================================================
 // TYPES AND INTERFACES
@@ -141,7 +141,7 @@ export interface MatcherOptions {
    * - 'regex': Full regular expression support
    * @default 'boyer-moore'
    */
-  algorithm?: 'boyer-moore' | 'kmp' | 'fuzzy' | 'regex';
+  algorithm?: "boyer-moore" | "kmp" | "fuzzy" | "regex";
 
   /**
    * Maximum number of mismatches allowed for fuzzy matching.
@@ -267,7 +267,7 @@ export function fuzzyMatch(text: string, pattern: string, maxMismatches: number)
   if (!pattern || pattern.length === 0) return [];
   if (!text || pattern.length > text.length) return [];
   if (maxMismatches < 0) {
-    throw new Error('Max mismatches must be non-negative');
+    throw new Error("Max mismatches must be non-negative");
   }
 
   const matches: PatternMatch[] = [];
@@ -307,8 +307,8 @@ function areBasesCompatible(base1: string, base2: string): boolean {
   if (base1 === base2) return true;
 
   // Expand ambiguous bases and check for overlap
-  const expanded1 = SequenceValidator.expandAmbiguous(base1);
-  const expanded2 = SequenceValidator.expandAmbiguous(base2);
+  const expanded1 = expandAmbiguous(base1);
+  const expanded2 = expandAmbiguous(base2);
 
   // Check if there's any overlap in possible bases
   return expanded1.some((b1) => expanded2.includes(b1));
@@ -341,7 +341,7 @@ export function matchWithAmbiguous(sequence: string, pattern: string): number[] 
       const patBase = patternUpper[j];
 
       // N matches anything
-      if (patBase === 'N' || seqBase === 'N') {
+      if (patBase === "N" || seqBase === "N") {
         continue;
       }
 
@@ -551,7 +551,7 @@ export function longestCommonSubstring(
 } {
   // Tiger Style: Assert inputs
   if (!seq1 || !seq2) {
-    return { substring: '', position1: -1, position2: -1, length: 0 };
+    return { substring: "", position1: -1, position2: -1, length: 0 };
   }
 
   const m = seq1.length;
@@ -560,9 +560,9 @@ export function longestCommonSubstring(
   let endPos1 = 0;
 
   // Create DP table
-  const dp: number[][] = Array(m + 1)
+  const dp: number[][] = new Array(m + 1)
     .fill(null)
-    .map(() => Array(n + 1).fill(0));
+    .map(() => new Array(n + 1).fill(0));
 
   // Fill DP table
   for (let i = 1; i <= m; i++) {
@@ -752,12 +752,12 @@ export class SequenceMatcher {
 
   constructor(pattern: string, options: MatcherOptions = {}) {
     if (!pattern || pattern.length === 0) {
-      throw new Error('Pattern cannot be empty');
+      throw new Error("Pattern cannot be empty");
     }
 
     this.pattern = pattern;
     this.options = {
-      algorithm: options.algorithm ?? 'boyer-moore',
+      algorithm: options.algorithm ?? "boyer-moore",
       maxMismatches: options.maxMismatches ?? 0,
       iupacAware: options.iupacAware ?? false,
       caseSensitive: options.caseSensitive ?? true,
@@ -768,7 +768,7 @@ export class SequenceMatcher {
     this.patternUpper = this.options.caseSensitive ? pattern : pattern.toUpperCase();
 
     // Pre-build Boyer-Moore table if using that algorithm
-    if (this.options.algorithm === 'boyer-moore') {
+    if (this.options.algorithm === "boyer-moore") {
       this.badCharTable = buildBadCharTable(this.patternUpper);
     }
 
@@ -800,9 +800,9 @@ export class SequenceMatcher {
    * @returns Array of all matches found in the sequence
    */
   findInSequence(sequence: AbstractSequence | string): SequenceMatch[] {
-    const isSequenceObject = typeof sequence === 'object';
+    const isSequenceObject = typeof sequence === "object";
     const seq = isSequenceObject ? sequence.sequence : sequence;
-    const seqId = isSequenceObject ? sequence.id : 'unknown';
+    const seqId = isSequenceObject ? sequence.id : "unknown";
 
     const text = this.options.caseSensitive ? seq : seq.toUpperCase();
     const originalText = this.options.caseSensitive ? undefined : seq;
@@ -814,11 +814,11 @@ export class SequenceMatcher {
 
     // Choose algorithm
     switch (this.options.algorithm) {
-      case 'fuzzy':
+      case "fuzzy":
         return this.fuzzyMatchInternal(text, seqId, originalText);
-      case 'kmp':
+      case "kmp":
         return this.kmpMatchInternal(text, seqId, originalText);
-      case 'regex':
+      case "regex":
         return this.regexMatch(text, seqId, originalText);
       default:
         // Default to boyer-moore for best performance
@@ -859,7 +859,7 @@ export class SequenceMatcher {
    * @returns Number of pattern occurrences
    */
   count(sequence: AbstractSequence | string): number {
-    const text = typeof sequence === 'object' ? sequence.sequence : sequence;
+    const text = typeof sequence === "object" ? sequence.sequence : sequence;
     const searchText = this.options.caseSensitive ? text : text.toUpperCase();
 
     // Fast counting without building match objects
@@ -874,7 +874,7 @@ export class SequenceMatcher {
    * @yields {SequenceMatch} Matches with globally adjusted positions
    */
   async *streamMatches(sequenceStream: AsyncIterable<string>): AsyncGenerator<SequenceMatch> {
-    let buffer = '';
+    let buffer = "";
     let position = 0;
 
     for await (const chunk of sequenceStream) {
@@ -886,7 +886,7 @@ export class SequenceMatcher {
         const searchBuffer = buffer.substring(0, searchLength);
 
         // Find matches in this portion
-        const matches = this.findInString(searchBuffer, position, 'stream');
+        const matches = this.findInString(searchBuffer, position, "stream");
         for (const match of matches) {
           yield match;
         }
@@ -899,7 +899,7 @@ export class SequenceMatcher {
 
     // Process remaining buffer
     if (buffer.length > 0) {
-      const matches = this.findInString(buffer, position, 'stream');
+      const matches = this.findInString(buffer, position, "stream");
       for (const match of matches) {
         yield match;
       }
@@ -1016,7 +1016,7 @@ export class SequenceMatcher {
     const textForMatch = originalText ?? text;
 
     try {
-      const regex = new RegExp(this.pattern, this.options.caseSensitive ? 'g' : 'gi');
+      const regex = new RegExp(this.pattern, this.options.caseSensitive ? "g" : "gi");
 
       let match: RegExpExecArray | null = regex.exec(text);
       while (match !== null) {
@@ -1053,16 +1053,16 @@ export class SequenceMatcher {
       const patternBase = pattern[i];
 
       // N matches anything
-      if (patternBase === 'N' || textBase === 'N') continue;
+      if (patternBase === "N" || textBase === "N") continue;
 
       // Check if bases are compatible
       const patternExpanded =
-        patternBase !== undefined && patternBase !== null && patternBase !== ''
-          ? SequenceValidator.expandAmbiguous(patternBase)
+        patternBase !== undefined && patternBase !== null && patternBase !== ""
+          ? expandAmbiguous(patternBase)
           : [];
       const textExpanded =
-        textBase !== undefined && textBase !== null && textBase !== ''
-          ? SequenceValidator.expandAmbiguous(textBase)
+        textBase !== undefined && textBase !== null && textBase !== ""
+          ? expandAmbiguous(textBase)
           : [];
 
       // Check for overlap
@@ -1172,6 +1172,41 @@ export function hasPattern(
   return matcher.test(sequence);
 }
 
+/**
+ * Check if pattern matches with up to maxMismatches, including reverse complement
+ *
+ * Optimized for grep-style boolean matching (no position information needed)
+ *
+ * @param sequence - Text to search in
+ * @param pattern - Pattern to search for
+ * @param maxMismatches - Maximum allowed mismatches
+ * @param searchBothStrands - Whether to check reverse complement
+ * @returns True if pattern matches within mismatch threshold
+ */
+export function hasPatternWithMismatches(
+  sequence: string,
+  pattern: string,
+  maxMismatches: number,
+  searchBothStrands: boolean = false
+): boolean {
+  // Check forward strand
+  const forwardMatches = fuzzyMatch(sequence, pattern, maxMismatches);
+  if (forwardMatches.length > 0) {
+    return true;
+  }
+
+  // Check reverse complement if requested
+  if (searchBothStrands) {
+    const patternRC = reverseComplement(pattern);
+    const reverseMatches = fuzzyMatch(sequence, patternRC, maxMismatches);
+    if (reverseMatches.length > 0) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 // =============================================================================
 // ADDITIONAL PATTERN UTILITIES (moved from transforms.ts)
 // =============================================================================
@@ -1195,8 +1230,8 @@ export function hasPattern(
  */
 export function isPalindromic(sequence: string): boolean {
   // Tiger Style: Assert input
-  if (!sequence || typeof sequence !== 'string') {
-    throw new Error('Sequence must be a non-empty string');
+  if (!sequence || typeof sequence !== "string") {
+    throw new Error("Sequence must be a non-empty string");
   }
 
   const revComp = reverseComplement(sequence);
@@ -1221,11 +1256,11 @@ export function isPalindromic(sequence: string): boolean {
  */
 export function findSimplePattern(sequence: string, pattern: string): number[] {
   // Tiger Style: Assert inputs
-  if (!sequence || typeof sequence !== 'string') {
-    throw new Error('Sequence must be a non-empty string');
+  if (!sequence || typeof sequence !== "string") {
+    throw new Error("Sequence must be a non-empty string");
   }
-  if (!pattern || typeof pattern !== 'string') {
-    throw new Error('Pattern must be a non-empty string');
+  if (!pattern || typeof pattern !== "string") {
+    throw new Error("Pattern must be a non-empty string");
   }
 
   const positions: number[] = [];

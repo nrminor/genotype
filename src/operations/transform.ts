@@ -9,9 +9,9 @@
  * @since v0.1.0
  */
 
-import type { AbstractSequence } from '../types';
-import type { TransformOptions, Processor } from './types';
-import * as seqManip from './core/sequence-manipulation';
+import type { AbstractSequence } from "../types";
+import * as seqManip from "./core/sequence-manipulation";
+import type { Processor, TransformOptions } from "./types";
 
 /**
  * Processor for transforming sequence content
@@ -101,7 +101,7 @@ export class TransformProcessor implements Processor<TransformOptions> {
       sequence = options.custom(sequence);
     }
 
-    // Return new sequence object if changed
+    // If unchanged, return the original sequence object
     if (sequence === seq.sequence) {
       return seq;
     }

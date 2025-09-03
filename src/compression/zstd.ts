@@ -6,15 +6,15 @@
  * making it increasingly popular for large-scale genomic data storage.
  */
 
-import type { DecompressorOptions } from '../types';
-import { DecompressorOptionsSchema } from '../types';
-import { CompressionError } from '../errors';
+import type { DecompressorOptions } from "../types";
+import { DecompressorOptionsSchema } from "../types";
+import { CompressionError } from "../errors";
 import {
   detectRuntime,
   getOptimalBufferSize,
   getRuntimeGlobals,
   type Runtime,
-} from '../io/runtime';
+} from "../io/runtime";
 
 /**
  * Default options for Zstd decompression with genomics-optimized values
@@ -46,24 +46,24 @@ const ZSTD_MAGIC_NUMBER = new Uint8Array([
 // Helper functions (not exported)
 function validateCompressedData(compressed: Uint8Array): void {
   if (!(compressed instanceof Uint8Array)) {
-    throw new CompressionError('Compressed data must be Uint8Array', 'zstd', 'decompress');
+    throw new CompressionError("Compressed data must be Uint8Array", "zstd", "decompress");
   }
   if (compressed.length === 0) {
-    throw new CompressionError('Compressed data must not be empty', 'zstd', 'decompress');
+    throw new CompressionError("Compressed data must not be empty", "zstd", "decompress");
   }
 }
 
 function validateZstdFormat(compressed: Uint8Array): void {
   if (compressed.length < 4) {
-    throw new CompressionError('File too small to be valid Zstd format', 'zstd', 'decompress', 0);
+    throw new CompressionError("File too small to be valid Zstd format", "zstd", "decompress", 0);
   }
 
   const hasValidMagic = ZSTD_MAGIC_NUMBER.every((byte, index) => compressed[index] === byte);
   if (!hasValidMagic) {
     throw new CompressionError(
-      'Invalid Zstd magic bytes - file may not be Zstd compressed',
-      'zstd',
-      'decompress',
+      "Invalid Zstd magic bytes - file may not be Zstd compressed",
+      "zstd",
+      "decompress",
       0
     );
   }
@@ -73,8 +73,8 @@ function checkSizeLimits(compressed: Uint8Array, options: Required<DecompressorO
   if (compressed.length > options.maxOutputSize) {
     throw new CompressionError(
       `Compressed size ${compressed.length} exceeds maximum ${options.maxOutputSize}`,
-      'zstd',
-      'decompress',
+      "zstd",
+      "decompress",
       0
     );
   }
@@ -86,7 +86,7 @@ async function performDecompression(
   runtime: Runtime
 ): Promise<Uint8Array> {
   // Bun optimization: Check for native Zstd support
-  if (runtime === 'bun') {
+  if (runtime === "bun") {
     const bunResult = await decompressWithBun(compressed);
     if (bunResult) {
       return bunResult;
@@ -94,7 +94,7 @@ async function performDecompression(
   }
 
   // Node.js optimization: Use built-in zlib
-  if (runtime === 'node') {
+  if (runtime === "node") {
     const nodeResult = await decompressWithNode(compressed);
     if (nodeResult) {
       return nodeResult;
@@ -106,8 +106,8 @@ async function performDecompression(
 }
 
 async function decompressWithBun(_compressed: Uint8Array): Promise<Uint8Array | null> {
-  const { Bun } = getRuntimeGlobals('bun') as { Bun: any };
-  const bunHasMethod = Boolean(Bun) && 'inflateSync' in Bun;
+  const { Bun } = getRuntimeGlobals("bun") as { Bun: any };
+  const bunHasMethod = Boolean(Bun) && "inflateSync" in Bun;
   if (!bunHasMethod) {
     return null;
   }
@@ -123,17 +123,17 @@ async function decompressWithBun(_compressed: Uint8Array): Promise<Uint8Array | 
 
 async function decompressWithNode(compressed: Uint8Array): Promise<Uint8Array | null> {
   try {
-    const { createZstdDecompress } = await import('zlib');
+    const { createZstdDecompress } = await import("zlib");
     if (createZstdDecompress === undefined) {
       return null;
     }
 
-    const { promisify } = await import('util');
-    const { pipeline } = await import('stream');
+    const { promisify } = await import("util");
+    const { pipeline } = await import("stream");
     const pipelineAsync = promisify(pipeline);
 
     // Create streams for decompression
-    const readable = new (await import('stream')).Readable({
+    const readable = new (await import("stream")).Readable({
       read(): void {
         this.push(compressed);
         this.push(null);
@@ -141,7 +141,7 @@ async function decompressWithNode(compressed: Uint8Array): Promise<Uint8Array | 
     });
 
     const chunks: Buffer[] = [];
-    const writable = new (await import('stream')).Writable({
+    const writable = new (await import("stream")).Writable({
       write(
         chunk: Buffer,
         _encoding: BufferEncoding,
@@ -179,8 +179,8 @@ function mergeOptions(
   } catch (error) {
     throw new CompressionError(
       `Invalid decompressor options: ${error instanceof Error ? error.message : String(error)}`,
-      'zstd',
-      'validate'
+      "zstd",
+      "validate"
     );
   }
 
@@ -202,9 +202,9 @@ function processZstdFrames(
   // For now, throw an error indicating native support is needed
   controller.error(
     new CompressionError(
-      'Manual Zstd decompression not implemented - native library support required',
-      'zstd',
-      'stream'
+      "Manual Zstd decompression not implemented - native library support required",
+      "zstd",
+      "stream"
     )
   );
 }
@@ -216,9 +216,9 @@ async function decompressViaStream(
   // This would require a WebAssembly Zstd implementation or external library
   // For now, throw an informative error
   throw new CompressionError(
-    'Zstd decompression requires native library support. Consider using gzip compression instead, or install a Zstd library.',
-    'zstd',
-    'decompress'
+    "Zstd decompression requires native library support. Consider using gzip compression instead, or install a Zstd library.",
+    "zstd",
+    "decompress"
   );
 }
 
@@ -257,7 +257,7 @@ export async function decompress(
 
     return await performDecompression(compressed, mergedOptions, runtime);
   } catch (error) {
-    throw CompressionError.fromSystemError('zstd', 'decompress', error, 0);
+    throw CompressionError.fromSystemError("zstd", "decompress", error, 0);
   }
 }
 
@@ -296,9 +296,9 @@ function initializeZstdDecompressor(
 ): void {
   try {
     // Initialize runtime-specific decompressor
-    if (runtime === 'node') {
+    if (runtime === "node") {
       // Try Node.js native Zstd support
-      import('zlib')
+      import("zlib")
         .then((zlib) => {
           if (zlib.createZstdDecompress !== undefined) {
             state.decompressor = zlib.createZstdDecompress({
@@ -308,13 +308,13 @@ function initializeZstdDecompressor(
             const decompStream = state.decompressor as {
               on: (event: string, callback: (arg: unknown) => void) => void;
             };
-            decompStream.on('data', (chunk: unknown) => {
+            decompStream.on("data", (chunk: unknown) => {
               controller.enqueue(new Uint8Array(chunk as Buffer));
             });
 
-            decompStream.on('error', (error: unknown) => {
+            decompStream.on("error", (error: unknown) => {
               controller.error(
-                CompressionError.fromSystemError('zstd', 'stream', error, state.bytesProcessed)
+                CompressionError.fromSystemError("zstd", "stream", error, state.bytesProcessed)
               );
             });
 
@@ -329,9 +329,9 @@ function initializeZstdDecompressor(
         });
     } else {
       // For Deno and other runtimes, check for DecompressionStream
-      if (typeof DecompressionStream !== 'undefined') {
+      if (typeof DecompressionStream !== "undefined") {
         try {
-          state.decompressor = new DecompressionStream('deflate-raw'); // Fallback approach
+          state.decompressor = new DecompressionStream("deflate-raw"); // Fallback approach
           state.initialized = true;
         } catch {
           // Manual implementation fallback
@@ -342,7 +342,7 @@ function initializeZstdDecompressor(
       }
     }
   } catch (error) {
-    controller.error(CompressionError.fromSystemError('zstd', 'stream', error));
+    controller.error(CompressionError.fromSystemError("zstd", "stream", error));
   }
 }
 
@@ -359,7 +359,7 @@ function processZstdChunk(
   }
 ): void {
   if (!state.initialized) {
-    controller.error(new CompressionError('Decompressor not initialized', 'zstd', 'stream'));
+    controller.error(new CompressionError("Decompressor not initialized", "zstd", "stream"));
     return;
   }
 
@@ -369,7 +369,7 @@ function processZstdChunk(
     // Check abort signal
     if (mergedOptions.signal?.aborted) {
       controller.error(
-        new CompressionError('Decompression aborted', 'zstd', 'stream', state.bytesProcessed)
+        new CompressionError("Decompression aborted", "zstd", "stream", state.bytesProcessed)
       );
       return;
     }
@@ -379,7 +379,7 @@ function processZstdChunk(
       mergedOptions.onProgress(state.bytesProcessed);
     }
 
-    if (runtime === 'node' && state.decompressor !== null) {
+    if (runtime === "node" && state.decompressor !== null) {
       const nodeStream = state.decompressor as {
         write?: (chunk: Uint8Array) => void;
       };
@@ -398,7 +398,7 @@ function processZstdChunk(
     }
   } catch (error) {
     controller.error(
-      CompressionError.fromSystemError('zstd', 'stream', error, state.bytesProcessed)
+      CompressionError.fromSystemError("zstd", "stream", error, state.bytesProcessed)
     );
   }
 }
@@ -406,11 +406,11 @@ function processZstdChunk(
 export function createStream(
   options: DecompressorOptions = {}
 ): TransformStream<Uint8Array, Uint8Array> {
-  if (typeof options !== 'object' || options === null) {
-    throw new CompressionError('Options must be an object', 'zstd', 'stream');
+  if (typeof options !== "object" || options === null) {
+    throw new CompressionError("Options must be an object", "zstd", "stream");
   }
   if (options.signal && !(options.signal instanceof AbortSignal)) {
-    throw new CompressionError('Signal must be AbortSignal if provided', 'zstd', 'stream');
+    throw new CompressionError("Signal must be AbortSignal if provided", "zstd", "stream");
   }
 
   const runtime = detectRuntime();
@@ -433,7 +433,7 @@ export function createStream(
 
     flush(controller): void {
       try {
-        if (runtime === 'node' && state.decompressor !== null) {
+        if (runtime === "node" && state.decompressor !== null) {
           const nodeStream = state.decompressor as { end?: () => void };
           if (nodeStream.end !== undefined) {
             nodeStream.end();
@@ -445,7 +445,7 @@ export function createStream(
         controller.terminate();
       } catch (error) {
         controller.error(
-          CompressionError.fromSystemError('zstd', 'stream', error, state.bytesProcessed)
+          CompressionError.fromSystemError("zstd", "stream", error, state.bytesProcessed)
         );
       }
     },
@@ -479,14 +479,14 @@ export function wrapStream(
   options: DecompressorOptions = {}
 ): ReadableStream<Uint8Array> {
   if (!(input instanceof ReadableStream)) {
-    throw new CompressionError('Input must be ReadableStream', 'zstd', 'stream');
+    throw new CompressionError("Input must be ReadableStream", "zstd", "stream");
   }
 
   try {
     const transform = createStream(options);
     return input.pipeThrough(transform);
   } catch (error) {
-    throw CompressionError.fromSystemError('zstd', 'stream', error);
+    throw CompressionError.fromSystemError("zstd", "stream", error);
   }
 }
 

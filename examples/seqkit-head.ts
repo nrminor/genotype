@@ -18,7 +18,7 @@
  *   bun run examples/seqkit-head.ts large_dataset.fa 100 --preview
  */
 
-import { FastaParser, FastqParser, seqops } from '../src';
+import { FastaParser, FastqParser, seqops } from "../src";
 
 interface HeadOptions {
   count: number;
@@ -30,9 +30,9 @@ interface HeadOptions {
 function parseArguments(): { inputFile: string; options: HeadOptions } {
   const args = process.argv.slice(2);
 
-  if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
+  if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
     showHelp();
-    process.exit(args.includes('--help') || args.includes('-h') ? 0 : 1);
+    process.exit(args.includes("--help") || args.includes("-h") ? 0 : 1);
   }
 
   const inputFile = args[0];
@@ -43,16 +43,16 @@ function parseArguments(): { inputFile: string; options: HeadOptions } {
     const arg = args[i];
 
     switch (arg) {
-      case '--stats':
-      case '-s':
+      case "--stats":
+      case "-s":
         options.stats = true;
         break;
-      case '--preview':
-      case '-p':
+      case "--preview":
+      case "-p":
         options.preview = true;
         break;
-      case '--lengths':
-      case '-l':
+      case "--lengths":
+      case "-l":
         options.lengths = true;
         break;
       default: {
@@ -129,7 +129,7 @@ function truncateSequence(sequence: string, maxLength: number = 50): string {
   if (sequence.length <= maxLength) {
     return sequence;
   }
-  return sequence.substring(0, maxLength) + '...';
+  return sequence.substring(0, maxLength) + "...";
 }
 
 function formatLength(length: number): string {
@@ -147,13 +147,13 @@ async function main(): Promise<void> {
   try {
     // Auto-detect format and create appropriate parser
     let sequences: AsyncIterable<any>;
-    let detectedFormat = 'FASTA';
+    let detectedFormat = "FASTA";
 
-    if (inputFile.toLowerCase().includes('.fq') || inputFile.toLowerCase().includes('.fastq')) {
+    if (inputFile.toLowerCase().includes(".fq") || inputFile.toLowerCase().includes(".fastq")) {
       console.error(`📄 Detected FASTQ format`);
       const parser = new FastqParser();
       sequences = parser.parseFile(inputFile);
-      detectedFormat = 'FASTQ';
+      detectedFormat = "FASTQ";
     } else {
       console.error(`📄 Detected FASTA format`);
       const parser = new FastaParser();
@@ -183,9 +183,9 @@ async function main(): Promise<void> {
       // Output sequence header
       if (options.lengths) {
         const lengthInfo = `[${formatLength(seq.length)}]`;
-        console.log(`>${seq.id} ${lengthInfo}${seq.description ? ' ' + seq.description : ''}`);
+        console.log(`>${seq.id} ${lengthInfo}${seq.description ? " " + seq.description : ""}`);
       } else {
-        console.log(`>${seq.id}${seq.description ? ' ' + seq.description : ''}`);
+        console.log(`>${seq.id}${seq.description ? " " + seq.description : ""}`);
       }
 
       // Output sequence (truncated if preview mode)
@@ -196,8 +196,8 @@ async function main(): Promise<void> {
       }
 
       // Output quality if FASTQ
-      if (detectedFormat === 'FASTQ' && 'quality' in seq) {
-        console.log('+');
+      if (detectedFormat === "FASTQ" && "quality" in seq) {
+        console.log("+");
         if (options.preview) {
           console.log(truncateSequence(seq.quality as string));
         } else {
@@ -231,7 +231,7 @@ async function main(): Promise<void> {
         console.error(`   Median length:  ${formatLength(Math.round(median))}`);
       }
 
-      if (detectedFormat === 'FASTQ') {
+      if (detectedFormat === "FASTQ") {
         console.error(`   Format:         FASTQ with quality scores`);
       }
     }
@@ -252,7 +252,7 @@ async function main(): Promise<void> {
         console.error(`   💡 Tip: Use --preview --stats for quick overview of large files`);
       }
 
-      if (detectedFormat === 'FASTQ' && !options.stats) {
+      if (detectedFormat === "FASTQ" && !options.stats) {
         console.error(`   💡 Tip: Use --stats to see quality information`);
       }
 
@@ -268,10 +268,10 @@ async function main(): Promise<void> {
     }
   } catch (error) {
     if (error instanceof Error) {
-      if (error.message.includes('ENOENT')) {
+      if (error.message.includes("ENOENT")) {
         console.error(`Error: File '${inputFile}' not found`);
         console.error(`Check that the file exists and the path is correct.`);
-      } else if (error.message.includes('permission')) {
+      } else if (error.message.includes("permission")) {
         console.error(`Error: Permission denied reading '${inputFile}'`);
         console.error(`Check file permissions.`);
       } else {

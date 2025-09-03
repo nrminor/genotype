@@ -2,30 +2,30 @@
  * Integration tests for file I/O with genomics parsers
  */
 
-import { test, expect, describe, beforeAll, afterAll } from 'bun:test';
-import { FastaParser } from '../../src/formats/fasta';
-import { FastqParser } from '../../src/formats/fastq';
-import { SAMParser } from '../../src/formats/sam';
-import { BedParser } from '../../src/formats/bed';
-import { FileError, ParseError } from '../../src/errors';
-import { writeFileSync, mkdirSync, rmSync } from 'fs';
-import { join } from 'path';
+import { test, expect, describe, beforeAll, afterAll } from "bun:test";
+import { FastaParser } from "../../src/formats/fasta";
+import { FastqParser } from "../../src/formats/fastq";
+import { SAMParser } from "../../src/formats/sam";
+import { BedParser } from "../../src/formats/bed";
+import { FileError, ParseError } from "../../src/errors";
+import { writeFileSync, mkdirSync, rmSync } from "fs";
+import { join } from "path";
 
 // Test fixtures directory - use absolute path for reliability
-const FIXTURES_DIR = join(process.cwd(), 'test', 'io', 'fixtures');
+const FIXTURES_DIR = join(process.cwd(), "test", "io", "fixtures");
 const TEST_FILES = {
-  fasta: join(FIXTURES_DIR, 'test.fasta'),
-  fastq: join(FIXTURES_DIR, 'test.fastq'),
-  sam: join(FIXTURES_DIR, 'test.sam'),
-  bed: join(FIXTURES_DIR, 'test.bed'),
-  largeFasta: join(FIXTURES_DIR, 'large.fasta'),
-  malformedFasta: join(FIXTURES_DIR, 'malformed.fasta'),
-  emptyFile: join(FIXTURES_DIR, 'empty.txt'),
-  binaryFile: join(FIXTURES_DIR, 'binary.bin'),
-  nonexistent: join(FIXTURES_DIR, 'nonexistent.fasta'),
+  fasta: join(FIXTURES_DIR, "test.fasta"),
+  fastq: join(FIXTURES_DIR, "test.fastq"),
+  sam: join(FIXTURES_DIR, "test.sam"),
+  bed: join(FIXTURES_DIR, "test.bed"),
+  largeFasta: join(FIXTURES_DIR, "large.fasta"),
+  malformedFasta: join(FIXTURES_DIR, "malformed.fasta"),
+  emptyFile: join(FIXTURES_DIR, "empty.txt"),
+  binaryFile: join(FIXTURES_DIR, "binary.bin"),
+  nonexistent: join(FIXTURES_DIR, "nonexistent.fasta"),
 };
 
-describe('Parser File Integration', () => {
+describe("Parser File Integration", () => {
   beforeAll(() => {
     // Create test fixtures directory
     mkdirSync(FIXTURES_DIR, { recursive: true });
@@ -34,68 +34,68 @@ describe('Parser File Integration', () => {
     writeFileSync(
       TEST_FILES.fasta,
       [
-        '>seq1 First sequence',
-        'ATCGATCGATCG',
-        '>seq2 Second sequence',
-        'GGGGAAAACCCC',
-        'TTTTTTTT',
-        '>seq3',
-        'NNNNATCGNNNN',
-      ].join('\n')
+        ">seq1 First sequence",
+        "ATCGATCGATCG",
+        ">seq2 Second sequence",
+        "GGGGAAAACCCC",
+        "TTTTTTTT",
+        ">seq3",
+        "NNNNATCGNNNN",
+      ].join("\n")
     );
 
     // Create FASTQ test file
     writeFileSync(
       TEST_FILES.fastq,
       [
-        '@seq1 First read',
-        'ATCGATCGATCG',
-        '+',
-        'IIIIIIIIIIII',
-        '@seq2 Second read',
-        'GGGGAAAACCCC',
-        '+',
-        'HHHHHHHHHHHH',
-      ].join('\n')
+        "@seq1 First read",
+        "ATCGATCGATCG",
+        "+",
+        "IIIIIIIIIIII",
+        "@seq2 Second read",
+        "GGGGAAAACCCC",
+        "+",
+        "HHHHHHHHHHHH",
+      ].join("\n")
     );
 
     // Create SAM test file
     writeFileSync(
       TEST_FILES.sam,
       [
-        '@HD\tVN:1.0\tSO:coordinate',
-        '@SQ\tSN:chr1\tLN:1000',
-        'read1\t0\tchr1\t100\t60\t12M\t*\t0\t0\tATCGATCGATCG\tIIIIIIIIIIII',
-        'read2\t16\tchr1\t200\t60\t12M\t*\t0\t0\tGGGGAAAACCCC\tHHHHHHHHHHHH',
-      ].join('\n')
+        "@HD\tVN:1.0\tSO:coordinate",
+        "@SQ\tSN:chr1\tLN:1000",
+        "read1\t0\tchr1\t100\t60\t12M\t*\t0\t0\tATCGATCGATCG\tIIIIIIIIIIII",
+        "read2\t16\tchr1\t200\t60\t12M\t*\t0\t0\tGGGGAAAACCCC\tHHHHHHHHHHHH",
+      ].join("\n")
     );
 
     // Create BED test file
     writeFileSync(
       TEST_FILES.bed,
       [
-        'chr1\t100\t200\tfeature1\t500\t+',
-        'chr1\t300\t400\tfeature2\t600\t-',
-        'chr2\t500\t600\tfeature3\t700\t.',
-      ].join('\n')
+        "chr1\t100\t200\tfeature1\t500\t+",
+        "chr1\t300\t400\tfeature2\t600\t-",
+        "chr2\t500\t600\tfeature3\t700\t.",
+      ].join("\n")
     );
 
     // Create large FASTA file for streaming tests
     const largeSequences = [];
     for (let i = 0; i < 1000; i++) {
       largeSequences.push(`>seq${i}`);
-      largeSequences.push('A'.repeat(100) + 'T'.repeat(100) + 'C'.repeat(100) + 'G'.repeat(100));
+      largeSequences.push("A".repeat(100) + "T".repeat(100) + "C".repeat(100) + "G".repeat(100));
     }
-    writeFileSync(TEST_FILES.largeFasta, largeSequences.join('\n'));
+    writeFileSync(TEST_FILES.largeFasta, largeSequences.join("\n"));
 
     // Create malformed FASTA file
     writeFileSync(
       TEST_FILES.malformedFasta,
-      ['>seq1', 'ATCG', 'INVALID_SEQUENCE_LINE_WITHOUT_HEADER', '>seq2', 'GGGG'].join('\n')
+      [">seq1", "ATCG", "INVALID_SEQUENCE_LINE_WITHOUT_HEADER", ">seq2", "GGGG"].join("\n")
     );
 
     // Create empty file
-    writeFileSync(TEST_FILES.emptyFile, '');
+    writeFileSync(TEST_FILES.emptyFile, "");
 
     // Create binary file
     writeFileSync(TEST_FILES.binaryFile, Buffer.from([0x00, 0x01, 0x02, 0xff]));
@@ -106,8 +106,8 @@ describe('Parser File Integration', () => {
     rmSync(FIXTURES_DIR, { recursive: true, force: true });
   });
 
-  describe('FASTA Parser File Integration', () => {
-    test('should parse FASTA file correctly', async () => {
+  describe("FASTA Parser File Integration", () => {
+    test("should parse FASTA file correctly", async () => {
       const parser = new FastaParser();
       const sequences = [];
 
@@ -116,20 +116,20 @@ describe('Parser File Integration', () => {
       }
 
       expect(sequences).toHaveLength(3);
-      expect(sequences[0].id).toBe('seq1');
-      expect(sequences[0].description).toBe('First sequence');
-      expect(sequences[0].sequence).toBe('ATCGATCGATCG');
-      expect(sequences[1].sequence).toBe('GGGGAAAACCCCTTTTTTTT');
-      expect(sequences[2].id).toBe('seq3');
+      expect(sequences[0].id).toBe("seq1");
+      expect(sequences[0].description).toBe("First sequence");
+      expect(sequences[0].sequence).toBe("ATCGATCGATCG");
+      expect(sequences[1].sequence).toBe("GGGGAAAACCCCTTTTTTTT");
+      expect(sequences[2].id).toBe("seq3");
     });
 
-    test('should handle large FASTA files', async () => {
+    test("should handle large FASTA files", async () => {
       const parser = new FastaParser();
       let count = 0;
 
       for await (const sequence of parser.parseFile(TEST_FILES.largeFasta)) {
         count++;
-        expect(sequence.format).toBe('fasta');
+        expect(sequence.format).toBe("fasta");
         expect(sequence.sequence).toHaveLength(400);
 
         // Early exit to prevent test timeout
@@ -139,7 +139,7 @@ describe('Parser File Integration', () => {
       expect(count).toBe(100);
     });
 
-    test('should handle malformed FASTA files with error reporting', async () => {
+    test("should handle malformed FASTA files with error reporting", async () => {
       const parser = new FastaParser();
 
       // Test with validation enabled (default) - should throw
@@ -177,7 +177,7 @@ describe('Parser File Integration', () => {
       expect(sequences.length).toBeGreaterThanOrEqual(1); // At least some sequences may parse
     });
 
-    test('should throw error for non-existent files', async () => {
+    test("should throw error for non-existent files", async () => {
       const parser = new FastaParser();
 
       await expect(
@@ -189,7 +189,7 @@ describe('Parser File Integration', () => {
       ).rejects.toThrow(FileError);
     });
 
-    test('should handle empty files gracefully', async () => {
+    test("should handle empty files gracefully", async () => {
       const parser = new FastaParser();
       const sequences = [];
 
@@ -200,7 +200,7 @@ describe('Parser File Integration', () => {
       expect(sequences).toHaveLength(0);
     });
 
-    test('should respect file reading options', async () => {
+    test("should respect file reading options", async () => {
       const parser = new FastaParser();
       let progressCalled = false;
 
@@ -219,8 +219,8 @@ describe('Parser File Integration', () => {
     });
   });
 
-  describe('FASTQ Parser File Integration', () => {
-    test('should parse FASTQ file correctly', async () => {
+  describe("FASTQ Parser File Integration", () => {
+    test("should parse FASTQ file correctly", async () => {
       const parser = new FastqParser();
       const sequences = [];
 
@@ -229,14 +229,14 @@ describe('Parser File Integration', () => {
       }
 
       expect(sequences).toHaveLength(2);
-      expect(sequences[0].id).toBe('seq1');
-      expect(sequences[0].description).toBe('First read');
-      expect(sequences[0].sequence).toBe('ATCGATCGATCG');
-      expect(sequences[0].quality).toBe('IIIIIIIIIIII');
-      expect(sequences[0].qualityEncoding).toBe('phred33');
+      expect(sequences[0].id).toBe("seq1");
+      expect(sequences[0].description).toBe("First read");
+      expect(sequences[0].sequence).toBe("ATCGATCGATCG");
+      expect(sequences[0].quality).toBe("IIIIIIIIIIII");
+      expect(sequences[0].qualityEncoding).toBe("phred33");
     });
 
-    test('should detect quality encoding automatically', async () => {
+    test("should detect quality encoding automatically", async () => {
       const parser = new FastqParser();
       const sequences = [];
 
@@ -246,11 +246,11 @@ describe('Parser File Integration', () => {
 
       // All sequences should have the same detected encoding
       sequences.forEach((seq) => {
-        expect(['phred33', 'phred64', 'solexa']).toContain(seq.qualityEncoding);
+        expect(["phred33", "phred64", "solexa"]).toContain(seq.qualityEncoding);
       });
     });
 
-    test('should parse quality scores when requested', async () => {
+    test("should parse quality scores when requested", async () => {
       const parser = new FastqParser({ parseQualityScores: true });
       const sequences = [];
 
@@ -263,7 +263,7 @@ describe('Parser File Integration', () => {
       expect(sequences[0].qualityStats).toBeDefined();
     });
 
-    test('should handle file I/O errors gracefully', async () => {
+    test("should handle file I/O errors gracefully", async () => {
       const parser = new FastqParser();
 
       await expect(
@@ -276,8 +276,8 @@ describe('Parser File Integration', () => {
     });
   });
 
-  describe('SAM Parser File Integration', () => {
-    test('should parse SAM file correctly', async () => {
+  describe("SAM Parser File Integration", () => {
+    test("should parse SAM file correctly", async () => {
       const parser = new SAMParser();
       const records = [];
 
@@ -287,23 +287,23 @@ describe('Parser File Integration', () => {
 
       expect(records).toHaveLength(4); // 2 headers + 2 alignments
 
-      const headers = records.filter((r) => r.format === 'sam-header');
-      const alignments = records.filter((r) => r.format === 'sam');
+      const headers = records.filter((r) => r.format === "sam-header");
+      const alignments = records.filter((r) => r.format === "sam");
 
       expect(headers).toHaveLength(2);
       expect(alignments).toHaveLength(2);
 
-      expect(alignments[0].qname).toBe('read1');
-      expect(alignments[0].rname).toBe('chr1');
+      expect(alignments[0].qname).toBe("read1");
+      expect(alignments[0].rname).toBe("chr1");
       expect(alignments[0].pos).toBe(100);
     });
 
-    test('should validate SAM fields correctly', async () => {
+    test("should validate SAM fields correctly", async () => {
       const parser = new SAMParser();
       const records = [];
 
       for await (const record of parser.parseFile(TEST_FILES.sam)) {
-        if (record.format === 'sam') {
+        if (record.format === "sam") {
           expect(record.flag).toBeGreaterThanOrEqual(0);
           expect(record.mapq).toBeGreaterThanOrEqual(0);
           expect(record.mapq).toBeLessThanOrEqual(255);
@@ -313,7 +313,7 @@ describe('Parser File Integration', () => {
       }
     });
 
-    test('should handle large SAM files with warnings', async () => {
+    test("should handle large SAM files with warnings", async () => {
       const parser = new SAMParser();
       const warnings: string[] = [];
 
@@ -332,8 +332,8 @@ describe('Parser File Integration', () => {
     });
   });
 
-  describe('BED Parser File Integration', () => {
-    test('should parse BED file correctly', async () => {
+  describe("BED Parser File Integration", () => {
+    test("should parse BED file correctly", async () => {
       const parser = new BedParser();
       const intervals = [];
 
@@ -342,15 +342,15 @@ describe('Parser File Integration', () => {
       }
 
       expect(intervals).toHaveLength(3);
-      expect(intervals[0].chromosome).toBe('chr1');
+      expect(intervals[0].chromosome).toBe("chr1");
       expect(intervals[0].start).toBe(100);
       expect(intervals[0].end).toBe(200);
-      expect(intervals[0].name).toBe('feature1');
+      expect(intervals[0].name).toBe("feature1");
       expect(intervals[0].score).toBe(500);
-      expect(intervals[0].strand).toBe('+');
+      expect(intervals[0].strand).toBe("+");
     });
 
-    test('should calculate derived properties', async () => {
+    test("should calculate derived properties", async () => {
       const parser = new BedParser();
       const intervals = [];
 
@@ -365,19 +365,19 @@ describe('Parser File Integration', () => {
       });
     });
 
-    test('should skip header and comment lines', async () => {
+    test("should skip header and comment lines", async () => {
       // Create BED file with headers and comments
-      const bedWithHeaders = join(FIXTURES_DIR, 'bed-with-headers.bed');
+      const bedWithHeaders = join(FIXTURES_DIR, "bed-with-headers.bed");
       writeFileSync(
         bedWithHeaders,
         [
-          '# This is a comment',
+          "# This is a comment",
           'track name="test" description="test track"',
-          'browser position chr1:100-1000',
-          'chr1\t100\t200\tfeature1\t500\t+',
-          '# Another comment',
-          'chr1\t300\t400\tfeature2\t600\t-',
-        ].join('\n')
+          "browser position chr1:100-1000",
+          "chr1\t100\t200\tfeature1\t500\t+",
+          "# Another comment",
+          "chr1\t300\t400\tfeature2\t600\t-",
+        ].join("\n")
       );
 
       const parser = new BedParser();
@@ -388,13 +388,13 @@ describe('Parser File Integration', () => {
       }
 
       expect(intervals).toHaveLength(2);
-      expect(intervals[0].name).toBe('feature1');
-      expect(intervals[1].name).toBe('feature2');
+      expect(intervals[0].name).toBe("feature1");
+      expect(intervals[1].name).toBe("feature2");
     });
   });
 
-  describe('Cross-Parser Error Handling', () => {
-    test('should handle file permission errors consistently', async () => {
+  describe("Cross-Parser Error Handling", () => {
+    test("should handle file permission errors consistently", async () => {
       const parsers = [new FastaParser(), new FastqParser(), new SAMParser(), new BedParser()];
 
       for (const parser of parsers) {
@@ -408,38 +408,38 @@ describe('Parser File Integration', () => {
       }
     });
 
-    test('should provide meaningful error messages', async () => {
+    test("should provide meaningful error messages", async () => {
       const parser = new FastaParser();
 
       try {
         for await (const _ of parser.parseFile(TEST_FILES.nonexistent)) {
           // Should not reach here
         }
-        expect.unreachable('Should have thrown');
+        expect.unreachable("Should have thrown");
       } catch (error) {
         expect(error).toBeInstanceOf(FileError);
-        expect((error as FileError).message).toContain('not found');
-        expect((error as FileError).operation).toBe('read');
+        expect((error as FileError).message).toContain("not found");
+        expect((error as FileError).operation).toBe("read");
       }
     });
 
-    test('should maintain error context through the stack', async () => {
+    test("should maintain error context through the stack", async () => {
       const parser = new FastaParser();
 
       try {
-        for await (const _ of parser.parseFile('/invalid/path/file.fasta')) {
+        for await (const _ of parser.parseFile("/invalid/path/file.fasta")) {
           // Should not reach here
         }
-        expect.unreachable('Should have thrown');
+        expect.unreachable("Should have thrown");
       } catch (error) {
         expect(error).toBeInstanceOf(FileError);
-        expect((error as FileError).message).toContain('/invalid/path/file.fasta');
+        expect((error as FileError).message).toContain("/invalid/path/file.fasta");
       }
     });
   });
 
-  describe('Concurrent Processing Tests', () => {
-    test('should handle concurrent file parsing', async () => {
+  describe("Concurrent Processing Tests", () => {
+    test("should handle concurrent file parsing", async () => {
       const parsers = [new FastaParser(), new FastaParser(), new FastaParser()];
 
       const promises = parsers.map(async (parser) => {
@@ -456,7 +456,7 @@ describe('Parser File Integration', () => {
       });
     });
 
-    test('should respect file size limits', async () => {
+    test("should respect file size limits", async () => {
       const parser = new FastaParser();
 
       await expect(
@@ -471,8 +471,8 @@ describe('Parser File Integration', () => {
     });
   });
 
-  describe('File Format Validation', () => {
-    test('should validate file extensions and content', async () => {
+  describe("File Format Validation", () => {
+    test("should validate file extensions and content", async () => {
       // This test would be enhanced with actual format detection
       const parser = new FastaParser();
 

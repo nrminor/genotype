@@ -85,3 +85,10 @@
 !/scripts/
 !/scripts/*.mjs
 !/scripts/*.ts
+
+# === GITHUB WORKFLOWS ===
+# CI/CD and automation
+!/.github/
+!/.github/workflows/
+!/.github/workflows/*.yml
+!/.github/workflows/*.yaml

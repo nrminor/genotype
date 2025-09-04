@@ -30,5 +30,35 @@
     "lib": ["ES2022"]
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "test"]
+  "exclude": ["node_modules", "dist", "test", "docs"],
+  "typedocOptions": {
+    "entryPointStrategy": "expand",
+    "entryPoints": ["src/index.ts"],
+    "out": "docs",
+    "name": "Genotype API Documentation", 
+    "readme": "README.md",
+    "includeVersion": true,
+    "excludePrivate": true,
+    "excludeProtected": true,
+    "excludeExternals": true,
+    "excludeInternal": false,
+    "categorizeByGroup": true,
+    "cleanOutputDir": true,
+    "sort": ["source-order"],
+    "kindSortOrder": ["Function", "Class", "Interface", "TypeAlias", "Variable"],
+    "groupOrder": ["Functions", "Classes", "Interfaces", "Type Aliases", "Variables"],
+    "exclude": ["src/compression/fflate-gzip.ts"],
+    "blockTags": [
+      "@deprecated", "@param", "@returns", "@throws", "@example", 
+      "@since", "@version", "@see", "@remarks", "@group", "@category",
+      "@optimize", "@id", "@yields"
+    ],
+    "validation": {
+      "notDocumented": true,
+      "invalidLink": true,
+      "notExported": false
+    },
+    "gitRevision": "main",
+    "gitRemote": "origin"
+  }
 }

@@ -228,9 +228,25 @@ alias d := demo
 # Generate TypeScript documentation
 [group('dev')]
 docs:
-    bunx typedoc src/index.ts --out docs
+    bun run docs
 
 alias doc := docs
+
+# Serve documentation locally  
+[group('dev')]
+docs-serve:
+    bun run docs:serve
+
+alias ds := docs-serve
+
+# Generate docs and open in browser
+[group('dev')]
+docs-open:
+    bun run docs
+    @echo "📚 Documentation generated! Opening in browser..."
+    open docs/index.html
+
+alias do := docs-open
 
 # Check for outdated dependencies
 [group('dev')]

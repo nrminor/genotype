@@ -1,5 +1,7 @@
 # GenoType
 
+[![Documentation](https://img.shields.io/badge/docs-TypeDoc-blue.svg)](https://nrminor.github.io/genotype/)
+
 A high-performance TypeScript library for genomic sequence processing that
 brings the elegance of Unix pipelines to bioinformatics workflows. Process
 millions of sequences with streaming operations, zero dependencies, and an

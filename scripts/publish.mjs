@@ -56,6 +56,7 @@ try {
     console.warn("Please update the version before publishing.");
     process.exit(1);
   }
+  // biome-ignore lint/suspicious/noEmptyBlockStatements: <Ignoring for now until the publishing system used with Bun and Cargo has firmed up.>
 } catch {}
 
 const libDir = join(rootDir, "dist");
@@ -129,6 +130,7 @@ Object.entries(packageJsons).forEach(([dir, { name, version }]) => {
       console.warn("Please update the version before publishing.");
       process.exit(1);
     }
+    // biome-ignore lint/suspicious/noEmptyBlockStatements: <Ignoring for now until the publishing system used with Bun and Cargo has firmed up.>
   } catch {}
 
   const npmAuth = spawnSync("npm", ["whoami"], {});

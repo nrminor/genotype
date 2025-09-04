@@ -14,6 +14,7 @@
     "useEditorconfig": true,
     "includes": [
       "**",
+      "!/docs/",
       "!**/dist/",
       "!**/*.d.ts",
       "!**/node_modules/",
@@ -26,7 +27,7 @@
       "!**/*.bed",
       "!**/*.bam",
       "!src/native/",
-      "!**/*.zig",
+      "!**/*.rs",
       "!**/bun.lockb",
       "!**/CHANGELOG.md"
     ]
@@ -95,7 +96,15 @@
         "useGetterReturn": "error"
       }
     },
-    "includes": ["**", "!dist/**/*", "!node_modules/**/*", "!src/native/**/*", "!*.js", "!*.d.ts"]
+    "includes": [
+      "**",
+      "!dist/**/*",
+      "!node_modules/**/*",
+      "!src/native/**/*",
+      "!docs/**/*",
+      "!*.js",
+      "!*.d.ts"
+    ]
   },
   "javascript": {
     "formatter": {

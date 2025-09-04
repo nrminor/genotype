@@ -44,7 +44,9 @@
     "check": "bun run lint && bun run test && bun run build",
     "check:with-native": "bun run lint && bun run test && bun run test:rust && bun run build:with-native",
     "validate": "bun run check",
-    "validate:full": "bun run lint && bun run test && bun run test:rust && bun run lint:rust && bun run build:with-native"
+    "validate:full": "bun run lint && bun run test && bun run test:rust && bun run lint:rust && bun run build:with-native",
+    "docs": "typedoc",
+    "docs:serve": "typedoc && bunx serve docs"
   },
   "keywords": [
     "bioinformatics",
@@ -64,7 +66,8 @@
     "typescript": ">=5.0.0"
   },
   "dependencies": {
-    "arktype": "^2.1.21"
+    "arktype": "^2.1.21",
+    "fflate": "^0.8.2"
   },
   "optionalDependencies": {
     "genotype-darwin-x64": "0.1.0",
@@ -80,6 +83,7 @@
     "@types/node": "^22.0.0",
     "tsd": "^0.31.0",
     "type-coverage": "^2.29.0",
+    "typedoc": "^0.28.12",
     "typescript": "^5.5.0",
     "typescript-language-server": "^4.3.4",
     "vscode-langservers-extracted": "4.8"

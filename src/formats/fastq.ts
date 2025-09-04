@@ -54,7 +54,7 @@ export function toNumbers(qualityString: string, encoding: QualityEncoding = "ph
 /**
  * Convert numeric scores to ASCII quality string
  */
-export function toString(scores: number[], encoding: QualityEncoding = "phred33"): string {
+export function scoresToString(scores: number[], encoding: QualityEncoding = "phred33"): string {
   const offset = getOffset(encoding);
   return scores.map((score) => String.fromCharCode(score + offset)).join("");
 }
@@ -143,7 +143,7 @@ export function calculateStats(scores: number[]): {
  */
 export const QualityScores = {
   toNumbers,
-  toString,
+  toString: scoresToString,
   getOffset,
   detectEncoding,
   calculateStats,
@@ -690,7 +690,7 @@ export class FastqWriter {
     let quality = sequence.quality;
     if (sequence.qualityEncoding !== this.qualityEncoding) {
       const scores = toNumbers(sequence.quality, sequence.qualityEncoding);
-      quality = toString(scores, this.qualityEncoding);
+      quality = scoresToString(scores, this.qualityEncoding);
     }
 
     return `${header}\n${sequence.sequence}\n+\n${quality}`;
@@ -768,7 +768,7 @@ export const FastqUtils = {
     if (fromEncoding === toEncoding) return qualityString;
 
     const scores = toNumbers(qualityString, fromEncoding);
-    return toString(scores, toEncoding);
+    return scoresToString(scores, toEncoding);
   },
 
   /**

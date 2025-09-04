@@ -37,9 +37,9 @@ export class QualityProcessor implements Processor<QualityOptions> {
    * @yields Sequences after quality filtering/trimming
    */
   async *process(
-    source: AsyncIterable<AbstractSequence>,
+    source: AsyncIterable<FastqSequence>,
     options: QualityOptions
-  ): AsyncIterable<AbstractSequence> {
+  ): AsyncIterable<FastqSequence> {
     // NATIVE_CANDIDATE: Hot loop processing FASTQ sequences
     // Quality score calculations are CPU-intensive
     for await (const seq of source) {
@@ -49,7 +49,7 @@ export class QualityProcessor implements Processor<QualityOptions> {
         continue;
       }
 
-      const processed = this.processQuality(seq as FastqSequence, options);
+      const processed = this.processQuality(seq, options);
 
       // Filter out sequences that don't meet quality thresholds
       if (processed) {

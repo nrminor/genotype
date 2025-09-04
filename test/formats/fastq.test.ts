@@ -9,7 +9,7 @@ import {
   FastqUtils,
   QualityScores,
   toNumbers,
-  toString as qualityToString,
+  scoresToString as qualityToString,
   getOffset,
   detectEncoding,
   calculateStats,

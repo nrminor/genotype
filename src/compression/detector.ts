@@ -47,6 +47,16 @@ const COMPRESSION_EXTENSIONS = {
 } as const;
 
 /**
+ * BGZF-specific constants for variant detection
+ * Based on HTSlib specification for Block GZIP Format
+ */
+const BGZF_EXTRA_FIELD_LENGTH = 6;
+const BGZF_SI1_MARKER = 0x42; // 'B'
+const BGZF_SI2_MARKER = 0x43; // 'C'
+const GZIP_EXTRA_FIELD_FLAG = 0x04;
+const BGZF_MIN_HEADER_SIZE = 18;
+
+/**
  * Minimum confidence threshold for reliable compression detection
  */
 const MIN_CONFIDENCE_THRESHOLD = 0.7;
@@ -370,10 +380,82 @@ export function isReliable(detection: CompressionDetection): boolean {
  * Provides the same API as the original static class for existing code.
  * New code should use the standalone exported functions directly.
  */
+/**
+ * Detect gzip variant to distinguish standard gzip from BGZF format
+ *
+ * Analyzes gzip header structure to determine if the file uses standard gzip
+ * compression or the HTSlib-specific BGZF (Block GZIP Format) used in BAM files.
+ * This distinction is critical for selecting the appropriate decompressor.
+ *
+ * @param data Gzip-compressed data to analyze
+ * @returns Gzip variant type ('standard' or 'bgzf')
+ * @throws {CompressionError} If data is invalid or too small
+ *
+ * @example Distinguish BGZF from standard gzip
+ * ```typescript
+ * const variant = detectGzipVariant(gzippedData);
+ * const decompressor = variant === "bgzf"
+ *   ? BGZFDecompressor
+ *   : FflateGzipDecompressor;
+ * ```
+ *
+ * Tiger Style: Function under 70 lines with explicit validation
+ */
+export function detectGzipVariant(data: Uint8Array): "standard" | "bgzf" {
+  // Tiger Style: Validate function arguments
+  if (!(data instanceof Uint8Array)) {
+    throw new CompressionError("Data must be Uint8Array", "gzip", "detect");
+  }
+
+  if (data.length < BGZF_MIN_HEADER_SIZE) {
+    return "standard"; // Too small for BGZF, assume standard gzip
+  }
+
+  try {
+    // Validate gzip magic bytes first
+    if (data[0] !== GZIP_MAGIC_FIRST_BYTE || data[1] !== GZIP_MAGIC_SECOND_BYTE) {
+      throw new CompressionError("Invalid gzip magic bytes - not a gzip file", "gzip", "detect", 0);
+    }
+
+    // Check for BGZF extra field markers
+    const view = new DataView(data.buffer, data.byteOffset);
+    const flg = view.getUint8(3);
+
+    // No extra field flag means standard gzip
+    if ((flg & GZIP_EXTRA_FIELD_FLAG) === 0) {
+      return "standard";
+    }
+
+    // Check extra field length
+    const xlen = view.getUint16(10, true); // little-endian
+    if (xlen !== BGZF_EXTRA_FIELD_LENGTH) {
+      return "standard";
+    }
+
+    // Check for BGZF subfield identifier 'BC'
+    const si1 = view.getUint8(12);
+    const si2 = view.getUint8(13);
+
+    return si1 === BGZF_SI1_MARKER && si2 === BGZF_SI2_MARKER ? "bgzf" : "standard";
+  } catch (error) {
+    // Tiger Style: Explicit error handling
+    if (error instanceof CompressionError) {
+      throw error;
+    }
+
+    throw new CompressionError(
+      `BGZF variant detection failed: ${error instanceof Error ? error.message : String(error)}`,
+      "gzip",
+      "detect"
+    );
+  }
+}
+
 export const CompressionDetector = {
   fromExtension,
   fromMagicBytes,
   fromStream,
   hybrid,
   isReliable,
+  detectGzipVariant,
 } as const;

@@ -85,7 +85,6 @@ export class BAIReader {
       validateOnLoad: options.validateOnLoad ?? true,
       bufferSize: options.bufferSize ?? DEFAULT_BUFFER_SIZE,
       timeout: options.timeout ?? DEFAULT_TIMEOUT,
-      ...(options.onProgress && { onProgress: options.onProgress }),
     } as Required<BAIReaderOptions>;
 
     // Pre-load index if caching is enabled
@@ -159,12 +158,10 @@ export class BAIReader {
     view: DataView,
     startOffset: number,
     referenceCount: number,
-    totalBytes: number,
-    reportProgress?: (bytesRead: number, totalBytes: number) => void
+    totalBytes: number
   ): { references: BAIReference[]; finalOffset: number } {
     const references: BAIReference[] = [];
     let offset = startOffset;
-    let bytesRead = startOffset;
 
     for (let refId = 0; refId < referenceCount; refId++) {
       try {
@@ -179,12 +176,8 @@ export class BAIReader {
         const reference = this.parseReference(view, offset, refId);
         references.push(reference.data);
         offset += reference.bytesConsumed;
-        bytesRead += reference.bytesConsumed;
 
-        // Progress reporting
-        if (reportProgress !== undefined && reportProgress !== null && refId % 100 === 0) {
-          reportProgress(bytesRead, totalBytes);
-        }
+        // Progress tracking removed - users can implement their own
       } catch (error) {
         throw new BamError(
           `Failed to parse reference ${refId}: ${error instanceof Error ? error.message : String(error)}`,
@@ -247,11 +240,7 @@ export class BAIReader {
 
       this.validateFileData(fileData);
 
-      // Progress reporting setup
-      const reportProgress = this.options.onProgress;
-      if (reportProgress !== undefined && reportProgress !== null) {
-        reportProgress(0, totalBytes);
-      }
+      // Progress tracking removed - users can implement their own
 
       // Parse BAI header
       const view = new DataView(fileData.buffer, fileData.byteOffset, fileData.byteLength);
@@ -262,8 +251,7 @@ export class BAIReader {
         view,
         headerData.offset,
         headerData.referenceCount,
-        totalBytes,
-        reportProgress
+        totalBytes
       );
 
       // Validate we consumed all data
@@ -275,10 +263,7 @@ export class BAIReader {
       const index = this.createBAIIndex(headerData.referenceCount, referencesData.references);
       this.cachedIndex = index;
 
-      // Final progress report
-      if (reportProgress !== undefined && reportProgress !== null) {
-        reportProgress(totalBytes, totalBytes);
-      }
+      // Progress tracking removed - users can implement their own
 
       const loadTime = Date.now() - startTime;
       console.log(

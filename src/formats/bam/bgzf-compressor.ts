@@ -332,8 +332,8 @@ export class BGZFCompressor {
     const writer = compressor.writable.getWriter();
     const reader = compressor.readable.getReader();
 
-    // Write data to compressor
-    await writer.write(data);
+    // Write data to compressor (cast to BufferSource for DOM compatibility)
+    await writer.write(data as BufferSource);
     await writer.close();
 
     // Read compressed chunks

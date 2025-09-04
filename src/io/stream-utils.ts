@@ -6,8 +6,8 @@
  * cross-platform compatibility.
  */
 
-import type { StreamChunk, LineProcessingResult, StreamStats } from "../types";
-import { StreamError, BufferError, MemoryError } from "../errors";
+import { BufferError, MemoryError, StreamError } from "../errors";
+import type { LineProcessingResult, StreamChunk, StreamStats } from "../types";
 import { detectRuntime } from "./runtime";
 
 // Constants for stream processing
@@ -40,16 +40,7 @@ export async function* readLines(
   stream: ReadableStream<Uint8Array>,
   encoding: "utf8" | "ascii" | "binary" = "utf8"
 ): AsyncIterable<string> {
-  // Tiger Style: Validate function arguments
-  if (!(stream instanceof ReadableStream)) {
-    throw new StreamError("stream must be a ReadableStream", "read");
-  }
-  if (!["utf8", "ascii", "binary"].includes(encoding)) {
-    throw new StreamError(
-      `Invalid encoding: ${encoding}. Must be 'utf8', 'ascii', or 'binary'`,
-      "read"
-    );
-  }
+  // TypeScript guarantees types - no defensive checking needed
 
   const reader = stream.getReader();
   // TextDecoder doesn't support 'ascii', use 'utf-8' for both utf8 and ascii
@@ -137,10 +128,7 @@ export async function* readLines(
  * @throws {BufferError} If a single line exceeds maximum length
  */
 export function processBuffer(buffer: string): LineProcessingResult {
-  // Tiger Style: Validate function arguments
-  if (typeof buffer !== "string") {
-    throw new BufferError("buffer must be a string", 0, "overflow");
-  }
+  // TypeScript guarantees buffer is string - no defensive checking needed
 
   const lines: string[] = [];
   let remainder = "";
@@ -237,18 +225,7 @@ export async function* pipe<T, U>(
   input: AsyncIterable<T>,
   transform: (item: T, index: number) => U | Promise<U>
 ): AsyncIterable<U> {
-  // Tiger Style: Validate function arguments
-  if (
-    input === null ||
-    input === undefined ||
-    typeof input !== "object" ||
-    !(Symbol.asyncIterator in input)
-  ) {
-    throw new StreamError("input must be async iterable", "read");
-  }
-  if (typeof transform !== "function") {
-    throw new StreamError("transform must be a function", "transform");
-  }
+  // TypeScript guarantees types - no defensive checking needed
 
   let index = 0;
   let processedCount = 0;
@@ -299,10 +276,7 @@ export async function* pipe<T, U>(
 export async function* processChunks(
   stream: ReadableStream<Uint8Array>
 ): AsyncIterable<StreamChunk & { stats: StreamStats }> {
-  // Tiger Style: Validate function arguments
-  if (!(stream instanceof ReadableStream)) {
-    throw new StreamError("stream must be a ReadableStream", "read");
-  }
+  // TypeScript guarantees stream type - no defensive checking needed
 
   const reader = stream.getReader();
   const startTime = Date.now();
@@ -385,18 +359,7 @@ export async function* batchLines(
   lines: AsyncIterable<string>,
   batchSize: number = 1000
 ): AsyncIterable<string[]> {
-  // Tiger Style: Validate function arguments
-  if (
-    lines === null ||
-    lines === undefined ||
-    typeof lines !== "object" ||
-    !(Symbol.asyncIterator in lines)
-  ) {
-    throw new StreamError("lines must be async iterable", "read");
-  }
-  if (!Number.isInteger(batchSize) || batchSize <= 0) {
-    throw new StreamError("batchSize must be positive integer", "transform");
-  }
+  // TypeScript guarantees types - no defensive checking needed
 
   let batch: string[] = [];
   let batchCount = 0;
@@ -430,19 +393,7 @@ export async function* batchLines(
  * Check memory usage and throw error if excessive
  */
 function checkMemoryUsage(bufferSize: number, totalProcessed: number): void {
-  // Tiger Style: Validate function arguments
-  if (!Number.isInteger(bufferSize) || bufferSize < 0) {
-    throw new MemoryError(
-      "bufferSize must be non-negative integer",
-      "Invalid parameter passed to checkMemoryUsage"
-    );
-  }
-  if (!Number.isInteger(totalProcessed) || totalProcessed < 0) {
-    throw new MemoryError(
-      "totalProcessed must be non-negative integer",
-      "Invalid parameter passed to checkMemoryUsage"
-    );
-  }
+  // TypeScript guarantees types - check meaningful invariants only
 
   const estimatedMemory = estimateMemoryUsage();
   const runtime = detectRuntime();
@@ -450,7 +401,6 @@ function checkMemoryUsage(bufferSize: number, totalProcessed: number): void {
   // Runtime-specific memory limits based on performance characteristics
   const memoryLimits = {
     node: 1_073_741_824, // 1GB for Node.js - conservative due to V8 limits
-    deno: 2_147_483_648, // 2GB for Deno - moderate limit
     bun: 8_589_934_592, // 8GB for Bun - higher limit due to superior memory management and performance
   };
 
@@ -475,11 +425,6 @@ function estimateMemoryUsage(): number {
       case "node": {
         const process = globalThis.process;
         return process?.memoryUsage?.()?.heapUsed || 0;
-      }
-
-      case "deno": {
-        // Deno doesn't expose memory usage directly
-        return 0;
       }
 
       case "bun": {

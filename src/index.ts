@@ -72,8 +72,8 @@ export {
   FastqWriter,
   getOffset,
   QualityScores,
+  scoresToString,
   toNumbers,
-  toString,
 } from "./formats/fastq";
 // SAM format
 export { SAMParser, SAMUtils, SAMWriter } from "./formats/sam";

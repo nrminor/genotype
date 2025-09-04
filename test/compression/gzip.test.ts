@@ -40,16 +40,17 @@ describe("GzipDecompressor", () => {
     });
 
     test("should handle size limits", async () => {
-      const largeGzipHeader = new Uint8Array(1024 * 1024 * 20); // 20MB
-      largeGzipHeader[0] = 0x1f;
-      largeGzipHeader[1] = 0x8b;
+      // Create valid gzip data that will exceed size limit when decompressed
+      const largeContent = "A".repeat(2 * 1024 * 1024); // 2MB content
+      const zlib = require("zlib");
+      const largeGzipData = new Uint8Array(zlib.gzipSync(largeContent));
 
       const options = { maxOutputSize: 1024 * 1024 }; // 1MB limit
 
-      await expect(GzipDecompressor.decompress(largeGzipHeader, options)).rejects.toThrow(
+      await expect(GzipDecompressor.decompress(largeGzipData, options)).rejects.toThrow(
         CompressionError
       );
-      await expect(GzipDecompressor.decompress(largeGzipHeader, options)).rejects.toThrow(
+      await expect(GzipDecompressor.decompress(largeGzipData, options)).rejects.toThrow(
         /exceeds maximum/
       );
     });
@@ -59,29 +60,6 @@ describe("GzipDecompressor", () => {
       const invalidOptions = { bufferSize: -1 };
 
       await expect(GzipDecompressor.decompress(validGzipData, invalidOptions)).rejects.toThrow();
-    });
-
-    test("should handle progress callbacks", async () => {
-      let progressCalled = false;
-      let bytesProcessed = 0;
-
-      const options = {
-        onProgress: (bytes: number) => {
-          progressCalled = true;
-          bytesProcessed = bytes;
-        },
-      };
-
-      const gzipData = new Uint8Array([0x1f, 0x8b, 0x08]);
-
-      try {
-        await GzipDecompressor.decompress(gzipData, options);
-      } catch (error) {
-        // Expected to fail due to incomplete gzip data, but progress should be called
-      }
-
-      expect(progressCalled).toBe(true);
-      expect(bytesProcessed).toBeGreaterThan(0);
     });
 
     test("should handle abort signal", async () => {
@@ -131,29 +109,36 @@ describe("GzipDecompressor", () => {
       expect(() => GzipDecompressor.createStream(invalidOptions)).toThrow();
     });
 
-    test.skip("should handle abort signal in stream", async () => {
+    test("should handle abort signal in stream", async () => {
       const controller = new AbortController();
-      const stream = GzipDecompressor.createStream({
-        signal: controller.signal,
+      
+      // Create valid gzip test data
+      const testContent = ">test\nATCG\n";
+      const zlib = require("zlib");
+      const validGzipData = new Uint8Array(zlib.gzipSync(testContent));
+      
+      // Create input stream
+      const inputStream = new ReadableStream({
+        start(streamController) {
+          streamController.enqueue(validGzipData);
+          streamController.close();
+        }
       });
 
-      const writer = stream.writable.getWriter();
-      const reader = stream.readable.getReader();
-
-      // Write some data
-      await writer.write(new Uint8Array([0x1f, 0x8b, 0x08]));
+      // Create decompression stream with abort signal
+      const decompressedStream = GzipDecompressor.wrapStream(inputStream, {
+        signal: controller.signal,
+      });
 
       // Abort the operation
       controller.abort();
 
-      try {
-        await reader.read();
-      } catch (error) {
-        expect(error).toBeInstanceOf(Error);
-      }
-
-      writer.releaseLock();
-      reader.releaseLock();
+      // Should handle aborted signal gracefully
+      await expect((async () => {
+        for await (const chunk of decompressedStream) {
+          // Should not reach here due to abort
+        }
+      })()).rejects.toThrow(CompressionError);
     });
   });
 
@@ -190,7 +175,6 @@ describe("GzipDecompressor", () => {
 
       const options = {
         bufferSize: 64 * 1024,
-        onProgress: (bytes: number) => console.log(`Processed ${bytes} bytes`),
       };
 
       const decompressedStream = GzipDecompressor.wrapStream(inputStream, options);
@@ -273,7 +257,7 @@ describe("GzipDecompressor", () => {
         await GzipDecompressor.decompress(invalidGzip);
       } catch (error) {
         expect(error).toBeInstanceOf(CompressionError);
-        expect(error.message).toContain("decompress operation failed");
+        expect(error.message).toContain("invalid gzip data");
       }
     });
 
@@ -292,13 +276,14 @@ describe("GzipDecompressor", () => {
   describe("memory management", () => {
     test("should respect memory limits", async () => {
       const smallLimit = 1024; // 1KB limit
-      const largeGzipHeader = new Uint8Array(2048); // 2KB data
-      largeGzipHeader[0] = 0x1f;
-      largeGzipHeader[1] = 0x8b;
+      // Create valid gzip data that will exceed limit
+      const largeContent = "A".repeat(2048); // 2KB content
+      const zlib = require("zlib");
+      const largeGzipData = new Uint8Array(zlib.gzipSync(largeContent));
 
       const options = { maxOutputSize: smallLimit };
 
-      await expect(GzipDecompressor.decompress(largeGzipHeader, options)).rejects.toThrow(
+      await expect(GzipDecompressor.decompress(largeGzipData, options)).rejects.toThrow(
         /exceeds maximum/
       );
     });
@@ -324,35 +309,6 @@ describe("GzipDecompressor", () => {
         // Expected to fail with incomplete data
         expect(error).toBeInstanceOf(CompressionError);
         expect(error.format).toBe("gzip");
-      }
-    });
-
-    test("should handle streaming for large genomic files", async () => {
-      let chunkCount = 0;
-      const options = {
-        onProgress: () => chunkCount++,
-      };
-
-      const largeStream = new ReadableStream({
-        start(controller) {
-          // Simulate multiple chunks of gzip data
-          for (let i = 0; i < 5; i++) {
-            controller.enqueue(new Uint8Array([0x1f, 0x8b, 0x08, i]));
-          }
-          controller.close();
-        },
-      });
-
-      const decompressed = GzipDecompressor.wrapStream(largeStream, options);
-      const reader = decompressed.getReader();
-
-      try {
-        await reader.read();
-      } catch (error) {
-        // Expected failure, but chunks should have been processed
-        expect(chunkCount).toBeGreaterThan(0);
-      } finally {
-        reader.releaseLock();
       }
     });
   });

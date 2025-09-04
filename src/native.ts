@@ -170,7 +170,6 @@ export interface LibGenotype {
 class FFIGenotypeLib implements LibGenotype {
   private readonly genotype: ReturnType<typeof getGenotypeLib>;
   private readonly encoder: TextEncoder = new TextEncoder();
-  private readonly decoder: TextDecoder = new TextDecoder();
 
   constructor(libPath?: string) {
     this.genotype = getGenotypeLib(libPath);

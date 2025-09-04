@@ -43,7 +43,7 @@ export interface FilterOptions {
   hasAmbiguous?: boolean;
 
   /** Custom filter function for complex logic */
-  custom?: (seq: AbstractSequence) => boolean;
+  custom?: <T extends AbstractSequence>(seq: T) => boolean;
 }
 
 /**

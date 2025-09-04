@@ -15,7 +15,6 @@
 import { FastaParser, FastaWriter, FastqWriter } from "../formats";
 import type {
   AbstractSequence,
-  FASTXSequence,
   FastaSequence,
   FastqSequence,
   MotifLocation,
@@ -76,13 +75,13 @@ import { ValidateProcessor } from "./validate";
  *   .stats({ detailed: true });
  * ```
  */
-export class SeqOps {
+export class SeqOps<T extends AbstractSequence> {
   /**
    * Create a new SeqOps pipeline
    *
    * @param source - Input sequences (async iterable)
    */
-  constructor(private readonly source: AsyncIterable<AbstractSequence>) {}
+  constructor(private readonly source: AsyncIterable<T>) {}
 
   // =============================================================================
   // SEMANTIC API METHODS
@@ -109,14 +108,14 @@ export class SeqOps {
    *   .filter({ custom: seq => seq.id.startsWith('chr') })
    * ```
    */
-  filter(options: FilterOptions | ((seq: AbstractSequence) => boolean)): SeqOps {
+  filter(options: FilterOptions | ((seq: T) => boolean)): SeqOps<T> {
     // Handle legacy predicate function for backwards compatibility
     if (typeof options === "function") {
-      return new SeqOps(this.filterWithPredicate(options));
+      return new SeqOps<T>(this.filterWithPredicate(options) as AsyncIterable<T>);
     }
 
     const processor = new FilterProcessor();
-    return new SeqOps(processor.process(this.source, options));
+    return new SeqOps<T>(processor.process(this.source, options) as AsyncIterable<T>);
   }
 
   /**
@@ -135,9 +134,9 @@ export class SeqOps {
    *   .transform({ toRNA: true })
    * ```
    */
-  transform(options: TransformOptions): SeqOps {
+  transform(options: TransformOptions): SeqOps<T> {
     const processor = new TransformProcessor();
-    return new SeqOps(processor.process(this.source, options));
+    return new SeqOps<T>(processor.process(this.source, options) as AsyncIterable<T>);
   }
 
   /**
@@ -157,9 +156,9 @@ export class SeqOps {
    *   .clean({ trimWhitespace: true, removeEmpty: true })
    * ```
    */
-  clean(options: CleanOptions): SeqOps {
+  clean(options: CleanOptions): SeqOps<T> {
     const processor = new CleanProcessor();
-    return new SeqOps(processor.process(this.source, options));
+    return new SeqOps<T>(processor.process(this.source, options) as AsyncIterable<T>);
   }
 
   /**
@@ -178,9 +177,9 @@ export class SeqOps {
    *   .quality({ trim: true, trimThreshold: 20, trimWindow: 4 })
    * ```
    */
-  quality(options: QualityOptions): SeqOps {
+  quality<U extends T & FastqSequence>(this: SeqOps<U>, options: QualityOptions): SeqOps<U> {
     const processor = new QualityProcessor();
-    return new SeqOps(processor.process(this.source, options));
+    return new SeqOps<U>(processor.process(this.source, options) as AsyncIterable<U>);
   }
 
   /**
@@ -198,9 +197,9 @@ export class SeqOps {
    *   .validate({ allowAmbiguous: true, action: 'fix', fixChar: 'N' })
    * ```
    */
-  validate(options: ValidateOptions): SeqOps {
+  validate(options: ValidateOptions): SeqOps<T> {
     const processor = new ValidateProcessor();
-    return new SeqOps(processor.process(this.source, options));
+    return new SeqOps<T>(processor.process(this.source, options) as AsyncIterable<T>);
   }
 
   /**
@@ -233,7 +232,7 @@ export class SeqOps {
   grep(
     pattern: string | RegExp | GrepOptions,
     target: "sequence" | "id" | "description" = "sequence"
-  ): SeqOps {
+  ): SeqOps<T> {
     const processor = new GrepProcessor();
 
     // Handle overloaded parameters for better DX
@@ -242,7 +241,7 @@ export class SeqOps {
         ? pattern // TypeScript knows this is GrepOptions
         : { pattern, target }; // TypeScript knows pattern is string | RegExp here
 
-    return new SeqOps(processor.process(this.source, options));
+    return new SeqOps<T>(processor.process(this.source, options) as AsyncIterable<T>);
   }
 
   /**
@@ -277,19 +276,17 @@ export class SeqOps {
   concat(
     sources: Array<string | AsyncIterable<AbstractSequence>>,
     options?: Omit<ConcatOptions, "sources">
-  ): SeqOps {
+  ): SeqOps<T> {
     const processor = new ConcatProcessor();
     const fullOptions: ConcatOptions = { ...options, sources };
-    return new SeqOps(processor.process(this.source, fullOptions));
+    return new SeqOps<T>(processor.process(this.source, fullOptions) as AsyncIterable<T>);
   }
 
   /**
    * Helper for legacy predicate filter
    * @private
    */
-  private async *filterWithPredicate(
-    predicate: (seq: AbstractSequence) => boolean
-  ): AsyncIterable<AbstractSequence> {
+  private async *filterWithPredicate(predicate: (seq: T) => boolean): AsyncIterable<T> {
     for await (const seq of this.source) {
       if (predicate(seq)) {
         yield seq;
@@ -315,7 +312,7 @@ export class SeqOps {
    *   })
    * ```
    */
-  subseq(options: SubseqOptions): SeqOps {
+  subseq(options: SubseqOptions): SeqOps<T> {
     const extractor = new SubseqExtractor();
     return new SeqOps(extractor.extract(this.source, options));
   }
@@ -333,7 +330,7 @@ export class SeqOps {
    * seqops(sequences).head(1000)
    * ```
    */
-  head(n: number): SeqOps {
+  head(n: number): SeqOps<T> {
     async function* take(source: AsyncIterable<AbstractSequence>) {
       let count = 0;
       for await (const seq of source) {
@@ -342,7 +339,7 @@ export class SeqOps {
         count++;
       }
     }
-    return new SeqOps(take(this.source));
+    return new SeqOps<T>(take(this.source) as AsyncIterable<T>);
   }
 
   /**
@@ -374,7 +371,7 @@ export class SeqOps {
   sample(
     count: number | SampleOptions,
     strategy: "random" | "systematic" | "reservoir" = "reservoir"
-  ): SeqOps {
+  ): SeqOps<T> {
     const processor = new SampleProcessor();
 
     // Handle overloaded parameters for better DX
@@ -383,7 +380,7 @@ export class SeqOps {
         ? { n: count, strategy } // Simple count with optional strategy
         : count; // Full options object provided
 
-    return new SeqOps(processor.process(this.source, options));
+    return new SeqOps<T>(processor.process(this.source, options) as AsyncIterable<T>);
   }
 
   /**
@@ -414,9 +411,9 @@ export class SeqOps {
    *   })
    * ```
    */
-  sort(options: SortOptions): SeqOps {
+  sort(options: SortOptions): SeqOps<T> {
     const processor = new SortProcessor();
-    return new SeqOps(processor.process(this.source, options));
+    return new SeqOps<T>(processor.process(this.source, options) as AsyncIterable<T>);
   }
 
   /**
@@ -432,7 +429,7 @@ export class SeqOps {
    *   .sortByLength()        // Shortest first (default)
    * ```
    */
-  sortByLength(order: "asc" | "desc" = "asc"): SeqOps {
+  sortByLength(order: "asc" | "desc" = "asc"): SeqOps<T> {
     return this.sort({ sortBy: order === "asc" ? "length-asc" : "length" });
   }
 
@@ -442,7 +439,7 @@ export class SeqOps {
    * @param order - Sort order: 'asc' or 'desc' (default: 'asc')
    * @returns New SeqOps instance for chaining
    */
-  sortById(order: "asc" | "desc" = "asc"): SeqOps {
+  sortById(order: "asc" | "desc" = "asc"): SeqOps<T> {
     return this.sort({ sortBy: order === "asc" ? "id" : "id-desc" });
   }
 
@@ -452,7 +449,7 @@ export class SeqOps {
    * @param order - Sort order: 'asc' or 'desc' (default: 'asc')
    * @returns New SeqOps instance for chaining
    */
-  sortByGC(order: "asc" | "desc" = "asc"): SeqOps {
+  sortByGC(order: "asc" | "desc" = "asc"): SeqOps<T> {
     return this.sort({ sortBy: order === "asc" ? "gc-asc" : "gc" });
   }
 
@@ -483,7 +480,7 @@ export class SeqOps {
    *   })
    * ```
    */
-  rmdup(by: "sequence" | "id" | "both" | RmdupOptions, exact: boolean = false): SeqOps {
+  rmdup(by: "sequence" | "id" | "both" | RmdupOptions, exact: boolean = false): SeqOps<T> {
     const processor = new RmdupProcessor();
 
     // Handle overloaded parameters for better DX
@@ -492,7 +489,7 @@ export class SeqOps {
         ? { by, exact } // Simple by + exact parameters
         : by; // Full options object provided
 
-    return new SeqOps(processor.process(this.source, options));
+    return new SeqOps<T>(processor.process(this.source, options) as AsyncIterable<T>);
   }
 
   /**
@@ -503,7 +500,7 @@ export class SeqOps {
    * @param caseSensitive - Whether to consider case (default: true)
    * @returns New SeqOps instance for chaining
    */
-  removeSequenceDuplicates(caseSensitive: boolean = true): SeqOps {
+  removeSequenceDuplicates(caseSensitive: boolean = true): SeqOps<T> {
     return this.rmdup({ by: "sequence", caseSensitive, exact: false });
   }
 
@@ -515,7 +512,7 @@ export class SeqOps {
    * @param exact - Use exact matching (default: true for IDs)
    * @returns New SeqOps instance for chaining
    */
-  removeIdDuplicates(exact: boolean = true): SeqOps {
+  removeIdDuplicates(exact: boolean = true): SeqOps<T> {
     return this.rmdup({ by: "id", exact });
   }
 
@@ -544,7 +541,7 @@ export class SeqOps {
    *   })
    * ```
    */
-  translate(geneticCode?: number | TranslateOptions): SeqOps {
+  translate(geneticCode?: number | TranslateOptions): SeqOps<T> {
     const processor = new TranslateProcessor();
 
     // Handle progressive disclosure for better DX
@@ -553,7 +550,7 @@ export class SeqOps {
         ? { geneticCode } // Simple: just genetic code, use defaults
         : geneticCode || {}; // Full options object or empty defaults
 
-    return new SeqOps(processor.process(this.source, options));
+    return new SeqOps<T>(processor.process(this.source, options) as AsyncIterable<T>);
   }
 
   /**
@@ -567,7 +564,7 @@ export class SeqOps {
    *   .translateMito()  // Genetic code 2 - Vertebrate Mitochondrial
    * ```
    */
-  translateMito(): SeqOps {
+  translateMito(): SeqOps<T> {
     return this.translate({ geneticCode: 2 });
   }
 
@@ -584,7 +581,7 @@ export class SeqOps {
    *   .translateAllFrames(2)   // All frames with mito code
    * ```
    */
-  translateAllFrames(geneticCode: number = 1): SeqOps {
+  translateAllFrames(geneticCode: number = 1): SeqOps<T> {
     return this.translate({
       geneticCode,
       allFrames: true,
@@ -606,7 +603,7 @@ export class SeqOps {
    *   .translateOrf(50, 2)     // 50 aa minimum, mito code
    * ```
    */
-  translateOrf(minLength: number = 30, geneticCode: number = 1): SeqOps {
+  translateOrf(minLength: number = 30, geneticCode: number = 1): SeqOps<T> {
     return this.translate({
       geneticCode,
       orfsOnly: true,
@@ -1144,8 +1141,8 @@ export class SeqOps {
  *   .writeFasta('output.fasta');
  * ```
  */
-export function seqops(sequences: AsyncIterable<AbstractSequence | FASTXSequence>): SeqOps {
-  return new SeqOps(sequences as AsyncIterable<AbstractSequence>);
+export function seqops<T extends AbstractSequence>(sequences: AsyncIterable<T>): SeqOps<T> {
+  return new SeqOps<T>(sequences as AsyncIterable<T>);
 }
 
 /**
@@ -1169,10 +1166,10 @@ export function seqops(sequences: AsyncIterable<AbstractSequence | FASTXSequence
  *   .writeFasta('proteins.fasta');
  * ```
  */
-seqops.from = <T extends AbstractSequence | FASTXSequence>(sequences: T[]): SeqOps => {
-  async function* arrayToAsyncIterable(): AsyncIterable<AbstractSequence> {
+seqops.from = <T extends AbstractSequence>(sequences: T[]): SeqOps<T> => {
+  async function* arrayToAsyncIterable(): AsyncIterable<T> {
     for (const seq of sequences) {
-      yield seq as AbstractSequence;
+      yield seq as T;
     }
   }
   return new SeqOps(arrayToAsyncIterable());
@@ -1202,8 +1199,8 @@ seqops.from = <T extends AbstractSequence | FASTXSequence>(sequences: T[]): SeqO
 seqops.concat = (
   filePaths: string[],
   handleDuplicateIds: "suffix" | "ignore" = "ignore"
-): SeqOps => {
-  async function* concatenateFiles(): AsyncIterable<AbstractSequence> {
+): SeqOps<FastaSequence> => {
+  async function* concatenateFiles(): AsyncIterable<FastaSequence> {
     const seenIds = new Set<string>();
 
     for (let sourceIndex = 0; sourceIndex < filePaths.length; sourceIndex++) {

@@ -560,9 +560,7 @@ export function longestCommonSubstring(
   let endPos1 = 0;
 
   // Create DP table
-  const dp: number[][] = new Array(m + 1)
-    .fill(null)
-    .map(() => new Array(n + 1).fill(0));
+  const dp: number[][] = new Array(m + 1).fill(null).map(() => new Array(n + 1).fill(0));
 
   // Fill DP table
   for (let i = 1; i <= m; i++) {

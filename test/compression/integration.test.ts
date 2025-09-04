@@ -193,9 +193,6 @@ describe("Compression Integration", () => {
         autoDecompress: true,
         decompressionOptions: {
           maxOutputSize: 1024, // Very small limit
-          onProgress: (bytes: number) => {
-            expect(bytes).toBeGreaterThanOrEqual(0);
-          },
         },
       };
 

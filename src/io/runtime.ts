@@ -2,14 +2,14 @@
  * Runtime detection and factory for cross-platform file I/O
  *
  * Provides compile-time optimized runtime detection and factory pattern
- * for creating platform-specific file readers that work across Node.js,
- * Deno, and Bun environments.
+ * for creating platform-specific file readers that work across Node.js
+ * and Bun environments.
  */
 
 /**
  * Supported JavaScript runtimes
  */
-export type Runtime = "node" | "deno" | "bun";
+export type Runtime = "node" | "bun";
 
 /**
  * Runtime-specific capabilities
@@ -36,17 +36,8 @@ export interface RuntimeCapabilities {
  * ```
  */
 export const detectRuntime = (): Runtime => {
-  // Tiger Style: Assert function preconditions
+  // Tiger Style: Assert meaningful invariant
   console.assert(typeof globalThis === "object", "globalThis must be available");
-
-  // Check for Deno first (most specific)
-  if (
-    typeof (globalThis as any).Deno !== "undefined" &&
-    typeof (globalThis as any).Deno.version !== "undefined" &&
-    typeof (globalThis as any).Deno.version.deno === "string"
-  ) {
-    return "deno";
-  }
 
   // Check for Bun (has process but different from Node)
   if (
@@ -80,9 +71,7 @@ export const detectRuntime = (): Runtime => {
  * @returns Runtime capabilities object
  */
 export const getRuntimeCapabilities = (runtime: Runtime): RuntimeCapabilities => {
-  // Tiger Style: Assert function arguments
-  console.assert(typeof runtime === "string", "runtime must be a string");
-  console.assert(["node", "deno", "bun"].includes(runtime), "runtime must be valid");
+  // TypeScript guarantees runtime is valid - no defensive checking needed
 
   switch (runtime) {
     case "node":
@@ -91,15 +80,6 @@ export const getRuntimeCapabilities = (runtime: Runtime): RuntimeCapabilities =>
         hasStreams: true,
         hasCompressionSupport: true,
         maxFileSize: 2_147_483_647, // 2GB - Node.js buffer limit
-        supportsWorkers: true,
-      };
-
-    case "deno":
-      return {
-        hasFileSystem: true,
-        hasStreams: true,
-        hasCompressionSupport: true,
-        maxFileSize: Number.MAX_SAFE_INTEGER, // No specific limit
         supportsWorkers: true,
       };
 
@@ -125,8 +105,7 @@ export const getRuntimeCapabilities = (runtime: Runtime): RuntimeCapabilities =>
  * @returns Whether the feature is supported
  */
 export const supportsFeature = (feature: keyof RuntimeCapabilities): boolean => {
-  // Tiger Style: Assert function arguments
-  console.assert(typeof feature === "string", "feature must be a string");
+  // TypeScript guarantees feature is valid key - no defensive checking needed
 
   const runtime = detectRuntime();
   const capabilities = getRuntimeCapabilities(runtime);
@@ -140,9 +119,7 @@ export const supportsFeature = (feature: keyof RuntimeCapabilities): boolean => 
  * maintaining compatibility across environments.
  */
 export const getRuntimeGlobals = (runtime: Runtime): Record<string, unknown> => {
-  // Tiger Style: Assert function arguments
-  console.assert(typeof runtime === "string", "runtime must be a string");
-  console.assert(["node", "deno", "bun"].includes(runtime), "runtime must be valid");
+  // TypeScript guarantees runtime is valid - no defensive checking needed
 
   switch (runtime) {
     case "node":
@@ -151,13 +128,6 @@ export const getRuntimeGlobals = (runtime: Runtime): Record<string, unknown> => 
         path: (globalThis as any).require?.("path"),
         stream: (globalThis as any).require?.("stream"),
         process: (globalThis as any).process,
-      };
-
-    case "deno":
-      return {
-        Deno: (globalThis as any).Deno,
-        TextDecoder: globalThis.TextDecoder,
-        TextEncoder: globalThis.TextEncoder,
       };
 
     case "bun":
@@ -183,16 +153,11 @@ export const getRuntimeGlobals = (runtime: Runtime): Record<string, unknown> => 
  * @returns Optimal buffer size in bytes
  */
 export const getOptimalBufferSize = (runtime: Runtime): number => {
-  // Tiger Style: Assert function arguments
-  console.assert(typeof runtime === "string", "runtime must be a string");
-  console.assert(["node", "deno", "bun"].includes(runtime), "runtime must be valid");
+  // TypeScript guarantees runtime is valid - no defensive checking needed
 
   switch (runtime) {
     case "node":
       return 65536; // 64KB - Node.js default buffer size
-
-    case "deno":
-      return 32768; // 32KB - Deno's optimized size
 
     case "bun":
       // Bun is highly optimized for I/O operations and can handle larger buffers
@@ -221,8 +186,6 @@ export const getRuntimeInfo = (): Record<string, unknown> => {
       switch (runtime) {
         case "node":
           return (globalThis as any).process?.versions?.node ?? "unknown";
-        case "deno":
-          return (globalThis as any).Deno?.version?.deno ?? "unknown";
         case "bun":
           return (globalThis as any).Bun?.version ?? "unknown";
         default:

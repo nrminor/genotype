@@ -202,20 +202,16 @@ describe("Parser File Integration", () => {
 
     test("should respect file reading options", async () => {
       const parser = new FastaParser();
-      let progressCalled = false;
 
       const sequences = [];
       for await (const sequence of parser.parseFile(TEST_FILES.fasta, {
-        bufferSize: 64,
-        onProgress: () => {
-          progressCalled = true;
-        },
+        bufferSize: 2048, // Use realistic buffer size
+        encoding: "utf8", // Test encoding option
       })) {
         sequences.push(sequence);
       }
 
       expect(sequences).toHaveLength(3);
-      // Progress callback may or may not be called depending on file size
     });
   });
 

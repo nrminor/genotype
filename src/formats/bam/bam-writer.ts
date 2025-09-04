@@ -768,7 +768,7 @@ export class BAMWriter {
     await this.compressor.writeBlock(writer, headerData);
 
     // Write alignments
-    const isAsync = Symbol.asyncIterator in Object(alignments);
+    const isAsync = Symbol.asyncIterator in new Object(alignments);
 
     if (isAsync) {
       for await (const alignment of alignments as AsyncIterable<SAMAlignment>) {

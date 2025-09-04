@@ -18,9 +18,9 @@
  */
 
 import { type } from "arktype";
-import type { BedInterval, Strand, ParserOptions } from "../types";
+import { BedError, ParseError, ValidationError } from "../errors";
+import type { BedInterval, ParserOptions, Strand } from "../types";
 import { BedIntervalSchema } from "../types";
-import { ValidationError, ParseError, BedError } from "../errors";
 
 /**
  * Detect BED format variant from number of fields

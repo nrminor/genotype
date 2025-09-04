@@ -16,30 +16,30 @@
  * - Native support for BGZF compression
  */
 
+import { BamError, CompressionError, ValidationError } from "../errors";
+// BAIWriter imported but not used in current implementation
 import type {
+  BAIIndex,
   BAMAlignment,
-  SAMHeader,
-  SAMFlag,
   CIGARString,
   MAPQScore,
   ParserOptions,
+  SAMFlag,
+  SAMHeader,
 } from "../types";
-import { SAMFlagSchema, MAPQScoreSchema, CIGAROperationSchema } from "../types";
-import { ValidationError, BamError, CompressionError } from "../errors";
+import { CIGAROperationSchema, MAPQScoreSchema, SAMFlagSchema } from "../types";
+import { BAIReader } from "./bam/bai-reader";
+import { BAMWriter, type BAMWriterOptions } from "./bam/bam-writer";
 import { createStream, detectFormat } from "./bam/bgzf";
+import { BGZFCompressor } from "./bam/bgzf-compressor";
 import {
+  isBunOptimized,
   isValidBAMMagic,
-  readInt32LE,
-  readCString,
   parseAlignmentRecord,
   parseOptionalTags,
-  isBunOptimized,
+  readCString,
+  readInt32LE,
 } from "./bam/binary";
-import { BGZFCompressor } from "./bam/bgzf-compressor";
-import { BAMWriter, type BAMWriterOptions } from "./bam/bam-writer";
-import { BAIReader } from "./bam/bai-reader";
-// BAIWriter imported but not used in current implementation
-import type { BAIIndex } from "../types";
 
 /**
  * Streaming BAM parser with BGZF decompression and binary decoding
@@ -591,168 +591,6 @@ export class BAMParser {
   }
 
   /**
-   * Parse alignment records from buffer with comprehensive error handling
-   * @param buffer Binary data buffer
-   * @param references Reference sequence names
-   * @param blockOffset Current block offset for error reporting
-   * @yields BAMAlignment objects
-   */
-  private async *parseAlignmentsFromBuffer(
-    buffer: Uint8Array,
-    references: string[],
-    blockOffset: number
-  ): AsyncIterable<BAMAlignment> {
-    // Tiger Style: Assert function arguments
-    if (!(buffer instanceof Uint8Array)) {
-      throw new ValidationError("buffer must be Uint8Array");
-    }
-    if (!Array.isArray(references)) {
-      throw new ValidationError("references must be an array");
-    }
-    if (!Number.isInteger(blockOffset) || blockOffset < 0) {
-      throw new ValidationError("blockOffset must be non-negative integer");
-    }
-
-    if (buffer.length === 0) {
-      return; // Nothing to parse
-    }
-
-    const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
-    let offset = 0;
-    let recordCount = 0;
-
-    while (offset < buffer.length) {
-      try {
-        // Check if we have enough data for block size
-        if (offset + 4 > buffer.length) {
-          break; // Need more data
-        }
-
-        const blockSize = readInt32LE(view, offset);
-
-        // Tiger Style: Comprehensive validation
-        if (blockSize <= 0) {
-          throw BamError.withBlockContext(
-            `Invalid alignment block size: ${blockSize}`,
-            blockOffset + offset,
-            undefined,
-            "blockSize"
-          );
-        }
-
-        if (blockSize > 100 * 1024 * 1024) {
-          // 100MB sanity check
-          throw BamError.withBlockContext(
-            `Alignment block size too large: ${blockSize} bytes (max 100MB)`,
-            blockOffset + offset,
-            undefined,
-            "blockSize"
-          );
-        }
-
-        // Check if we have complete alignment record
-        if (offset + 4 + blockSize > buffer.length) {
-          break; // Incomplete record
-        }
-
-        // Parse alignment record with enhanced error context
-        const alignment = this.parseAlignmentWithContext(
-          view,
-          offset + 4,
-          blockSize,
-          references,
-          blockOffset + offset,
-          recordCount
-        );
-
-        yield alignment;
-        offset += 4 + blockSize;
-        recordCount++;
-
-        // Tiger Style: Assert progress
-        if (offset <= 0) {
-          throw new BamError("offset must advance", undefined, "alignment", blockOffset + offset);
-        }
-      } catch (error) {
-        if (error instanceof BamError) {
-          // Enhanced error reporting with context
-          const enhancedError = new BamError(
-            `Record ${recordCount} at offset ${blockOffset + offset}: ${error.message}`,
-            error.qname,
-            error.fieldName,
-            blockOffset + offset,
-            `Buffer size: ${buffer.length}, References: ${references.length}`
-          );
-
-          this.options.onError(enhancedError.toString());
-
-          // Attempt recovery: skip potentially corrupted record
-          offset += 4; // Skip block size and try next
-          recordCount++;
-          continue;
-        }
-
-        // For non-BAM errors, enhance with context and re-throw
-        throw new BamError(
-          `Fatal error parsing record ${recordCount} at offset ${blockOffset + offset}: ${error instanceof Error ? error.message : String(error)}`,
-          undefined,
-          "alignment",
-          blockOffset + offset,
-          error instanceof Error ? error.stack : undefined
-        );
-      }
-    }
-
-    // Tiger Style: Final assertions
-    if (offset > buffer.length) {
-      throw new BamError(
-        "offset must not exceed buffer length",
-        undefined,
-        "alignment",
-        blockOffset + offset
-      );
-    }
-    if (recordCount < 0) {
-      throw new BamError("record count must be non-negative", undefined, "alignment", blockOffset);
-    }
-  }
-
-  /**
-   * Parse a single BAM alignment record with enhanced error context
-   * @param view DataView containing alignment data
-   * @param offset Starting offset of alignment data
-   * @param blockSize Size of alignment block
-   * @param references Reference sequence names
-   * @param blockOffset BGZF block offset for error reporting
-   * @param recordNumber Record number for debugging
-   * @returns BAMAlignment object
-   */
-  private parseAlignmentWithContext(
-    view: DataView,
-    offset: number,
-    blockSize: number,
-    references: string[],
-    blockOffset: number,
-    recordNumber: number
-  ): BAMAlignment {
-    try {
-      return this.parseAlignment(view, offset, blockSize, references, blockOffset);
-    } catch (error) {
-      // Enhance error with record context
-      if (error instanceof BamError) {
-        throw new BamError(
-          `${error.message} (record #${recordNumber})`,
-          error.qname,
-          error.fieldName,
-          blockOffset,
-          `Record: ${recordNumber}, Block size: ${blockSize}, References: ${references.length}`
-        );
-      }
-      throw error;
-    }
-  }
-
-  /**
    * Parse a single BAM alignment record with Bun optimizations
    * @param view DataView containing alignment data
    * @param offset Starting offset of alignment data
@@ -1293,16 +1131,6 @@ export class BAMParser {
   }
 
   /**
-   * Calculate how many bytes were consumed from buffer during parsing
-   */
-  private getConsumedBytes(buffer: Uint8Array, _references: string[]): number {
-    // This is a simplified implementation
-    // In practice, would track consumed bytes during parsing
-    // Note: references array not used in current chunked processing strategy
-    return Math.min(buffer.length, 65536); // Process in chunks
-  }
-
-  /**
    * Get parsing statistics for performance monitoring
    * @returns Statistics object with performance metrics
    */
@@ -1647,48 +1475,6 @@ export class BAMParser {
     //   }
     // }
   }
-
-  /**
-   * Check if alignment overlaps query region
-   */
-  private alignmentOverlapsRegion(
-    alignment: BAMAlignment,
-    queryStart: number,
-    queryEnd: number
-  ): boolean {
-    const alignStart = alignment.pos - 1; // Convert to 0-based
-    const alignEnd = this.calculateAlignmentEndPosition(alignment);
-
-    // Check for overlap: alignment overlaps if it starts before query ends and ends after query starts
-    return alignStart < queryEnd && alignEnd > queryStart;
-  }
-
-  /**
-   * Calculate alignment end position from CIGAR
-   */
-  private calculateAlignmentEndPosition(alignment: BAMAlignment): number {
-    const start = alignment.pos - 1; // Convert to 0-based
-
-    if (alignment.cigar === "*") {
-      return start + 1; // Assume 1bp alignment
-    }
-
-    // Parse CIGAR to calculate reference length
-    const cigarOps = alignment.cigar.match(/\d+[MIDNSHPX=]/g) || [];
-    let refLength = 0;
-
-    for (const op of cigarOps) {
-      const length = parseInt(op.slice(0, -1));
-      const operation = op.slice(-1);
-
-      // Operations that consume reference: M, D, N, =, X
-      if ("MDN=X".includes(operation)) {
-        refLength += length;
-      }
-    }
-
-    return start + refLength;
-  }
 }
 
 /**
@@ -1746,5 +1532,5 @@ export { BGZFCompressor };
 
 // Export BAI indexing components
 export { BAIReader } from "./bam/bai-reader";
+export { BinningUtils, VirtualOffsetUtils } from "./bam/bai-utils";
 export { BAIWriter } from "./bam/bai-writer";
-export { VirtualOffsetUtils, BinningUtils } from "./bam/bai-utils";

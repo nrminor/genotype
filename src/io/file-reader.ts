@@ -6,6 +6,7 @@
  * efficiency for genomic data processing.
  */
 
+import { type } from "arktype";
 import { CompressionDetector, createDecompressor } from "../compression";
 import { CompatibilityError, FileError } from "../errors";
 import type {
@@ -26,31 +27,25 @@ const DEFAULT_OPTIONS: Required<FileReaderOptions> = {
   timeout: 30000, // 30 seconds
   concurrent: false,
   signal: new AbortController().signal,
-  onProgress: () => {},
   autoDecompress: true, // Enable automatic decompression by default
   compressionFormat: "none", // Will be auto-detected
   decompressionOptions: {},
 };
 
 /**
- * Validate file path and return branded type
+ * Validate file path using ArkType and return branded type
+ * Maintains FileError interface contract for callers
  */
 function validatePath(path: string): FilePath {
-  // Tiger Style: Assert function arguments with explicit validation
-  if (typeof path !== "string") {
-    throw new FileError("Path must be a string", path, "stat");
-  }
-  if (path.length === 0) {
-    throw new FileError("Path must not be empty", path, "stat");
-  }
-
+  // TypeScript guarantees path is string - delegate to ArkType for domain validation
   try {
-    const validatedPath = FilePathSchema(path);
-    if (typeof validatedPath !== "string") {
-      throw new FileError(`Path validation failed: ${validatedPath.toString()}`, path, "stat");
+    const validationResult = FilePathSchema(path);
+    if (validationResult instanceof type.errors) {
+      throw new FileError(`Invalid file path: ${validationResult.summary}`, path, "stat");
     }
-    return validatedPath;
+    return validationResult;
   } catch (error) {
+    // Ensure all validation errors become FileError to maintain interface contract
     throw new FileError(
       `Invalid file path: ${error instanceof Error ? error.message : String(error)}`,
       path,
@@ -63,13 +58,7 @@ function validatePath(path: string): FilePath {
  * Merge user options with runtime-optimized defaults
  */
 function mergeOptions(options: FileReaderOptions, runtime: Runtime): Required<FileReaderOptions> {
-  // Tiger Style: Assert function arguments
-  if (typeof options !== "object") {
-    throw new FileError("options must be an object", "", "read");
-  }
-  if (!["node", "deno", "bun"].includes(runtime)) {
-    throw new FileError(`runtime must be valid: ${runtime}`, "", "read");
-  }
+  // TypeScript guarantees types - no defensive checking needed
 
   const defaults = {
     ...DEFAULT_OPTIONS,
@@ -78,15 +67,10 @@ function mergeOptions(options: FileReaderOptions, runtime: Runtime): Required<Fi
 
   const merged = { ...defaults, ...options };
 
-  // Validate merged options
-  try {
-    FileReaderOptionsSchema(merged);
-  } catch (error) {
-    throw new FileError(
-      `Invalid file reader options: ${error instanceof Error ? error.message : String(error)}`,
-      "",
-      "read"
-    );
+  // Validate merged options with ArkType
+  const validationResult = FileReaderOptionsSchema(merged);
+  if (validationResult instanceof type.errors) {
+    throw new FileError(`Invalid file reader options: ${validationResult.summary}`, "", "read");
   }
 
   return merged;
@@ -99,13 +83,7 @@ async function validateFile(
   path: FilePath,
   options: Required<FileReaderOptions>
 ): Promise<FileValidationResult> {
-  // Tiger Style: Assert function arguments
-  if (typeof path !== "string") {
-    throw new FileError("path must be a string", path, "read");
-  }
-  if (typeof options !== "object") {
-    throw new FileError("options must be an object", path, "read");
-  }
+  // TypeScript guarantees types - no defensive checking needed
 
   try {
     // Check if file exists
@@ -160,8 +138,6 @@ async function createBaseStream(
   switch (runtime) {
     case "node":
       return createNodeStream(validatedPath, mergedOptions);
-    case "deno":
-      return createDenoStream(validatedPath, mergedOptions);
     case "bun":
       return createBunStream(validatedPath, mergedOptions);
     default:
@@ -195,50 +171,11 @@ function createNodeStream(
         controller.error(FileError.fromSystemError("read", validatedPath, error));
       });
 
-      // Handle abort signal
-      if (mergedOptions.signal !== undefined && mergedOptions.signal !== null) {
-        mergedOptions.signal.addEventListener("abort", () => {
-          nodeStream.destroy();
-          controller.error(new Error("Read operation aborted"));
-        });
-      }
-    },
-  });
-}
-
-async function createDenoStream(
-  validatedPath: FilePath,
-  mergedOptions: Required<FileReaderOptions>
-): Promise<ReadableStream<Uint8Array>> {
-  const { Deno } = getRuntimeGlobals("deno") as { Deno: any };
-  if (Deno === undefined || Deno === null)
-    throw new CompatibilityError("Deno global not available", "deno", "filesystem");
-
-  const file = await Deno.open(validatedPath, { read: true });
-
-  return new ReadableStream({
-    async start(controller): Promise<void> {
-      try {
-        const buffer = new Uint8Array(mergedOptions.bufferSize);
-
-        while (true) {
-          const bytesRead = await file.read(buffer);
-          if (bytesRead === null) break;
-
-          controller.enqueue(buffer.slice(0, bytesRead));
-
-          // Check for abort
-          if (mergedOptions.signal?.aborted) {
-            throw new Error("Read operation aborted");
-          }
-        }
-
-        controller.close();
-      } catch (error) {
-        controller.error(FileError.fromSystemError("read", validatedPath, error));
-      } finally {
-        file.close();
-      }
+      // Handle abort signal with optional chaining
+      mergedOptions.signal?.addEventListener("abort", () => {
+        nodeStream.destroy();
+        controller.error(new Error("Read operation aborted"));
+      });
     },
   });
 }
@@ -258,26 +195,17 @@ function createBunStream(
     async start(controller): Promise<void> {
       try {
         const reader = stream.getReader();
-        let totalBytesRead = 0;
 
         while (true) {
           const { done, value } = await reader.read();
           if (done === true) break;
 
-          totalBytesRead += value.length;
           controller.enqueue(value);
 
-          // Progress callback for Bun (more efficient than other runtimes)
-          if (mergedOptions.onProgress !== undefined && mergedOptions.onProgress !== null) {
-            mergedOptions.onProgress(totalBytesRead, file.size);
-          }
+          // Progress tracking removed - users can implement their own by wrapping streams
 
-          // Check for abort signal
-          if (
-            mergedOptions.signal !== undefined &&
-            mergedOptions.signal !== null &&
-            mergedOptions.signal.aborted === true
-          ) {
+          // Check for abort signal with optional chaining
+          if (mergedOptions.signal?.aborted) {
             reader.releaseLock();
             throw new Error("Read operation aborted");
           }
@@ -299,16 +227,7 @@ async function applyDecompression(
   filePath: FilePath,
   options: Required<FileReaderOptions>
 ): Promise<ReadableStream<Uint8Array>> {
-  // Tiger Style: Assert function arguments
-  if (!(stream instanceof ReadableStream)) {
-    throw new FileError("stream must be ReadableStream", filePath, "read");
-  }
-  if (typeof filePath !== "string") {
-    throw new FileError("filePath must be string", filePath, "read");
-  }
-  if (typeof options !== "object") {
-    throw new FileError("options must be object", filePath, "read");
-  }
+  // TypeScript guarantees types - no defensive checking needed
 
   try {
     // Determine compression format
@@ -332,7 +251,6 @@ async function applyDecompression(
       ...options.decompressionOptions,
       bufferSize: options.bufferSize,
       signal: options.signal,
-      onProgress: options.onProgress,
     };
 
     return decompressor.wrapStream(stream, decompressionOptions);
@@ -349,14 +267,7 @@ async function applyDecompression(
  * @throws {FileError} If path validation fails
  */
 export async function exists(path: string): Promise<boolean> {
-  // Tiger Style: Assert function arguments with explicit validation
-  if (typeof path !== "string") {
-    throw new FileError("Path must be a string", path, "stat");
-  }
-  if (path.length === 0) {
-    throw new FileError("Path must not be empty", path, "stat");
-  }
-
+  // TypeScript guarantees path is string - delegate to ArkType for domain validation
   const validatedPath = validatePath(path);
   const runtime = detectRuntime();
 
@@ -370,19 +281,6 @@ export async function exists(path: string): Promise<boolean> {
         try {
           await fs.promises.access(validatedPath, fs.constants.F_OK | fs.constants.R_OK);
           return true;
-        } catch {
-          return false;
-        }
-      }
-
-      case "deno": {
-        const { Deno } = getRuntimeGlobals("deno") as { Deno: any };
-        if (Deno === undefined || Deno === null)
-          throw new CompatibilityError("Deno global not available", "deno", "filesystem");
-
-        try {
-          const stat = await Deno.stat(validatedPath);
-          return stat.isFile;
         } catch {
           return false;
         }
@@ -418,14 +316,7 @@ export async function exists(path: string): Promise<boolean> {
  * @throws {FileError} If file cannot be accessed or doesn't exist
  */
 export async function getSize(path: string): Promise<number> {
-  // Tiger Style: Assert function arguments with explicit validation
-  if (typeof path !== "string") {
-    throw new FileError("Path must be a string", path, "stat");
-  }
-  if (path.length === 0) {
-    throw new FileError("Path must not be empty", path, "stat");
-  }
-
+  // TypeScript guarantees path is string - delegate to ArkType for domain validation
   const validatedPath = validatePath(path);
   const runtime = detectRuntime();
 
@@ -438,15 +329,6 @@ export async function getSize(path: string): Promise<number> {
 
         const stats = await fs.promises.stat(validatedPath);
         return stats.size;
-      }
-
-      case "deno": {
-        const { Deno } = getRuntimeGlobals("deno") as { Deno: any };
-        if (Deno === undefined || Deno === null)
-          throw new CompatibilityError("Deno global not available", "deno", "filesystem");
-
-        const stat = await Deno.stat(validatedPath);
-        return stat.size;
       }
 
       case "bun": {
@@ -479,14 +361,7 @@ export async function getSize(path: string): Promise<number> {
  * @throws {FileError} If file cannot be accessed
  */
 export async function getMetadata(path: string): Promise<FileMetadata> {
-  // Tiger Style: Assert function arguments
-  if (typeof path !== "string") {
-    throw new FileError("path must be a string", path, "stat");
-  }
-  if (path.length === 0) {
-    throw new FileError("path must not be empty", path, "stat");
-  }
-
+  // TypeScript guarantees path is string - delegate to ArkType for domain validation
   const validatedPath = validatePath(path);
   const runtime = detectRuntime();
 
@@ -529,27 +404,6 @@ export async function getMetadata(path: string): Promise<FileMetadata> {
         };
       }
 
-      case "deno": {
-        const { Deno } = getRuntimeGlobals("deno") as { Deno: any };
-        if (Deno === undefined || Deno === null)
-          throw new CompatibilityError("Deno global not available", "deno", "filesystem");
-
-        const stat = await Deno.stat(validatedPath);
-
-        // Deno doesn't have easy permission checking, assume readable if we can stat
-        const readable = true;
-        const writable = stat.mode !== null ? (stat.mode & 0o200) !== 0 : false;
-
-        return {
-          path: validatedPath,
-          size: stat.size,
-          lastModified: stat.mtime ?? new Date(),
-          readable,
-          writable,
-          extension: validatedPath.substring(validatedPath.lastIndexOf(".")),
-        };
-      }
-
       case "bun": {
         const { Bun } = getRuntimeGlobals("bun") as { Bun: any };
         if (Bun === undefined || Bun === null || Bun.file === undefined || Bun.file === null)
@@ -589,16 +443,7 @@ export async function createStream(
   path: string,
   options: FileReaderOptions = {}
 ): Promise<ReadableStream<Uint8Array>> {
-  // Tiger Style: Assert function arguments
-  if (typeof path !== "string") {
-    throw new FileError("path must be a string", path, "read");
-  }
-  if (path.length === 0) {
-    throw new FileError("path must not be empty", path, "read");
-  }
-  if (typeof options !== "object") {
-    throw new FileError("options must be an object", path, "read");
-  }
+  // TypeScript guarantees types - delegate to ArkType for domain validation
 
   const validatedPath = validatePath(path);
   const runtime = detectRuntime();
@@ -648,8 +493,7 @@ export async function createStream(
  * @throws {FileError} If file cannot be read or is too large
  */
 export async function readToString(path: string, options: FileReaderOptions = {}): Promise<string> {
-  validateReadToStringArgs(path, options);
-
+  // TypeScript guarantees types - delegate to ArkType for domain validation
   const validatedPath = validatePath(path);
   const runtime = detectRuntime();
   const mergedOptions = mergeOptions(options, runtime);
@@ -662,21 +506,9 @@ export async function readToString(path: string, options: FileReaderOptions = {}
   }
 
   // Fallback to streaming approach
-  const result = await readViaStream(validatedPath, mergedOptions, fileSize);
+  const result = await readViaStream(validatedPath, options, fileSize);
   validateReadResult(result, validatedPath, fileSize);
   return result;
-}
-
-function validateReadToStringArgs(path: string, options: FileReaderOptions): void {
-  if (typeof path !== "string") {
-    throw new FileError("path must be a string", path, "read");
-  }
-  if (path.length === 0) {
-    throw new FileError("path must not be empty", path, "read");
-  }
-  if (typeof options !== "object") {
-    throw new FileError("options must be an object", path, "read");
-  }
 }
 
 async function validateFileSize(
@@ -699,11 +531,9 @@ async function tryBunOptimizedRead(
   validatedPath: FilePath,
   mergedOptions: Required<FileReaderOptions>
 ): Promise<string | null> {
+  // Use Bun's optimized file.text() when conditions are right
   const canUseBunOptimization =
-    runtime === "bun" &&
-    mergedOptions.encoding === "utf8" &&
-    (mergedOptions.signal === undefined || mergedOptions.signal === null) &&
-    (mergedOptions.onProgress === undefined || mergedOptions.onProgress === null);
+    runtime === "bun" && mergedOptions.encoding === "utf8" && !mergedOptions.signal;
 
   if (!canUseBunOptimization) {
     return null;
@@ -711,14 +541,10 @@ async function tryBunOptimizedRead(
 
   try {
     const { Bun } = getRuntimeGlobals("bun") as { Bun: any };
-    if (Bun !== undefined && Bun !== null && Bun.file !== undefined && Bun.file !== null) {
+    if (Bun?.file) {
       const file = Bun.file(validatedPath);
-      const result = await file.text();
-
-      if (typeof result !== "string") {
-        throw new FileError("result must be a string", validatedPath, "read");
-      }
-      return result;
+      // Bun.file.text() always returns string - no defensive checking needed
+      return await file.text();
     }
   } catch (error) {
     throw FileError.fromSystemError("read", validatedPath, error);
@@ -729,11 +555,13 @@ async function tryBunOptimizedRead(
 
 async function readViaStream(
   validatedPath: FilePath,
-  mergedOptions: Required<FileReaderOptions>,
+  options: FileReaderOptions,
   fileSize: number
 ): Promise<string> {
-  const stream = await createStream(validatedPath, mergedOptions);
+  const stream = await createStream(validatedPath, options);
   const reader = stream.getReader();
+  const runtime = detectRuntime();
+  const mergedOptions = mergeOptions(options, runtime);
 
   if (mergedOptions.encoding === "binary") {
     return readBinaryStream(reader, mergedOptions, fileSize);
@@ -758,9 +586,7 @@ async function readBinaryStream(
       chunks.push(value);
       totalLength += value.length;
 
-      if (mergedOptions.onProgress !== undefined && mergedOptions.onProgress !== null) {
-        mergedOptions.onProgress(totalLength, fileSize);
-      }
+      // Progress tracking removed - users can implement their own by counting bytes
     }
 
     const combined = new Uint8Array(totalLength);
@@ -791,9 +617,7 @@ async function readTextStream(
 
       result += decoder.decode(value, { stream: true });
 
-      if (mergedOptions.onProgress !== undefined && mergedOptions.onProgress !== null) {
-        mergedOptions.onProgress(result.length, fileSize);
-      }
+      // Progress tracking removed - users can implement their own by counting bytes
     }
 
     result += decoder.decode();
@@ -804,9 +628,8 @@ async function readTextStream(
 }
 
 function validateReadResult(result: string, validatedPath: FilePath, fileSize: number): void {
-  if (typeof result !== "string") {
-    throw new FileError("result must be a string", validatedPath, "read");
-  }
+  // TypeScript guarantees result is string - check meaningful invariants only
+  // Tiger Style: Assert meaningful file size constraint (detect encoding issues)
   if (result.length > fileSize * 4) {
     throw new FileError(
       "decoded string should not be excessively larger than file size",

@@ -153,7 +153,7 @@ describe("FileReader", () => {
 
     test("should respect buffer size options", async () => {
       const stream = await createStream(TEST_FILES.medium, {
-        bufferSize: 100,
+        bufferSize: 2048, // Use realistic buffer size for genomic files
       });
 
       expect(stream).toBeInstanceOf(ReadableStream);

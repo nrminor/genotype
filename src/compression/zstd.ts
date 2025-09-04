@@ -6,8 +6,6 @@
  * making it increasingly popular for large-scale genomic data storage.
  */
 
-import type { DecompressorOptions } from "../types";
-import { DecompressorOptionsSchema } from "../types";
 import { CompressionError } from "../errors";
 import {
   detectRuntime,
@@ -15,14 +13,15 @@ import {
   getRuntimeGlobals,
   type Runtime,
 } from "../io/runtime";
+import type { DecompressorOptions } from "../types";
+import { DecompressorOptionsSchema } from "../types";
 
 /**
  * Default options for Zstd decompression with genomics-optimized values
  */
-const DEFAULT_ZSTD_OPTIONS: Required<DecompressorOptions> = {
+const DEFAULT_ZSTD_OPTIONS = {
   bufferSize: 131072, // 128KB - Zstd works well with larger buffers
   maxOutputSize: 10_737_418_240, // 10GB safety limit for genomic files
-  onProgress: () => {},
   signal: new AbortController().signal,
   validateIntegrity: true,
 };
@@ -165,7 +164,7 @@ async function decompressWithNode(compressed: Uint8Array): Promise<Uint8Array | 
 function mergeOptions(
   options: DecompressorOptions,
   runtime: Runtime
-): Required<DecompressorOptions> {
+): DecompressorOptions & typeof DEFAULT_ZSTD_OPTIONS {
   const defaults = {
     ...DEFAULT_ZSTD_OPTIONS,
     bufferSize: getOptimalBufferSize(runtime) * 2, // Zstd works better with larger buffers
@@ -374,10 +373,7 @@ function processZstdChunk(
       return;
     }
 
-    // Progress callback
-    if (mergedOptions.onProgress !== undefined) {
-      mergedOptions.onProgress(state.bytesProcessed);
-    }
+    // Progress tracking removed - users can implement their own
 
     if (runtime === "node" && state.decompressor !== null) {
       const nodeStream = state.decompressor as {

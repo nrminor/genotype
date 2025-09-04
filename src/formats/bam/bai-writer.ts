@@ -107,7 +107,6 @@ export class BAIWriter {
     this.options = {
       intervalSize: options.intervalSize ?? 16384, // Standard 16KB intervals
       validateAlignments: options.validateAlignments ?? true,
-      ...(options.onProgress && { onProgress: options.onProgress }),
       streamingMode: options.streamingMode ?? false,
       maxChunksPerBin: options.maxChunksPerBin ?? 10000,
       ...(options.signal && { signal: options.signal }),
@@ -178,14 +177,7 @@ export class BAIWriter {
           await this.addAlignment(bamAlignment, currentVirtualOffset);
           alignmentCount++;
 
-          // Progress reporting
-          if (
-            this.options.onProgress !== undefined &&
-            this.options.onProgress !== null &&
-            alignmentCount % 10000 === 0
-          ) {
-            this.options.onProgress(alignmentCount);
-          }
+          // Progress tracking removed - users can implement their own by counting alignments
         }
       }
 

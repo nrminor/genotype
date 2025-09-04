@@ -25,7 +25,7 @@ export {
   FastqUtils,
   QualityScores,
   toNumbers,
-  toString,
+  scoresToString,
   getOffset,
   detectEncoding,
   calculateStats,

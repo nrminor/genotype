@@ -516,8 +516,6 @@ export interface DecompressorOptions {
   readonly bufferSize?: number;
   /** Safety limit for decompressed output size */
   readonly maxOutputSize?: number;
-  /** Progress callback for large decompression operations */
-  readonly onProgress?: (bytesProcessed: number, totalBytes?: number) => void;
   /** AbortController signal for cancelling decompression */
   readonly signal?: AbortSignal;
   /** Whether to validate decompressed data integrity */
@@ -1161,8 +1159,6 @@ export interface FileReaderOptions {
   readonly concurrent?: boolean;
   /** AbortController signal for cancelling operations */
   readonly signal?: AbortSignal;
-  /** Progress callback for large files */
-  readonly onProgress?: (bytesRead: number, totalBytes?: number) => void;
   /** Whether to automatically detect and decompress compressed files (default: true) */
   readonly autoDecompress?: boolean;
   /** Override compression format detection (default: auto-detect) */
@@ -1352,7 +1348,6 @@ export const FileReaderOptionsSchema = type({
   "timeout?": "number>=0",
   "concurrent?": "boolean",
   "signal?": "unknown", // AbortSignal
-  "onProgress?": "unknown", // Function
   "autoDecompress?": "boolean",
   "compressionFormat?": '"gzip"|"zstd"|"none"',
   "decompressionOptions?": "unknown", // DecompressorOptions
@@ -1607,8 +1602,6 @@ export interface BAIWriterOptions {
   readonly intervalSize?: number;
   /** Whether to validate alignment consistency during indexing */
   readonly validateAlignments?: boolean;
-  /** Progress callback for large BAM files */
-  readonly onProgress?: (alignmentsProcessed: number, totalAlignments?: number) => void;
   /** Memory optimization: process in chunks (default: false) */
   readonly streamingMode?: boolean;
   /** Custom bin size limits for memory control */
@@ -1630,8 +1623,6 @@ export interface BAIReaderOptions {
   readonly bufferSize?: number;
   /** Timeout for index file operations in milliseconds */
   readonly timeout?: number;
-  /** Progress callback for large index files */
-  readonly onProgress?: (bytesRead: number, totalBytes?: number) => void;
 }
 
 /**
@@ -1725,7 +1716,6 @@ export const CompressionDetectionSchema = type({
 export const DecompressorOptionsSchema = type({
   "bufferSize?": "number>=1024", // Minimum 1KB buffer
   "maxOutputSize?": "number>=0",
-  "onProgress?": "unknown", // Function
   "signal?": "unknown", // AbortSignal
   "validateIntegrity?": "boolean",
 }).pipe((options) => {
@@ -2125,7 +2115,6 @@ export const BAIQueryResultSchema = type({
 export const BAIWriterOptionsSchema = type({
   "intervalSize?": "number>0",
   "validateAlignments?": "boolean",
-  "onProgress?": "unknown", // Function
   "streamingMode?": "boolean",
   "maxChunksPerBin?": "number>0",
   "signal?": "unknown", // AbortSignal
@@ -2174,7 +2163,6 @@ export const BAIReaderOptionsSchema = type({
   "validateOnLoad?": "boolean",
   "bufferSize?": "number>=1024",
   "timeout?": "number>0",
-  "onProgress?": "unknown", // Function
 }).pipe((options) => {
   // Validate buffer size bounds
   if (

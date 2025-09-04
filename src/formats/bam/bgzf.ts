@@ -191,8 +191,8 @@ async function inflateData(compressedData: Uint8Array): Promise<Uint8Array> {
     const writer = decompressor.writable.getWriter();
     const reader = decompressor.readable.getReader();
 
-    // Write compressed data
-    await writer.write(compressedData);
+    // Write compressed data (cast to BufferSource for DOM compatibility)
+    await writer.write(compressedData as BufferSource);
     await writer.close();
 
     // Read decompressed result

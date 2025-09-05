@@ -1,5 +1,15 @@
 # GenoType
 
+[![CI](https://github.com/nrminor/genotype/actions/workflows/ci.yml/badge.svg)](https://github.com/nrminor/genotype/actions/workflows/ci.yml)
+[![Build Native](https://github.com/nrminor/genotype/actions/workflows/build.yml/badge.svg)](https://github.com/nrminor/genotype/actions/workflows/build.yml)
+[![Genomics Validation](https://github.com/nrminor/genotype/actions/workflows/genomics-validation.yml/badge.svg)](https://github.com/nrminor/genotype/actions/workflows/genomics-validation.yml)
+[![Documentation](https://github.com/nrminor/genotype/actions/workflows/docs.yml/badge.svg)](https://github.com/nrminor/genotype/actions/workflows/docs.yml)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.5+-blue.svg)](https://www.typescriptlang.org/)
+![Rust v1.89.0](https://img.shields.io/badge/rust-%23000000.svg?style=for-the-badge&logo=rust&logoColor=white)
+![Bun v1.2.21](https://img.shields.io/badge/Bun-%23000000.svg?style=for-the-badge&logo=bun&logoColor=white)
+[![Checked with Biome](https://img.shields.io/badge/Checked_with-Biome-60a5fa?style=flat&logo=biome)](https://biomejs.dev)
+[![Formatted with Biome](https://img.shields.io/badge/Formatted_with-Biome-60a5fa?style=flat&logo=biome)](https://biomejs.dev/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-TypeDoc-blue.svg)](https://nrminor.github.io/genotype/)
 
 > [!CAUTION]
@@ -106,7 +116,7 @@ QC Report:
 `);
 ```
 
-### 🔬 Primer Trimming for Amplicon Sequencing
+### Primer Trimming for Amplicon Sequencing
 
 **Problem**: Your amplicon sequencing data has primer sequences that need to be
 removed before variant calling.
@@ -364,35 +374,14 @@ const results = await seqops(millionSequences)
 
 GenoType follows these core principles:
 
-- **Real-world ready**: Handles malformed files, edge cases, and the chaos of
-  actual genomic data
-- **Zero dependencies**: Built entirely on Bun's native capabilities for
-  security and performance
+- **Real-world ready**: Handles malformed files, edge cases, and the noisiness
+  of actual genomic data. It tries to
+  [parse, not validate](https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/)
+- **Low dependencies**: Most of the library is built from the ground up on Bun's
+  native capabilities for security and performance
 - **Developer experience**: Intuitive APIs that make common tasks trivial and
   complex tasks possible
 - **Fail-fast validation**: Clear error messages that help you fix problems
   quickly
 - **Tiger Style compliance**: Correctness over performance, simplicity over
   cleverness
-
-## Documentation
-
-- [API Reference](./docs/api.md)
-- [File Format Support](./docs/formats.md)
-- [Performance Guide](./docs/performance.md)
-- [Examples](./examples/)
-
-## Contributing
-
-We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for
-guidelines.
-
-## License
-
-MIT
-
----
-
-_Built with [Bun](https://bun.sh/) • Acceleration powered by
-[Rust](https://www.rust-lang.org/) • Validation powered by
-[ArkType](https://arktype.io/)_

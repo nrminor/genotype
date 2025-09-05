@@ -1,7 +1,7 @@
 import { dlopen } from "bun:ffi";
-import { join } from "path";
 import { existsSync } from "fs";
 import os from "os";
+import { join } from "path";
 
 /**
  * Determine the Zig target triple for the current platform

@@ -12,23 +12,23 @@
  * Follows Tiger Style with extensive validation and clear error messages.
  */
 
+import { BamError } from "../../errors";
 import type {
-  BAIIndex,
-  BAIReference,
   BAIBin,
+  BAIBinNumber,
   BAIChunk,
+  BAIIndex,
   BAILinearIndex,
   BAIQueryResult,
   BAIReaderOptions,
+  BAIReference,
   BAIStatistics,
-  VirtualOffset,
-  BAIBinNumber,
   FilePath,
+  VirtualOffset,
 } from "../../types";
-import { VirtualOffsetSchema, BAIBinNumberSchema, FilePathSchema } from "../../types";
-import { BamError } from "../../errors";
+import { BAIBinNumberSchema, FilePathSchema, VirtualOffsetSchema } from "../../types";
+import { BinningUtils, VirtualOffsetUtils } from "./bai-utils";
 import { readInt32LE, readUInt32LE } from "./binary";
-import { VirtualOffsetUtils, BinningUtils } from "./bai-utils";
 
 // Constants for BAI reader configuration
 const DEFAULT_BUFFER_SIZE = 64 * 1024; // 64KB default buffer size

@@ -13,21 +13,21 @@
  * Follows Tiger Style with extensive validation and clear error messages.
  */
 
+import { BamError } from "../../errors";
 import type {
-  BAIIndex,
-  BAIReference,
   BAIBin,
-  BAILinearIndex,
-  BAIWriterOptions,
-  VirtualOffset,
   BAIBinNumber,
+  BAIIndex,
+  BAILinearIndex,
+  BAIReference,
+  BAIWriterOptions,
   BAMAlignment,
   FilePath,
+  VirtualOffset,
 } from "../../types";
 import { FilePathSchema } from "../../types";
-import { BamError } from "../../errors";
 // BinaryParser import removed - not used in current implementation
-import { VirtualOffsetUtils, BinningUtils, updateLinearIndex, mergeChunks } from "./bai-utils";
+import { BinningUtils, mergeChunks, updateLinearIndex, VirtualOffsetUtils } from "./bai-utils";
 
 /**
  * Internal bin accumulator for efficient index generation

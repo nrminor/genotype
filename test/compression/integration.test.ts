@@ -5,7 +5,7 @@
  * decompression, and integration with genomic file parsers.
  */
 
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { CompressionDetector, createDecompressor } from "../../src/compression";
 import { CompressionError } from "../../src/errors";
 import { createReadableStreamFromData } from "../test-utils";

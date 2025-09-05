@@ -2,18 +2,18 @@
  * Tests for FASTQ format parsing and writing
  */
 
-import { test, expect, describe } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import {
-  FastqParser,
-  FastqWriter,
-  FastqUtils,
-  QualityScores,
-  toNumbers,
-  scoresToString as qualityToString,
-  getOffset,
-  detectEncoding,
   calculateStats,
+  detectEncoding,
+  FastqParser,
   type FastqSequence,
+  FastqUtils,
+  FastqWriter,
+  getOffset,
+  QualityScores,
+  scoresToString as qualityToString,
+  toNumbers,
   ValidationError,
 } from "../../src/index.ts";
 

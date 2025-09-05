@@ -2,14 +2,14 @@
  * Integration tests for file I/O with genomics parsers
  */
 
-import { test, expect, describe, beforeAll, afterAll } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { mkdirSync, rmSync, writeFileSync } from "fs";
+import { join } from "path";
+import { FileError, ParseError } from "../../src/errors";
+import { BedParser } from "../../src/formats/bed";
 import { FastaParser } from "../../src/formats/fasta";
 import { FastqParser } from "../../src/formats/fastq";
 import { SAMParser } from "../../src/formats/sam";
-import { BedParser } from "../../src/formats/bed";
-import { FileError, ParseError } from "../../src/errors";
-import { writeFileSync, mkdirSync, rmSync } from "fs";
-import { join } from "path";
 
 // Test fixtures directory - use absolute path for reliability
 const FIXTURES_DIR = join(process.cwd(), "test", "io", "fixtures");

@@ -11,17 +11,17 @@
 import type { AbstractSequence } from "../types";
 // Import IUPAC constants and validation primitives from core
 import {
+  expandAmbiguous,
   IUPAC_DNA,
   IUPAC_PROTEIN,
   IUPAC_RNA,
-  ValidationMode,
   SequenceType,
-  expandAmbiguous,
+  ValidationMode,
 } from "./core/sequence-validation";
 import type { Processor, ValidateOptions } from "./types";
 
 // Re-export core validation primitives for convenient access
-export { ValidationMode, SequenceType, expandAmbiguous } from "./core/sequence-validation";
+export { expandAmbiguous, SequenceType, ValidationMode } from "./core/sequence-validation";
 
 // =============================================================================
 // SEQUENCE VALIDATOR CLASS (moved from core/validation.ts)

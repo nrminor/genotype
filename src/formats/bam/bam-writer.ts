@@ -16,19 +16,19 @@
  * - Native support for BGZF compression
  */
 
-import type { SAMAlignment, SAMHeader } from "../../types";
 import { BamError, CompressionError } from "../../errors";
+import type { SAMAlignment, SAMHeader } from "../../types";
 import { BGZFCompressor } from "./bgzf-compressor";
 import {
+  calculateAlignmentSize,
   createOptimizedSerializer,
+  packCIGAR,
+  packQualityScores,
+  packSequence,
+  packTags,
+  writeCString,
   writeInt32LE,
   writeUInt32LE,
-  writeCString,
-  packCIGAR,
-  packSequence,
-  packQualityScores,
-  packTags,
-  calculateAlignmentSize,
 } from "./binary-serializer";
 
 // Constants for BAM writer configuration

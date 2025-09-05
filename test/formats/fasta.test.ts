@@ -2,12 +2,12 @@
  * Tests for FASTA format parsing and writing
  */
 
-import { test, expect, describe } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import {
   FastaParser,
-  FastaWriter,
-  FastaUtils,
   type FastaSequence,
+  FastaUtils,
+  FastaWriter,
   ParseError,
   SequenceError,
 } from "../../src/index.ts";

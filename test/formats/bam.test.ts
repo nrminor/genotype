@@ -14,19 +14,19 @@
  * - Bun-specific optimizations
  */
 
-import { describe, it, expect, beforeEach } from "bun:test";
-import { BAMParser, BAMUtils } from "../../src/formats/bam";
-import { readBlockHeader, detectFormat } from "../../src/formats/bam/bgzf";
-import {
-  readInt32LE,
-  readUInt16LE,
-  readUInt8,
-  readCString,
-  decodeSequence,
-  parseBinaryCIGAR,
-  isValidBAMMagic,
-} from "../../src/formats/bam/binary";
+import { beforeEach, describe, expect, it } from "bun:test";
 import { BamError } from "../../src/errors";
+import { BAMParser, BAMUtils } from "../../src/formats/bam";
+import { detectFormat, readBlockHeader } from "../../src/formats/bam/bgzf";
+import {
+  decodeSequence,
+  isValidBAMMagic,
+  parseBinaryCIGAR,
+  readCString,
+  readInt32LE,
+  readUInt8,
+  readUInt16LE,
+} from "../../src/formats/bam/binary";
 import type { BAMHeader } from "../../src/types";
 
 describe.skip("BinaryParser", () => {

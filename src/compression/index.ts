@@ -45,23 +45,21 @@ const MIN_FILE_SIZE_FOR_COMPRESSION = 10_000;
 const LARGE_FILE_SIZE_THRESHOLD = 1_000_000;
 const DEFAULT_COMPRESSION_RATIO = 3.0;
 
-// Type exports for external use
-export type {
-  CompressionFormat,
-  CompressionDetection,
-  DecompressorOptions,
-  CompressedStream,
-} from "../types";
-
-// Validation schema exports
-export {
-  CompressionFormatSchema,
-  CompressionDetectionSchema,
-  DecompressorOptionsSchema,
-} from "../types";
-
 // Error exports
 export { CompressionError } from "../errors";
+// Type exports for external use
+export type {
+  CompressedStream,
+  CompressionDetection,
+  CompressionFormat,
+  DecompressorOptions,
+} from "../types";
+// Validation schema exports
+export {
+  CompressionDetectionSchema,
+  CompressionFormatSchema,
+  DecompressorOptionsSchema,
+} from "../types";
 
 /**
  * Factory function to create appropriate decompressor based on format

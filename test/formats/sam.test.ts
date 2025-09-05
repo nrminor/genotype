@@ -2,13 +2,13 @@
  * Tests for SAM format parsing
  */
 
-import { test, expect, describe } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import {
-  SAMParser,
-  SAMWriter,
-  SAMUtils,
   type SAMAlignment,
   type SAMHeader,
+  SAMParser,
+  SAMUtils,
+  SAMWriter,
   SamError,
   ValidationError,
 } from "../../src/index.ts";

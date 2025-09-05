@@ -9,8 +9,8 @@
  * - Type-safe binary operations with bounds checking
  */
 
-import type { SAMAlignment, SAMTag, CIGARString } from "../../types";
 import { BamError } from "../../errors";
+import type { CIGARString, SAMAlignment, SAMTag } from "../../types";
 
 // Module-level constants for sequence encoding
 const SEQUENCE_ENCODER: Record<string, number> = {

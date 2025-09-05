@@ -13,8 +13,8 @@
  * - ISIZE (4 bytes): Uncompressed data size
  */
 
-import type { BGZFBlock } from "../../types";
 import { BamError, CompressionError } from "../../errors";
+import type { BGZFBlock } from "../../types";
 import { readUInt32LE } from "./binary";
 
 // Module-level constants for BGZF format

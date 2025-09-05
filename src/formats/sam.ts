@@ -12,24 +12,24 @@
  */
 
 import { type } from "arktype";
+import { SamError, ValidationError } from "../errors";
 import type {
-  SAMAlignment,
-  SAMHeader,
-  SAMTag,
-  SAMFlag,
   CIGARString,
   MAPQScore,
   ParserOptions,
+  SAMAlignment,
+  SAMFlag,
+  SAMHeader,
+  SAMTag,
 } from "../types";
 import {
-  SAMAlignmentSchema,
-  SAMHeaderSchema,
-  SAMFlagSchema,
   CIGAROperationSchema,
   MAPQScoreSchema,
+  SAMAlignmentSchema,
+  SAMFlagSchema,
+  SAMHeaderSchema,
   SAMTagSchema,
 } from "../types";
-import { SamError, ValidationError } from "../errors";
 
 /**
  * Streaming SAM parser with comprehensive validation

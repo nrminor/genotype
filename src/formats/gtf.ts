@@ -15,8 +15,8 @@
  * - Missing attributes
  */
 
-import type { Strand, ParserOptions } from "../types";
-import { ValidationError, ParseError, GenotypeError } from "../errors";
+import { GenotypeError, ParseError, ValidationError } from "../errors";
+import type { ParserOptions, Strand } from "../types";
 
 // =============================================================================
 // TYPES AND INTERFACES

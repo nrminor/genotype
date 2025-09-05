@@ -7,7 +7,8 @@
 
 // Re-export quality encoding from types to maintain backward compatibility
 export { QualityEncoding } from "../../types";
-
+// Re-export SequenceValidator from operations for backward compatibility
+export { SequenceValidator } from "../validate";
 // Note: SeqOps is now exported from operations/index.ts, not here
 // Bloom filters for deduplication (low-level)
 export {
@@ -15,53 +16,25 @@ export {
   CountingBloomFilter,
   ScalableBloomFilter,
 } from "./bloom-filter";
-// NCBI genetic code tables (tree-shakeable functions)
+// Sequence calculations (from calculations.ts)
 export {
-  GeneticCode,
-  GeneticCodes,
-  translate,
-  translateSixFrames,
-  findORFs,
-  getGeneticCode,
-  listGeneticCodes,
-  isStartCodon,
-  isStopCodon,
-  isAlternativeStart,
-  translateCodon,
-} from "./genetic-codes";
-// Memory management strategies
-export { MemoryStrategy } from "./interfaces";
-// Memory management strategies (low-level)
+  atContent,
+  baseComposition,
+  findQualityTrimEnd,
+  findQualityTrimStart,
+  gcContent,
+  SequenceCalculations,
+  translateSimple,
+} from "./calculations";
+// Genomic coordinate parsing and validation
 export {
-  AdaptiveBuffer,
-  DefaultMemoryMonitor,
-  DiskCache,
-  ExternalSorter,
-  type MemoryMonitor,
-} from "./memory";
-// Pattern matching algorithms and utilities
-export {
-  // Low-level algorithm functions
-  boyerMoore,
-  findOverlapping,
-  findPalindromes,
-  findPattern,
-  findTandemRepeats,
-  fuzzyMatch,
-  hasPattern,
-  hasPatternWithMismatches,
-  kmpSearch,
-  longestCommonSubstring,
-  type MatcherOptions,
-  matchWithAmbiguous,
-  type PatternMatch,
-  // Legacy compatibility
-  PatternMatcher,
-  rabinKarp,
-  type SequenceMatch,
-  // High-level class
-  SequenceMatcher,
-} from "./pattern-matching";
+  type ParsedCoordinates,
+  parseEndPosition,
+  parseStartPosition,
+  validateFinalCoordinates,
+  validateRegionParts,
+  validateRegionString,
+} from "./coordinates";
 // Quality score encoding detection and conversion
 // Export both individual functions and grouped object for flexibility
 export {
@@ -79,6 +52,57 @@ export {
   scoreToErrorProbability,
   validateQualityString,
 } from "./encoding";
+// NCBI genetic code tables (tree-shakeable functions)
+export {
+  findORFs,
+  GeneticCode,
+  GeneticCodes,
+  getGeneticCode,
+  isAlternativeStart,
+  isStartCodon,
+  isStopCodon,
+  listGeneticCodes,
+  translate,
+  translateCodon,
+  translateSixFrames,
+} from "./genetic-codes";
+// Memory management strategies
+export { MemoryStrategy } from "./interfaces";
+// Memory management strategies (low-level)
+export {
+  AdaptiveBuffer,
+  DefaultMemoryMonitor,
+  DiskCache,
+  ExternalSorter,
+  type MemoryMonitor,
+} from "./memory";
+// Pattern matching algorithms and utilities
+// Pattern matching additions (from pattern-matching.ts)
+export {
+  // Low-level algorithm functions
+  boyerMoore,
+  findOverlapping,
+  findPalindromes,
+  findPattern,
+  findPattern as findPatternTransform,
+  findSimplePattern,
+  findTandemRepeats,
+  fuzzyMatch,
+  hasPattern,
+  hasPatternWithMismatches,
+  isPalindromic,
+  kmpSearch,
+  longestCommonSubstring,
+  type MatcherOptions,
+  matchWithAmbiguous,
+  type PatternMatch,
+  // Legacy compatibility
+  PatternMatcher,
+  rabinKarp,
+  type SequenceMatch,
+  // High-level class
+  SequenceMatcher,
+} from "./pattern-matching";
 // Reservoir sampling for streaming
 export {
   BernoulliSampler,
@@ -98,6 +122,17 @@ export {
   findDuplicates,
   SequenceDeduplicator,
 } from "./sequence-deduplicator";
+// Sequence manipulation operations (from sequence-manipulation.ts)
+export {
+  complement,
+  removeGaps,
+  replaceAmbiguousBases,
+  reverse,
+  reverseComplement,
+  SequenceManipulation,
+  toDNA,
+  toRNA,
+} from "./sequence-manipulation";
 // User-friendly sequence sorting
 export {
   getTopSequences,
@@ -106,77 +141,34 @@ export {
   type SortOptions,
   sortSequences,
 } from "./sequence-sorter";
+// Sequence validation with IUPAC handling
+export {
+  expandAmbiguous,
+  IUPAC_DNA,
+  IUPAC_PROTEIN,
+  IUPAC_RNA,
+  SequenceType,
+  ValidationMode,
+  // Note: SequenceValidator class moved to operations/validate.ts
+} from "./sequence-validation";
 // Statistics accumulator for streaming analysis
 export {
   calculateSequenceStats,
   type SequenceStats,
   SequenceStatsAccumulator,
 } from "./statistics";
-// Sequence manipulation operations (from sequence-manipulation.ts)
-export {
-  complement,
-  reverse,
-  reverseComplement,
-  toRNA,
-  toDNA,
-  removeGaps,
-  replaceAmbiguousBases,
-  SequenceManipulation,
-} from "./sequence-manipulation";
-
-// Sequence calculations (from calculations.ts)
-export {
-  gcContent,
-  atContent,
-  baseComposition,
-  translateSimple,
-  findQualityTrimStart,
-  findQualityTrimEnd,
-  SequenceCalculations,
-} from "./calculations";
-
-// Pattern matching additions (from pattern-matching.ts)
-export {
-  isPalindromic,
-  findSimplePattern,
-  findPattern as findPatternTransform,
-} from "./pattern-matching";
-// Sequence validation with IUPAC handling
-export {
-  IUPAC_DNA,
-  IUPAC_PROTEIN,
-  IUPAC_RNA,
-  ValidationMode,
-  SequenceType,
-  expandAmbiguous,
-  // Note: SequenceValidator class moved to operations/validate.ts
-} from "./sequence-validation";
-
 // Common validation utilities for operations
 export {
+  CommonValidators,
   createOptionsValidator,
   createSafeOptionsValidator,
-  CommonValidators,
   createValidationError,
 } from "./validation-utils";
 
-// Genomic coordinate parsing and validation
-export {
-  type ParsedCoordinates,
-  validateRegionString,
-  validateRegionParts,
-  validateFinalCoordinates,
-  parseStartPosition,
-  parseEndPosition,
-} from "./coordinates";
-
-// Re-export SequenceValidator from operations for backward compatibility
-export { SequenceValidator } from "../validate";
-
+import * as calcs from "./calculations";
+import { findSimplePattern as findPat, isPalindromic as isPalin } from "./pattern-matching";
 // Import all items needed for backward compatibility object
 import * as seqManip from "./sequence-manipulation";
-import * as calcs from "./calculations";
-import { isPalindromic as isPalin, findSimplePattern as findPat } from "./pattern-matching";
 
 // Backward compatibility: SequenceTransforms combined from new modules
 export const SequenceTransforms = {

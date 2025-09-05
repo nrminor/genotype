@@ -23,7 +23,7 @@
  * - Deduplication adds ~20% overhead with Set tracking
  */
 
-import type { FastqSequence, AbstractSequence } from "../../types";
+import type { AbstractSequence, FastqSequence } from "../../types";
 import { ExternalSorter } from "./memory";
 
 /**

@@ -11,14 +11,14 @@
  * clear error messages for debugging indexing issues.
  */
 
-import type {
-  VirtualOffset,
-  BAIBinNumber,
-  VirtualOffsetUtils as VirtualOffsetUtilsType,
-  BinningUtils as BinningUtilsType,
-} from "../../types";
-import { VirtualOffsetSchema, BAIBinNumberSchema } from "../../types";
 import { BamError } from "../../errors";
+import type {
+  BAIBinNumber,
+  BinningUtils as BinningUtilsType,
+  VirtualOffset,
+  VirtualOffsetUtils as VirtualOffsetUtilsType,
+} from "../../types";
+import { BAIBinNumberSchema, VirtualOffsetSchema } from "../../types";
 
 // Constants for virtual offset calculations
 const BLOCK_OFFSET_BITS = 48;

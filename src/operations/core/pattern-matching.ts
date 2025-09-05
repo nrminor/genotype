@@ -26,8 +26,8 @@
  */
 
 import type { AbstractSequence } from "../../types";
-import { expandAmbiguous } from "./sequence-validation";
 import { reverseComplement } from "./sequence-manipulation";
+import { expandAmbiguous } from "./sequence-validation";
 
 // =============================================================================
 // TYPES AND INTERFACES

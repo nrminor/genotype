@@ -3,14 +3,14 @@
 [![CI](https://github.com/nrminor/genotype/actions/workflows/ci.yml/badge.svg)](https://github.com/nrminor/genotype/actions/workflows/ci.yml)
 [![Build Native](https://github.com/nrminor/genotype/actions/workflows/build.yml/badge.svg)](https://github.com/nrminor/genotype/actions/workflows/build.yml)
 [![Genomics Validation](https://github.com/nrminor/genotype/actions/workflows/genomics-validation.yml/badge.svg)](https://github.com/nrminor/genotype/actions/workflows/genomics-validation.yml)
-[![Documentation](https://github.com/nrminor/genotype/actions/workflows/docs.yml/badge.svg)](https://github.com/nrminor/genotype/actions/workflows/docs.yml)
+[![Docs Build Status](https://github.com/nrminor/genotype/actions/workflows/docs.yml/badge.svg)](https://github.com/nrminor/genotype/actions/workflows/docs.yml)
+[![Docs Site](https://img.shields.io/badge/docs-TypeDoc-blue.svg)](https://nrminor.github.io/genotype/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5+-blue.svg)](https://www.typescriptlang.org/)
-![Rust v1.89.0](https://img.shields.io/badge/rust-%23000000.svg?style=for-the-badge&logo=rust&logoColor=white)
-![Bun v1.2.21](https://img.shields.io/badge/Bun-%23000000.svg?style=for-the-badge&logo=bun&logoColor=white)
+[![Bun v1.2.21](https://img.shields.io/badge/Bun-000?logo=bun&logoColor=fff)](#)
+[![Rust v1.89.0](https://img.shields.io/badge/Rust-%23000000.svg?e&logo=rust&logoColor=white)](#)
 [![Checked with Biome](https://img.shields.io/badge/Checked_with-Biome-60a5fa?style=flat&logo=biome)](https://biomejs.dev)
 [![Formatted with Biome](https://img.shields.io/badge/Formatted_with-Biome-60a5fa?style=flat&logo=biome)](https://biomejs.dev/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Documentation](https://img.shields.io/badge/docs-TypeDoc-blue.svg)](https://nrminor.github.io/genotype/)
 
 > [!CAUTION]
 > GenoType is coming together but is not ready for the bigtime yet. In

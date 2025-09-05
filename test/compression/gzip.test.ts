@@ -5,7 +5,7 @@
  * optimizations and proper error handling.
  */
 
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { GzipDecompressor } from "../../src/compression/gzip";
 import { CompressionError } from "../../src/errors";
 

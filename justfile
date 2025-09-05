@@ -166,7 +166,7 @@ alias lf := lint-fix
 # Format code with Prettier
 [group('lint')]
 fmt:
-    bun run format
+    bun run format && bunx biome check --write
 
 alias f := fmt
 
@@ -232,7 +232,7 @@ docs:
 
 alias doc := docs
 
-# Serve documentation locally  
+# Serve documentation locally
 [group('dev')]
 docs-serve:
     bun run docs:serve

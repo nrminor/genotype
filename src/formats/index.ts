@@ -15,68 +15,63 @@
  * ```
  */
 
-// FASTA format exports
-export { FastaParser, FastaWriter, FastaUtils } from "./fasta";
-
-// FASTQ format exports
-export {
-  FastqParser,
-  FastqWriter,
-  FastqUtils,
-  QualityScores,
-  toNumbers,
-  scoresToString,
-  getOffset,
-  detectEncoding,
-  calculateStats,
-} from "./fastq";
-
-// BED format exports
-export {
-  BedParser,
-  BedWriter,
-  BedFormat,
-  BedUtils,
-  detectVariant,
-  validateStrand,
-  parseRgb,
-  validateCoordinates,
-  detectFormat,
-  countIntervals,
-  calculateStats as calculateBedStats,
-  sortIntervals,
-  mergeOverlapping,
-} from "./bed";
-
-// SAM format exports
-export { SAMParser, SAMWriter, SAMUtils } from "./sam";
-
 // BAM format exports
 export {
-  BAMParser,
-  BAMWriter,
-  BAMUtils,
-  BGZFCompressor,
   BAIReader,
   BAIWriter,
-  VirtualOffsetUtils,
+  BAMParser,
+  BAMUtils,
+  BAMWriter,
+  BGZFCompressor,
   BinningUtils,
+  VirtualOffsetUtils,
 } from "./bam";
-
+// BED format exports
+export {
+  BedFormat,
+  BedParser,
+  BedUtils,
+  BedWriter,
+  calculateStats as calculateBedStats,
+  countIntervals,
+  detectFormat,
+  detectVariant,
+  mergeOverlapping,
+  parseRgb,
+  sortIntervals,
+  validateCoordinates,
+  validateStrand,
+} from "./bed";
+// FASTA format exports
+export { FastaParser, FastaUtils, FastaWriter } from "./fasta";
+// FASTQ format exports
+export {
+  calculateStats,
+  detectEncoding,
+  FastqParser,
+  FastqUtils,
+  FastqWriter,
+  getOffset,
+  QualityScores,
+  scoresToString,
+  toNumbers,
+} from "./fastq";
 // GTF format exports
 export {
-  GtfParser,
-  GtfWriter,
-  GtfFormat,
-  GtfUtils,
-  type GtfFeature,
-  type GtfParserOptions,
-  validateGtfCoordinates,
-  parseGtfAttributes,
-  validateGtfStrand,
-  parseGtfScore,
-  parseGtfFrame,
-  detectGtfFormat,
   countGtfFeatures,
+  detectGtfFormat,
   filterFeaturesByType,
+  type GtfFeature,
+  GtfFormat,
+  GtfParser,
+  type GtfParserOptions,
+  GtfUtils,
+  GtfWriter,
+  parseGtfAttributes,
+  parseGtfFrame,
+  parseGtfScore,
+  validateGtfCoordinates,
+  validateGtfStrand,
 } from "./gtf";
+// SAM format exports
+export { SAMParser, SAMUtils, SAMWriter } from "./sam";

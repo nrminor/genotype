@@ -2,27 +2,27 @@
  * Tests for cross-platform file reading infrastructure
  */
 
-import { test, expect, describe, beforeAll, afterAll } from "bun:test";
-import {
-  exists,
-  getSize,
-  getMetadata,
-  createStream,
-  readToString,
-  FileReader,
-} from "../../src/io/file-reader";
-import {
-  StreamUtils,
-  readLines,
-  processBuffer,
-  pipe,
-  batchLines,
-  processChunks,
-} from "../../src/io/stream-utils";
-import { detectRuntime } from "../../src/io/runtime";
-import { FileError, StreamError } from "../../src/errors";
-import { writeFileSync, mkdirSync, rmSync } from "fs";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
+import { FileError, StreamError } from "../../src/errors";
+import {
+  createStream,
+  exists,
+  FileReader,
+  getMetadata,
+  getSize,
+  readToString,
+} from "../../src/io/file-reader";
+import { detectRuntime } from "../../src/io/runtime";
+import {
+  batchLines,
+  pipe,
+  processBuffer,
+  processChunks,
+  readLines,
+  StreamUtils,
+} from "../../src/io/stream-utils";
 
 // Test fixtures directory - use absolute path for reliability
 const FIXTURES_DIR = join(process.cwd(), "test", "io", "fixtures");

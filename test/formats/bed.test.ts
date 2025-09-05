@@ -6,9 +6,9 @@
  * "Respect existing code - understand why it exists before changing"
  */
 
-import { describe, expect, test, beforeEach } from "bun:test";
-import { BedParser, BedWriter, BedUtils } from "../../src/formats/bed";
+import { beforeEach, describe, expect, test } from "bun:test";
 import { BedError } from "../../src/errors";
+import { BedParser, BedUtils, BedWriter } from "../../src/formats/bed";
 import type { BedInterval } from "../../src/types";
 
 describe("BED Format - Current Implementation Behavior", () => {

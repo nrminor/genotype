@@ -6,6 +6,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import { gzipSync } from "fflate";
 import { GzipDecompressor } from "../../src/compression/gzip";
 import { CompressionError } from "../../src/errors";
 
@@ -42,8 +43,7 @@ describe("GzipDecompressor", () => {
     test("should handle size limits", async () => {
       // Create valid gzip data that will exceed size limit when decompressed
       const largeContent = "A".repeat(2 * 1024 * 1024); // 2MB content
-      const zlib = require("zlib");
-      const largeGzipData = new Uint8Array(zlib.gzipSync(largeContent));
+      const largeGzipData = gzipSync(new TextEncoder().encode(largeContent));
 
       const options = { maxOutputSize: 1024 * 1024 }; // 1MB limit
 
@@ -114,8 +114,7 @@ describe("GzipDecompressor", () => {
 
       // Create valid gzip test data
       const testContent = ">test\nATCG\n";
-      const zlib = require("zlib");
-      const validGzipData = new Uint8Array(zlib.gzipSync(testContent));
+      const validGzipData = gzipSync(new TextEncoder().encode(testContent));
 
       // Create input stream
       const inputStream = new ReadableStream({
@@ -280,8 +279,7 @@ describe("GzipDecompressor", () => {
       const smallLimit = 1024; // 1KB limit
       // Create valid gzip data that will exceed limit
       const largeContent = "A".repeat(2048); // 2KB content
-      const zlib = require("zlib");
-      const largeGzipData = new Uint8Array(zlib.gzipSync(largeContent));
+      const largeGzipData = gzipSync(new TextEncoder().encode(largeContent));
 
       const options = { maxOutputSize: smallLimit };
 

@@ -51,26 +51,26 @@ jobs:
             "https://ftp.ncbi.nlm.nih.gov/genomes/refseq/bacteria/Escherichia_coli/reference/GCF_000005825.2_ASM582v2/GCF_000005825.2_ASM582v2_genomic.fna.gz" \
             || echo "Failed to download E. coli genome, using local test data"
       
-      - name: Validate FASTA parsing with real data
+      - name: Validate format parsing with real data
         run: |
           # Test with downloaded data if available, otherwise skip gracefully
           if [ -f test/fixtures/real/sars-cov-2.fasta.gz ]; then
             echo "Testing with SARS-CoV-2 genome..."
-            bun test test/integration/real-data.test.ts --timeout 30000 || echo "Real data tests skipped - files not available"
+            echo "Real genomics data tests would run here when implemented"
           else
             echo "Real genomics data not available, running standard format tests only"
-            bun test test/formats/ --timeout 30000
           fi
+          bun test test/formats/*.test.ts --timeout 30000
       
       - name: Validate compression handling
         run: |
-          bun test test/compression/ --timeout 30000
+          bun test test/compression/*.test.ts --timeout 30000
       
       - name: Memory usage validation
         run: |
-          # Test streaming behavior with larger synthetic datasets
-          echo "Testing memory efficiency with synthetic large datasets..."
-          bun test test/integration/memory-efficiency.test.ts --timeout 60000 || echo "Memory tests not yet implemented"
+          # Test streaming behavior with existing integration tests
+          echo "Testing integration scenarios..."
+          bun test test/integration/*.test.ts --timeout 60000
 
   validate-sequence-operations:
     name: Validate Sequence Operations
@@ -89,7 +89,7 @@ jobs:
       
       - name: Test core sequence operations
         run: |
-          bun test test/operations/core/ --timeout 30000
+          bun test test/operations/core/*.test.ts --timeout 30000
       
       - name: Test SeqOps pipeline operations
         run: |

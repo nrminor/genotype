@@ -73,6 +73,18 @@
 !/test/compression/*.test.ts
 !/test/io/
 !/test/io/*.test.ts
+!/test/operations/
+!/test/operations/*.test.ts
+!/test/operations/core/
+!/test/operations/core/*.test.ts
+!/test/operations/processors/
+!/test/operations/processors/*.test.ts
+!/test/integration/
+!/test/integration/*.test.ts
+!/test/utils/
+!/test/utils/*.test.ts
+!/test/utils/*.ts
+!/test/*.test.ts
 
 # Test data fixtures
 !/test/fixtures/

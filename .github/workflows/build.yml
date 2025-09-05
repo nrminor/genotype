@@ -2,6 +2,38 @@ name: Build Native Modules
 on:
   push:
     tags: ['v*']
+    paths:
+      # Native Rust source code
+      - 'src/native/**/*.rs'
+      - 'src/native/**/Cargo.toml'
+      - 'Cargo.toml'
+      # Rust toolchain configuration
+      - 'rust-toolchain*'
+      - '.rustfmt.toml'
+      - 'rustfmt.toml'
+      - 'clippy.toml'
+      - '.clippy.toml'
+      - 'Cross.toml'
+      # TypeScript FFI integration
+      - 'src/native.ts'
+      # Build scripts that handle native modules
+      - 'scripts/build.mjs'
+      - 'scripts/*native*'
+  pull_request:
+    paths:
+      # Same paths for PR validation
+      - 'src/native/**/*.rs'
+      - 'src/native/**/Cargo.toml'
+      - 'Cargo.toml'
+      - 'rust-toolchain*'
+      - '.rustfmt.toml'
+      - 'rustfmt.toml'
+      - 'clippy.toml'
+      - '.clippy.toml'
+      - 'Cross.toml'
+      - 'src/native.ts'
+      - 'scripts/build.mjs'
+      - 'scripts/*native*'
   workflow_dispatch:
 
 env:

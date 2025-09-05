@@ -35,7 +35,7 @@
     "entryPointStrategy": "expand",
     "entryPoints": ["src/index.ts"],
     "out": "docs",
-    "name": "Genotype API Documentation", 
+    "name": "Genotype API Documentation",
     "readme": "README.md",
     "includeVersion": true,
     "excludePrivate": true,
@@ -49,9 +49,20 @@
     "groupOrder": ["Functions", "Classes", "Interfaces", "Type Aliases", "Variables"],
     "exclude": ["src/compression/fflate-gzip.ts"],
     "blockTags": [
-      "@deprecated", "@param", "@returns", "@throws", "@example", 
-      "@since", "@version", "@see", "@remarks", "@group", "@category",
-      "@optimize", "@id", "@yields"
+      "@deprecated",
+      "@param",
+      "@returns",
+      "@throws",
+      "@example",
+      "@since",
+      "@version",
+      "@see",
+      "@remarks",
+      "@group",
+      "@category",
+      "@optimize",
+      "@id",
+      "@yields"
     ],
     "validation": {
       "notDocumented": true,

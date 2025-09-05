@@ -1,6 +1,6 @@
 /**
  * Basic BED format tests to establish current behavior
- * 
+ *
  * Simpler test suite to understand current bed.ts implementation
  * before comprehensive refactoring. Following AGENTS.md principle:
  * "Respect existing code - understand why it exists before changing"
@@ -68,7 +68,7 @@ chr2\t3000\t4000
   test("detects format correctly", () => {
     const bedData = "chr1\t1000\t2000\n";
     expect(BedUtils.detectFormat(bedData)).toBe(true);
-    
+
     const notBedData = ">seq1\nATCG\n";
     expect(BedUtils.detectFormat(notBedData)).toBe(false);
   });

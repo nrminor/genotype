@@ -2,32 +2,61 @@
 
 [![Documentation](https://img.shields.io/badge/docs-TypeDoc-blue.svg)](https://nrminor.github.io/genotype/)
 
-A high-performance TypeScript library for genomic sequence processing that
-brings the elegance of Unix pipelines to bioinformatics workflows. Process
-millions of sequences with streaming operations, zero dependencies, and an
-obsession with developer experience.
+> [!CAUTION]
+> GenoType is coming together but is not ready for the bigtime yet. In
+> particular, its BAM parser and compression handling are under-tested and may
+> come with correctness issues. However, FASTQ and FASTA parsing along with the
+> sequence operations `SeqOps` API is comparatively more stable and working in
+> internal tests. That said, _breaking changes should be expected_--this is
+> pre-alpha software.
 
-## Why GenoType?
+## GenoType's Goal?
+
+GenoType's goal is to fill a gap in the TypeScript ecosystem by providing a
+fully type-safe, performant, idiomatic library for parsing and processing
+genomic data in any of the major bioinformatic data formats. It's built with an
+obsession with developer experience and is meant to enable users to compose
+their own pipelines of sequence transformations. For example, the following
+"pipeline", mirroring a Unix pipeline of operations from the excellent
+[Seqkit command line interface](https://bioinf.shenwei.me/seqkit/), can be
+composed in TypeScript like so:
 
 ```typescript
-import { seqops } from 'genotype';
+import { seqops } from "genotype";
 
-// Complete genomic analysis pipeline with Unix philosophy elegance
 const results = await seqops(genomeSequences)
-  .grep({ pattern: /^chr\d+/, target: 'id' }) // Find chromosome sequences
+  .grep({ pattern: /^chr\d+/, target: "id" }) // Find chromosome sequences
   .filter({ minLength: 100, maxGC: 60 }) // Quality filtering
-  .sample({ n: 1000, strategy: 'reservoir' }) // Statistical sampling
-  .sort({ by: 'length', order: 'desc' }) // Compression-optimized sorting
-  .rmdup({ by: 'sequence', caseSensitive: false }) // Remove duplicates
-  .writeFasta('analyzed_genome.fasta');
+  .sample({ n: 1000, strategy: "reservoir" }) // Statistical sampling
+  .sort({ by: "length", order: "desc" }) // Compression-optimized sorting
+  .rmdup({ by: "sequence", caseSensitive: false }) // Remove duplicates
+  .writeFasta("analyzed_genome.fasta");
 ```
 
-**Each operation does exactly one thing well** - the hallmark of Unix philosophy perfected in TypeScript.
+Eventually, GenoType will ship with complete feature parity with Seqkit.
+Together with Bun or Deno, this will mean users can write sequence
+transformation pipelines with the DX and type safety of TypeScript instead of
+writing Bash. Bun/Deno scripts performing these pipelines can then be
+[compiled
+into portable standalone executables](https://bun.com/docs/bundler/executables)--unlike
+Bash scripts using `seqkit` or whatever else, where users can still only use the
+scripts if `seqkit` and other dependencies installed,
+[`Bun`](https://bun.com/docs/bundler/executables) or
+[`Deno`](https://docs.deno.com/runtime/reference/cli/compile/) executables using
+GenoType are fully self-contained and portable.
+
+This combination of a composable, type-safe API for building dependency-free
+bioinformatic processing programs is what GenoType is all about.
 
 ## Installation
 
+> [!WARNING]
+> GenoType is not available on NPM yet, so the following will not work. Instead,
+> if you're using bun, you can add it from source (again, at your own risk) into
+> your own project with `bun add github:nrminor/genotype`.
+
 ```bash
-bun add genotype
+bun add @nrminor/genotype
 ```
 
 ## Real-World Examples
@@ -38,12 +67,12 @@ bun add genotype
 always, it needs quality control before analysis.
 
 ```typescript
-import { seqops } from 'genotype';
-import { FastqParser } from 'genotype/formats';
+import { seqops } from "genotype";
+import { FastqParser } from "genotype/formats";
 
 // Parse FASTQ with automatic quality encoding detection
 const parser = new FastqParser({ autoDetectEncoding: true });
-const reads = parser.parseFile('SRR12345678.fastq.gz');
+const reads = parser.parseFile("SRR12345678.fastq.gz");
 
 // Build a comprehensive QC pipeline
 const qcStats = await seqops(reads)
@@ -83,8 +112,8 @@ QC Report:
 removed before variant calling.
 
 ```typescript
-const FORWARD_PRIMER = 'TCGTCGGCAGCGTCAGATGTGTATAAGAGACAG';
-const REVERSE_PRIMER = 'GTCTCGTGGGCTCGGAGATGTGTATAAGAGACAG';
+const FORWARD_PRIMER = "TCGTCGGCAGCGTCAGATGTGTATAAGAGACAG";
+const REVERSE_PRIMER = "GTCTCGTGGGCTCGGAGATGTGTATAAGAGACAG";
 
 const trimmedAmplicons = await seqops(amplicons)
   // Remove primers from both ends
@@ -105,8 +134,8 @@ const trimmedAmplicons = await seqops(amplicons)
   // Filter out sequences that are too short after trimming
   .filter({ minLength: 100 })
   // Extract only the target region (e.g., 16S V4)
-  .subseq({ region: '1:250' })
-  .writeFasta('trimmed_amplicons.fasta');
+  .subseq({ region: "1:250" })
+  .writeFasta("trimmed_amplicons.fasta");
 ```
 
 ### CRISPR Guide RNA Design
@@ -165,7 +194,7 @@ const processedReads = await seqops(rnaseqReads)
   // Remove adapter sequences
   .clean({
     removeAdapters: true,
-    adapters: ['AGATCGGAAGAGC', 'AATGATACGGCGAC'],
+    adapters: ["AGATCGGAAGAGC", "AATGATACGGCGAC"],
   })
   // Filter rRNA contamination (using bloom filter for speed)
   .filter({
@@ -177,12 +206,12 @@ const processedReads = await seqops(rnaseqReads)
   })
   // Deduplicate while preserving read counts
   .deduplicate({
-    by: 'sequence',
+    by: "sequence",
     keepCounts: true,
   })
   // Convert to format for aligner
   .transform({ upperCase: true })
-  .writeFastq('processed_rnaseq.fastq');
+  .writeFastq("processed_rnaseq.fastq");
 ```
 
 ### Viral Genome Assembly QC
@@ -198,10 +227,10 @@ const validationReport = await seqops(assemblies)
   })
   // Validate sequence content
   .validate({
-    mode: 'strict',
+    mode: "strict",
     allowAmbiguous: true, // Some Ns acceptable
     maxAmbiguous: 100, // But not too many
-    action: 'reject', // Reject invalid sequences
+    action: "reject", // Reject invalid sequences
   })
   // Check for frameshifts in coding regions
   .validate({
@@ -212,8 +241,8 @@ const validationReport = await seqops(assemblies)
   })
   // Add metadata for submission
   .annotate({
-    organism: 'Severe acute respiratory syndrome coronavirus 2',
-    molType: 'genomic RNA',
+    organism: "Severe acute respiratory syndrome coronavirus 2",
+    molType: "genomic RNA",
     isolate: metadata.isolate,
     country: metadata.country,
     collectionDate: metadata.date,
@@ -221,9 +250,11 @@ const validationReport = await seqops(assemblies)
   .stats({ detailed: true });
 
 if (validationReport.passedSequences === validationReport.totalSequences) {
-  console.log('✅ All genomes passed validation');
+  console.log("✅ All genomes passed validation");
 } else {
-  console.log(`⚠️ ${validationReport.failedSequences} genomes failed validation`);
+  console.log(
+    `⚠️ ${validationReport.failedSequences} genomes failed validation`,
+  );
 }
 ```
 
@@ -236,12 +267,12 @@ Process files larger than memory with async iterators:
 ```typescript
 // Process a 100GB FASTQ file without loading it into memory
 const parser = new FastqParser();
-const reads = parser.parseFile('huge_dataset.fastq.gz');
+const reads = parser.parseFile("huge_dataset.fastq.gz");
 
 await seqops(reads)
   .filter({ minLength: 100 })
   .head(1_000_000) // Process first million only
-  .writeFastq('subset.fastq');
+  .writeFastq("subset.fastq");
 ```
 
 ### Type-Safe Pipeline Operations
@@ -270,52 +301,50 @@ await seqops(sequences)
   .filter({ minLength: 100 }) // Remove short sequences
   .transform({ reverseComplement }) // Reverse complement all
   .clean({ removeGaps: true }) // Remove alignment gaps
-  .validate({ mode: 'strict' }) // Ensure valid sequences
-  .deduplicate({ by: 'sequence' }) // Remove duplicates
-  .sort({ by: 'length' }) // Sort by length
+  .validate({ mode: "strict" }) // Ensure valid sequences
+  .deduplicate({ by: "sequence" }) // Remove duplicates
+  .sort({ by: "length" }) // Sort by length
   .head(1000) // Take top 1000
-  .writeFasta('output.fasta'); // Write results
+  .writeFasta("output.fasta"); // Write results
 ```
 
 ### Complete SeqKit Functionality
 
-**✅ 100% SeqKit Feature Parity with Superior Design**
-
-GenoType now provides all critical SeqKit operations through focused, composable methods:
+** SeqKit Feature Parity**
 
 ```typescript
 // Pattern search and filtering (like seqkit grep)
 await seqops(sequences)
-  .grep({ pattern: /^chr\d+/, target: 'id' }) // Regex patterns
+  .grep({ pattern: /^chr\d+/, target: "id" }) // Regex patterns
   .grep({
-    pattern: 'ATCG',
-    target: 'sequence', // Fuzzy sequence matching
+    pattern: "ATCG",
+    target: "sequence", // Fuzzy sequence matching
     allowMismatches: 2,
     searchBothStrands: true,
   })
-  .writeFasta('chromosome_sequences.fasta');
+  .writeFasta("chromosome_sequences.fasta");
 
 // Statistical sampling (like seqkit sample)
 await seqops(millionSequences)
-  .sample({ n: 10000, strategy: 'reservoir', seed: 42 }) // Reproducible sampling
-  .sample({ n: 1000, strategy: 'systematic' }) // Even distribution
-  .writeFasta('sampled_data.fasta');
+  .sample({ n: 10000, strategy: "reservoir", seed: 42 }) // Reproducible sampling
+  .sample({ n: 1000, strategy: "systematic" }) // Even distribution
+  .writeFasta("sampled_data.fasta");
 
 // Compression-optimized sorting (like seqkit sort)
 await seqops(sequences)
-  .sort({ by: 'length', order: 'desc' }) // Length-based clustering
-  .sort({ by: 'gc', order: 'asc' }) // GC content clustering
-  .writeFasta('sorted_for_compression.fasta');
+  .sort({ by: "length", order: "desc" }) // Length-based clustering
+  .sort({ by: "gc", order: "asc" }) // GC content clustering
+  .writeFasta("sorted_for_compression.fasta");
 
 // Sophisticated deduplication (like seqkit rmdup)
 await seqops(sequencingReads)
   .rmdup({
-    by: 'sequence',
+    by: "sequence",
     exact: false, // Bloom filter efficiency
     falsePositiveRate: 0.001,
   }) // Configurable accuracy
-  .rmdup({ by: 'id', exact: true }) // Perfect ID deduplication
-  .writeFasta('deduplicated_reads.fasta');
+  .rmdup({ by: "id", exact: true }) // Perfect ID deduplication
+  .writeFasta("deduplicated_reads.fasta");
 ```
 
 ### Native Performance
@@ -325,9 +354,9 @@ await seqops(sequencingReads)
 ```typescript
 // Operations marked for native acceleration:
 const results = await seqops(millionSequences)
-  .grep({ pattern: 'ATCG' }) // NATIVE_BENEFICIAL: SIMD pattern matching
-  .sort({ by: 'gc' }) // NATIVE_CRITICAL: Vectorized GC calculation
-  .rmdup({ by: 'sequence' }) // NATIVE_CRITICAL: Optimized hash operations
+  .grep({ pattern: "ATCG" }) // NATIVE_BENEFICIAL: SIMD pattern matching
+  .sort({ by: "gc" }) // NATIVE_CRITICAL: Vectorized GC calculation
+  .rmdup({ by: "sequence" }) // NATIVE_CRITICAL: Optimized hash operations
   .collect();
 ```
 

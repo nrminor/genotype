@@ -111,18 +111,18 @@ describe("GzipDecompressor", () => {
 
     test("should handle abort signal in stream", async () => {
       const controller = new AbortController();
-      
+
       // Create valid gzip test data
       const testContent = ">test\nATCG\n";
       const zlib = require("zlib");
       const validGzipData = new Uint8Array(zlib.gzipSync(testContent));
-      
+
       // Create input stream
       const inputStream = new ReadableStream({
         start(streamController) {
           streamController.enqueue(validGzipData);
           streamController.close();
-        }
+        },
       });
 
       // Create decompression stream with abort signal
@@ -134,11 +134,13 @@ describe("GzipDecompressor", () => {
       controller.abort();
 
       // Should handle aborted signal gracefully
-      await expect((async () => {
-        for await (const chunk of decompressedStream) {
-          // Should not reach here due to abort
-        }
-      })()).rejects.toThrow(CompressionError);
+      await expect(
+        (async () => {
+          for await (const chunk of decompressedStream) {
+            // Should not reach here due to abort
+          }
+        })()
+      ).rejects.toThrow(CompressionError);
     });
   });
 

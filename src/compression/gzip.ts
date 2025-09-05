@@ -22,7 +22,7 @@ import type { DecompressorOptions } from "../types";
  * Based on typical genomic file characteristics and processing patterns
  */
 const GENOMIC_SIZE_THRESHOLDS = {
-  SYNC_MAX: 10_000_000,        // 10MB - typical FASTA file
+  SYNC_MAX: 10_000_000, // 10MB - typical FASTA file
   ASYNC_PREFERRED: 50_000_000, // 50MB - large chromosome
   STREAMING_REQUIRED: 100_000_000, // 100MB - whole genome level
 } as const;
@@ -72,7 +72,7 @@ function validateStandardGzipFormat(compressed: Uint8Array): void {
     throw new CompressionError(
       "Invalid gzip magic bytes - file may not be gzip compressed",
       "gzip",
-      "decompress", 
+      "decompress",
       0
     );
   }
@@ -114,17 +114,17 @@ function validateAndMergeOptions(options: DecompressorOptions) {
       "decompress"
     );
   }
-  
+
   return {
     maxOutputSize: optionsResult.maxOutputSize || DEFAULT_GZIP_OPTIONS.maxOutputSize,
     validateIntegrity: optionsResult.validateIntegrity || DEFAULT_GZIP_OPTIONS.validateIntegrity,
-    signal: optionsResult.signal as AbortSignal | undefined
+    signal: optionsResult.signal as AbortSignal | undefined,
   };
 }
 
 function performSyncDecompression(compressed: Uint8Array, maxSize: number): Uint8Array {
   const result = gunzipSync(compressed);
-  
+
   if (result.length > maxSize) {
     throw new CompressionError(
       `Decompressed size ${result.length} exceeds maximum ${maxSize}`,
@@ -132,7 +132,7 @@ function performSyncDecompression(compressed: Uint8Array, maxSize: number): Uint
       "decompress"
     );
   }
-  
+
   return result;
 }
 
@@ -143,25 +143,29 @@ async function performAsyncDecompression(
   return new Promise((resolve, reject) => {
     gunzip(compressed, (error, result) => {
       if (error) {
-        reject(new CompressionError(
-          error.message,
-          "gzip",
-          "decompress",
-          0,
-          "Check if file is properly compressed with standard gzip format"
-        ));
+        reject(
+          new CompressionError(
+            error.message,
+            "gzip",
+            "decompress",
+            0,
+            "Check if file is properly compressed with standard gzip format"
+          )
+        );
         return;
       }
-      
+
       if (result.length > maxSize) {
-        reject(new CompressionError(
-          `Decompressed size ${result.length} exceeds maximum ${maxSize}`,
-          "gzip",
-          "decompress"
-        ));
+        reject(
+          new CompressionError(
+            `Decompressed size ${result.length} exceeds maximum ${maxSize}`,
+            "gzip",
+            "decompress"
+          )
+        );
         return;
       }
-      
+
       resolve(result);
     });
   });
@@ -196,17 +200,19 @@ async function decompressViaFflateStream(
       if (chunk) {
         chunks.push(chunk);
         totalSize += chunk.length;
-        
+
         if (totalSize > options.maxOutputSize) {
-          reject(new CompressionError(
-            `Decompressed size ${totalSize} exceeds maximum ${options.maxOutputSize}`,
-            "gzip",
-            "decompress"
-          ));
+          reject(
+            new CompressionError(
+              `Decompressed size ${totalSize} exceeds maximum ${options.maxOutputSize}`,
+              "gzip",
+              "decompress"
+            )
+          );
           return;
         }
       }
-      
+
       if (final) {
         resolve(concatenateDecompressedChunks(chunks, totalSize));
       }
@@ -215,11 +221,13 @@ async function decompressViaFflateStream(
     try {
       decompressor.push(compressed, true);
     } catch (error) {
-      reject(new CompressionError(
-        error instanceof Error ? error.message : String(error),
-        "gzip",
-        "decompress"
-      ));
+      reject(
+        new CompressionError(
+          error instanceof Error ? error.message : String(error),
+          "gzip",
+          "decompress"
+        )
+      );
     }
   });
 }
@@ -227,12 +235,12 @@ async function decompressViaFflateStream(
 function concatenateDecompressedChunks(chunks: Uint8Array[], totalSize: number): Uint8Array {
   const result = new Uint8Array(totalSize);
   let offset = 0;
-  
+
   for (const chunk of chunks) {
     result.set(chunk, offset);
     offset += chunk.length;
   }
-  
+
   return result;
 }
 
@@ -254,7 +262,7 @@ function concatenateDecompressedChunks(chunks: Uint8Array[], totalSize: number):
  * ```
  *
  * @example Large file (streaming path)
- * ```typescript  
+ * ```typescript
  * const largeFasta = await loadFile('chromosome.fasta.gz');
  * const decompressed = await decompress(largeFasta);
  * ```
@@ -270,20 +278,20 @@ export async function decompress(
   validateStandardGzipFormat(compressed);
 
   const mergedOptions = validateAndMergeOptions(options);
-  
+
   // Check abort signal before starting
   if (mergedOptions.signal?.aborted) {
     throw new CompressionError("Operation was aborted", "gzip", "decompress");
   }
-  
+
   const method = selectDecompressionMethod(compressed.length);
-  
+
   try {
     return await performFflateDecompression(compressed, mergedOptions, method);
   } catch (error) {
     // Tiger Style: Explicit error handling with context preservation
     if (error instanceof CompressionError) throw error;
-    
+
     throw new CompressionError(
       error instanceof Error ? error.message : String(error),
       "gzip",
@@ -300,7 +308,7 @@ export async function decompress(
  * Returns a TransformStream maintaining API compatibility with existing
  * implementation while using fflate's callback-based streaming internally.
  *
- * @param options Optional decompression configuration  
+ * @param options Optional decompression configuration
  * @returns TransformStream for gzip decompression
  * @throws {CompressionError} If stream creation fails
  *
@@ -321,9 +329,11 @@ export function createStream(
   return createFflateTransformStream(mergedOptions);
 }
 
-function createFflateTransformStream(
-  options: { maxOutputSize: number; validateIntegrity: boolean; signal?: AbortSignal | undefined }
-): TransformStream<Uint8Array, Uint8Array> {
+function createFflateTransformStream(options: {
+  maxOutputSize: number;
+  validateIntegrity: boolean;
+  signal?: AbortSignal | undefined;
+}): TransformStream<Uint8Array, Uint8Array> {
   let decompressor: Gunzip | null = null;
   let totalBytes = 0;
 
@@ -332,35 +342,37 @@ function createFflateTransformStream(
       decompressor = new Gunzip((chunk, final) => {
         if (chunk) {
           totalBytes += chunk.length;
-          
+
           if (totalBytes > options.maxOutputSize) {
-            controller.error(new CompressionError(
-              `Decompressed size ${totalBytes} exceeds maximum ${options.maxOutputSize}`,
-              "gzip",
-              "stream"
-            ));
+            controller.error(
+              new CompressionError(
+                `Decompressed size ${totalBytes} exceeds maximum ${options.maxOutputSize}`,
+                "gzip",
+                "stream"
+              )
+            );
             return;
           }
-          
+
           controller.enqueue(chunk);
         }
-        
+
         if (final) {
           controller.terminate();
         }
       });
     },
-    
+
     transform(chunk) {
       // Check abort signal during processing
       if (options.signal?.aborted) {
         throw new CompressionError("Operation was aborted", "gzip", "stream");
       }
-      
+
       if (!decompressor) {
         throw new CompressionError("Stream not initialized", "gzip", "stream");
       }
-      
+
       try {
         decompressor.push(chunk, false);
       } catch (error) {
@@ -371,12 +383,12 @@ function createFflateTransformStream(
         );
       }
     },
-    
+
     flush() {
       if (!decompressor) {
         throw new CompressionError("Stream not initialized", "gzip", "stream");
       }
-      
+
       try {
         decompressor.push(new Uint8Array(), true);
       } catch (error) {
@@ -386,7 +398,7 @@ function createFflateTransformStream(
           "stream"
         );
       }
-    }
+    },
   });
 }
 
@@ -436,12 +448,12 @@ export function wrapStream(
 
 /**
  * Gzip decompressor interface maintaining existing API
- * 
+ *
  * Provides drop-in replacement for previous implementation while using
  * fflate internally for improved performance and reduced complexity.
  */
 export const GzipDecompressor = {
   decompress,
-  createStream, 
+  createStream,
   wrapStream,
 } as const;

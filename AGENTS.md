@@ -50,7 +50,75 @@ After ANY compaction event:
 **It is UNACCEPTABLE to proceed without project rules and guidelines in
 context.**
 
-## Overview
+## **Collaborative Excellence Protocol**
+
+### **CORE PRINCIPLE: THINK SMALLER, CHECK MORE**
+
+**When forming any goal**: Make it more granular, less ambitious, more
+detail-oriented, and more collaborative. The sooner agents check in to ensure
+they're on the right track, the better.
+
+### **MICRO-STEP PRECISION**
+
+- **Break everything into 10-20 line components** with independent validation
+- **Test after each tiny change** - never accumulate large modifications
+- **Document specific achievement** of each micro-component
+- **Ask before proceeding** when encountering complexity or architectural
+  decisions
+
+### **CONSTANT PROGRESS COMMUNICATION**
+
+```bash
+echo "=== Starting [specific micro-task] ===" >> reports/$(date +%Y%m%d)/[PROJECT]/PROGRESS_LOG.md
+echo "Found: [specific discovery]" >> reports/$(date +%Y%m%d)/[PROJECT]/PROGRESS_LOG.md  
+echo "✅ [specific achievement completed]" >> reports/$(date +%Y%m%d)/[PROJECT]/PROGRESS_LOG.md
+```
+
+- **Log every 10-20 lines of work** with what was actually accomplished
+- **Document domain reasoning** for sophisticated features in
+  reports/DATE/PROJECT/ markdown files
+- **Preserve working functionality** while making incremental improvements
+
+### **EXTRAORDINARY SKEPTICISM**
+
+- **Question every assumption** about what "appears to work" or "looks complete"
+- **Systematically verify requirements** against actual implementation, not
+  appearances
+- **Measure actual problems** before suggesting fixes or simplifications
+- **Never assume sophistication = completion** without evidence-based checking
+
+### **DOMAIN EXPERTISE PRESERVATION**
+
+- **Complex implementations often represent months of domain research**
+- **Enhance through type system improvements** rather than simplifying away
+  domain knowledge
+- **Trust that domain complexity usually serves accuracy** unless proven
+  otherwise
+- **Ask before modifying working sophisticated functionality**
+
+### **VALIDATION PROTOCOL**
+
+```bash
+# After each 10-20 line micro-step:
+bun test [relevant-tests]  # Component works
+bun run validate          # Full pipeline works
+echo "✅ [achievement] preserved domain expertise" >> reports/$(date +%Y%m%d)/[PROJECT]/LOG.md
+```
+
+### **SUCCESS RECOGNITION**
+
+- **Enhanced domain expertise + TypeScript excellence + functionality
+  preservation**
+- **Frequent collaborative check-ins** that prevent problems before they occur
+- **Evidence-based progress** with measurable improvements at each step
+
+This approach has proven **unreasonably effective** because it prevents
+accumulation of complex changes, preserves valuable domain knowledge, and
+enables precise rollback when needed.
+
+---
+
+## Project Overview
 
 Genotype is a high-performance TypeScript library for working with genomic data
 formats. It provides streaming parsers and writers for FASTA, FASTQ, SAM, BAM,
@@ -146,15 +214,8 @@ This library also embraces the wisdom of the
 ### Zero-Dependency Philosophy
 
 **Dependencies are liabilities.** With Bun's comprehensive standard library and
-built-in tooling, we enforce an extremely strict zero-dependency policy for
-TypeScript code. Every external dependency is a potential source of:
-
-- Security vulnerabilities
-- Version conflicts
-- Maintenance burden
-- Bundle size bloat
-- Breaking changes
-- Supply chain attacks
+built-in tooling, we enforce an strict low-dependency policy for TypeScript
+code.
 
 #### Bun Eliminates Common Dependencies
 
@@ -184,7 +245,7 @@ TypeScript code. Every external dependency is a potential source of:
 **Only these dependencies are permitted:**
 
 1. **arktype** - Runtime validation (core functionality)
-2. **Development-only tools** - TypeScript, Prettier, specific linters
+2. **Development-only tools** - TypeScript, Biome, specific linters
 3. **Domain-specific libraries** - Only after exhaustive justification
 
 **Any new dependency requires:**
@@ -194,29 +255,6 @@ TypeScript code. Every external dependency is a potential source of:
 3. Security audit of the package
 4. Commitment to eventual removal/replacement
 
-#### Implementation Without Dependencies
-
-```typescript
-// ❌ BAD: Using external dependencies
-import fetch from 'node-fetch';
-import { v4 as uuid } from 'uuid';
-import chalk from 'chalk';
-import dotenv from 'dotenv';
-
-// ✅ GOOD: Using Bun's native capabilities
-// Fetch is global
-const response = await fetch('https://api.example.com');
-
-// UUID is built-in
-const id = crypto.randomUUID();
-
-// Console styling is native
-console.log('\x1b[32m%s\x1b[0m', 'Success!');
-
-// .env files load automatically
-console.log(process.env.API_KEY);
-```
-
 ## ⚠️ MANDATORY FEATURE VALIDATION
 
 **EVERY FEATURE CONTRIBUTION MUST PASS ALL VALIDATION CHECKS BEFORE BEING
@@ -225,7 +263,7 @@ DECLARED COMPLETE.**
 **It is UNACCEPTABLE to declare work finished when ANY of the following fail:**
 
 - Type checking errors
-- ESLint errors OR warnings
+- Biome errors OR warnings
 - Test failures
 - Build failures
 - Rust compilation errors
@@ -233,7 +271,7 @@ DECLARED COMPLETE.**
 
 **ZERO TOLERANCE for linting issues:**
 
-- ALL ESLint warnings must be resolved
+- ALL Biome warnings must be resolved
 - ALL TypeScript strict mode violations must be fixed
 - NO suppression comments (@ts-ignore, eslint-disable) without documented
   justification
@@ -262,7 +300,7 @@ A task is ONLY complete when:
 - ✅ `bun run validate` passes with ZERO errors AND ZERO warnings
 - ✅ Tests exist and pass
 - ✅ No TypeScript errors
-- ✅ No ESLint warnings or errors
+- ✅ No Biome warnings or errors
 - ✅ No build failures
 - ✅ Evidence provided (full validation output showing 0 problems)
 
@@ -272,76 +310,17 @@ Before marking ANY task complete, you MUST:
 
 1. Show the COMPLETE output of `bun run validate`
 2. Show the test results
-3. Show the ESLint output explicitly stating "✔ 0 problems (0 errors, 0
+3. Show the Biome output explicitly stating "✔ 0 problems (0 errors, 0
    warnings)"
 4. Explicitly state: "Validation passed, tests passed, ZERO errors, ZERO
    warnings"
 5. If validation fails OR any warnings exist, the task stays "in_progress" or
    moves to "blocked"
 
-### Required Validation Commands
-
-**For TypeScript-only contributions:**
-
-```bash
-bun run validate
-# Equivalent to: bun run lint && bun run test && bun run build
-```
-
-**For contributions involving Rust/native code:**
-
-```bash
-bun run validate:full
-# Equivalent to: bun run lint && bun run test && bun run test:rust && bun run build:with-native
-```
-
-### Individual Validation Steps
-
-You can run individual steps for debugging:
-
-```bash
-# Type checking and linting
-bun run lint
-
-# TypeScript tests
-bun run test
-
-# Rust tests
-bun run test:rust
-
-# TypeScript build
-bun run build
-
-# Full build with native library
-bun run build:with-native
-```
-
-### Validation Requirements
-
-**ALL of the following MUST be true before declaring any work complete:**
-
-1. ✅ **`bun run lint`** - Zero TypeScript compilation errors AND zero ESLint
-   warnings
-   - Output must show: "✔ 0 problems (0 errors, 0 warnings)"
-   - ANY number other than 0 means work is INCOMPLETE
-2. ✅ **`bun run test`** - All TypeScript tests pass
-3. ✅ **`bun run test:rust`** - All Rust tests pass (if applicable)
-4. ✅ **`bun run build`** - Clean TypeScript build
-5. ✅ **`bun run build:with-native`** - Clean native + TypeScript build (if
-   applicable)
-
-**NO EXCEPTIONS. NO "I'll fix it later." NO "It's just warnings." NO "It still
-works."**
-
-**323 warnings is 323 problems. 1 warning is 1 problem. ZERO is the only
-acceptable number.**
-
-### When to Use Each Validation Level
-
-- **`bun run validate`** - Most feature contributions (parsers, utilities,
-  types)
-- **`bun run validate:full`** - Native library changes, FFI modifications,
-  performance optimizations
+See the scripts defined in `package.json` and especially the recipes in the
+project `justfile` for what you and other developers will use to orchestrate
+formatting, linting, building, and testing--you will be using one or both
+extensively during your work with this project.
 
 ### Linting Standards - ZERO WARNINGS POLICY
 
@@ -349,7 +328,7 @@ acceptable number.**
 
 #### What Constitutes a Linting Violation:
 
-- **ESLint warnings** - ALL must be fixed, not suppressed
+- **Biome warnings** - ALL must be fixed, not suppressed
 - **TypeScript strict mode violations** - Fix the code, not the config
 - **Unused variables** - Remove them
 - **Missing return types** - Add explicit types
@@ -376,15 +355,6 @@ acceptable number.**
 4. **Maintenance burden** - Future developers inherit your mess
 5. **Quality erosion** - Standards slip over time
 
-#### Common ESLint Warnings That MUST Be Fixed:
-
-- `@typescript-eslint/no-explicit-any` - Use proper types
-- `@typescript-eslint/explicit-function-return-type` - Add return types
-- `@typescript-eslint/strict-boolean-expressions` - Handle all cases explicitly
-- `complexity` - Refactor complex functions
-- `max-lines-per-function` - Split large functions
-- And ALL others - no exceptions
-
 ### Failure Protocol
 
 If ANY validation step fails OR any warnings exist:
@@ -396,66 +366,6 @@ If ANY validation step fails OR any warnings exist:
 
 **Work is NOT complete until validation shows: ✔ 0 problems (0 errors, 0
 warnings)**
-
-#### Bioinformatics-Specific Examples
-
-```typescript
-// ❌ BAD: Using external streaming libraries
-import { Transform } from 'stream';
-import through2 from 'through2';
-import split2 from 'split2';
-
-// ✅ GOOD: Using native streams and built-in utilities
-const stream = new ReadableStream({
-  async start(controller) {
-    // Native streaming implementation
-  },
-});
-
-// ❌ BAD: External compression libraries
-import zlib from 'node-zlib';
-import { createGunzip } from 'zlib-stream';
-
-// ✅ GOOD: Bun's native compression
-const file = Bun.file('genome.fasta.gz');
-const decompressed = file.stream().pipeThrough(new DecompressionStream('gzip'));
-
-// ❌ BAD: External file watching
-import chokidar from 'chokidar';
-
-// ✅ GOOD: Bun's native file watching
-const watcher = Bun.watch('data/', (event, filename) => {
-  console.log(`${event}: ${filename}`);
-});
-
-// ❌ BAD: External worker pool libraries
-import workerpool from 'workerpool';
-
-// ✅ GOOD: Native Worker API
-new Worker('./sequence-processor.ts');
-```
-
-#### Enforcement
-
-**Package.json must remain minimal:**
-
-```json
-{
-  "name": "genotype",
-  "dependencies": {
-    "arktype": "^2.0.0-rc.8"
-    // NO OTHER RUNTIME DEPENDENCIES
-  },
-  "devDependencies": {
-    "@types/node": "^22.0.0",
-    "typescript": "^5.5.0",
-    "prettier": "^3.0.0"
-    // Development tools only
-  }
-}
-```
-
-**CI will FAIL if unnecessary dependencies are added.**
 
 ### Inverted .gitignore Strategy
 
@@ -584,26 +494,6 @@ oversight against entropy in TypeScript projects.
    - Prefer composition over inheritance
    - Use discriminated unions instead of loose object shapes
 
-#### Code Review Anti-Patterns
-
-**Reject code that:**
-
-- Adds "just in case" functionality
-- Introduces multiple ways to accomplish the same task
-- Uses overly clever abstractions or meta-programming
-- Lacks clear error boundaries and failure modes
-- Adds convenience methods that obscure underlying operations
-- Creates tight coupling between unrelated concerns
-
-**Champion code that:**
-
-- Solves one problem excellently
-- Has obvious failure modes and error handling
-- Can be understood by reading the implementation
-- Composes well with existing functionality
-- Has minimal external dependencies
-- Follows established patterns in the codebase
-
 ### Making Invalid States Unrepresentable
 
 **"Make illegal states unrepresentable"** - if invalid data structures cannot be
@@ -633,49 +523,61 @@ leverage TypeScript's type system and tooling to prevent errors at compile time.
    ```typescript
    // Parser states that prevent invalid transitions
    type ParserState =
-     | { status: 'waiting'; buffer: '' }
-     | { status: 'reading_header'; buffer: string; headerStart: number }
+     | { status: "waiting"; buffer: "" }
+     | { status: "reading_header"; buffer: string; headerStart: number }
      | {
-         status: 'reading_sequence';
-         buffer: string;
-         currentSequence: Partial<FastaSequence>;
-       }
-     | { status: 'complete'; result: FastaSequence };
+       status: "reading_sequence";
+       buffer: string;
+       currentSequence: Partial<FastaSequence>;
+     }
+     | { status: "complete"; result: FastaSequence };
 
    // Quality encoding detection with exhaustive matching
    type QualityEncoding =
-     | { type: 'phred33'; minScore: 0; maxScore: 93; asciiOffset: 33 }
-     | { type: 'phred64'; minScore: 0; maxScore: 93; asciiOffset: 64 }
-     | { type: 'solexa'; minScore: -5; maxScore: 62; asciiOffset: 64 };
+     | { type: "phred33"; minScore: 0; maxScore: 93; asciiOffset: 33 }
+     | { type: "phred64"; minScore: 0; maxScore: 93; asciiOffset: 64 }
+     | { type: "solexa"; minScore: -5; maxScore: 62; asciiOffset: 64 };
    ```
 
 3. **Const Assertions for Exhaustive Validation**
 
    ```typescript
    // Bioinformatics constants with compile-time verification
-   const NUCLEOTIDES = ['A', 'T', 'C', 'G'] as const;
-   const IUPAC_CODES = ['R', 'Y', 'S', 'W', 'K', 'M', 'B', 'D', 'H', 'V', 'N'] as const;
+   const NUCLEOTIDES = ["A", "T", "C", "G"] as const;
+   const IUPAC_CODES = [
+     "R",
+     "Y",
+     "S",
+     "W",
+     "K",
+     "M",
+     "B",
+     "D",
+     "H",
+     "V",
+     "N",
+   ] as const;
    const AMINO_ACIDS = [
-     'A',
-     'C',
-     'D',
-     'E',
-     'F',
-     'G',
-     'H',
-     'I',
-     'K',
-     'L',
-     'M',
-     'N',
-     'P',
-     'Q',
-     'R',
-     'S',
-     'T',
-     'V',
-     'W',
-     'Y',
+     "A",
+     "C",
+     "D",
+     "E",
+     "F",
+     "G",
+     "H",
+     "I",
+     "K",
+     "L",
+     "M",
+     "N",
+     "P",
+     "Q",
+     "R",
+     "S",
+     "T",
+     "V",
+     "W",
+     "Y",
    ] as const;
 
    type Nucleotide = (typeof NUCLEOTIDES)[number];
@@ -685,10 +587,10 @@ leverage TypeScript's type system and tooling to prevent errors at compile time.
    // Exhaustive switch statements with compile-time coverage
    function validateNucleotide(char: string): char is Nucleotide {
      switch (char as Nucleotide) {
-       case 'A':
-       case 'T':
-       case 'C':
-       case 'G':
+       case "A":
+       case "T":
+       case "C":
+       case "G":
          return true;
        default:
          return false;
@@ -700,111 +602,55 @@ leverage TypeScript's type system and tooling to prevent errors at compile time.
 
    ```typescript
    // Chromosome names with compile-time format checking
-   type ChromosomeName = `chr${number}` | `chr${'X' | 'Y' | 'M'}`;
-   type StrandOrientation = '+' | '-' | '.';
+   type ChromosomeName = `chr${number}` | `chr${"X" | "Y" | "M"}`;
+   type StrandOrientation = "+" | "-" | ".";
 
    // BED coordinate validation at type level
    type BedCoordinate<T extends number> = T extends 0 ? never : T;
-   type ValidBedInterval = {
-     chromosome: ChromosomeName;
-     start: BedCoordinate<number>;
-     end: BedCoordinate<number>;
-   } & (start extends infer S
-     ? end extends infer E
-       ? S extends number
-         ? E extends number
-           ? E extends 0
-             ? never
-             : S extends 0
-               ? never
-               : E extends S
-                 ? never
-                 : {}
+   type ValidBedInterval =
+     & {
+       chromosome: ChromosomeName;
+       start: BedCoordinate<number>;
+       end: BedCoordinate<number>;
+     }
+     & (start extends infer S
+       ? end extends infer E
+         ? S extends number ? E extends number ? E extends 0 ? never
+             : S extends 0 ? never
+             : E extends S ? never
+             : {}
            : never
          : never
        : never
-     : never);
+       : never);
    ```
 
 5. **Conditional Types for Input Validation**
 
    ```typescript
    // Only allow valid parser configurations
-   type ParserOptions<T extends 'fasta' | 'fastq' | 'bed'> = {
-     skipValidation?: boolean;
-     maxLineLength?: number;
-   } & (T extends 'fastq'
-     ? {
-         qualityEncoding: 'phred33' | 'phred64' | 'solexa';
+   type ParserOptions<T extends "fasta" | "fastq" | "bed"> =
+     & {
+       skipValidation?: boolean;
+       maxLineLength?: number;
+     }
+     & (T extends "fastq" ? {
+         qualityEncoding: "phred33" | "phred64" | "solexa";
          parseQualityScores: boolean;
        }
-     : {}) &
-     (T extends 'bed'
-       ? {
-           allowZeroBasedCoordinates: boolean;
-         }
+       : {})
+     & (T extends "bed" ? {
+         allowZeroBasedCoordinates: boolean;
+       }
        : {});
 
    // Prevent invalid sequence-quality combinations
    type SequenceWithQuality<S, Q> = S extends string
      ? Q extends string
-       ? S['length'] extends Q['length']
-         ? { sequence: S; quality: Q }
-         : never
+       ? S["length"] extends Q["length"] ? { sequence: S; quality: Q }
        : never
+     : never
      : never;
-   ```
-
-#### Tooling-Based Constraints
-
-1. **ESLint Rules for Genomics Domain**
-
-   ```javascript
-   // Custom ESLint rules in .eslintrc.js
-   rules: {
-     // Prevent direct number arithmetic on coordinates
-     '@genomics/no-coordinate-arithmetic': 'error',
-     // Require branded types for domain objects
-     '@genomics/require-branded-types': 'error',
-     // Prevent string concatenation on sequences
-     '@genomics/no-sequence-concat': 'error',
-     // Require exhaustive switch statements
-     '@typescript-eslint/switch-exhaustiveness-check': 'error',
-   }
-   ```
-
-2. **TypeScript Compiler Strictness**
-
-   ```json
-   // tsconfig.json with maximum strictness
-   {
-     "compilerOptions": {
-       "strict": true,
-       "exactOptionalPropertyTypes": true,
-       "noImplicitReturns": true,
-       "noFallthroughCasesInSwitch": true,
-       "noUncheckedIndexedAccess": true,
-       "noImplicitOverride": true,
-       "allowUnreachableCode": false,
-       "allowUnusedLabels": false
-     }
-   }
-   ```
-
-3. **Pre-commit Hooks for Safety**
-   ```bash
-   # .pre-commit-config.yaml
-   repos:
-     - repo: local
-       hooks:
-         - id: type-coverage
-           name: TypeScript Type Coverage
-           entry: npx type-coverage --at-least 100
-           language: system
-         - id: no-any-types
-           name: Prevent any types
-           entry: npx tsc --noEmit --strict && grep -r "any\|unknown" src/ && exit 1 || exit 0
-           language: system
    ```
 
 #### Runtime-to-Compile-Time Bridges
@@ -813,13 +659,13 @@ leverage TypeScript's type system and tooling to prevent errors at compile time.
 
    ```typescript
    // Generate TypeScript types from ArkType schemas
-   import { Type, type } from 'arktype';
+   import { Type, type } from "arktype";
 
    const FastaSequenceSchema = type({
      format: '"fasta"',
-     id: 'string',
+     id: "string",
      sequence: /^[ACGTURYSWKMBDHVN\-\.\*]+$/i,
-     length: 'number>0',
+     length: "number>0",
    });
 
    // Extract compile-time type from runtime schema
@@ -835,8 +681,8 @@ leverage TypeScript's type system and tooling to prevent errors at compile time.
      }
 
      sequence<T extends string>(
-       seq: T
-     ): T extends `${string}${Exclude<string, 'ACGTURYSWKMBDHVN-.*'>}${string}`
+       seq: T,
+     ): T extends `${string}${Exclude<string, "ACGTURYSWKMBDHVN-.*">}${string}`
        ? never
        : FastaSequenceBuilder & { _sequence: T } {
        this.data.sequence = seq;
@@ -857,10 +703,12 @@ leverage TypeScript's type system and tooling to prevent errors at compile time.
 
    function assertCoordinateOrder<T extends number, U extends number>(
      start: T,
-     end: U
+     end: U,
    ): asserts start is T & { __lessThan: U } {
      if (start >= end) {
-       throw new Error(`Invalid coordinate order: start=${start} >= end=${end}`);
+       throw new Error(
+         `Invalid coordinate order: start=${start} >= end=${end}`,
+       );
      }
    }
    ```
@@ -871,21 +719,21 @@ leverage TypeScript's type system and tooling to prevent errors at compile time.
 
    ```typescript
    // Auto-generated compile-time tests
-   import { expectError, expectType } from 'tsd';
+   import { expectError, expectType } from "tsd";
 
    // These tests run during build and fail compilation if types are wrong
-   expectType<DNASequence>('ATCG' as DNASequence);
-   expectError<DNASequence>('ATCGX' as any); // Should fail compilation
+   expectType<DNASequence>("ATCG" as DNASequence);
+   expectError<DNASequence>("ATCGX" as any); // Should fail compilation
 
-   expectType<ValidBedInterval>({ chromosome: 'chr1', start: 100, end: 200 });
-   expectError<ValidBedInterval>({ chromosome: 'chr1', start: 200, end: 100 }); // Invalid order
+   expectType<ValidBedInterval>({ chromosome: "chr1", start: 100, end: 200 });
+   expectError<ValidBedInterval>({ chromosome: "chr1", start: 200, end: 100 }); // Invalid order
    ```
 
 2. **Static Analysis Integration**
 
    ```typescript
    // Custom TypeScript transformer for additional checks
-   import ts from 'typescript';
+   import ts from "typescript";
 
    function createGenomicsTransformer(): ts.TransformerFactory<ts.SourceFile> {
      return (context) => (sourceFile) => {
@@ -914,12 +762,6 @@ These mechanisms create multiple layers of protection:
 
 The result: entire categories of bugs become **structurally impossible**.
 
-### Cross-Platform Compatibility
-
-- **Node.js** ≥18.0.0
-- **Deno** latest
-- **Bun** latest
-
 ## API Design
 
 ### Core Data Structures
@@ -935,14 +777,14 @@ interface Sequence {
 
 // FASTA sequence
 interface FastaSequence extends Sequence {
-  readonly format: 'fasta';
+  readonly format: "fasta";
 }
 
 // FASTQ sequence with quality scores
 interface FastqSequence extends Sequence {
-  readonly format: 'fastq';
+  readonly format: "fastq";
   readonly quality: string;
-  readonly qualityEncoding: 'phred33' | 'phred64';
+  readonly qualityEncoding: "phred33" | "phred64";
 }
 
 // BED interval
@@ -952,7 +794,7 @@ interface BedInterval {
   readonly end: number;
   readonly name?: string;
   readonly score?: number;
-  readonly strand?: '+' | '-' | '.';
+  readonly strand?: "+" | "-" | ".";
   readonly thickStart?: number;
   readonly thickEnd?: number;
   readonly itemRgb?: string;
@@ -974,12 +816,12 @@ interface StreamingParser<T> {
 
 // Usage examples
 const fastaParser = new FastaParser();
-for await (const sequence of fastaParser.parseFile('genome.fasta')) {
+for await (const sequence of fastaParser.parseFile("genome.fasta")) {
   console.log(`${sequence.id}: ${sequence.length} bp`);
 }
 
 const fastqParser = new FastqParser();
-for await (const read of fastqParser.parseFile('reads.fastq.gz')) {
+for await (const read of fastqParser.parseFile("reads.fastq.gz")) {
   console.log(`${read.id}: Q${read.quality}`);
 }
 ```
@@ -989,14 +831,14 @@ for await (const read of fastqParser.parseFile('reads.fastq.gz')) {
 All parsers use Arktype for runtime validation:
 
 ```typescript
-import { type } from 'arktype';
+import { type } from "arktype";
 
 // Validation schemas
 const FastaSequenceSchema = type({
-  id: 'string',
-  description: 'string?',
+  id: "string",
+  description: "string?",
   sequence: /^[ACGTN]*$/i,
-  length: 'number',
+  length: "number",
 });
 
 // Validation during parsing
@@ -1016,12 +858,12 @@ Built-in support for common bioinformatics compression formats:
 ```typescript
 // Automatic format detection
 const parser = new FastaParser();
-await parser.parseFile('sequences.fasta.gz'); // Gzip
-await parser.parseFile('sequences.fasta.zst'); // Zstandard
-await parser.parseFile('sequences.fasta'); // Uncompressed
+await parser.parseFile("sequences.fasta.gz"); // Gzip
+await parser.parseFile("sequences.fasta.zst"); // Zstandard
+await parser.parseFile("sequences.fasta"); // Uncompressed
 
 // Explicit compression
-import { GzipDecompressor, ZstdDecompressor } from './compression';
+import { GzipDecompressor, ZstdDecompressor } from "./compression";
 const decompressor = new GzipDecompressor();
 const stream = decompressor.decompress(compressedStream);
 ```
@@ -1050,10 +892,10 @@ Performance-critical operations will be implemented in Rust:
 
 1. **Prototype in TypeScript** - Establish the API and validate the design
 2. **Identify bottlenecks** - Through actual usage, not premature optimization
-3. **Move to native implementation strategically** - Only after the API is stable and bottlenecks
-   are proven
-4. **No performance testing until native code** - Performance tests are only added when
-   we have native implementations to benchmark
+3. **Move to native implementation strategically** - Only after the API is
+   stable and bottlenecks are proven
+4. **No performance testing until native code** - Performance tests are only
+   added when we have native implementations to benchmark
 
 **One implementation per feature.** We do NOT maintain parallel TypeScript and
 native implementations. Each feature has exactly one implementation. During the
@@ -1064,7 +906,8 @@ TypeScript/native code integration patterns via FFI.
 
 #### When to Use Native Implementation (Future)
 
-Once the API is stable, move to native Rust implementation for operations that benefit from:
+Once the API is stable, move to native Rust implementation for operations that
+benefit from:
 
 1. **SIMD acceleration** - Parallel sequence processing, quality score
    conversion
@@ -1083,34 +926,6 @@ Once the API is stable, move to native Rust implementation for operations that b
 - **Focus on correctness** - Get the API right first
 - **Focus on usability** - Developer experience over speed (for now)
 
-#### When to Keep TypeScript
-
-Keep TypeScript for high-level operations:
-
-1. **I/O operations** - File reading, streaming
-2. **High-level orchestration** - API surface, error handling
-3. **Complex business logic** - Format detection, validation rules
-4. **Integration points** - User-facing APIs
-
-### Native Module Structure
-
-```
-src/native/
-├── src/
-│   ├── lib.rs           # Main entry point and FFI exports
-│   ├── fasta.rs         # FASTA parsing primitives
-│   ├── fastq.rs         # FASTQ parsing primitives
-│   ├── compression.rs   # Compression utilities
-│   ├── validation.rs    # Validation primitives
-│   └── simd.rs          # SIMD optimizations
-├── tests/
-│   ├── fasta_test.rs
-│   ├── fastq_test.rs
-│   └── simd_test.rs
-├── Cargo.toml           # Rust crate configuration
-└── lib/                 # Compiled libraries for each platform
-```
-
 ## Error Handling
 
 Explicit error types for different failure modes:
@@ -1119,47 +934,36 @@ Explicit error types for different failure modes:
 export class GenotypeError extends Error {
   constructor(
     message: string,
-    public readonly code: string
+    public readonly code: string,
   ) {
     super(message);
-    this.name = 'GenotypeError';
+    this.name = "GenotypeError";
   }
 }
 
 export class ValidationError extends GenotypeError {
   constructor(message: string) {
-    super(message, 'VALIDATION_ERROR');
+    super(message, "VALIDATION_ERROR");
   }
 }
 
 export class ParseError extends GenotypeError {
   constructor(
     message: string,
-    public readonly line?: number
+    public readonly line?: number,
   ) {
-    super(message, 'PARSE_ERROR');
+    super(message, "PARSE_ERROR");
   }
 }
 
 export class CompressionError extends GenotypeError {
   constructor(message: string) {
-    super(message, 'COMPRESSION_ERROR');
+    super(message, "COMPRESSION_ERROR");
   }
 }
 ```
 
 ## Testing Strategy
-
-### Testing Philosophy
-
-**Test everything that can break.** Our testing approach prioritizes:
-
-1. **Correctness** - Validate all edge cases in genomic data formats
-2. **Performance** - Ensure no performance regressions
-3. **Memory Safety** - Detect leaks and excessive allocations
-4. **Cross-Platform** - Verify behavior across Node.js, Deno, and Bun
-5. **Real-World Data** - Test with actual genomic datasets, not just synthetic
-   data
 
 ### Test Structure
 
@@ -1206,20 +1010,20 @@ test/
 Use `bun test` to run tests. All tests MUST use the Bun test framework:
 
 ```typescript
-import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { FastaParser } from '../src/formats/fasta';
-import { ParseError, SequenceError } from '../src/errors';
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { FastaParser } from "../src/formats/fasta";
+import { ParseError, SequenceError } from "../src/errors";
 
-describe('FastaParser', () => {
+describe("FastaParser", () => {
   let parser: FastaParser;
 
   beforeEach(() => {
     parser = new FastaParser();
   });
 
-  describe('valid sequences', () => {
-    test('parses single-line FASTA sequence', async () => {
-      const input = '>seq1 description\nATCGATCG';
+  describe("valid sequences", () => {
+    test("parses single-line FASTA sequence", async () => {
+      const input = ">seq1 description\nATCGATCG";
       const sequences = [];
 
       for await (const seq of parser.parseString(input)) {
@@ -1228,27 +1032,27 @@ describe('FastaParser', () => {
 
       expect(sequences).toHaveLength(1);
       expect(sequences[0]).toEqual({
-        format: 'fasta',
-        id: 'seq1',
-        description: 'description',
-        sequence: 'ATCGATCG',
+        format: "fasta",
+        id: "seq1",
+        description: "description",
+        sequence: "ATCGATCG",
         length: 8,
         lineNumber: 1,
       });
     });
 
-    test('handles wrapped sequences', async () => {
-      const input = '>seq1\nATCG\nATCG\nATCG';
+    test("handles wrapped sequences", async () => {
+      const input = ">seq1\nATCG\nATCG\nATCG";
       const [seq] = await Array.fromAsync(parser.parseString(input));
 
-      expect(seq.sequence).toBe('ATCGATCGATCG');
+      expect(seq.sequence).toBe("ATCGATCGATCG");
       expect(seq.length).toBe(12);
     });
   });
 
-  describe('error handling', () => {
-    test('throws ParseError for missing header', async () => {
-      const input = 'ATCGATCG'; // No header
+  describe("error handling", () => {
+    test("throws ParseError for missing header", async () => {
+      const input = "ATCGATCG"; // No header
 
       await expect(async () => {
         for await (const _ of parser.parseString(input)) {
@@ -1257,8 +1061,8 @@ describe('FastaParser', () => {
       }).toThrow(ParseError);
     });
 
-    test('throws SequenceError for invalid nucleotides', async () => {
-      const input = '>seq1\nATCGXYZ'; // Invalid chars
+    test("throws SequenceError for invalid nucleotides", async () => {
+      const input = ">seq1\nATCGXYZ"; // Invalid chars
 
       await expect(async () => {
         for await (const _ of parser.parseString(input)) {
@@ -1268,25 +1072,25 @@ describe('FastaParser', () => {
     });
   });
 
-  describe('edge cases', () => {
-    test('handles empty file', async () => {
-      const sequences = await Array.fromAsync(parser.parseString(''));
+  describe("edge cases", () => {
+    test("handles empty file", async () => {
+      const sequences = await Array.fromAsync(parser.parseString(""));
       expect(sequences).toHaveLength(0);
     });
 
-    test('handles sequences with IUPAC codes', async () => {
-      const input = '>seq1\nATCGRYSWKMBDHVN';
+    test("handles sequences with IUPAC codes", async () => {
+      const input = ">seq1\nATCGRYSWKMBDHVN";
       const [seq] = await Array.fromAsync(parser.parseString(input));
 
-      expect(seq.sequence).toBe('ATCGRYSWKMBDHVN');
+      expect(seq.sequence).toBe("ATCGRYSWKMBDHVN");
     });
 
-    test('preserves case sensitivity when configured', async () => {
+    test("preserves case sensitivity when configured", async () => {
       const parser = new FastaParser({ preserveCase: true });
-      const input = '>seq1\natcgATCG';
+      const input = ">seq1\natcgATCG";
       const [seq] = await Array.fromAsync(parser.parseString(input));
 
-      expect(seq.sequence).toBe('atcgATCG');
+      expect(seq.sequence).toBe("atcgATCG");
     });
   });
 });
@@ -1316,18 +1120,18 @@ describe('FastaParser', () => {
 - Memory usage profiling
 
 ```typescript
-import { bench, group } from 'bun:test';
+import { bench, group } from "bun:test";
 
-group('FASTA parsing performance', () => {
-  bench('small file (1MB)', async () => {
-    await parser.parseFile('fixtures/1mb.fasta');
+group("FASTA parsing performance", () => {
+  bench("small file (1MB)", async () => {
+    await parser.parseFile("fixtures/1mb.fasta");
   });
 
-  bench('large file (100MB)', async () => {
-    await parser.parseFile('fixtures/100mb.fasta');
+  bench("large file (100MB)", async () => {
+    await parser.parseFile("fixtures/100mb.fasta");
   });
 
-  bench('streaming vs buffered', async () => {
+  bench("streaming vs buffered", async () => {
     // Compare performance of different approaches
   });
 });
@@ -1340,11 +1144,11 @@ group('FASTA parsing performance', () => {
 - Discover edge cases automatically
 
 ```typescript
-import { test } from 'bun:test';
-import { type } from 'arktype';
+import { test } from "bun:test";
+import { type } from "arktype";
 
-test.prop([type('string').generate(), type('number.integer >= 0').generate()])(
-  'parser handles any string input without crashing',
+test.prop([type("string").generate(), type("number.integer >= 0").generate()])(
+  "parser handles any string input without crashing",
   async (input, lineLength) => {
     const parser = new FastaParser({ maxLineLength: lineLength });
 
@@ -1355,7 +1159,7 @@ test.prop([type('string').generate(), type('number.integer >= 0').generate()])(
     } catch (error) {
       expect(error).toBeInstanceOf(GenotypeError);
     }
-  }
+  },
 );
 ```
 
@@ -1399,12 +1203,12 @@ test.prop([type('string').generate(), type('number.integer >= 0').generate()])(
 
 ```typescript
 // Mock file system for unit tests
-import { mockFS } from './helpers/mock-fs';
+import { mockFS } from "./helpers/mock-fs";
 
 beforeEach(() => {
   mockFS.setup({
-    '/test/data.fasta': '>seq1\nATCG',
-    '/test/empty.fasta': '',
+    "/test/data.fasta": ">seq1\nATCG",
+    "/test/empty.fasta": "",
   });
 });
 
@@ -1413,13 +1217,13 @@ afterEach(() => {
 });
 
 // Mock streams for testing streaming parsers
-import { MockReadableStream } from './helpers/mock-streams';
+import { MockReadableStream } from "./helpers/mock-streams";
 
-test('handles stream errors gracefully', async () => {
+test("handles stream errors gracefully", async () => {
   const stream = new MockReadableStream([
-    '>seq1\n',
-    'ATCG',
-    MockReadableStream.ERROR('Network error'),
+    ">seq1\n",
+    "ATCG",
+    MockReadableStream.ERROR("Network error"),
   ]);
 
   await expect(async () => {
@@ -1428,40 +1232,6 @@ test('handles stream errors gracefully', async () => {
     }
   }).toThrow(StreamError);
 });
-```
-
-### Test Coverage Requirements
-
-- **Line Coverage**: Minimum 90%
-- **Branch Coverage**: Minimum 85%
-- **Function Coverage**: 100% for public APIs
-- **Statement Coverage**: Minimum 90%
-
-Generate coverage reports with:
-
-```bash
-bun test:coverage
-```
-
-### Continuous Integration
-
-All tests must pass in CI before merging:
-
-```yaml
-# .github/workflows/test.yml
-test:
-  runs-on: ${{ matrix.os }}
-  strategy:
-    matrix:
-      os: [ubuntu-latest, macos-latest, windows-latest]
-      runtime: [bun, node, deno]
-  steps:
-    - uses: actions/checkout@v3
-    - uses: oven-sh/setup-bun@v1
-    - run: bun install
-    - run: bun test
-    - run: bun test:coverage
-    - run: bun bench --threshold
 ```
 
 ### Testing Best Practices
@@ -1479,16 +1249,16 @@ test:
 2. **Arrange-Act-Assert**: Structure tests clearly
 
    ```typescript
-   test('parses multi-line sequence', async () => {
+   test("parses multi-line sequence", async () => {
      // Arrange
-     const input = '>seq1\nATCG\nGCTA';
+     const input = ">seq1\nATCG\nGCTA";
      const parser = new FastaParser();
 
      // Act
      const result = await Array.fromAsync(parser.parseString(input));
 
      // Assert
-     expect(result[0].sequence).toBe('ATCGGCTA');
+     expect(result[0].sequence).toBe("ATCGGCTA");
    });
    ```
 
@@ -1499,32 +1269,6 @@ test:
 7. **Avoid Time Dependencies**: Mock dates/timers
 8. **Test Error Messages**: Verify helpful error context
 
-## Development Workflow
-
-1. **Design** - Document API in AGENTS.md first
-2. **Validate** - Use Arktype schemas for all data structures
-3. **Implement** - TypeScript first, identify bottlenecks
-4. **Optimize** - Move critical paths to native Rust implementation
-5. **Test** - Comprehensive test coverage
-6. **Document** - JSDoc for all public APIs
-
-## Build/Test Commands
-
-**All commands MUST be run with Bun:**
-
-- `bun test` - Run all tests
-- `bun test <file>` - Run specific test file (e.g.,
-  `bun test test/formats/fasta.test.ts`)
-- `bun test:watch` - Run tests in watch mode
-- `bun test:coverage` - Run tests with coverage report
-- `bun build` - Build TypeScript components
-- `bun lint` - Run TypeScript type checking
-- `bun bench` - Run performance benchmarks
-- `cargo build --release` - Build Rust native components (production)
-- `cargo build` - Build Rust native components (debug)
-- `cargo test` - Run Rust native tests
-- `cargo clippy` - Run Rust linting
-
 ## Code Style
 
 ### Runtime Requirements
@@ -1532,38 +1276,6 @@ test:
 - **Runtime**: Bun with TypeScript (NO exceptions - no npm, yarn, or pnpm)
 - **Language**: TypeScript with strict mode enabled
 - **Module System**: ES modules only
-
-### Formatting Rules
-
-- **Formatting**: Prettier with bioinformatics-optimized settings
-  ```json
-  {
-    "semi": true,
-    "singleQuote": true,
-    "printWidth": 100,
-    "tabWidth": 2,
-    "trailingComma": "es5",
-    "bracketSpacing": true,
-    "arrowParens": "always"
-  }
-  ```
-
-### Import Organization
-
-Use explicit imports, grouped in this order:
-
-1. Node.js built-ins
-2. External dependencies
-3. Internal modules
-4. Type imports
-
-```typescript
-// Example proper import organization
-import { readFile } from 'node:fs/promises';
-import { type } from 'arktype';
-import { FastaParser } from './formats/fasta';
-import type { ParserOptions, Sequence } from './types';
-```
 
 ### Naming Conventions
 
@@ -1586,12 +1298,15 @@ import type { ParserOptions, Sequence } from './types';
 ```typescript
 // Good example
 interface ParserConfig {
-  readonly format: 'fasta' | 'fastq';
+  readonly format: "fasta" | "fastq";
   readonly validation: boolean;
   readonly maxSequenceLength?: number;
 }
 
-export function parseFile(path: string, config: ParserConfig): AsyncIterable<Sequence> {
+export function parseFile(
+  path: string,
+  config: ParserConfig,
+): AsyncIterable<Sequence> {
   // Implementation
 }
 ```
@@ -1610,7 +1325,7 @@ if (!isValidSequence(seq)) {
     `Invalid nucleotide sequence: contains non-IUPAC characters`,
     seq.id,
     lineNumber,
-    `Valid characters are: A, C, G, T, U, R, Y, S, W, K, M, B, D, H, V, N`
+    `Valid characters are: A, C, G, T, U, R, Y, S, W, K, M, B, D, H, V, N`,
   );
 }
 ```
@@ -1629,7 +1344,7 @@ async function* parseStream(stream: ReadableStream): AsyncIterable<Sequence> {
     const reader = stream.getReader();
     // Processing logic
   } catch (error) {
-    throw new StreamError('Failed to read stream', 'read', bytesProcessed);
+    throw new StreamError("Failed to read stream", "read", bytesProcessed);
   } finally {
     reader?.releaseLock();
   }
@@ -1662,23 +1377,23 @@ likelihood of bugs. Follow these strict anti-nesting guidelines:
            if (isValidSequence(sequence)) {
              return { success: true, data: cleanSequence(sequence) };
            } else {
-             return { success: false, error: 'Invalid sequence' };
+             return { success: false, error: "Invalid sequence" };
            }
          } else {
-           return { success: false, error: 'Empty sequence' };
+           return { success: false, error: "Empty sequence" };
          }
        } else {
          return { success: true, data: sequence };
        }
      } else {
-       return { success: false, error: 'No sequence provided' };
+       return { success: false, error: "No sequence provided" };
      }
    }
 
    // ✅ GOOD: Early returns eliminate nesting
    function processSequence(sequence: string, options: Options): Result {
      if (!sequence) {
-       return { success: false, error: 'No sequence provided' };
+       return { success: false, error: "No sequence provided" };
      }
 
      if (!options.validate) {
@@ -1686,11 +1401,11 @@ likelihood of bugs. Follow these strict anti-nesting guidelines:
      }
 
      if (sequence.length === 0) {
-       return { success: false, error: 'Empty sequence' };
+       return { success: false, error: "Empty sequence" };
      }
 
      if (!isValidSequence(sequence)) {
-       return { success: false, error: 'Invalid sequence' };
+       return { success: false, error: "Invalid sequence" };
      }
 
      return { success: true, data: cleanSequence(sequence) };
@@ -1704,19 +1419,19 @@ likelihood of bugs. Follow these strict anti-nesting guidelines:
    function parseMultipleFiles(files: string[]): ParsedFile[] {
      const results: ParsedFile[] = [];
      for (const file of files) {
-       if (file.endsWith('.fasta')) {
+       if (file.endsWith(".fasta")) {
          const content = readFile(file);
-         const lines = content.split('\n');
+         const lines = content.split("\n");
          const sequences: Sequence[] = [];
-         let currentSeq = '';
-         let currentId = '';
+         let currentSeq = "";
+         let currentId = "";
          for (const line of lines) {
-           if (line.startsWith('>')) {
+           if (line.startsWith(">")) {
              if (currentSeq && currentId) {
                sequences.push({ id: currentId, sequence: currentSeq });
              }
              currentId = line.slice(1);
-             currentSeq = '';
+             currentSeq = "";
            } else {
              currentSeq += line.trim();
            }
@@ -1736,7 +1451,7 @@ likelihood of bugs. Follow these strict anti-nesting guidelines:
    }
 
    function isFastaFile(file: string): boolean {
-     return file.endsWith('.fasta');
+     return file.endsWith(".fasta");
    }
 
    function parseFile(file: string): ParsedFile {
@@ -1746,16 +1461,16 @@ likelihood of bugs. Follow these strict anti-nesting guidelines:
    }
 
    function parseSequences(content: string): Sequence[] {
-     const lines = content.split('\n');
+     const lines = content.split("\n");
      const sequences: Sequence[] = [];
-     let currentSeq = '';
-     let currentId = '';
+     let currentSeq = "";
+     let currentId = "";
 
      for (const line of lines) {
-       if (line.startsWith('>')) {
+       if (line.startsWith(">")) {
          addSequenceIfValid(sequences, currentId, currentSeq);
          currentId = line.slice(1);
-         currentSeq = '';
+         currentSeq = "";
        } else {
          currentSeq += line.trim();
        }
@@ -1765,7 +1480,11 @@ likelihood of bugs. Follow these strict anti-nesting guidelines:
      return sequences;
    }
 
-   function addSequenceIfValid(sequences: Sequence[], id: string, seq: string): void {
+   function addSequenceIfValid(
+     sequences: Sequence[],
+     id: string,
+     seq: string,
+   ): void {
      if (seq && id) {
        sequences.push({ id, sequence: seq });
      }
@@ -1780,16 +1499,16 @@ likelihood of bugs. Follow these strict anti-nesting guidelines:
      const results: ProcessedLine[] = [];
      for (const line of lines) {
        if (line.trim()) {
-         if (!line.startsWith('#')) {
-           if (line.includes('\t')) {
-             const fields = line.split('\t');
+         if (!line.startsWith("#")) {
+           if (line.includes("\t")) {
+             const fields = line.split("\t");
              if (fields.length >= 3) {
-               results.push({ fields, type: 'data' });
+               results.push({ fields, type: "data" });
              } else {
-               results.push({ fields, type: 'incomplete' });
+               results.push({ fields, type: "incomplete" });
              }
            } else {
-             results.push({ fields: [line], type: 'single' });
+             results.push({ fields: [line], type: "single" });
            }
          }
        }
@@ -1804,15 +1523,15 @@ likelihood of bugs. Follow these strict anti-nesting guidelines:
      for (const line of lines) {
        const trimmed = line.trim();
        if (!trimmed) continue;
-       if (trimmed.startsWith('#')) continue;
+       if (trimmed.startsWith("#")) continue;
 
-       if (!line.includes('\t')) {
-         results.push({ fields: [line], type: 'single' });
+       if (!line.includes("\t")) {
+         results.push({ fields: [line], type: "single" });
          continue;
        }
 
-       const fields = line.split('\t');
-       const type = fields.length >= 3 ? 'data' : 'incomplete';
+       const fields = line.split("\t");
+       const type = fields.length >= 3 ? "data" : "incomplete";
        results.push({ fields, type });
      }
 
@@ -1833,21 +1552,21 @@ likelihood of bugs. Follow these strict anti-nesting guidelines:
          }
        }
      }
-     return { error: 'Invalid input' };
+     return { error: "Invalid input" };
    }
 
    // ✅ GOOD: Inverted conditions with early returns
    function validateInput(input: Input): ValidationResult {
      if (!input.isValid) {
-       return { error: 'Input is not valid' };
+       return { error: "Input is not valid" };
      }
 
      if (!input.data) {
-       return { error: 'No data provided' };
+       return { error: "No data provided" };
      }
 
      if (input.data.length === 0) {
-       return { error: 'Empty data' };
+       return { error: "Empty data" };
      }
 
      return processValidInput(input.data);
@@ -1882,36 +1601,13 @@ likelihood of bugs. Follow these strict anti-nesting guidelines:
        .filter((record) => record.active)
        .map((record) => ({
          id: record.id,
-         values: record.values.filter((value) => value > 0).map((value) => value * 2),
+         values: record.values.filter((value) => value > 0).map((value) =>
+           value * 2
+         ),
        }))
        .filter((record) => record.values.length > 0);
    }
    ```
-
-#### Anti-Patterns to Avoid
-
-**Never do this:**
-
-- Arrow functions with multiple levels of nesting
-- Nested ternary operators beyond 1 level
-- Callback pyramids (use async/await)
-- Complex nested object destructuring
-- Multiple levels of optional chaining (`obj?.a?.b?.c?.d`)
-
-#### Enforcement
-
-**Code review must reject:**
-
-- Functions with more than 3 levels of nesting
-- Any callback pyramid patterns
-- Complex nested ternary expressions
-- Deeply nested object access patterns
-
-**Tools for verification:**
-
-- ESLint rules: `max-depth`, `complexity`, `max-nested-callbacks`
-- Manual review for cognitive complexity
-- Refactoring when cyclomatic complexity > 10
 
 #### Bioinformatics-Specific Examples
 
@@ -1946,7 +1642,9 @@ function processGenomicVariants(variants: Variant[]): ProcessedVariant[] {
 
 // ✅ GOOD: De-nested with early returns and extraction
 function processGenomicVariants(variants: Variant[]): ProcessedVariant[] {
-  return variants.filter(isValidVariant).map(processVariant).filter(hasAnnotation);
+  return variants.filter(isValidVariant).map(processVariant).filter(
+    hasAnnotation,
+  );
 }
 
 function isValidVariant(variant: Variant): boolean {
@@ -1969,7 +1667,9 @@ function processVariant(variant: Variant): ProcessedVariant | null {
   return annotation ? { ...processed, annotation } : null;
 }
 
-function hasAnnotation(variant: ProcessedVariant | null): variant is ProcessedVariant {
+function hasAnnotation(
+  variant: ProcessedVariant | null,
+): variant is ProcessedVariant {
   return variant !== null && variant.annotation !== null;
 }
 ```
@@ -2002,65 +1702,6 @@ src/
 └── index.ts         # Main library exports
 ```
 
-### Testing Standards
-
-- Use Bun test framework exclusively
-- Descriptive test names that explain the scenario
-- Use `describe` blocks for logical grouping
-- Implement `beforeEach`/`afterEach` for setup/cleanup
-- Test edge cases and error conditions
-
-```typescript
-import { beforeEach, describe, expect, test } from 'bun:test';
-
-describe('FastaParser', () => {
-  let parser: FastaParser;
-
-  beforeEach(() => {
-    parser = new FastaParser();
-  });
-
-  test('parses valid FASTA sequence with standard nucleotides', async () => {
-    const result = await parser.parseString('>seq1\nATCG');
-    expect(result).toEqual({
-      id: 'seq1',
-      sequence: 'ATCG',
-      length: 4,
-      format: 'fasta',
-    });
-  });
-
-  test('throws SequenceError for invalid nucleotides', async () => {
-    expect(() => parser.parseString('>seq1\nATCX')).toThrow(SequenceError);
-  });
-});
-```
-
-## Build System
-
-Cross-platform build system supporting multiple runtimes:
-
-```json
-{
-  "scripts": {
-    "build": "tsc && node scripts/build.js",
-    "build:rust": "cargo build --release",
-    "test": "bun test",
-    "test:node": "node --test",
-    "test:deno": "deno test",
-    "test:all": "npm run test && npm run test:node && npm run test:deno"
-  }
-}
-```
-
-## Future Enhancements
-
-- **GPU acceleration** - CUDA/OpenCL for parallel processing
-- **WASM builds** - Browser compatibility
-- **Additional formats** - VCF, GFF, GTF support
-- **Cloud storage** - S3, GCS streaming support
-- **Indexing** - Fast random access for large files
-
 ## TypeScript Advanced Type Safety Patterns
 
 ### Const Assertions and Immutability
@@ -2069,7 +1710,7 @@ Enforce immutability at the type level:
 
 ```typescript
 // Enforce immutability at the type level
-const NUCLEOTIDES = ['A', 'T', 'C', 'G'] as const;
+const NUCLEOTIDES = ["A", "T", "C", "G"] as const;
 type Nucleotide = (typeof NUCLEOTIDES)[number];
 
 // Function parameter immutability
@@ -2088,215 +1729,14 @@ type DeepReadonly<T> = {
 ```typescript
 // Add to validation patterns
 function assertValidSequence(seq: unknown): asserts seq is DNASequence {
-  if (typeof seq !== 'string' || !/^[ACGTN]+$/i.test(seq)) {
-    throw new SequenceError('Invalid DNA sequence');
+  if (typeof seq !== "string" || !/^[ACGTN]+$/i.test(seq)) {
+    throw new SequenceError("Invalid DNA sequence");
   }
 }
 
 // Usage: after this call, TypeScript knows seq is DNASequence
 assertValidSequence(input);
 ```
-
-## TypeScript Performance Best Practices
-
-### Compilation Performance Guidelines
-
-1. **Avoid Complex Type Computations**
-   - Limit conditional type depth (max 3 levels)
-   - Prefer interfaces over type aliases for object types
-   - Use `interface extends` instead of intersection types
-
-2. **Monitor Type Instantiations**
-
-   ```bash
-   tsc --extendedDiagnostics
-   ```
-
-   - Keep type instantiations under 150,000
-   - Split complex types into smaller, reusable pieces
-
-3. **Optimize Import Patterns**
-   - Use specific imports: `import { FastaParser } from './formats/fasta'`
-   - Avoid circular dependencies
-   - Enable `"skipLibCheck": true` for faster builds
-
-## Bun Runtime Optimizations
-
-### File I/O Best Practices
-
-- Leverage Bun's 3x faster file operations
-- Use `Bun.file()` API for optimal performance
-- Pre-allocate buffers for known file sizes
-
-### Native SQLite Integration
-
-- Use for genomic metadata storage
-- Enable WAL mode for concurrent reads
-- Implement prepared statements for query optimization
-
-```typescript
-import { Database } from 'bun:sqlite';
-
-const db = new Database('genomics.sqlite');
-db.exec('PRAGMA journal_mode = WAL;');
-
-// Prepared statement for performance
-const query = db.query('SELECT * FROM sequences WHERE id = ?');
-```
-
-### Testing Strategy
-
-- Use `bun:test` for 80% faster test execution
-- Leverage built-in snapshot testing
-- Implement parallel test execution
-
-## Native Rust Performance Module Guidelines
-
-### Memory Management Patterns
-
-```rust
-// Memory management for genomic data processing
-use std::sync::Arc;
-use std::collections::VecDeque;
-
-pub struct SequenceProcessor {
-    // Pre-allocated buffers for performance
-    input_buffer: Vec<u8>,
-    output_buffer: Vec<u8>,
-    // Sequence pool for reuse
-    sequence_pool: VecDeque<String>,
-}
-
-impl SequenceProcessor {
-    pub fn with_capacity(buffer_size: usize, pool_size: usize) -> Self {
-        Self {
-            input_buffer: Vec::with_capacity(buffer_size),
-            output_buffer: Vec::with_capacity(buffer_size),
-            sequence_pool: VecDeque::with_capacity(pool_size),
-        }
-    }
-}
-```
-
-### SIMD Optimization Requirements
-
-- Implement vectorized sequence comparison
-- Use compile-time vector size selection
-- Provide fallback for non-SIMD architectures
-
-### Error Handling Convention
-
-```rust
-use std::result::Result;
-
-#[derive(Debug)]
-pub enum ParseError {
-    InvalidHeader,
-    CorruptedData,
-    UnsupportedFormat,
-    AllocationFailed,
-}
-
-// Always use Result types, never panic in FFI functions
-fn parse_header(data: &[u8]) -> Result<Header, ParseError> {
-    // Implementation
-}
-```
-
-## ArkType Schema Design Principles
-
-### Performance-First Schema Design
-
-```typescript
-// Prefer direct definitions over complex compositions
-const FastqRecord = type({
-  id: 'string > 0',
-  sequence: SequenceSchema,
-  quality: 'string',
-  qualityEncoding: "'phred33' | 'phred64'",
-});
-
-// Avoid deep unions in hot paths
-// Use discriminated unions for efficient runtime checks
-```
-
-### Custom Validation with Context
-
-```typescript
-const ValidatedSequence = type('string').narrow((seq, ctx) => {
-  const invalidChars = seq.match(/[^ACGTURYSWKMBDHVN\-\.\*]/gi);
-  if (invalidChars) {
-    return ctx.reject({
-      expected: 'valid IUPAC nucleotide codes',
-      actual: `invalid characters: ${invalidChars.join(', ')}`,
-    });
-  }
-  return true;
-});
-```
-
-### Compile-Time Type Extraction
-
-```typescript
-// Extract validated types for use throughout codebase
-type ValidatedFasta = typeof FastaSequenceSchema.infer;
-```
-
-## Cross-Runtime Design Patterns
-
-### Runtime Detection and Optimization
-
-```typescript
-const runtime = detectRuntime();
-const fileReader =
-  runtime === 'bun'
-    ? new BunFileReader() // Use Bun.file() API
-    : runtime === 'deno'
-      ? new DenoFileReader() // Use Deno.open()
-      : new NodeFileReader(); // Use fs.createReadStream()
-```
-
-### Platform-Specific Performance Paths
-
-- Bun: Native SQLite, faster file I/O
-- Node.js: Worker threads for parallelism
-- Deno: Native TypeScript execution
-
-## Comprehensive Testing Requirements
-
-### Property-Based Testing
-
-```typescript
-// Test with generated inputs covering edge cases
-test.prop([type('string').generate()])('sequence parsing handles all inputs', (input) => {
-  const result = parser.parse(input);
-  expect(() => result).not.toThrow();
-});
-```
-
-### Performance Benchmarking
-
-```typescript
-// Mandatory benchmarks for critical paths
-bench(
-  'FASTA parsing',
-  () => {
-    parser.parseString(largeFastaData);
-  },
-  {
-    warmupIterations: 10,
-    iterations: 100,
-    // Fail if >10% slower than baseline
-    threshold: { percent: 10 },
-  }
-);
-```
-
-### Memory Leak Detection
-
-- Use `--expose-gc` flag in tests
-- Monitor heap usage in streaming operations
-- Implement resource cleanup validation
 
 ## API Documentation Standards
 
@@ -2324,50 +1764,3 @@ bench(
  * @since 0.1.0
  */
 ````
-
-### Type Documentation
-
-- Document branded types and their invariants
-- Explain discriminated union variants
-- Provide migration guides from other libraries
-
-## Security Best Practices
-
-### Input Validation
-
-- Limit maximum sequence length to prevent DoS
-- Validate file paths against directory traversal
-- Sanitize metadata fields in genomic formats
-
-### Resource Limits
-
-```typescript
-const LIMITS = {
-  maxSequenceLength: 1_000_000_000, // 1GB
-  maxFileSize: 10_737_418_240, // 10GB
-  maxConcurrentParsers: 10,
-  maxMemoryUsage: 0.8, // 80% of available
-} as const;
-```
-
-## Code Quality Metrics
-
-### Required Metrics
-
-1. **Type Coverage**: Minimum 99% (enforced by CI)
-2. **Test Coverage**: Minimum 90% with branch coverage
-3. **Bundle Size**: Track and prevent regression
-4. **Performance**: Automated benchmarks with regression detection
-5. **Memory Usage**: Profile streaming operations
-
-### Enforcement
-
-```json
-// package.json scripts
-{
-  "quality:types": "type-coverage --at-least 99",
-  "quality:size": "size-limit",
-  "quality:perf": "bun bench --threshold",
-  "quality:memory": "node --expose-gc test:memory"
-}
-```

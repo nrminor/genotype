@@ -38,6 +38,8 @@
 !/src/formats/*.ts
 !/src/formats/bam/
 !/src/formats/bam/*.ts
+!/src/formats/gtf/
+!/src/formats/gtf/*.ts
 !/src/io/
 !/src/io/*.ts
 !/src/utils/

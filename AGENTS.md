@@ -1,4 +1,4 @@
-# Genotype Library - API Documentation & Development Guidelines
+# Genotype Library - Project Overview & Development Guidelines
 
 ## OVERALL ATTITUDE REQUIREMENT: PRACTICE SELF-DOUBT IN ALL ACTIVITIES
 
@@ -13,44 +13,7 @@
   team" it) to critically analyze that you really are done or it really is
   working
 
-## MANDATORY REVIEW REQUIREMENTS
-
-**⚠️ STOP: Before ANY work on this codebase, you MUST:**
-
-1. Read and understand ALL sections of this document
-2. Review Tiger Style compliance requirements
-3. Review ALL best practices sections (TypeScript, Bun, Rust, ArkType)
-4. Understand the Anti-Code-Entropy policies
-5. Review the security considerations
-6. **Use Bun for ALL development tasks** - No npm, yarn, or pnpm allowed unless
-   it's for compatibility testing
-7. **Follow Zero-Dependency Philosophy** - No new npm packages without
-   exhaustive justification
-8. **MANDATORY: Run validation workflows** - All features MUST pass
-   `bun run validate` or `bun run validate:full` before being declared complete
-9. **MANDATORY AFTER COMPACTION: Re-read CLAUDE.md and AGENTS.md** - After ANY
-   context compaction or conversation continuation, you MUST re-read these
-   documents BEFORE proceeding with ANY work
-
-**NO EXCEPTIONS. Any code that doesn't follow these guidelines OR fails
-validation will be rejected.**
-
-### ⚠️ CRITICAL: POST-COMPACTION REQUIREMENTS
-
-**Context compaction is lossy and leads to critical oversights.**
-
-After ANY compaction event:
-
-1. **STOP all work immediately**
-2. **Re-read CLAUDE.md (if available) in full**
-3. **Re-read AGENTS.md in full**
-4. **Review any work in progress against these requirements**
-5. **ONLY proceed after confirming compliance**
-
-**It is UNACCEPTABLE to proceed without project rules and guidelines in
-context.**
-
-## **Collaborative Excellence Protocol**
+## **MANDATORY COLLABORATION PROTOCOL**
 
 ### **CORE PRINCIPLE: THINK SMALLER, CHECK MORE**
 
@@ -115,6 +78,43 @@ echo "✅ [achievement] preserved domain expertise" >> reports/$(date +%Y%m%d)/[
 This approach has proven **unreasonably effective** because it prevents
 accumulation of complex changes, preserves valuable domain knowledge, and
 enables precise rollback when needed.
+
+## MANDATORY REVIEW REQUIREMENTS
+
+**⚠️ STOP: Before ANY work on this codebase, you MUST:**
+
+1. Read and understand ALL sections of this document
+2. Review Tiger Style compliance requirements
+3. Review ALL best practices sections (TypeScript, Bun, Rust, ArkType)
+4. Understand the Anti-Code-Entropy policies
+5. Review the security considerations
+6. **Use Bun for ALL development tasks** - No npm, yarn, or pnpm allowed unless
+   it's for compatibility testing
+7. **Follow Zero-Dependency Philosophy** - No new npm packages without
+   exhaustive justification
+8. **MANDATORY: Run validation workflows** - All features MUST pass
+   `bun run validate` or `bun run validate:full` before being declared complete
+9. **MANDATORY AFTER COMPACTION: Re-read CLAUDE.md and AGENTS.md** - After ANY
+   context compaction or conversation continuation, you MUST re-read these
+   documents BEFORE proceeding with ANY work
+
+**NO EXCEPTIONS. Any code that doesn't follow these guidelines OR fails
+validation will be rejected.**
+
+### ⚠️ CRITICAL: POST-COMPACTION REQUIREMENTS
+
+**Context compaction is lossy and leads to critical oversights.**
+
+After ANY compaction event:
+
+1. **STOP all work immediately**
+2. **Re-read CLAUDE.md (if available) in full**
+3. **Re-read AGENTS.md in full**
+4. **Review any work in progress against these requirements**
+5. **ONLY proceed after confirming compliance**
+
+**It is UNACCEPTABLE to proceed without project rules and guidelines in
+context.**
 
 ---
 

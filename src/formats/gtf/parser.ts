@@ -16,6 +16,7 @@ import {
   validateFinalCoordinates,
 } from "../../operations/core/coordinates";
 import type { Strand } from "../../types";
+import { AbstractParser } from "../abstract-parser";
 import type {
   DatabaseVariant,
   GtfFeature,
@@ -167,36 +168,6 @@ export function normalizeGtfAttributes(
  *
  * @public
  */
-export function validateGtfCoordinates(
-  start: number,
-  end: number
-): { valid: boolean; error?: string } {
-  if (start < GTF_LIMITS.MIN_COORDINATE) {
-    return {
-      valid: false,
-      error: "Start coordinate must be >= 1 (GTF is 1-based)",
-    };
-  }
-
-  if (end < start) {
-    return {
-      valid: false,
-      error: "End coordinate must be >= start coordinate",
-    };
-  }
-
-  // Genomics domain validation
-  if (start > GTF_LIMITS.MAX_CHROMOSOME_SIZE || end > GTF_LIMITS.MAX_CHROMOSOME_SIZE) {
-    const violating = start > GTF_LIMITS.MAX_CHROMOSOME_SIZE ? start : end;
-    const sizeMB = Math.round(violating / 1_000_000);
-    return {
-      valid: false,
-      error: `Coordinate ${violating} (${sizeMB}MB) exceeds largest known chromosome (300MB)`,
-    };
-  }
-
-  return { valid: true };
-}
 
 /**
  * Parse GTF attributes with robust real-world handling
@@ -324,6 +295,39 @@ export function parseGtfFrame(frameStr: string): number | null {
 }
 
 /**
+ * GTF-specific coordinate validation for 1-based inclusive system
+ * Tiger Style: Function under 70 lines, biological domain expertise
+ */
+export function validateGtfCoordinates(
+  start: number,
+  end: number,
+  sequenceLength = Number.MAX_SAFE_INTEGER,
+  region = `${start}-${end}`
+): { valid: boolean; error?: string } {
+  if (start < 1) {
+    return {
+      valid: false,
+      error: `Invalid start position: ${start} (GTF is 1-based, minimum value is 1) in region ${region}`,
+    };
+  }
+  if (end > sequenceLength) {
+    return {
+      valid: false,
+      error: `Invalid end position: ${end} (exceeds sequence length ${sequenceLength}) in region ${region}`,
+    };
+  }
+  // GTF 1-based inclusive: start=end is VALID for single-base features (SNPs, regulatory sites)
+  if (start > end) {
+    return {
+      valid: false,
+      error: `Invalid coordinates: start ${start} > end ${end} in region ${region}`,
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
  * Parse GTF coordinates using core coordinate functions
  * Leverages battle-tested coordinate handling with GTF-specific context
  * Tiger Style: Function under 70 lines, reuses core functionality
@@ -337,8 +341,16 @@ function parseGtfCoordinates(
   try {
     // Use core functions for comprehensive coordinate parsing and validation
     const LARGE_SEQUENCE_LENGTH = GTF_LIMITS.MAX_CHROMOSOME_SIZE;
-    const startResult = parseStartPosition(startStr, LARGE_SEQUENCE_LENGTH, true, false);
-    const endResult = parseEndPosition(endStr, LARGE_SEQUENCE_LENGTH, true, false);
+    // Parse coordinates directly for GTF 1-based display (no conversion needed)
+    const startValue = parseInt(startStr, 10);
+    const endValue = parseInt(endStr, 10);
+
+    if (isNaN(startValue) || isNaN(endValue)) {
+      throw new Error(`Invalid coordinates: start=${startStr}, end=${endStr} (not numbers)`);
+    }
+
+    const startResult = { value: startValue, hasNegative: false };
+    const endResult = { value: endValue, hasNegative: false };
 
     // GTF-specific validation preserving biological context
     if (startResult.value < GTF_LIMITS.MIN_COORDINATE) {
@@ -347,13 +359,17 @@ function parseGtfCoordinates(
       );
     }
 
-    // Core function provides comprehensive validation, add GTF-specific bounds
-    validateFinalCoordinates(
+    // GTF-specific validation (allows start=end for single-base features)
+    const validation = validateGtfCoordinates(
       startResult.value,
       endResult.value,
       LARGE_SEQUENCE_LENGTH,
       `${seqname}:${startStr}-${endStr}`
     );
+
+    if (!validation.valid) {
+      throw new Error(validation.error!);
+    }
 
     return { start: startResult.value, end: endResult.value };
   } catch (error) {
@@ -514,68 +530,48 @@ function buildGtfFeature(
  *
  * @public
  */
-export class GtfParser {
-  private readonly options: Required<
-    Omit<GtfParserOptions, "includeFeatures" | "excludeFeatures" | "requiredAttributes">
-  > & {
-    includeFeatures?: string[] | undefined;
-    excludeFeatures?: string[] | undefined;
-    requiredAttributes?: string[] | undefined;
-    parseAttributeValues: boolean;
-    normalizeAttributes: boolean;
-    detectDatabaseVariant: boolean;
-    preserveOriginalAttributes: boolean;
-  };
-
+export class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
   /**
    * Create new GTF parser with specified options
    *
    * @param options Parser configuration options
    */
   constructor(options: GtfParserOptions = {}) {
-    // ArkType validation eliminating defensive programming
-    const validationResult = GtfParserOptionsSchema({
+    // Step 1: Prepare options with GTF-specific defaults
+    const optionsWithDefaults = {
       skipValidation: false,
       maxLineLength: 1_000_000,
       trackLineNumbers: true,
+      parseAttributeValues: false,
       normalizeAttributes: false,
       detectDatabaseVariant: true,
       preserveOriginalAttributes: true,
-      ...options,
-    });
+      onError: (error: string, lineNumber?: number): never => {
+        throw new ParseError(error, "GTF", lineNumber);
+      },
+      onWarning: (warning: string, lineNumber?: number): void => {
+        console.warn(`GTF Warning (line ${lineNumber}): ${warning}`);
+      },
+      ...options, // User options override defaults
+    };
+
+    // Step 2: ArkType validation with domain expertise
+    const validationResult = GtfParserOptionsSchema(optionsWithDefaults);
 
     if (validationResult instanceof type.errors) {
       throw new ValidationError(
         `Invalid GTF parser options: ${validationResult.summary}`,
         undefined,
-        "GTF parser configuration"
+        "GTF parser configuration with biological context"
       );
     }
 
-    this.options = {
-      skipValidation: validationResult.skipValidation || false,
-      maxLineLength: validationResult.maxLineLength || 1_000_000,
-      trackLineNumbers: validationResult.trackLineNumbers || true,
-      qualityEncoding: "phred33",
-      parseQualityScores: false,
-      parseAttributeValues: options.parseAttributeValues ?? false,
-      normalizeAttributes: options.normalizeAttributes ?? false,
-      detectDatabaseVariant: options.detectDatabaseVariant ?? true,
-      preserveOriginalAttributes: options.preserveOriginalAttributes ?? true,
-      includeFeatures: options.includeFeatures ?? undefined,
-      excludeFeatures: options.excludeFeatures ?? undefined,
-      requiredAttributes: options.requiredAttributes ?? undefined,
-      onError:
-        options.onError ||
-        ((error: string, lineNumber?: number) => {
-          throw new ParseError(error, "GTF", lineNumber);
-        }),
-      onWarning:
-        options.onWarning ||
-        ((warning: string, lineNumber?: number) => {
-          console.warn(`GTF Warning (line ${lineNumber}): ${warning}`);
-        }),
-    };
+    // Step 3: Pass validated options to type-safe parent
+    super(validationResult);
+  }
+
+  protected getFormatName(): string {
+    return "GTF";
   }
 
   /**
@@ -585,7 +581,7 @@ export class GtfParser {
    * @param data GTF format string data
    * @yields GTF features with parsed attributes and optional normalization
    */
-  async *parseString(data: string): AsyncIterable<GtfFeature> {
+  override async *parseString(data: string): AsyncIterable<GtfFeature> {
     const lines = data.split(/\r?\n/);
     yield* this.parseLines(lines);
   }
@@ -598,7 +594,10 @@ export class GtfParser {
    * @param options File reading options
    * @yields GTF features from file content
    */
-  async *parseFile(filePath: string, options?: { encoding?: string }): AsyncIterable<GtfFeature> {
+  override async *parseFile(
+    filePath: string,
+    options?: { encoding?: string }
+  ): AsyncIterable<GtfFeature> {
     if (filePath.length === 0) {
       throw new ValidationError("filePath cannot be empty");
     }
@@ -660,6 +659,18 @@ export class GtfParser {
         this.options.onError(error instanceof Error ? error.message : String(error), lineNumber);
       }
     }
+  }
+
+  /**
+   * Parse GTF features from ReadableStream
+   * @param stream Binary data stream
+   * @returns AsyncIterable of GTF features
+   */
+  override async *parse(stream: ReadableStream<Uint8Array>): AsyncIterable<GtfFeature> {
+    // Extract stream parsing logic (following proven SAM pattern)
+    const { StreamUtils } = await import("../../io/stream-utils");
+    const lines = StreamUtils.readLines(stream, "utf8");
+    yield* this.parseLinesFromAsyncIterable(lines);
   }
 
   /**

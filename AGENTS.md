@@ -15,11 +15,12 @@
 
 ## **MANDATORY COLLABORATION PROTOCOL**
 
-### **CORE PRINCIPLE: THINK SMALLER, CHECK MORE**
+### **CORE PRINCIPLE: THINK SMALLER, CHECK MORE. _SLOWER IS FASTER_**
 
 **When forming any goal**: Make it more granular, less ambitious, more
 detail-oriented, and more collaborative. The sooner agents check in to ensure
-they're on the right track, the better.
+they're on the right track, the better. And always be distrustful of working on
+tasks to are vaguely defined or lack micro-step precision, as described below:
 
 ### **MICRO-STEP PRECISION**
 
@@ -28,6 +29,7 @@ they're on the right track, the better.
 - **Document specific achievement** of each micro-component
 - **Ask before proceeding** when encountering complexity or architectural
   decisions
+- **MAKE BACKUPS** before any changes involving many lines of code
 
 ### **CONSTANT PROGRESS COMMUNICATION**
 
@@ -49,6 +51,8 @@ echo "✅ [specific achievement completed]" >> reports/$(date +%Y%m%d)/[PROJECT]
   appearances
 - **Measure actual problems** before suggesting fixes or simplifications
 - **Never assume sophistication = completion** without evidence-based checking
+- **Never discount future effort.** Changes now are _always_ less expensive than
+  changes later.
 
 ### **DOMAIN EXPERTISE PRESERVATION**
 
@@ -78,6 +82,9 @@ echo "✅ [achievement] preserved domain expertise" >> reports/$(date +%Y%m%d)/[
 This approach has proven **unreasonably effective** because it prevents
 accumulation of complex changes, preserves valuable domain knowledge, and
 enables precise rollback when needed.
+
+If we follow all of these policies, we can reasonably aspire toward making each
+contribution **our finest work yet.**
 
 ## MANDATORY REVIEW REQUIREMENTS
 
@@ -113,8 +120,8 @@ After ANY compaction event:
 4. **Review any work in progress against these requirements**
 5. **ONLY proceed after confirming compliance**
 
-**It is UNACCEPTABLE to proceed without project rules and guidelines in
-context.**
+**It is UNACCEPTABLE to proceed without project rules and guidelines in context.
+Remember: SLOWER IS FASTER**
 
 ---
 
@@ -144,6 +151,11 @@ This library has a **relentless obsession with developer experience**:
   case documented
 
 ## Core Principles
+
+In addition to _SLOWER IS FASTER_ and _MAKE THE NEXT CODE YOU WRITE YOUR FINEST
+WORK YET_, this project adopts rules, standards, guidelines, and idioms from
+Tiger Style and the Grug Brained Developer, both of which you should be
+well-acquainted with.
 
 ### Tiger Style Compliance
 
@@ -211,11 +223,14 @@ This library also embraces the wisdom of the
 - **Balance DRY with clarity** - some duplication is better than confusing
   abstractions
 
-### Zero-Dependency Philosophy
+### Low-Dependency Philosophy
 
-**Dependencies are liabilities.** With Bun's comprehensive standard library and
-built-in tooling, we enforce an strict low-dependency policy for TypeScript
-code.
+**Dependencies are useful shortcuts that can also become liabilities, especially
+if used excessively.** The NPM left-pad module situation is the classic example
+of this.
+
+Luckily, with Bun's comprehensive standard library and built-in tooling, we can
+enforce an strict low-dependency policy for TypeScript code.
 
 #### Bun Eliminates Common Dependencies
 
@@ -277,6 +292,13 @@ DECLARED COMPLETE.**
   justification
 - Code style warnings are NOT "minor" - they are technical debt
 
+**Remember**: We want the next contribution to be _our finest work yet_. Toward
+that end, in the spirit of _slower is faster_, making your contributions more
+granular, asking for feedback more frequently, and re-reading documentation or
+internal reports before you write a line of code builds trust. Every decision is
+an opportunity to build trust or erude it--do the right thing and choose the
+former.
+
 ### PREVENTIVE MEASURES
 
 #### 1. ENFORCE VALIDATION-FIRST WORKFLOW
@@ -324,7 +346,8 @@ extensively during your work with this project.
 
 ### Linting Standards - ZERO WARNINGS POLICY
 
-**Every warning is a defect. Every suppression is technical debt.**
+**Every warning is a defect. Every suppression is technical debt. In the spirit
+of _slower is faster_, take the time to solve it now.**
 
 #### What Constitutes a Linting Violation:
 
@@ -1289,6 +1312,7 @@ test("handles stream errors gracefully", async () => {
 
 ### Type Requirements
 
+- [Communicate in types](https://www.youtube.com/watch?v=SOz66dcsuT8)
 - Strict TypeScript mode enforced
 - Use interfaces for options/configs
 - Explicit return types for ALL public APIs
@@ -1676,7 +1700,7 @@ function hasAnnotation(
 
 ### Documentation Standards
 
-- Minimal inline comments - code should be self-documenting
+- Minimal inline comments - **code should be self-documenting**
 - Comprehensive JSDoc for ALL public APIs
 - Include examples in JSDoc
 - Document performance characteristics

@@ -24,10 +24,12 @@ import type {
   CIGARString,
   MAPQScore,
   ParserOptions,
+  QualityEncoding,
   SAMFlag,
   SAMHeader,
 } from "../types";
 import { CIGAROperationSchema, MAPQScoreSchema, SAMFlagSchema } from "../types";
+import { AbstractParser } from "./abstract-parser";
 import { BAIReader } from "./bam/bai-reader";
 import { BAMWriter, type BAMWriterOptions } from "./bam/bam-writer";
 import { createStream, detectFormat } from "./bam/bgzf";
@@ -40,6 +42,19 @@ import {
   readCString,
   readInt32LE,
 } from "./bam/binary";
+
+/**
+ * BAM-specific parser options
+ * Extends base ParserOptions for binary alignment data with compression
+ */
+interface BamParserOptions extends ParserOptions {
+  /** Custom quality encoding for alignment quality scores */
+  qualityEncoding?: QualityEncoding;
+  /** Whether to parse quality scores immediately */
+  parseQualityScores?: boolean;
+  /** BGZF compression options for binary format */
+  compressionOptions?: any; // Could be expanded with specific BGZF options
+}
 
 /**
  * Streaming BAM parser with BGZF decompression and binary decoding
@@ -70,36 +85,35 @@ import {
  * });
  * ```
  */
-export class BAMParser {
-  private readonly options: Required<ParserOptions>;
+export class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOptions> {
   private baiReader?: BAIReader;
   private baiIndex?: BAIIndex;
   private referenceNames: string[] = [];
 
   /**
-   * Create a new BAM parser with specified options
-   * @param options Parser configuration options
+   * Create a new BAM parser with specified options and interrupt support
+   * @param options BAM parser configuration options including AbortSignal
    */
-  constructor(options: ParserOptions = {}) {
-    // Tiger Style: Assert constructor arguments
-    if (typeof options !== "object") {
-      throw new ValidationError("options must be an object");
-    }
-
-    this.options = {
+  constructor(options: BamParserOptions = {}) {
+    // Provide BAM-specific defaults (binary format considerations)
+    super({
       skipValidation: false,
       maxLineLength: 100_000_000, // 100MB max record for long reads
       trackLineNumbers: false, // Not applicable to binary format
-      qualityEncoding: "phred33",
-      parseQualityScores: false,
+      qualityEncoding: "phred33", // BAM-specific default
+      parseQualityScores: false, // BAM-specific default
       onError: (error: string): never => {
         throw new BamError(error, undefined, undefined);
       },
       onWarning: (warning: string): void => {
         console.warn(`BAM Warning: ${warning}`);
       },
-      ...options,
-    };
+      ...options, // User options override defaults
+    } as BamParserOptions);
+  }
+
+  protected getFormatName(): string {
+    return "BAM";
   }
 
   /**
@@ -244,7 +258,7 @@ export class BAMParser {
           // Memory management: prevent buffer from growing too large
           if (buffer.length > 10 * 1024 * 1024) {
             // 10MB limit
-            this.options.onWarning(
+            this.options.onWarning!(
               `Large buffer detected (${(buffer.length / 1024 / 1024).toFixed(1)}MB) at ${totalBytesProcessed} bytes processed, consider increasing processing speed`
             );
           }
@@ -896,7 +910,7 @@ export class BAMParser {
       // Warn about very large files
       if (metadata.size > 10_737_418_240) {
         // 10GB
-        this.options.onWarning(
+        this.options.onWarning!(
           `Very large BAM file detected: ${Math.round(metadata.size / 1_073_741_824)}GB. Processing may take significant time.`
         );
       }
@@ -997,7 +1011,7 @@ export class BAMParser {
         bytesConsumed += 4 + blockSize;
       } catch (error) {
         if (error instanceof BamError) {
-          this.options.onError(error.message);
+          this.options.onError!(error.message);
           // Skip corrupted record
           bytesConsumed += 4;
           continue;
@@ -1046,7 +1060,7 @@ export class BAMParser {
     // Warn about unparsed data
     const remaining = buffer.length - parseResult.bytesConsumed;
     if (remaining > 0) {
-      this.options.onWarning(`${remaining} bytes of data could not be parsed at end of stream`);
+      this.options.onWarning!(`${remaining} bytes of data could not be parsed at end of stream`);
     }
   }
 

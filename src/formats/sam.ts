@@ -17,6 +17,7 @@ import type {
   CIGARString,
   MAPQScore,
   ParserOptions,
+  QualityEncoding,
   SAMAlignment,
   SAMFlag,
   SAMHeader,
@@ -30,6 +31,18 @@ import {
   SAMHeaderSchema,
   SAMTagSchema,
 } from "../types";
+import { AbstractParser } from "./abstract-parser";
+
+/**
+ * SAM-specific parser options
+ * Extends base ParserOptions for alignment data with quality scores
+ */
+interface SamParserOptions extends ParserOptions {
+  /** Custom quality encoding for alignment quality scores */
+  qualityEncoding?: QualityEncoding;
+  /** Whether to parse quality scores immediately */
+  parseQualityScores?: boolean;
+}
 
 /**
  * Streaming SAM parser with comprehensive validation
@@ -60,32 +73,31 @@ import {
  * });
  * ```
  */
-export class SAMParser {
-  private readonly options: Required<ParserOptions>;
-
+export class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOptions> {
   /**
-   * Create a new SAM parser with specified options
-   * @param options Parser configuration options
+   * Create a new SAM parser with specified options and interrupt support
+   * @param options SAM parser configuration options including AbortSignal
    */
-  constructor(options: ParserOptions = {}) {
-    // Tiger Style: Assert constructor arguments
-    if (typeof options !== "object") {
-      throw new ValidationError("options must be an object");
-    }
-    this.options = {
+  constructor(options: SamParserOptions = {}) {
+    // Provide SAM-specific defaults (including format-specific properties)
+    super({
       skipValidation: false,
       maxLineLength: 10_000_000, // 10MB max line length for long reads
       trackLineNumbers: true,
-      qualityEncoding: "phred33",
-      parseQualityScores: false,
+      qualityEncoding: "phred33", // SAM-specific default
+      parseQualityScores: false, // SAM-specific default
       onError: (error: string, lineNumber?: number): void => {
         throw new SamError(error, undefined, undefined, lineNumber);
       },
       onWarning: (warning: string, lineNumber?: number): void => {
         console.warn(`SAM Warning (line ${lineNumber}): ${warning}`);
       },
-      ...options,
-    };
+      ...options, // User options override defaults
+    } as SamParserOptions);
+  }
+
+  protected getFormatName(): string {
+    return "SAM";
   }
 
   /**
@@ -95,13 +107,27 @@ export class SAMParser {
    * @throws {SamError} When SAM format is invalid
    * @throws {ValidationError} When record data is malformed
    */
-  async *parseString(data: string): AsyncIterable<SAMAlignment | SAMHeader> {
+  override async *parseString(data: string): AsyncIterable<SAMAlignment | SAMHeader> {
     // Tiger Style: Assert function arguments
     if (typeof data !== "string") {
       throw new ValidationError("data must be a string");
     }
     const lines = data.split(/\r?\n/);
     yield* this.parseLines(lines);
+  }
+
+  /**
+   * Parse SAM records from a ReadableStream
+   * @param stream Binary data stream
+   * @returns AsyncIterable of SAM headers and alignments
+   */
+  override async *parse(
+    stream: ReadableStream<Uint8Array>
+  ): AsyncIterable<SAMHeader | SAMAlignment> {
+    // Extract stream parsing logic from parseFile
+    const { StreamUtils } = await import("../io/stream-utils");
+    const lines = StreamUtils.readLines(stream, "utf8");
+    yield* this.parseLinesFromAsyncIterable(lines);
   }
 
   /**
@@ -122,7 +148,7 @@ export class SAMParser {
    * }
    * ```
    */
-  async *parseFile(
+  override async *parseFile(
     filePath: string,
     options?: import("../types").FileReaderOptions
   ): AsyncIterable<SAMAlignment | SAMHeader> {
@@ -190,9 +216,9 @@ export class SAMParser {
       if (!line) continue;
 
       // Check line length bounds
-      if (line.length > this.options.maxLineLength) {
-        this.options.onError(
-          `Line too long (${line.length} > ${this.options.maxLineLength})`,
+      if (line.length > this.options.maxLineLength!) {
+        this.options.onError!(
+          `Line too long (${line.length} > ${this.options.maxLineLength!})`,
           currentLineNumber
         );
         continue;
@@ -208,7 +234,7 @@ export class SAMParser {
         }
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        this.options.onError(errorMsg, currentLineNumber);
+        this.options.onError!(errorMsg, currentLineNumber);
       }
     }
   }
@@ -802,7 +828,7 @@ export class SAMParser {
       // Warn about very large files
       if (metadata.size > 2_147_483_648) {
         // 2GB
-        this.options.onWarning(
+        this.options.onWarning!(
           `Large SAM file detected: ${Math.round(metadata.size / 1_048_576)}MB. Consider using BAM format for better performance.`,
           1
         );
@@ -845,9 +871,9 @@ export class SAMParser {
         if (!line) continue;
 
         // Check line length bounds
-        if (line.length > this.options.maxLineLength) {
-          this.options.onError(
-            `Line too long (${line.length} > ${this.options.maxLineLength})`,
+        if (line.length > this.options.maxLineLength!) {
+          this.options.onError!(
+            `Line too long (${line.length} > ${this.options.maxLineLength!})`,
             lineNumber
           );
           continue;
@@ -863,7 +889,7 @@ export class SAMParser {
           }
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
-          this.options.onError(errorMsg, lineNumber);
+          this.options.onError!(errorMsg, lineNumber);
         }
       }
     } catch (error) {
@@ -1006,11 +1032,11 @@ export class SAMWriter {
         } else if (record && record.format === "sam") {
           lines.push(this.formatAlignment(record as SAMAlignment));
         } else {
-          this.options.onError(`Invalid record format: ${(record as any).format}`, record);
+          this.options.onError!(`Invalid record format: ${(record as any).format}`, record);
         }
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        this.options.onError(`Failed to format record ${i}: ${errorMsg}`, record);
+        this.options.onError!(`Failed to format record ${i}: ${errorMsg}`, record);
       }
     }
 
@@ -1113,14 +1139,14 @@ export class SAMWriter {
           } else if (record.format === "sam") {
             formattedLine = this.formatAlignment(record);
           } else {
-            this.options.onError(`Invalid record format: ${(record as any).format}`, record);
+            this.options.onError!(`Invalid record format: ${(record as any).format}`, record);
             continue;
           }
 
           await writer.write(encoder.encode(formattedLine + "\n"));
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
-          this.options.onError(`Failed to format record: ${errorMsg}`, record);
+          this.options.onError!(`Failed to format record: ${errorMsg}`, record);
         }
       }
     } finally {

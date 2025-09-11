@@ -80,8 +80,11 @@ always, it needs quality control before analysis.
 import { seqops } from "genotype";
 import { FastqParser } from "genotype/formats";
 
-// Parse FASTQ with automatic quality encoding detection
-const parser = new FastqParser({ autoDetectEncoding: true });
+// Parse FASTQ with quality encoding specification (or automatic detection)
+const parser = new FastqParser({ 
+  qualityEncoding: "phred33", // Specify encoding, or omit for automatic detection
+  parseQualityScores: true // Enable quality score parsing for QC
+});
 const reads = parser.parseFile("SRR12345678.fastq.gz");
 
 // Build a comprehensive QC pipeline

@@ -314,7 +314,7 @@ export const STANDARD_GTF_FEATURES = [
  */
 export const GTF_LIMITS = {
   /** Maximum chromosome size - larger than any known chromosome */
-  MAX_CHROMOSOME_SIZE: 300_000_000, // 300MB
+  MAX_CHROMOSOME_SIZE: 2_500_000_000, // 2.5GB (aligned with enhanced coordinate system for large genomes)
   /** Minimum coordinate value - GTF is 1-based */
   MIN_COORDINATE: 1,
 } as const;

@@ -115,7 +115,7 @@ describe("Empty Validation Audit Fixes - Proper Error Handling", () => {
 
   describe("Genomic Coordinate Bounds Validation", () => {
     test("should throw GenomicCoordinateError for unusually large coordinates", () => {
-      const largeCoordinate = 400_000_000; // > 300MB limit
+      const largeCoordinate = 3_000_000_000; // > 2.5GB limit (updated for large genome support)
 
       expect(() => GenomicCoordinate(largeCoordinate)).toThrow(GenomicCoordinateError);
       expect(() => GenomicCoordinate(largeCoordinate)).toThrow(/coordinate unusually large/);
@@ -126,6 +126,13 @@ describe("Empty Validation Audit Fixes - Proper Error Handling", () => {
       const result = GenomicCoordinate(normalCoordinate);
 
       expect(result).toBe(normalCoordinate);
+    });
+
+    test("should accept large biological genome coordinates", () => {
+      const barleyChromosomeSize = 750_000_000; // ~750MB - legitimate for large crop genomes
+      const result = GenomicCoordinate(barleyChromosomeSize);
+
+      expect(result).toBe(barleyChromosomeSize);
     });
 
     test("should reject non-integer coordinates", () => {

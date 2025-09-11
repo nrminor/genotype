@@ -19,6 +19,57 @@ import {
 } from "../errors";
 import type { FastqSequence, ParserOptions, QualityEncoding } from "../types";
 import { SequenceSchema } from "../types";
+import { AbstractParser } from "./abstract-parser";
+
+/**
+ * FASTQ-specific parser options
+ * Extends base ParserOptions for sequencing data with quality scores
+ */
+interface FastqParserOptions extends ParserOptions {
+  /** Custom quality encoding for FASTQ format */
+  qualityEncoding?: QualityEncoding;
+  /** Whether to parse quality scores immediately */
+  parseQualityScores?: boolean;
+}
+
+/**
+ * ArkType validation for FASTQ parser options with sequencing domain expertise
+ * Provides excellent error messages for modern sequencing workflows and deprecated encodings
+ */
+const FastqParserOptionsSchema = type({
+  "skipValidation?": "boolean",
+  "maxLineLength?": "number>0",
+  "trackLineNumbers?": "boolean",
+  "qualityEncoding?": '"phred33"|"phred64"|"solexa"',
+  "parseQualityScores?": "boolean",
+}).narrow((options, ctx) => {
+  // Modern sequencing workflow validation
+  if (options.maxLineLength && options.maxLineLength < 1000) {
+    return ctx.reject({
+      expected: "maxLineLength >= 1000 for modern sequencing data",
+      actual: `${options.maxLineLength}`,
+      path: ["maxLineLength"],
+      message: "Modern reads exceed 1KB (PacBio: 10-100KB, Nanopore: 1KB-2MB)",
+    });
+  }
+
+  // Memory safety for large sequencing datasets
+  if (
+    options.parseQualityScores === true &&
+    options.maxLineLength &&
+    options.maxLineLength > 50_000_000
+  ) {
+    return ctx.reject({
+      expected: "parseQualityScores with maxLineLength <= 50MB for memory efficiency",
+      actual: `parseQualityScores=true, maxLineLength=${options.maxLineLength}`,
+      path: ["parseQualityScores", "maxLineLength"],
+      message:
+        "Quality score parsing allocates large arrays - reduce maxLineLength or disable parseQualityScores",
+    });
+  }
+
+  return true;
+});
 
 /**
  * Convert ASCII quality string to numeric scores
@@ -152,24 +203,59 @@ export const QualityScores = {
 /**
  * Streaming FASTQ parser with quality score handling
  */
-export class FastqParser {
-  private readonly options: Required<ParserOptions>;
-
-  constructor(options: ParserOptions = {}) {
-    this.options = {
+export class FastqParser extends AbstractParser<FastqSequence, FastqParserOptions> {
+  constructor(options: FastqParserOptions = {}) {
+    // Provide shared defaults to base class (only ParserOptions properties)
+    // Step 1: Prepare options with FASTQ-specific defaults for modern sequencing
+    const optionsWithDefaults = {
       skipValidation: false,
       maxLineLength: 1_000_000,
       trackLineNumbers: true,
-      qualityEncoding: "phred33",
-      parseQualityScores: false, // Lazy loading by default
+      qualityEncoding: "phred33" as QualityEncoding, // Modern sequencing standard
+      parseQualityScores: false, // Lazy loading for memory efficiency
       onError: (error: string, lineNumber?: number): void => {
         throw new ParseError(error, "FASTQ", lineNumber);
       },
       onWarning: (warning: string, lineNumber?: number): void => {
         console.warn(`FASTQ Warning (line ${lineNumber}): ${warning}`);
       },
-      ...options,
+      ...options, // User options override defaults
     };
+
+    // Step 2: ArkType validation with sequencing domain expertise
+    const validationResult = FastqParserOptionsSchema(optionsWithDefaults);
+
+    if (validationResult instanceof type.errors) {
+      throw new ValidationError(
+        `Invalid FASTQ parser options: ${validationResult.summary}`,
+        undefined,
+        "FASTQ parser configuration with modern sequencing context"
+      );
+    }
+
+    // Step 3: Application-level warnings for deprecated quality encodings
+    if (optionsWithDefaults.qualityEncoding === "solexa") {
+      optionsWithDefaults.onWarning?.(
+        "Solexa quality encoding is deprecated (pre-2009 Illumina) - " +
+          "consider migrating to phred33 for modern sequencing workflows",
+        undefined
+      );
+    }
+
+    if (optionsWithDefaults.qualityEncoding === "phred64") {
+      optionsWithDefaults.onWarning?.(
+        "Phred+64 encoding is legacy (Illumina 1.3-1.7) - " +
+          "modern FASTQ files use phred33 encoding",
+        undefined
+      );
+    }
+
+    // Step 4: Pass complete validated options to type-safe parent
+    super(optionsWithDefaults);
+  }
+
+  protected getFormatName(): string {
+    return "FASTQ";
   }
 
   /**
@@ -284,9 +370,9 @@ export class FastqParser {
     for (const line of lines) {
       lineNumber++;
 
-      if (line.length > this.options.maxLineLength) {
-        this.options.onError(
-          `Line too long (${line.length} > ${this.options.maxLineLength})`,
+      if (line.length > this.options.maxLineLength!) {
+        this.options.onError!(
+          `Line too long (${line.length} > ${this.options.maxLineLength!})`,
           lineNumber
         );
         continue;
@@ -310,7 +396,7 @@ export class FastqParser {
           if (!this.options.skipValidation) {
             throw error;
           }
-          this.options.onError(
+          this.options.onError!(
             error instanceof Error ? error.message : String(error),
             lineNumber - 3
           );
@@ -321,7 +407,7 @@ export class FastqParser {
 
     // Handle incomplete record at end
     if (lineBuffer.length > 0) {
-      this.options.onError(
+      this.options.onError!(
         `Incomplete FASTQ record: expected 4 lines, got ${lineBuffer.length}`,
         lineNumber
       );
@@ -493,7 +579,7 @@ export class FastqParser {
     try {
       return detectEncoding(quality);
     } catch (error) {
-      this.options.onWarning(
+      this.options.onWarning!(
         `Could not detect quality encoding for sequence '${sequenceId}': ${error instanceof Error ? error.message : String(error)}. Using phred33 as fallback`,
         undefined
       );
@@ -545,7 +631,7 @@ export class FastqParser {
       // Warn about very large files
       if (metadata.size > 5_368_709_120) {
         // 5GB
-        this.options.onWarning(
+        this.options.onWarning!(
           `Very large FASTQ file detected: ${Math.round(metadata.size / 1_073_741_824)}GB. Processing may take significant time and memory.`,
           1
         );
@@ -583,9 +669,9 @@ export class FastqParser {
       for await (const rawLine of lines) {
         lineNumber++;
 
-        if (rawLine.length > this.options.maxLineLength) {
-          this.options.onError(
-            `Line too long (${rawLine.length} > ${this.options.maxLineLength})`,
+        if (rawLine.length > this.options.maxLineLength!) {
+          this.options.onError!(
+            `Line too long (${rawLine.length} > ${this.options.maxLineLength!})`,
             lineNumber
           );
           continue;
@@ -609,7 +695,7 @@ export class FastqParser {
             if (!this.options.skipValidation) {
               throw error;
             }
-            this.options.onError(
+            this.options.onError!(
               error instanceof Error ? error.message : String(error),
               lineNumber - 3
             );
@@ -631,7 +717,7 @@ export class FastqParser {
           throw error;
         }
 
-        this.options.onError(error.message, lineNumber);
+        this.options.onError!(error.message, lineNumber);
       }
     } catch (error) {
       // Enhance error with line number context

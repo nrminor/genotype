@@ -20,6 +20,15 @@ import {
 } from "../errors";
 import type { FastaSequence, ParserOptions } from "../types";
 import { FastaSequenceSchema, SequenceIdSchema, SequenceSchema } from "../types";
+import { AbstractParser } from "./abstract-parser";
+
+/**
+ * FASTA-specific parser options
+ * Extends base ParserOptions without format-specific additions for now
+ */
+interface FastaParserOptions extends ParserOptions {
+  // FASTA-specific options can be added here if needed
+}
 
 /**
  * Streaming FASTA parser with comprehensive validation
@@ -45,31 +54,29 @@ import { FastaSequenceSchema, SequenceIdSchema, SequenceSchema } from "../types"
  * });
  * ```
  */
-export class FastaParser {
-  private readonly options: Required<ParserOptions>;
-
+export class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
   /**
-   * Create a new FASTA parser with specified options
-   * @param options Parser configuration options
+   * Create a new FASTA parser with specified options and interrupt support
+   * @param options FASTA parser configuration options including AbortSignal
    */
-  constructor(options: ParserOptions = {}) {
-    if (typeof options !== "object") {
-      throw new ValidationError("options must be an object");
-    }
-    this.options = {
+  constructor(options: FastaParserOptions = {}) {
+    // Provide FASTA-specific defaults to base class
+    super({
       skipValidation: false,
       maxLineLength: 1_000_000, // 1MB max line length
       trackLineNumbers: true,
-      qualityEncoding: "phred33", // Not used for FASTA
-      parseQualityScores: false, // Not used for FASTA
       onError: (error: string, lineNumber?: number): void => {
         throw new ParseError(error, "FASTA", lineNumber);
       },
       onWarning: (warning: string, lineNumber?: number): void => {
         console.warn(`FASTA Warning (line ${lineNumber}): ${warning}`);
       },
-      ...options,
-    };
+      ...options, // User options override defaults
+    } as FastaParserOptions);
+  }
+
+  protected getFormatName(): string {
+    return "FASTA";
   }
 
   /**
@@ -254,7 +261,7 @@ export class FastaParser {
       } catch (error) {
         // Call error handler for parsing errors
         const errorMessage = error instanceof Error ? error.message : String(error);
-        this.options.onError(errorMessage, currentLineNumber);
+        this.options.onError!(errorMessage, currentLineNumber);
       }
     }
 
@@ -291,9 +298,9 @@ export class FastaParser {
     }
 
     // Check line length bounds
-    if (line.length > this.options.maxLineLength) {
-      this.options.onError(
-        `Line too long (${line.length} > ${this.options.maxLineLength})`,
+    if (line.length > this.options.maxLineLength!) {
+      this.options.onError!(
+        `Line too long (${line.length} > ${this.options.maxLineLength!})`,
         lineNumber
       );
       return null;
@@ -349,7 +356,7 @@ export class FastaParser {
     }
 
     if (!currentSequence) {
-      this.options.onError("Sequence data found before header", lineNumber);
+      this.options.onError!("Sequence data found before header", lineNumber);
       return;
     }
 
@@ -377,7 +384,7 @@ export class FastaParser {
     const header = headerLine.slice(1); // Remove '>'
     if (!header) {
       if (this.options.skipValidation) {
-        this.options.onWarning("Empty FASTA header", lineNumber);
+        this.options.onWarning!("Empty FASTA header", lineNumber);
       } else {
         throw new ParseError(
           'Empty FASTA header: header must contain an identifier after ">"',
@@ -437,7 +444,7 @@ export class FastaParser {
       if (error instanceof SequenceError) {
         throw error;
       }
-      this.options.onWarning(
+      this.options.onWarning!(
         `Sequence ID validation warning: ${error instanceof Error ? error.message : String(error)}`,
         lineNumber
       );
@@ -695,7 +702,7 @@ export class FastaParser {
       // Warn about very large files
       if (metadata.size > 1_073_741_824) {
         // 1GB
-        this.options.onWarning(
+        this.options.onWarning!(
           `Large FASTA file detected: ${Math.round(metadata.size / 1_048_576)}MB. Consider using streaming with smaller buffer sizes.`,
           1
         );
@@ -759,7 +766,7 @@ export class FastaParser {
         } catch (lineError) {
           // Call error handler for line-level parsing errors
           const errorMessage = lineError instanceof Error ? lineError.message : String(lineError);
-          this.options.onError(errorMessage, lineNumber);
+          this.options.onError!(errorMessage, lineNumber);
         }
       }
 

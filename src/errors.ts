@@ -630,11 +630,11 @@ export class GenomicCoordinateError extends ValidationError {
     coordinateType: "start" | "end" | "position" = "position",
     lineNumber?: number
   ): GenomicCoordinateError {
-    const maxExpected = 300_000_000;
-    const sizeMB = Math.round(coordinate / 1_000_000);
+    const maxExpected = 2_500_000_000;
+    const sizeGB = Math.round((coordinate / 1_000_000_000) * 10) / 10; // One decimal place
 
     return new GenomicCoordinateError(
-      `Genomic coordinate unusually large: ${coordinate} (${sizeMB}MB, exceeds largest known chromosome ~300MB)`,
+      `Genomic coordinate unusually large: ${coordinate} (${sizeGB}GB, exceeds supported limit of 2.5GB)`,
       coordinate,
       maxExpected,
       coordinateType,

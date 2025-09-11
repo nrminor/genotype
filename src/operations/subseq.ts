@@ -636,6 +636,7 @@ export class SubseqExtractor {
       options.oneBased !== false
         ? `${region.start + 1}${sep}${region.end}`
         : `${region.start}${sep}${region.end}`;
+    // Convert 0-based array indices back to 1-based display coordinates
 
     return `${originalId}${sep}${coordStr}`;
   }
@@ -687,7 +688,7 @@ export class SubseqExtractor {
     let start = options.start ?? 0;
     let end = options.end ?? sequence.length;
 
-    // Convert to 0-based if needed
+    // Convert to 0-based array indices if coordinates are 1-based
     if (options.oneBased !== false && start > 0) {
       start = start - 1;
     }

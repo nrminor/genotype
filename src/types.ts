@@ -468,10 +468,8 @@ export interface ParserOptions {
   maxLineLength?: number;
   /** Whether to preserve original line numbers */
   trackLineNumbers?: boolean;
-  /** Custom quality encoding (FASTQ only) */
-  qualityEncoding?: QualityEncoding;
-  /** Whether to parse quality scores immediately (FASTQ only) */
-  parseQualityScores?: boolean;
+  /** AbortController signal for cancelling parsing operations */
+  signal?: AbortSignal;
   /** Custom error handler */
   onError?: (error: string, lineNumber?: number) => void;
   /** Custom warning handler */
@@ -656,13 +654,52 @@ export const QualitySchema = type({
 });
 
 /**
+ * ArkType branded coordinate types for compile-time and runtime safety
+ * Prevents mixing 0-based (BED) and 1-based (GTF) coordinate systems
+ * Single source of truth using ArkType's branded type syntax
+ */
+
+/**
+ * 0-based coordinate validation for BED format
+ * ArkType branded type with comprehensive genomic coordinate validation
+ */
+export const ZeroBasedCoordinate = type("number>=0#ZeroBased").pipe((coord: number) => {
+  if (!Number.isInteger(coord)) {
+    throw new Error("BED coordinates must be integers");
+  }
+  if (coord > 2_500_000_000) {
+    throw GenomicCoordinateError.forLargeCoordinate(coord, "position");
+  }
+  return coord;
+});
+export type ZeroBasedCoordinate = typeof ZeroBasedCoordinate.infer;
+
+/**
+ * 1-based coordinate validation for GTF/GFF format
+ * ArkType branded type with comprehensive genomic coordinate validation
+ */
+export const OneBasedCoordinate = type("number>=1#OneBased").pipe((coord: number) => {
+  if (!Number.isInteger(coord)) {
+    throw new Error("GTF/GFF coordinates must be integers");
+  }
+  if (coord > 2_500_000_000) {
+    throw GenomicCoordinateError.forLargeCoordinate(coord, "position");
+  }
+  if (coord < 1) {
+    throw new Error("1-based coordinates must start at 1, not 0");
+  }
+  return coord;
+});
+export type OneBasedCoordinate = typeof OneBasedCoordinate.infer;
+
+/**
  * Coordinate validation with biological constraints
  */
 export const GenomicCoordinate = type("number>=0").pipe((coord: number) => {
   if (!Number.isInteger(coord)) {
     throw new Error("Genomic coordinates must be integers");
   }
-  if (coord > 300_000_000) {
+  if (coord > 2_500_000_000) {
     throw GenomicCoordinateError.forLargeCoordinate(coord, "position");
   }
   return coord;
@@ -801,9 +838,10 @@ function validateAndEnrichBedInterval(bed: any): any {
 }
 
 function validateBedCoordinates(bed: any): void {
-  if (bed.end <= bed.start) {
-    throw new Error(`Invalid coordinates: end (${bed.end}) must be > start (${bed.start})`);
+  if (bed.end < bed.start) {
+    throw new Error(`Invalid coordinates: end (${bed.end}) must be >= start (${bed.start})`);
   }
+  // Note: Zero-length intervals (end = start) are valid in BED format for insertion sites
 }
 
 function validateBedScore(bed: any): void {
@@ -826,30 +864,24 @@ function validateBedThickCoordinates(bed: any): void {
 }
 
 function validateBedBlockStructure(bed: any): void {
-  const hasBlocks = bed.blockCount !== null && bed.blockCount !== undefined && bed.blockCount !== 0;
-  const hasSizes = bed.blockSizes !== null && bed.blockSizes !== undefined;
-  const hasStarts = bed.blockStarts !== null && bed.blockStarts !== undefined;
+  const hasBlocks = bed.blockCount > 0;
+  if (!hasBlocks) return;
 
-  if (hasBlocks && (hasSizes || hasStarts)) {
-    if (
-      bed.blockSizes !== null &&
-      bed.blockSizes !== undefined &&
-      bed.blockSizes.length !== bed.blockCount
-    ) {
-      throw new Error(
-        `Block sizes count (${bed.blockSizes.length}) != block count (${bed.blockCount})`
-      );
-    }
-    if (
-      bed.blockStarts !== null &&
-      bed.blockStarts !== undefined &&
-      bed.blockStarts.length !== bed.blockCount
-    ) {
-      throw new Error(
-        `Block starts count (${bed.blockStarts.length}) != block count (${bed.blockCount})`
-      );
-    }
+  // Array length consistency validation (types.ts responsibility)
+  if (bed.blockSizes?.length !== bed.blockCount) {
+    throw new Error(
+      `Block sizes count (${bed.blockSizes?.length ?? 0}) != block count (${bed.blockCount})`
+    );
   }
+  if (bed.blockStarts?.length !== bed.blockCount) {
+    throw new Error(
+      `Block starts count (${bed.blockStarts?.length ?? 0}) != block count (${bed.blockCount})`
+    );
+  }
+
+  // Delegate UCSC specification validation to BED module
+  // Note: Actual validation implementation moved to formats/bed.ts
+  // This maintains separation of concerns - types.ts for schemas, formats/ for validation logic
 }
 
 function enrichBedInterval(bed: any): any {

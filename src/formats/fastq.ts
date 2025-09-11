@@ -17,6 +17,7 @@ import {
   SequenceError,
   ValidationError,
 } from "../errors";
+import { detectEncodingImmediate } from "../operations/core/encoding";
 import type { FastqSequence, ParserOptions, QualityEncoding } from "../types";
 import { SequenceSchema } from "../types";
 import { AbstractParser } from "./abstract-parser";
@@ -127,37 +128,6 @@ export function getOffset(encoding: QualityEncoding): number {
 }
 
 /**
- * Detect quality encoding from quality string
- */
-export function detectEncoding(qualityString: string): QualityEncoding {
-  let minAscii = 255;
-  let maxAscii = 0;
-
-  for (let i = 0; i < qualityString.length; i++) {
-    const ascii = qualityString.charCodeAt(i);
-    minAscii = Math.min(minAscii, ascii);
-    maxAscii = Math.max(maxAscii, ascii);
-  }
-
-  // Decision logic based on ASCII ranges
-  if (minAscii >= 33 && maxAscii <= 73) {
-    return "phred33"; // Standard Illumina 1.8+
-  } else if (minAscii >= 64 && maxAscii <= 104) {
-    return "phred64"; // Illumina 1.3-1.7
-  } else if (minAscii >= 59 && maxAscii <= 104) {
-    return "solexa"; // Solexa/early Illumina
-  } else if (minAscii >= 33 && maxAscii <= 126) {
-    // Could be either, default to phred33
-    return "phred33";
-  } else {
-    throw new QualityError(
-      `Cannot detect quality encoding: ASCII range ${minAscii}-${maxAscii}`,
-      "unknown"
-    );
-  }
-}
-
-/**
  * Calculate quality statistics
  */
 export function calculateStats(scores: number[]): {
@@ -196,7 +166,6 @@ export const QualityScores = {
   toNumbers,
   toString: scoresToString,
   getOffset,
-  detectEncoding,
   calculateStats,
 } as const;
 
@@ -577,7 +546,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
     }
 
     try {
-      return detectEncoding(quality);
+      return detectEncodingImmediate(quality);
     } catch (error) {
       this.options.onWarning!(
         `Could not detect quality encoding for sequence '${sequenceId}': ${error instanceof Error ? error.message : String(error)}. Using phred33 as fallback`,

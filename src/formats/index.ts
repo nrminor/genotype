@@ -47,7 +47,6 @@ export { FastaParser, FastaUtils, FastaWriter } from "./fasta";
 // FASTQ format exports
 export {
   calculateStats,
-  detectEncoding,
   FastqParser,
   FastqUtils,
   FastqWriter,

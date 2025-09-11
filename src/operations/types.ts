@@ -134,6 +134,21 @@ export interface QualityOptions {
 }
 
 /**
+ * Options for quality score encoding conversion
+ *
+ * Convert FASTQ quality scores between different encoding schemes.
+ * Essential for legacy data processing and tool compatibility.
+ */
+export interface ConvertOptions {
+  /** Target quality encoding to convert to */
+  targetEncoding: "phred33" | "phred64" | "solexa";
+  /** Source encoding (auto-detect if not specified) */
+  sourceEncoding?: "phred33" | "phred64" | "solexa";
+  /** Whether to validate encoding compatibility before conversion */
+  validateEncoding?: boolean;
+}
+
+/**
  * Options for sequence validation
  *
  * Validation can reject, fix, or warn about invalid sequences.

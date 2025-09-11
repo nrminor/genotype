@@ -11,11 +11,7 @@ export { QualityEncoding } from "../../types";
 export { SequenceValidator } from "../validate";
 // Note: SeqOps is now exported from operations/index.ts, not here
 // Bloom filters for deduplication (low-level)
-export {
-  BloomFilter,
-  CountingBloomFilter,
-  ScalableBloomFilter,
-} from "./bloom-filter";
+export { BloomFilter, CountingBloomFilter, ScalableBloomFilter } from "./bloom-filter";
 // Sequence calculations (from calculations.ts)
 export {
   atContent,
@@ -41,9 +37,10 @@ export {
   averageQuality,
   charToScore,
   convertScore,
-  detect,
   // Individual functions (tree-shakeable)
   detectEncoding,
+  detectEncodingImmediate,
+  detectEncodingStatistical,
   errorProbabilityToScore,
   getEncodingRange,
   // Grouped object for convenience

@@ -121,14 +121,19 @@ describe("QualityEncodingDetector", () => {
       expect(result).toBe("5555");
     });
 
-    test("throws error for Solexa conversion", () => {
-      expect(() => QualityEncodingDetector.convertScore("TTTT", "phred64", "solexa")).toThrow(
-        "Solexa conversion not yet implemented"
-      );
+    test("converts to/from Solexa using proper non-linear mathematics", () => {
+      // Test Phred64 to Solexa conversion
+      const phred64ToSolexa = QualityEncodingDetector.convertScore("@@@@", "phred64", "solexa");
+      expect(phred64ToSolexa).toBeDefined();
+      expect(phred64ToSolexa.length).toBe(4);
 
-      expect(() => QualityEncodingDetector.convertScore("5555", "solexa", "phred33")).toThrow(
-        "Solexa conversion not yet implemented"
-      );
+      // Test Solexa to Phred33 conversion
+      const solexaToPhred33 = QualityEncodingDetector.convertScore("@@@@", "solexa", "phred33");
+      expect(solexaToPhred33).toBeDefined();
+      expect(solexaToPhred33.length).toBe(4);
+
+      // Solexa conversion should use non-linear math, not simple ASCII offset
+      expect(phred64ToSolexa).not.toBe("@@@@"); // Should be mathematically converted
     });
 
     test("throws error for invalid input", () => {
@@ -200,7 +205,7 @@ describe("QualityEncodingDetector", () => {
         }
       }
 
-      const detected = await QualityEncodingDetector.detect(generateSequences());
+      const detected = await QualityEncodingDetector.detectEncodingStatistical(generateSequences());
       expect(detected).toBe("phred33");
     });
 
@@ -230,7 +235,7 @@ describe("QualityEncodingDetector", () => {
         }
       }
 
-      const detected = await QualityEncodingDetector.detect(generateSequences());
+      const detected = await QualityEncodingDetector.detectEncodingStatistical(generateSequences());
       expect(detected).toBe("phred64");
     });
 
@@ -244,7 +249,7 @@ describe("QualityEncodingDetector", () => {
       }
 
       // The implementation doesn't throw for empty sequences, it returns a default
-      const result = await QualityEncodingDetector.detect(generateSequences());
+      const result = await QualityEncodingDetector.detectEncodingStatistical(generateSequences());
       expect(result).toBeDefined();
     });
 
@@ -267,7 +272,7 @@ describe("QualityEncodingDetector", () => {
       }
 
       // The implementation doesn't throw for sequences without quality, it returns a default
-      const result = await QualityEncodingDetector.detect(generateSequences());
+      const result = await QualityEncodingDetector.detectEncodingStatistical(generateSequences());
       expect(result).toBeDefined();
     });
 
@@ -287,7 +292,9 @@ describe("QualityEncodingDetector", () => {
       }
 
       // Should still work and not process all 15,000 sequences
-      const detected = await QualityEncodingDetector.detect(generateManySequences());
+      const detected = await QualityEncodingDetector.detectEncodingStatistical(
+        generateManySequences()
+      );
       expect(detected).toBe("phred33");
     });
   });

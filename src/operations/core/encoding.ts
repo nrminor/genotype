@@ -23,6 +23,7 @@
  * ```
  */
 
+import { QualityError } from "../../errors";
 import type { FastqSequence, QualityEncoding } from "../../types";
 import { QualityEncoding as QualityEncodingConstants } from "../../types";
 
@@ -41,24 +42,104 @@ interface EncodingRange {
   readonly offset: number;
 }
 
+/**
+ * Detection result with confidence scoring
+ *
+ * Provides uncertainty feedback when encoding detection is ambiguous,
+ * helping users understand when explicit encoding specification recommended.
+ */
+export interface DetectionResult {
+  /** Detected quality encoding */
+  encoding: QualityEncoding;
+  /** Confidence score (0.0-1.0, higher = more certain) */
+  confidence: number;
+  /** Whether detection was ambiguous (multiple encodings possible) */
+  ambiguous: boolean;
+  /** ASCII range found in quality data */
+  ranges: { min: number; max: number };
+  /** Biological reasoning for detection choice */
+  reasoning: string;
+}
+
 // =============================================================================
 // EXPORTED FUNCTIONS
 // =============================================================================
 
 /**
- * Auto-detect quality encoding from FASTQ sequences
- * Samples first 10,000 sequences to determine encoding
+ * Detect quality encoding from single quality string (immediate analysis)
+ *
+ * Uses scientifically validated ASCII ranges for immediate encoding detection.
+ * Optimized for real-time parsing where instant results are needed.
  *
  * @example
  * ```typescript
- * const encoding = await detectEncoding(sequences);
+ * const encoding = detectEncodingImmediate("!!!!####");
+ * console.log(`Detected: ${encoding}`); // "phred33"
+ * ```
+ *
+ * @param qualityString - Quality string to analyze
+ * @returns Detected quality encoding
+ *
+ * 🔥 NATIVE CANDIDATE: ASCII min/max finding with SIMD acceleration
+ */
+export function detectEncodingImmediate(qualityString: string): QualityEncoding {
+  if (!qualityString || qualityString.length === 0) {
+    return QualityEncodingConstants.PHRED33; // Default to modern standard
+  }
+
+  // 🔥 NATIVE: SIMD min/max finding for large quality strings
+  let minAscii = 255;
+  let maxAscii = 0;
+  for (let i = 0; i < qualityString.length; i++) {
+    const ascii = qualityString.charCodeAt(i);
+    minAscii = Math.min(minAscii, ascii);
+    maxAscii = Math.max(maxAscii, ascii);
+  }
+
+  // Distribution-aware detection: constrained patterns suggest legacy, mixed suggest modern
+  // Check for uniform high patterns first (modern Q40+ data)
+  if (minAscii >= 70 && maxAscii <= 93 && maxAscii - minAscii <= 5) {
+    return QualityEncodingConstants.PHRED33; // Uniform high quality = modern
+  }
+  // Check constrained legacy patterns (filtered poor quality data)
+  else if (minAscii >= 64 && maxAscii <= 104) {
+    return QualityEncodingConstants.PHRED64; // Legacy Illumina (filtered data)
+  } else if (minAscii >= 59 && maxAscii <= 104) {
+    return QualityEncodingConstants.SOLEXA; // Historical Solexa (constrained range)
+  }
+  // Mixed ranges suggest modern quality distributions (prevalence-aware)
+  else if (minAscii >= 33 && maxAscii <= 93) {
+    return QualityEncodingConstants.PHRED33; // Modern standard (95% prevalence)
+  } else if (minAscii >= 33 && maxAscii <= 126) {
+    // Wide range suggests modern phred33 with exceptional quality scores (Q60+)
+    return QualityEncodingConstants.PHRED33;
+  } else {
+    throw new QualityError(
+      `Cannot detect quality encoding: ASCII range ${minAscii}-${maxAscii} outside known standards`,
+      "unknown",
+      undefined,
+      undefined,
+      `Expected ranges: Phred+33 (33-93), Phred+64 (64-104), or Solexa (59-104). ` +
+        `Invalid characters may indicate corrupted data or non-standard encoding. ` +
+        `For custom encodings, specify qualityEncoding explicitly in parser options.`
+    );
+  }
+}
+
+/**
+ * Auto-detect quality encoding from FASTQ sequences (statistical analysis)
+ * Samples first 10,000 sequences to determine encoding with high confidence
+ *
+ * @example
+ * ```typescript
+ * const encoding = await detectEncodingStatistical(sequences);
  * console.log(`Detected encoding: ${encoding}`);
  * ```
  *
  * @param sequences - AsyncIterable of FASTQ sequences to analyze
  * @returns Detected quality encoding
  */
-export async function detectEncoding(
+export async function detectEncodingStatistical(
   sequences: AsyncIterable<FastqSequence>
 ): Promise<QualityEncoding> {
   // Tiger Style: Assert input
@@ -91,21 +172,220 @@ export async function detectEncoding(
     return QualityEncodingConstants.PHRED33; // Default to modern standard
   }
 
-  // Decision tree based on ASCII ranges
-  if (minQual < 59) {
+  // Distribution-aware detection with statistical confidence (NAR specification)
+  // 🔥 NATIVE CANDIDATE: Range checking could be SIMD-accelerated
+  // Check for uniform high patterns first (modern Q40+ data)
+  if (minQual >= 70 && maxQual <= 93 && maxQual - minQual <= 5) {
+    return QualityEncodingConstants.PHRED33; // Uniform high quality = modern
+  }
+  // Check constrained legacy patterns (filtered poor quality data)
+  else if (minQual >= 64 && maxQual <= 104) {
+    return QualityEncodingConstants.PHRED64; // Legacy Illumina (filtered data)
+  } else if (minQual >= 59 && maxQual <= 104) {
+    return QualityEncodingConstants.SOLEXA; // Historical Solexa
+  }
+  // Mixed ranges suggest modern quality distributions (prevalence-aware)
+  else if (minQual >= 33 && maxQual <= 93) {
+    return QualityEncodingConstants.PHRED33; // Modern standard (95% prevalence)
+  } else if (minQual >= 33 && maxQual <= 126) {
+    // Wide range suggests modern phred33 with exceptional quality scores (Q60+)
     return QualityEncodingConstants.PHRED33;
+  } else {
+    throw new Error(
+      `Cannot detect quality encoding: ASCII range ${minQual}-${maxQual} outside known standards. ` +
+        `Expected ranges: Phred+33 (33-93), Phred+64 (64-104), or Solexa (59-104).`
+    );
   }
-  if (minQual >= 64 && maxQual <= 126) {
-    return QualityEncodingConstants.PHRED64;
-  }
-  return QualityEncodingConstants.SOLEXA;
 }
 
 /**
- * Alias for detectEncoding for backward compatibility
- * @deprecated Use detectEncoding instead
+ * Detect quality encoding with confidence scoring and uncertainty reporting
+ *
+ * Provides detailed feedback about detection certainty, biological reasoning,
+ * and recommendations for ambiguous cases.
+ *
+ * @example
+ * ```typescript
+ * const result = detectEncodingWithConfidence("@@@@IIII");
+ * if (result.confidence < 0.8) {
+ *   console.warn(`Uncertain detection: ${result.reasoning}`);
+ * }
+ * ```
+ *
+ * @param qualityString - Quality string to analyze
+ * @returns Detection result with confidence metrics
  */
-export const detect = detectEncoding;
+export function detectEncodingWithConfidence(qualityString: string): DetectionResult {
+  if (!qualityString || qualityString.length === 0) {
+    return {
+      encoding: QualityEncodingConstants.PHRED33,
+      confidence: 0.5, // Low confidence for empty data
+      ambiguous: true,
+      ranges: { min: 0, max: 0 },
+      reasoning: "Empty quality string - defaulting to modern Phred+33 standard",
+    };
+  }
+
+  // Calculate ASCII range
+  let minAscii = 255;
+  let maxAscii = 0;
+  for (let i = 0; i < qualityString.length; i++) {
+    const ascii = qualityString.charCodeAt(i);
+    minAscii = Math.min(minAscii, ascii);
+    maxAscii = Math.max(maxAscii, ascii);
+  }
+
+  const ranges = { min: minAscii, max: maxAscii };
+  const range = maxAscii - minAscii;
+
+  // Distribution-aware detection with confidence scoring
+  // Check for uniform high patterns first (modern Q40+ data)
+  if (minAscii >= 70 && maxAscii <= 93 && range <= 5) {
+    return {
+      encoding: QualityEncodingConstants.PHRED33,
+      confidence: 0.95, // High confidence - uniform high quality pattern
+      ambiguous: false,
+      ranges,
+      reasoning: "Uniform high-ASCII pattern characteristic of modern high-quality sequencing",
+    };
+  }
+  // Check constrained legacy patterns (filtered poor quality data)
+  else if (minAscii >= 64 && maxAscii <= 104) {
+    const confidence = minAscii >= 70 ? 0.85 : 0.9; // Lower confidence for overlap zone
+    return {
+      encoding: QualityEncodingConstants.PHRED64,
+      confidence,
+      ambiguous: minAscii < 70, // Ambiguous if overlaps with phred33
+      ranges,
+      reasoning:
+        minAscii < 70
+          ? "High-ASCII-only pattern suggests legacy data, but overlaps with modern range"
+          : "High-ASCII constrained range characteristic of legacy Illumina 1.3-1.7",
+    };
+  } else if (minAscii >= 59 && maxAscii <= 104) {
+    return {
+      encoding: QualityEncodingConstants.SOLEXA,
+      confidence: 0.75, // Lower confidence - rare encoding
+      ambiguous: true,
+      ranges,
+      reasoning: "Historical Solexa range detected - very rare in modern data, consider verifying",
+    };
+  }
+  // Mixed ranges suggest modern quality distributions (prevalence-aware)
+  else if (minAscii >= 33 && maxAscii <= 93) {
+    const confidence = range > 40 ? 0.9 : 0.85; // Higher confidence for broader ranges
+    return {
+      encoding: QualityEncodingConstants.PHRED33,
+      confidence,
+      ambiguous: false,
+      ranges,
+      reasoning: "Mixed ASCII range characteristic of modern quality distribution",
+    };
+  } else if (minAscii >= 33 && maxAscii <= 126) {
+    return {
+      encoding: QualityEncodingConstants.PHRED33,
+      confidence: 0.8, // Medium confidence - very wide range
+      ambiguous: true,
+      ranges,
+      reasoning: "Very wide ASCII range - likely modern Phred+33 with exceptional quality scores",
+    };
+  } else {
+    throw new QualityError(
+      `Cannot detect quality encoding: ASCII range ${minAscii}-${maxAscii} outside known standards`,
+      "unknown",
+      undefined,
+      undefined,
+      `Expected ranges: Phred+33 (33-93), Phred+64 (64-104), or Solexa (59-104). ` +
+        `Invalid characters may indicate corrupted data or non-standard encoding. ` +
+        `For custom encodings, specify qualityEncoding explicitly in parser options.`
+    );
+  }
+}
+
+/**
+ * Primary quality encoding detection (re-export for intuitive API)
+ * Uses immediate detection as the primary use case for most workflows
+ */
+export const detectEncoding = detectEncodingImmediate;
+
+/**
+ * Convert Solexa quality score to Phred quality score
+ *
+ * Solexa uses different probability calculation: Q_solexa = -10 * log10(Pe / (1-Pe))
+ * Must convert through error probability to get correct Phred score
+ *
+ * @param solexaScore - Solexa quality score (-5 to 62)
+ * @returns Equivalent Phred quality score
+ */
+function convertSolexaToPhred(solexaScore: number): number {
+  // Solexa formula: P = 10^(-Q/10) / (1 + 10^(-Q/10))
+  const temp = 10 ** (-solexaScore / 10);
+  const errorProb = temp / (1 + temp);
+  return errorProbabilityToScore(errorProb); // Use existing infrastructure
+}
+
+/**
+ * Convert Phred quality score to Solexa quality score
+ *
+ * @param phredScore - Phred quality score (0+)
+ * @returns Equivalent Solexa quality score
+ */
+function convertPhredToSolexa(phredScore: number): number {
+  const errorProb = scoreToErrorProbability(phredScore); // Use existing infrastructure
+
+  // Handle edge case: Q0 (error prob = 1.0) cannot be converted directly due to division by zero
+  if (errorProb >= 0.999) {
+    // Q0 in Phred roughly corresponds to Q-5 in Solexa (minimum Solexa score)
+    return -5; // Solexa minimum, represents very poor quality
+  }
+
+  // Solexa formula: Q = -10 * log10(P / (1-P))
+  return -10 * Math.log10(errorProb / (1 - errorProb));
+}
+
+/**
+ * Convert quality string with Solexa encoding involved
+ *
+ * Handles all Solexa conversion cases using proper non-linear mathematics
+ */
+function convertSolexaQuality(quality: string, from: QualityEncoding, to: QualityEncoding): string {
+  const fromOffset = from === QualityEncodingConstants.PHRED33 ? 33 : 64;
+  const toOffset = to === QualityEncodingConstants.PHRED33 ? 33 : 64;
+
+  const result = new Array(quality.length);
+
+  for (let i = 0; i < quality.length; i++) {
+    const char = quality.charCodeAt(i);
+    let score: number;
+
+    // Convert ASCII to quality score in source encoding
+    if (from === QualityEncodingConstants.SOLEXA) {
+      score = char - 64; // Solexa uses offset 64
+      // Convert Solexa to Phred, then to target
+      const phredScore = convertSolexaToPhred(score);
+      score = phredScore;
+    } else {
+      score = char - fromOffset; // Phred score
+      // Convert Phred to Solexa if needed
+      if (to === QualityEncodingConstants.SOLEXA) {
+        score = convertPhredToSolexa(score);
+      }
+    }
+
+    // Convert quality score to ASCII in target encoding
+    const targetOffset = to === QualityEncodingConstants.SOLEXA ? 64 : toOffset;
+    const targetChar = Math.round(score) + targetOffset;
+
+    // Validate resulting character is in valid range
+    if (targetChar < 33 || targetChar > 126) {
+      throw new Error(`Solexa conversion resulted in invalid character code: ${targetChar}`);
+    }
+
+    result[i] = String.fromCharCode(targetChar);
+  }
+
+  return result.join("");
+}
 
 /**
  * Convert quality scores between encodings
@@ -143,9 +423,9 @@ export function convertScore(quality: string, from: QualityEncoding, to: Quality
   const toOffset = to === QualityEncodingConstants.PHRED33 ? 33 : 64;
   const diff = toOffset - fromOffset;
 
-  // Handle Solexa's different probability calculation if needed
+  // Handle Solexa's different probability calculation
   if (from === QualityEncodingConstants.SOLEXA || to === QualityEncodingConstants.SOLEXA) {
-    throw new Error("Solexa conversion not yet implemented");
+    return convertSolexaQuality(quality, from, to);
   }
 
   // Simple offset conversion for Phred encodings
@@ -345,8 +625,13 @@ export function errorProbabilityToScore(probability: number): number {
  * ```
  */
 export const QualityEncodingDetector = {
-  detect: detectEncoding,
-  detectEncoding,
+  // Detection functions with clear names
+  detectEncodingImmediate,
+  detectEncodingStatistical,
+  // Intuitive primary API (re-exports for expected interface)
+  detectEncoding: detectEncodingImmediate,
+  detect: detectEncodingStatistical,
+  // Conversion and utilities
   convertScore,
   averageQuality,
   scoreToChar,

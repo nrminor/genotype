@@ -45,15 +45,11 @@ describe("QualityScores", () => {
   test("should detect Phred+33 encoding", () => {
     const quality = "!!!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHI";
     expect(detectEncoding(quality)).toBe("phred33");
-    // Also test backward compatibility
-    expect(QualityScores.detectEncoding(quality)).toBe("phred33");
   });
 
   test("should detect Phred+64 encoding", () => {
     const quality = "@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefgh";
     expect(detectEncoding(quality)).toBe("phred64");
-    // Also test backward compatibility
-    expect(QualityScores.detectEncoding(quality)).toBe("phred64");
   });
 
   test("should calculate quality statistics", () => {

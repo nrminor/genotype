@@ -23,6 +23,7 @@ import type {
 // Import processors
 import { CleanProcessor } from "./clean";
 import { ConcatProcessor } from "./concat";
+import { ConvertProcessor } from "./convert";
 import { FilterProcessor } from "./filter";
 import { GrepProcessor } from "./grep";
 import { LocateProcessor } from "./locate";
@@ -38,6 +39,7 @@ import { TranslateProcessor } from "./translate";
 import type {
   CleanOptions,
   ConcatOptions,
+  ConvertOptions,
   FilterOptions,
   GrepOptions,
   LocateOptions,
@@ -179,6 +181,42 @@ export class SeqOps<T extends AbstractSequence> {
    */
   quality<U extends T & FastqSequence>(this: SeqOps<U>, options: QualityOptions): SeqOps<U> {
     const processor = new QualityProcessor();
+    return new SeqOps<U>(processor.process(this.source, options) as AsyncIterable<U>);
+  }
+
+  /**
+   * Convert FASTQ quality score encodings
+   *
+   * Convert quality scores between different encoding schemes (Phred+33, Phred+64, Solexa).
+   * Essential for legacy data processing and tool compatibility. Only affects FASTQ sequences;
+   * FASTA sequences pass through unchanged.
+   *
+   * @param options - Conversion options
+   * @returns New SeqOps instance for chaining
+   *
+   * @example
+   * ```typescript
+   * // Primary workflow: Auto-detect source encoding (matches seqkit)
+   * seqops(legacyData)
+   *   .convert({ targetEncoding: 'phred33' })
+   *   .writeFastq('modernized.fastq');
+   *
+   * // Legacy Illumina 1.3-1.7 to modern standard
+   * seqops(illumina15Data)
+   *   .convert({
+   *     sourceEncoding: 'phred64',  // Skip detection for known encoding
+   *     targetEncoding: 'phred33'   // Modern standard
+   *   })
+   *
+   * // Real-world pipeline: QC → standardize encoding → analysis
+   * const results = await seqops(mixedEncodingFiles)
+   *   .quality({ minScore: 20 })           // Filter first
+   *   .convert({ targetEncoding: 'phred33' })  // Standardize
+   *   .stats({ detailed: true });
+   * ```
+   */
+  convert<U extends T & FastqSequence>(this: SeqOps<U>, options: ConvertOptions): SeqOps<U> {
+    const processor = new ConvertProcessor();
     return new SeqOps<U>(processor.process(this.source, options) as AsyncIterable<U>);
   }
 
@@ -1245,6 +1283,7 @@ export type {
   AnnotateOptions,
   CleanOptions,
   ConcatOptions,
+  ConvertOptions,
   FilterOptions,
   GrepOptions,
   GroupOptions,

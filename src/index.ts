@@ -66,7 +66,6 @@ export { FastaParser, FastaUtils, FastaWriter } from "./formats/fasta";
 // FASTQ format
 export {
   calculateStats,
-  detectEncoding,
   FastqParser,
   FastqUtils,
   FastqWriter,
@@ -122,6 +121,14 @@ export {
   type TransformOptions,
   type ValidateOptions,
 } from "./operations";
+// Quality encoding detection (shared functionality)
+export {
+  type DetectionResult,
+  detectEncoding,
+  detectEncodingImmediate,
+  detectEncodingStatistical,
+  detectEncodingWithConfidence,
+} from "./operations/core/encoding";
 // Core types
 export type {
   AbstractSequence,

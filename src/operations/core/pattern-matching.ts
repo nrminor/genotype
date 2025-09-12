@@ -36,12 +36,15 @@ import { expandAmbiguous } from "./sequence-validation";
 /**
  * Simple match result with position and mismatch information
  * Used by low-level algorithm functions
+ *
+ * @template TPattern - Type of the original pattern (preserves branded types)
  */
-export interface PatternMatch {
+export interface PatternMatch<TPattern extends string = string> {
   position: number;
   length: number;
   mismatches: number;
   matched: string;
+  pattern: TPattern;
 }
 
 /**
@@ -262,7 +265,11 @@ export function boyerMoore(text: string, pattern: string): number[] {
  *
  * 🔥 NATIVE CRITICAL: Approximate string matching
  */
-export function fuzzyMatch(text: string, pattern: string, maxMismatches: number): PatternMatch[] {
+export function fuzzyMatch<T extends string>(
+  text: string,
+  pattern: T,
+  maxMismatches: number
+): PatternMatch<T>[] {
   // Tiger Style: Assert inputs
   if (!pattern || pattern.length === 0) return [];
   if (!text || pattern.length > text.length) return [];
@@ -270,7 +277,7 @@ export function fuzzyMatch(text: string, pattern: string, maxMismatches: number)
     throw new Error("Max mismatches must be non-negative");
   }
 
-  const matches: PatternMatch[] = [];
+  const matches: PatternMatch<T>[] = [];
 
   for (let i = 0; i <= text.length - pattern.length; i++) {
     let mismatches = 0;
@@ -291,6 +298,7 @@ export function fuzzyMatch(text: string, pattern: string, maxMismatches: number)
         length: pattern.length,
         mismatches,
         matched: text.substring(i, i + pattern.length),
+        pattern: pattern,
       });
     }
   }
@@ -637,6 +645,7 @@ export function findPalindromes(
           length,
           mismatches: 0,
           matched: substring,
+          pattern: substring, // Palindromes match themselves
         });
       }
     }
@@ -1273,6 +1282,181 @@ export function findSimplePattern(sequence: string, pattern: string): number[] {
   }
 
   return positions;
+}
+
+/**
+ * Find pattern matches with mismatch tolerance, returning position information
+ *
+ * Enhances the boolean hasPatternWithMismatches to return detailed match positions.
+ * Essential for amplicon detection where primer locations are needed.
+ * Automatically handles IUPAC degenerate bases when present in pattern.
+ *
+ * @param sequence - Text to search in
+ * @param pattern - Pattern to search for (supports IUPAC codes)
+ * @param maxMismatches - Maximum allowed mismatches
+ * @param searchBothStrands - Whether to check reverse complement
+ * @returns Array of pattern matches with position and mismatch information
+ *
+ * @example
+ * ```typescript
+ * // Exact nucleotides
+ * const exact = findPatternWithMismatches('ATCGATCGTT', 'ATCG', 1);
+ *
+ * // IUPAC degenerate bases (handled automatically)
+ * const degenerate = findPatternWithMismatches('ATCGATCGTT', 'ATCR', 0); // R = A|G
+ * ```
+ *
+ * @since v0.1.0
+ */
+export function findPatternWithMismatches<T extends string>(
+  sequence: string,
+  pattern: T,
+  maxMismatches: number,
+  searchBothStrands: boolean = false
+): PatternMatch<T>[] {
+  // Tiger Style: Assert inputs
+  if (!sequence || typeof sequence !== "string") {
+    throw new Error("Sequence must be a non-empty string");
+  }
+  if (!pattern || typeof pattern !== "string") {
+    throw new Error("Pattern must be a non-empty string");
+  }
+  if (maxMismatches < 0) {
+    throw new Error("Max mismatches must be non-negative");
+  }
+
+  // Auto-detect IUPAC degenerate bases for biological accuracy
+  const hasDegenerate = /[RYSWKMBDHVN]/i.test(pattern);
+
+  if (hasDegenerate) {
+    // Use IUPAC-aware matching for biological accuracy
+    return findWithIUPACMatching(sequence, pattern, maxMismatches, searchBothStrands);
+  } else {
+    // Fast path for exact nucleotides
+    return findWithExactMatching(sequence, pattern, maxMismatches, searchBothStrands);
+  }
+}
+
+/**
+ * IUPAC-aware pattern matching with mismatch tolerance
+ * @private
+ */
+function findWithIUPACMatching<T extends string>(
+  sequence: string,
+  pattern: T,
+  maxMismatches: number,
+  searchBothStrands: boolean
+): PatternMatch<T>[] {
+  const allMatches: PatternMatch<T>[] = [];
+
+  // Forward strand IUPAC matching
+  allMatches.push(...findIUPACPositions(sequence, pattern, maxMismatches));
+
+  // Reverse strand IUPAC matching
+  if (searchBothStrands) {
+    const patternRC = reverseComplement(pattern);
+    const reverseMatches = findIUPACPositions(sequence, patternRC, maxMismatches);
+    // Map back to original pattern type for consistency
+    const typedReverseMatches = reverseMatches.map((match) => ({
+      ...match,
+      pattern: pattern, // Keep original pattern type
+    }));
+    allMatches.push(...typedReverseMatches);
+  }
+
+  return allMatches.sort((a, b) => a.position - b.position);
+}
+
+/**
+ * Exact nucleotide matching with mismatch tolerance (fast path)
+ * @private
+ */
+function findWithExactMatching<T extends string>(
+  sequence: string,
+  pattern: T,
+  maxMismatches: number,
+  searchBothStrands: boolean
+): PatternMatch<T>[] {
+  const allMatches: PatternMatch<T>[] = [];
+
+  // Forward strand exact matching
+  const forwardMatches = fuzzyMatch(sequence, pattern, maxMismatches);
+  allMatches.push(...forwardMatches);
+
+  // Reverse strand exact matching
+  if (searchBothStrands) {
+    const patternRC = reverseComplement(pattern);
+    const reverseMatches = fuzzyMatch(sequence, patternRC, maxMismatches);
+    // Map back to original pattern type for consistency
+    const typedReverseMatches = reverseMatches.map((match) => ({
+      ...match,
+      pattern: pattern, // Keep original pattern type
+    }));
+    allMatches.push(...typedReverseMatches);
+  }
+
+  return allMatches.sort((a, b) => a.position - b.position);
+}
+
+/**
+ * Find IUPAC pattern positions with mismatch tolerance
+ * @private
+ */
+function findIUPACPositions<T extends string>(
+  sequence: string,
+  pattern: T,
+  maxMismatches: number
+): PatternMatch<T>[] {
+  const matches: PatternMatch<T>[] = [];
+
+  for (let i = 0; i <= sequence.length - pattern.length; i++) {
+    const substring = sequence.substring(i, i + pattern.length);
+    const mismatchCount = countIUPACMismatches(substring, pattern);
+
+    if (mismatchCount <= maxMismatches) {
+      matches.push({
+        position: i,
+        length: pattern.length,
+        mismatches: mismatchCount,
+        matched: substring,
+        pattern: pattern,
+      });
+    }
+  }
+
+  return matches;
+}
+
+/**
+ * Count mismatches between text and pattern considering IUPAC compatibility
+ * @private
+ */
+function countIUPACMismatches(text: string, pattern: string): number {
+  if (text.length !== pattern.length) return Infinity;
+
+  let mismatches = 0;
+  for (let i = 0; i < text.length; i++) {
+    const textBase = text[i];
+    const patternBase = pattern[i];
+
+    // TypeScript safety - ensure characters exist
+    if (!textBase || !patternBase) continue;
+
+    // N matches anything
+    if (patternBase === "N" || textBase === "N") continue;
+
+    // Check IUPAC compatibility using existing infrastructure
+    const patternExpanded = expandAmbiguous(patternBase);
+    const textExpanded = expandAmbiguous(textBase);
+
+    // Check for overlap - if no overlap, it's a mismatch
+    const hasOverlap = patternExpanded.some((p) => textExpanded.includes(p));
+    if (!hasOverlap) {
+      mismatches++;
+    }
+  }
+
+  return mismatches;
 }
 
 // =============================================================================

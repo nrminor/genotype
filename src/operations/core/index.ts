@@ -9,6 +9,24 @@
 export { QualityEncoding } from "../../types";
 // Re-export SequenceValidator from operations for backward compatibility
 export { SequenceValidator } from "../validate";
+export type {
+  DNASequence,
+  IUPACSequence,
+  PrimerSequence,
+  RNASequence,
+} from "./alphabet";
+// Alphabet validation and template literal tags
+export {
+  dna,
+  isDNASequence,
+  isIUPACSequence,
+  isPrimerSequence,
+  isRNASequence,
+  iupac,
+  primer,
+  rna,
+  validateAndBrand,
+} from "./alphabet";
 // Note: SeqOps is now exported from operations/index.ts, not here
 // Bloom filters for deduplication (low-level)
 export { BloomFilter, CountingBloomFilter, ScalableBloomFilter } from "./bloom-filter";
@@ -82,6 +100,7 @@ export {
   findPalindromes,
   findPattern,
   findPattern as findPatternTransform,
+  findPatternWithMismatches,
   findSimplePattern,
   findTandemRepeats,
   fuzzyMatch,

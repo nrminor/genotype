@@ -21,6 +21,7 @@ import type {
   ValidGenomicRegion,
 } from "../types";
 // Import processors
+import { AmpliconProcessor } from "./amplicon";
 import { CleanProcessor } from "./clean";
 import { ConcatProcessor } from "./concat";
 import { ConvertProcessor } from "./convert";
@@ -37,6 +38,7 @@ import { SubseqExtractor, type SubseqOptions } from "./subseq";
 import { TransformProcessor } from "./transform";
 import { TranslateProcessor } from "./translate";
 import type {
+  AmpliconOptions,
   CleanOptions,
   ConcatOptions,
   ConvertOptions,
@@ -138,6 +140,107 @@ export class SeqOps<T extends AbstractSequence> {
    */
   transform(options: TransformOptions): SeqOps<T> {
     const processor = new TransformProcessor();
+    return new SeqOps<T>(processor.process(this.source, options) as AsyncIterable<T>);
+  }
+
+  /**
+   * Extract amplicons via primer sequences
+   *
+   * Finds primer pairs within sequences and extracts the amplified regions.
+   * Supports mismatch tolerance, degenerate bases (IUPAC codes), windowed search
+   * for long-read performance, canonical matching for BED-extracted primers,
+   * and flexible region extraction. Provides complete seqkit amplicon parity
+   * with enhanced biological validation and type safety.
+   *
+   * @example
+   * ```typescript
+   * // Simple amplicon extraction (90% use case)
+   * seqops(sequences)
+   *   .amplicon('ATCGATCG', 'CGATCGAT')
+   *   .writeFasta('amplicons.fasta');
+   *
+   * // With mismatch tolerance (common case)
+   * seqops(sequences)
+   *   .amplicon('ATCGATCG', 'CGATCGAT', 2)
+   *   .filter({ minLength: 50 });
+   *
+   * // Single primer (auto-canonical matching)
+   * seqops(sequences)
+   *   .amplicon('UNIVERSAL_PRIMER')
+   *   .stats();
+   *
+   * // Real-world COVID-19 diagnostics
+   * seqops(samples)
+   *   .quality({ minScore: 20 })
+   *   .amplicon(
+   *     primer`ACCAGGAACTAATCAGACAAG`,     // N gene forward
+   *     primer`CAAAGACCAATCCTACCATGAG`,    // N gene reverse
+   *     2                                  // Allow sequencing errors
+   *   )
+   *   .validate({ mode: 'strict' });
+   *
+   * // Long reads with windowed search (massive performance boost)
+   * seqops(nanoporeReads)
+   *   .amplicon('FORWARD', 'REVERSE', {
+   *     searchWindow: { forward: 200, reverse: 200 }  // 100x+ speedup
+   *   });
+   *
+   * // Advanced features (10% use case)
+   * seqops(sequences)
+   *   .amplicon({
+   *     forwardPrimer: primer`ACCAGGAACTAATCAGACAAG`,
+   *     reversePrimer: primer`CAAAGACCAATCCTACCATGAG`,
+   *     maxMismatches: 3,                             // Long-read tolerance
+   *     canonical: true,                              // BED-extracted primers
+   *     flanking: true,                               // Include primer context
+   *     region: '-100:100',                           // Biological context
+   *     searchWindow: { forward: 200, reverse: 200 }, // Performance optimization
+   *     outputMismatches: true                        // Debug information
+   *   })
+   *   .rmdup('sequence')
+   *   .writeFasta('advanced_amplicons.fasta');
+   * ```
+   */
+
+  // Method overloads for clean IntelliSense
+  amplicon(forwardPrimer: string): SeqOps<T>;
+  amplicon(forwardPrimer: string, reversePrimer: string): SeqOps<T>;
+  amplicon(forwardPrimer: string, reversePrimer: string, maxMismatches: number): SeqOps<T>;
+  amplicon(
+    forwardPrimer: string,
+    reversePrimer: string,
+    options: Partial<AmpliconOptions>
+  ): SeqOps<T>;
+  amplicon(options: AmpliconOptions): SeqOps<T>;
+
+  // Implementation handles all overloads
+  amplicon(
+    forwardPrimer: string | AmpliconOptions,
+    reversePrimer?: string,
+    maxMismatchesOrOptions?: number | Partial<AmpliconOptions>
+  ): SeqOps<T> {
+    const processor = new AmpliconProcessor();
+
+    // Clean overload resolution
+    let options: AmpliconOptions;
+
+    if (typeof forwardPrimer === "object") {
+      // amplicon({ options })
+      options = forwardPrimer;
+    } else if (reversePrimer === undefined) {
+      // amplicon('PRIMER')
+      options = { forwardPrimer };
+    } else if (maxMismatchesOrOptions === undefined) {
+      // amplicon('FORWARD', 'REVERSE')
+      options = { forwardPrimer, reversePrimer };
+    } else if (typeof maxMismatchesOrOptions === "number") {
+      // amplicon('FORWARD', 'REVERSE', 2)
+      options = { forwardPrimer, reversePrimer, maxMismatches: maxMismatchesOrOptions };
+    } else {
+      // amplicon('FORWARD', 'REVERSE', { options })
+      options = { forwardPrimer, reversePrimer, ...maxMismatchesOrOptions };
+    }
+
     return new SeqOps<T>(processor.process(this.source, options) as AsyncIterable<T>);
   }
 
@@ -1267,6 +1370,7 @@ seqops.concat = (
 };
 
 // Export processors for advanced usage
+export { AmpliconProcessor } from "./amplicon";
 export { ConcatProcessor } from "./concat";
 // Export split-specific types
 export { SplitProcessor, type SplitResult, type SplitSummary } from "./split";
@@ -1280,6 +1384,7 @@ export { SubseqExtractor, type SubseqOptions } from "./subseq";
 export { TranslateProcessor } from "./translate";
 // Export new semantic API types
 export type {
+  AmpliconOptions,
   AnnotateOptions,
   CleanOptions,
   ConcatOptions,

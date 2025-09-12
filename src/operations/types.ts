@@ -9,7 +9,50 @@
  * @since v0.1.0
  */
 
-import type { AbstractSequence } from "../types";
+import type { AbstractSequence, PrimerSequence } from "../types";
+
+/**
+ * Options for amplicon extraction via primer sequences
+ *
+ * Supports both compile-time validated PrimerSequence types and runtime strings.
+ * Runtime strings are validated and branded as PrimerSequence by ArkType schema.
+ */
+export interface AmpliconOptions {
+  /** Forward primer sequence (5' → 3') - supports IUPAC codes */
+  forwardPrimer: string | PrimerSequence;
+
+  /** Reverse primer sequence (5' → 3') - supports IUPAC codes */
+  reversePrimer?: string | PrimerSequence;
+
+  /** Maximum allowed mismatches when matching primers */
+  maxMismatches?: number;
+
+  /** Region specification relative to amplicon (e.g., "-50:50", "1:-1") */
+  region?: string;
+
+  /** Extract flanking regions around primers instead of inner amplicon (seqkit -f compatibility) */
+  flanking?: boolean;
+
+  /** Force canonical matching (primer OR reverse complement) - auto-detected if not specified */
+  canonical?: boolean;
+
+  /** Windowed search for long-read performance optimization */
+  searchWindow?: {
+    /** Search first N bases for forward primer */
+    forward?: number;
+    /** Search last N bases for reverse primer */
+    reverse?: number;
+  };
+
+  /** Only search on positive strand (skip reverse complement) */
+  onlyPositiveStrand?: boolean;
+
+  /** Output results in BED6+1 format */
+  outputBed?: boolean;
+
+  /** Include mismatch information in sequence descriptions */
+  outputMismatches?: boolean;
+}
 
 /**
  * Options for filtering sequences based on various criteria

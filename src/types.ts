@@ -2218,3 +2218,25 @@ export const BAIReaderOptionsSchema = type({
 
   return options;
 });
+
+// =============================================================================
+// ALPHABET VALIDATION EXPORTS
+// =============================================================================
+
+export type {
+  DNASequence,
+  IUPACSequence,
+  PrimerSequence,
+  RNASequence,
+} from "./operations/core/alphabet";
+// Re-export template literal tags and types for convenient library access
+export {
+  dna,
+  isDNASequence,
+  isIUPACSequence,
+  isPrimerSequence,
+  isRNASequence,
+  iupac,
+  primer,
+  rna,
+} from "./operations/core/alphabet";

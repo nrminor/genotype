@@ -81,9 +81,9 @@ import { seqops } from "genotype";
 import { FastqParser } from "genotype/formats";
 
 // Parse FASTQ with quality encoding specification (or automatic detection)
-const parser = new FastqParser({ 
+const parser = new FastqParser({
   qualityEncoding: "phred33", // Specify encoding, or omit for automatic detection
-  parseQualityScores: true // Enable quality score parsing for QC
+  parseQualityScores: true, // Enable quality score parsing for QC
 });
 const reads = parser.parseFile("SRR12345678.fastq.gz");
 
@@ -119,36 +119,54 @@ QC Report:
 `);
 ```
 
-### Primer Trimming for Amplicon Sequencing
+### Amplicon Extraction for Targeted Sequencing
 
-**Problem**: Your amplicon sequencing data has primer sequences that need to be
-removed before variant calling.
+**Problem**: You need to extract specific amplicon regions from sequencing data
+using PCR primers, with support for long reads and biological validation.
 
 ```typescript
-const FORWARD_PRIMER = "TCGTCGGCAGCGTCAGATGTGTATAAGAGACAG";
-const REVERSE_PRIMER = "GTCTCGTGGGCTCGGAGATGTGTATAAGAGACAG";
+import { primer, seqops } from "genotype";
 
-const trimmedAmplicons = await seqops(amplicons)
-  // Remove primers from both ends
-  .transform({
-    custom: (seq) => {
-      // Trim forward primer if present
-      if (seq.startsWith(FORWARD_PRIMER)) {
-        seq = seq.slice(FORWARD_PRIMER.length);
-      }
-      // Check for reverse primer (as reverse complement)
-      const rcPrimer = reverseComplement(REVERSE_PRIMER);
-      if (seq.endsWith(rcPrimer)) {
-        seq = seq.slice(0, -rcPrimer.length);
-      }
-      return seq;
-    },
+// Define primers with compile-time validation and IUPAC support
+const forwardPrimer = primer`TCGTCGGCAGCGTCAGATGTGTATAAGAGACAG`; // Nextera adapter
+const reversePrimer = primer`GTCTCGTGGGCTCGGAGATGTGTATAAGAGACAG`; // Nextera adapter
+
+// Simple amplicon extraction (90% use case)
+const basicAmplicons = await seqops(reads)
+  .amplicon(forwardPrimer, reversePrimer) // Extract between primers
+  .filter({ minLength: 100, maxLength: 500 }) // Quality filtering
+  .writeFasta("extracted_amplicons.fasta");
+
+// Advanced workflow with performance optimization for long reads
+const optimizedAmplicons = await seqops(nanoporeReads)
+  .quality({ minScore: 10 }) // Nanopore quality threshold
+  .amplicon(forwardPrimer, reversePrimer, {
+    maxMismatches: 2, // Allow sequencing errors
+    searchWindow: { forward: 200, reverse: 200 }, // 🔥 100x+ speedup for long reads
+    flanking: false, // Inner region only (exclude primers)
+    outputMismatches: true, // Include debugging info
   })
-  // Filter out sequences that are too short after trimming
-  .filter({ minLength: 100 })
-  // Extract only the target region (e.g., 16S V4)
-  .subseq({ region: "1:250" })
-  .writeFasta("trimmed_amplicons.fasta");
+  .filter({ minLength: 200, maxLength: 800 }) // Target region length
+  .rmdup({ by: "sequence" }) // Remove PCR duplicates
+  .validate({ mode: "strict" }) // Biological validation
+  .writeFasta("validated_amplicons.fasta");
+
+// Real-world COVID-19 diagnostic example
+import { FastqParser } from "genotype/formats";
+
+const covidResults = await seqops(
+  new FastqParser().parseFile("covid_samples.fastq.gz"),
+)
+  .quality({ minScore: 20, trim: true })
+  .amplicon(
+    primer`ACCAGGAACTAATCAGACAAG`, // N gene forward
+    primer`CAAAGACCAATCCTACCATGAG`, // N gene reverse
+    3, // Allow for sequencing errors
+  )
+  .validate({ mode: "strict" })
+  .stats({ detailed: true });
+
+console.log(`Found ${covidResults.count} COVID amplicons`);
 ```
 
 ### CRISPR Guide RNA Design

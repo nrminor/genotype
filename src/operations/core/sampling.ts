@@ -1,13 +1,117 @@
 /**
- * Reservoir sampling for selecting random samples from streams
+ * Statistical sampling algorithms for large-scale genomic data analysis
  *
- * Maintains fixed memory usage regardless of stream size
- * Critical for sampling large genomic datasets that don't fit in memory
+ * Implements sophisticated sampling methodologies essential for statistical genomics,
+ * population genetics, and computational biology. These algorithms enable representative
+ * sampling from massive genomic datasets that exceed memory capacity, providing
+ * statistically valid subsets for downstream analysis while maintaining rigorous
+ * mathematical guarantees about sample properties.
+ *
+ * **Statistical Sampling in Genomics:**
+ * Modern genomic datasets often exceed computational capacity, requiring statistical
+ * sampling to obtain representative subsets:
+ * - **Population genomics**: Sample individuals from large cohorts (100K+ genomes)
+ * - **Metagenomics**: Sample reads from diverse environmental communities
+ * - **Quality control**: Sample sequences for QC analysis without processing all data
+ * - **Algorithm development**: Create test datasets from large reference collections
+ * - **Computational efficiency**: Reduce dataset size while preserving statistical properties
+ *
+ * **Sampling Challenges in Genomics:**
+ * - **Unknown population size**: Cannot know total sequences before processing begins
+ * - **Streaming data**: Sequencing produces continuous data streams
+ * - **Memory constraints**: Cannot store entire datasets for sampling
+ * - **Bias prevention**: Avoid systematic bias in sample selection
+ * - **Stratification needs**: Ensure representation across different sequence types/qualities
+ * - **Statistical validity**: Maintain mathematical properties for downstream analysis
  */
 
 /**
- * Reservoir sampling for selecting random samples from streams
- * Maintains fixed memory regardless of stream size
+ * Reservoir Sampling for unbiased random sampling from genomic data streams
+ *
+ * Implements the classic reservoir sampling algorithm (Vitter, 1985) that maintains
+ * a uniformly random sample of k elements from a stream of unknown size. This is
+ * the gold standard for unbiased sampling when the total population size cannot be
+ * known in advance, making it essential for genomic applications where data streams
+ * continuously from sequencing instruments.
+ *
+ * **Algorithm Foundation (Vitter, 1985):**
+ * The reservoir sampling algorithm solves the fundamental problem of sampling k items
+ * uniformly at random from a stream of n items where n is unknown:
+ * 1. **Fill reservoir**: Store first k items in reservoir array
+ * 2. **Streaming phase**: For each subsequent item i (where i > k):
+ *    - Generate random number j in range [1, i]
+ *    - If j ≤ k, replace reservoir[j-1] with current item
+ * 3. **Uniform guarantee**: Each item has exactly k/n probability of being in final sample
+ *
+ * **Mathematical Properties:**
+ * - **Unbiased**: Each element has equal probability k/n of selection
+ * - **Memory**: O(k) - constant memory regardless of stream size
+ * - **Time**: O(n) - single pass through data stream
+ * - **Randomness**: Requires high-quality random number generator
+ * - **No replacement**: Each element appears at most once in sample
+ *
+ * **Genomics Applications:**
+ * - **Population sampling**: Select representative individuals from large cohorts
+ * - **Read subsampling**: Sample sequencing reads for QC or algorithm testing
+ * - **Variant discovery**: Sample variants from large population databases
+ * - **Expression analysis**: Sample transcripts for pilot studies
+ * - **Quality control**: Sample sequences for contamination screening
+ * - **Method development**: Create test datasets from reference collections
+ *
+ * **Statistical Genomics Context:**
+ * Reservoir sampling ensures statistical validity for downstream analysis:
+ * - **Population genetics**: Maintains allele frequency distributions
+ * - **Association studies**: Preserves case/control ratios in sampled data
+ * - **Diversity estimates**: Unbiased sampling for species richness calculation
+ * - **Coverage analysis**: Representative sampling for depth distribution studies
+ * - **Quality metrics**: Unbiased quality score distribution preservation
+ *
+ * **Advantages for Genomic Workflows:**
+ * - **Streaming compatibility**: Works with sequencing data as it's generated
+ * - **Memory efficiency**: Constant memory usage for any dataset size
+ * - **Statistical rigor**: Mathematically guaranteed unbiased sampling
+ * - **Implementation simplicity**: Single-pass algorithm with minimal complexity
+ * - **Reproducibility**: Seed-based randomization for reproducible sampling
+ *
+ * @example Population genomics sampling
+ * ```typescript
+ * // Sample 1000 individuals from large population cohort
+ * const popSampler = new ReservoirSampler<Individual>(1000, 42);
+ *
+ * for await (const individual of ukBiobankCohort) {
+ *   popSampler.add(individual);
+ * }
+ *
+ * const representative = popSampler.getSample();
+ * console.log(`Sampled ${representative.length} from ${popSampler.getTotal()} individuals`);
+ * ```
+ *
+ * @example Sequencing read subsampling
+ * ```typescript
+ * // Sample 100K reads from large FASTQ for QC analysis
+ * const qcSampler = new ReservoirSampler<FastqSequence>(100_000);
+ *
+ * for await (const read of massiveFastqStream) {
+ *   qcSampler.add(read);
+ * }
+ *
+ * const qcSample = qcSampler.getSample();
+ * await performQualityControl(qcSample); // Analyze representative subset
+ * ```
+ *
+ * @example Metagenomics diversity sampling
+ * ```typescript
+ * // Sample environmental reads for species diversity estimation
+ * const diversitySampler = new ReservoirSampler<EnvironmentalRead>(50_000);
+ *
+ * environmentalStream.forEach(read => diversitySampler.add(read));
+ * const diversitySample = diversitySampler.getSample();
+ * const speciesCount = estimateSpeciesRichness(diversitySample);
+ * ```
+ *
+ * @see {@link https://dl.acm.org/doi/10.1145/3147.3165} Random Sampling with a Reservoir (ACM)
+ * @see {@link https://academic.oup.com/bib/article/7/3/297/328352} Statistical Methods in Genetics (Briefings in Bioinformatics)
+ * @see {@link https://en.wikipedia.org/wiki/Reservoir_sampling} Reservoir Sampling Algorithm (Wikipedia)
  */
 export class ReservoirSampler<T> {
   private reservoir: T[] = [];

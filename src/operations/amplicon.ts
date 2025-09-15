@@ -1,9 +1,32 @@
 /**
- * Amplicon extraction operation for PCR primer-based sequence analysis
+ * Amplicon extraction for PCR-based molecular diagnostics and targeted sequencing
  *
- * This module provides comprehensive amplicon detection and extraction capabilities
- * with advanced type safety, IUPAC degenerate base support, and biological validation.
- * Supports both validated PrimerSequence types and runtime string validation.
+ * This module implements sophisticated amplicon detection algorithms essential for modern
+ * molecular diagnostics, including COVID-19 testing, microbiome analysis, and targeted
+ * sequencing. Amplicon extraction is fundamental to PCR-based assays, enabling precise
+ * extraction of target sequences from complex genomic backgrounds using primer pairs.
+ * Supports IUPAC degenerate bases, mismatch tolerance, and optimized search algorithms.
+ *
+ * **PCR Amplicon Biology:**
+ * PCR amplification creates millions of copies of specific DNA regions (amplicons) defined
+ * by forward and reverse primer binding sites. The region between primers becomes the
+ * amplified product, enabling sensitive detection of target sequences even from minimal
+ * starting material.
+ *
+ * **Clinical Applications:**
+ * - **COVID-19 diagnostics**: RT-qPCR targeting SARS-CoV-2 N gene, ORF1ab regions
+ * - **Microbiome analysis**: 16S rRNA gene amplification for bacterial identification
+ * - **Genetic testing**: Amplify specific genes for mutation analysis
+ * - **Pathogen detection**: Species-specific primer pairs for infectious disease diagnosis
+ * - **Forensic genetics**: STR amplification for human identification
+ * - **Environmental monitoring**: Detection of specific organisms in environmental samples
+ *
+ * **Algorithm Innovations:**
+ * - **IUPAC degeneracy support**: Handle primer design with ambiguous bases
+ * - **Mismatch tolerance**: Account for natural sequence variation and SNPs
+ * - **Windowed search**: Performance optimization for long-read sequencing
+ * - **Canonical matching**: BED-extracted primer validation and normalization
+ * - **Biological validation**: Primer length and composition constraints
  *
  * @module amplicon
  * @since v0.1.0

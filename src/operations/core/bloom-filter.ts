@@ -1,13 +1,60 @@
 /**
- * Bloom filter implementation for space-efficient deduplication
+ * Bloom filter implementation for space-efficient genomic data processing
  *
- * Probabilistic data structure for set membership testing
- * Used for deduplication of large sequence datasets with controlled false positive rate
+ * Bloom filters are probabilistic data structures for set membership testing that provide
+ * dramatic memory savings compared to exact data structures. Invented by Burton Howard Bloom
+ * in 1970, they have become essential for large-scale bioinformatics applications where
+ * traditional hash tables cannot fit genomic datasets in memory.
  */
 
 /**
- * Space-efficient probabilistic data structure for set membership
- * Used for deduplication of large sequence datasets
+ * Standard Bloom Filter for memory-efficient set membership testing
+ *
+ * A Bloom filter is a space-efficient probabilistic data structure that tests whether an
+ * element is a member of a set. False positive matches are possible, but false negatives
+ * are not. This makes Bloom filters ideal for genomic applications where memory efficiency
+ * is critical and occasional false positives can be handled downstream.
+ *
+ * **Theoretical Foundation:**
+ * - **Invented**: Burton Howard Bloom (1970)
+ * - **Type**: Probabilistic data structure with one-sided error
+ * - **False positives**: Possible (element not in set, but filter says "maybe")
+ * - **False negatives**: Impossible (if filter says "no", element definitely not in set)
+ * - **Space efficiency**: ~9.6 bits per element for 1% false positive rate
+ *
+ * **Algorithm Mechanics:**
+ * 1. **Bit array**: Fixed-size array of m bits, initially all 0
+ * 2. **Hash functions**: k independent hash functions map elements to bit positions
+ * 3. **Add operation**: Set k bit positions to 1 for each element
+ * 4. **Query operation**: Check if all k bit positions are 1
+ * 5. **No deletion**: Standard Bloom filters don't support element removal
+ *
+ * **Mathematical Properties:**
+ * - **Optimal k**: k = (m/n) * ln(2) where m=bits, n=elements
+ * - **False positive rate**: (1 - e^(-kn/m))^k
+ * - **Memory efficiency**: ~1.44 * log₂(1/ε) bits per element for ε false positive rate
+ * - **Time complexity**: O(k) for add/query operations
+ *
+ * **Genomics Applications:**
+ * - **k-mer deduplication**: Remove redundant k-mers from sequencing data
+ * - **Error correction**: Identify likely sequencing errors (singleton k-mers)
+ * - **Genome assembly**: Pre-filter k-mers before expensive graph construction
+ * - **Contamination detection**: Screen against databases of contaminant sequences
+ * - **Variant calling**: Filter candidate variants against known polymorphisms
+ * - **Metagenomics**: Classify reads by screening against reference databases
+ *
+ * **Why Bloom Filters for Genomics:**
+ * - **Scale**: Human genome has ~3 billion k-mers, traditional hash tables infeasible
+ * - **Memory wall**: Genomic datasets exceed RAM capacity of typical computers
+ * - **Streaming**: Process sequence data without storing all k-mers explicitly
+ * - **Preprocessing**: Filter data before expensive downstream analysis
+ * - **Distributed computing**: Share compact filters across cluster nodes
+ *
+ * **Trade-offs and Considerations:**
+ * - **False positives**: Can cause downstream analysis errors
+ * - **Tuning**: Requires careful parameter selection (m, k, expected n)
+ * - **No deletion**: Cannot remove elements once added
+ * - **Fill ratio**: Performance degrades as filter becomes saturated
  */
 export class BloomFilter {
   private bits: Uint8Array;
@@ -307,8 +354,52 @@ export class BloomFilter {
 }
 
 /**
- * Counting Bloom filter for removable items
- * Uses more memory but allows deletion
+ * Counting Bloom Filter with deletion support for dynamic genomic datasets
+ *
+ * A Counting Bloom Filter extends the standard Bloom filter by replacing each bit with
+ * a counter, enabling element deletion while maintaining the probabilistic guarantees.
+ * Introduced by Fan et al. (2000), counting filters use 3-4x more memory than standard
+ * Bloom filters but provide crucial deletion capability for dynamic genomic applications.
+ *
+ * **Key Innovation - Counters Instead of Bits:**
+ * - **Standard Bloom filter**: Single bit per position (0 or 1)
+ * - **Counting filter**: Multi-bit counter per position (0, 1, 2, 3...)
+ * - **Add operation**: Increment counters at k hash positions
+ * - **Delete operation**: Decrement counters at k hash positions
+ * - **Query operation**: Check if all k counters are > 0
+ *
+ * **Theoretical Properties:**
+ * - **Space overhead**: 3-4x more memory than standard Bloom filter
+ * - **Counter size**: Typically 4 bits (0-15 range) for most applications
+ * - **False positives**: Still possible, rate similar to standard filter
+ * - **False negatives**: Still impossible when properly managed
+ * - **Counter overflow**: Risk when too many hash collisions occur
+ *
+ * **Genomics Applications:**
+ * - **Dynamic k-mer tracking**: Add/remove k-mers during streaming analysis
+ * - **Error correction**: Remove error k-mers after identification
+ * - **Coverage analysis**: Track k-mer frequency for depth estimation
+ * - **Assembly optimization**: Dynamically adjust k-mer sets during graph construction
+ * - **Real-time analysis**: Update datasets as new sequencing data arrives
+ * - **Quality control**: Remove contamination k-mers after detection
+ *
+ * **Use Cases Where Deletion Matters:**
+ * - **Streaming assembly**: Remove low-coverage k-mers during processing
+ * - **Adaptive error correction**: Iteratively refine error models
+ * - **Multi-sample analysis**: Track k-mers across changing sample sets
+ * - **Quality filtering**: Remove poor-quality data discovered during analysis
+ * - **Contamination removal**: Delete identified contaminant sequences
+ *
+ * **Performance Considerations:**
+ * - **Memory usage**: 4x standard Bloom filter for same accuracy
+ * - **Counter overflow**: Limits maximum frequency tracking
+ * - **Cache efficiency**: Larger memory footprint affects cache performance
+ * - **Deletion accuracy**: Incorrect deletions can cause false negatives
+ *
+ * **Implementation Details:**
+ * - **Counter size**: 8-bit counters (0-255 range) for genomic applications
+ * - **Overflow handling**: Counters saturate at maximum value
+ * - **Thread safety**: Not thread-safe without external synchronization
  */
 export class CountingBloomFilter {
   private counts: Uint8Array;
@@ -459,8 +550,107 @@ export class CountingBloomFilter {
 }
 
 /**
- * Scalable Bloom Filter that grows as needed
- * Maintains target false positive rate as items are added
+ * Scalable Bloom Filter for unknown-size genomic datasets
+ *
+ * A Scalable Bloom Filter addresses the key limitation of standard Bloom filters: the
+ * requirement to know the dataset size in advance. When the expected number of elements
+ * is unknown or highly variable (common in genomics), scalable filters automatically
+ * add new filter layers as needed while maintaining the target false positive rate.
+ * Based on Almeida et al. (2007) scalable Bloom filter design.
+ *
+ * **Scalability Problem:**
+ * Standard Bloom filters require knowing the expected number of elements (n) to
+ * calculate optimal parameters (m bits, k hash functions). In genomics:
+ * - **Unknown dataset sizes**: Metagenomics samples have unpredictable diversity
+ * - **Streaming data**: Cannot know final size before processing begins
+ * - **Variable quality**: Poor samples may have fewer usable k-mers than expected
+ * - **Performance degradation**: Overfilled filters have unacceptable false positive rates
+ *
+ * **Scalable Design Strategy:**
+ * 1. **Layered architecture**: Stack multiple Bloom filters of increasing capacity
+ * 2. **Geometric growth**: Each layer typically 2x larger than previous
+ * 3. **FPR distribution**: Distribute target false positive rate across layers
+ * 4. **Dynamic expansion**: Add new layers when current layer reaches capacity
+ * 5. **Query all layers**: Element present if found in any layer
+ *
+ * **Mathematical Foundation:**
+ * - **Total FPR**: Sum of individual layer false positive rates
+ * - **Layer FPR**: Decreases geometrically (ε₁ > ε₂ > ε₃...)
+ * - **Growth factor**: Typically 2x capacity increase per layer
+ * - **Capacity trigger**: Add layer when current layer ~80% full
+ *
+ * **Genomics Applications:**
+ * - **Metagenomics**: Unknown species diversity in environmental samples
+ * - **Streaming assembly**: Process sequencing data as it arrives
+ * - **Quality-adaptive processing**: Handle variable data quality gracefully
+ * - **Multi-sample analysis**: Datasets grow as samples are added
+ * - **Real-time processing**: Handle indefinite data streams
+ * - **Resource allocation**: Start small, grow as needed
+ *
+ * **Advantages Over Fixed-Size Filters:**
+ * - **No a priori size estimation**: Can handle unexpected data volumes
+ * - **Graceful degradation**: Performance degrades slowly as data grows
+ * - **Memory efficiency**: Only allocates capacity as needed
+ * - **Streaming compatibility**: Perfect for real-time sequencing analysis
+ * - **Adaptive capacity**: Responds to actual data characteristics
+ *
+ * **Trade-offs:**
+ * - **Complexity**: More complex than standard filters
+ * - **Query overhead**: Must check multiple layers
+ * - **Memory fragmentation**: Multiple allocations vs single large allocation
+ * - **Optimal parameter selection**: More parameters to tune correctly
+ *
+ * **Implementation Strategy:**
+ * - **Layer management**: Automatic layer creation and capacity monitoring
+ * - **FPR budget**: Distribute allowable false positive rate across layers
+ * - **Memory pools**: Efficient allocation strategies for multiple filters
+ * - **Query optimization**: Early termination when element found
+ *
+ * @example Metagenomics with unknown diversity
+ * ```typescript
+ * // Process environmental sample with unknown species count
+ * const filter = new ScalableBloomFilter(1000, 0.01); // Start small
+ *
+ * for await (const read of environmentalReads) {
+ *   const kmers = extractKmers(read, 21);
+ *   kmers.forEach(kmer => filter.add(kmer));
+ * }
+ * // Filter automatically scales as more species/k-mers discovered
+ * ```
+ *
+ * @example Streaming genome assembly
+ * ```typescript
+ * // Process sequencing data as it arrives from sequencer
+ * const assemblyFilter = new ScalableBloomFilter(10000, 0.001);
+ *
+ * sequencingStream.on('data', (reads) => {
+ *   reads.forEach(read => {
+ *     if (assemblyFilter.contains(read.sequence)) {
+ *       // Handle duplicate/repeat sequence
+ *     } else {
+ *       assemblyFilter.add(read.sequence);
+ *       processNewSequence(read);
+ *     }
+ *   });
+ * });
+ * ```
+ *
+ * @example Multi-sample comparative analysis
+ * ```typescript
+ * // Track k-mers across growing sample collection
+ * const comparativeFilter = new ScalableBloomFilter(5000, 0.01);
+ *
+ * sampleDatabase.forEach(sample => {
+ *   sample.kmers.forEach(kmer => {
+ *     comparativeFilter.add(kmer);
+ *   });
+ *   console.log(`Filter now has ${comparativeFilter.size()} layers`);
+ * });
+ * ```
+ *
+ * @see {@link https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-12-333} k-mer Counting with Bloom Filters (BMC Bioinformatics)
+ * @see {@link https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5467106/} Improving Bloom Filter Performance (PMC)
+ * @see {@link https://en.wikipedia.org/wiki/Bloom_filters_in_bioinformatics} Bloom Filters in Bioinformatics (Wikipedia)
  */
 export class ScalableBloomFilter {
   private filters: BloomFilter[] = [];

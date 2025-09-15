@@ -1,11 +1,3 @@
-/**
- * GenoType - A TypeScript library for genomic data processing
- *
- * Built by bioinformaticians, for bioinformaticians.
- * Handles the messiness of real-world genomic data with a focus on
- * developer experience, performance, and type safety.
- */
-
 // Compression infrastructure
 export {
   CompressionDetector,

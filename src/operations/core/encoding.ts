@@ -1,26 +1,47 @@
 /**
  * Quality score encoding detection and conversion for FASTQ sequences
  *
- * Handles the three major quality encoding schemes used in sequencing:
- * - Phred+33 (modern standard, Illumina 1.8+)
- * - Phred+64 (legacy Illumina 1.3-1.7)
- * - Solexa+64 (early Illumina with different probability calculation)
+ * Implements sophisticated algorithms for detecting and converting between the three major
+ * quality encoding schemes that evolved with sequencing technology. Quality scores represent
+ * the confidence in each base call and are essential for downstream analysis. This module
+ * handles the complex history of encoding format evolution from Solexa's proprietary system
+ * through modern standardized Phred scoring.
+ *
+ * **Sequencing Technology Evolution:**
+ * The evolution of quality scoring reflects the maturation of sequencing technology:
+ * 1. **Sanger era (1977-2005)**: Phred scores introduced by Phil Green (1998)
+ * 2. **Solexa era (2006-2007)**: Proprietary odds-based scoring system
+ * 3. **Early Illumina (2007-2011)**: Phred scores with ASCII+64 encoding
+ * 4. **Modern Illumina (2011+)**: Standardized Phred+33 (Sanger format)
+ *
+ * **Quality Encoding History:**
+ * - **Solexa (2006)**: Q = -10*log₁₀(p/(1-p)) - odds-based, ASCII+64
+ * - **Phred+64 (2007-2011)**: Q = -10*log₁₀(p) - probability-based, ASCII+64
+ * - **Phred+33 (2011+)**: Q = -10*log₁₀(p) - probability-based, ASCII+33
+ *
+ * **Platform Timeline:**
+ * - **Solexa Genome Analyzer (2006)**: Solexa scoring
+ * - **Illumina GA Pipeline 1.3-1.7 (2007-2011)**: Phred+64
+ * - **Illumina CASAVA 1.8+ (2011+)**: Phred+33 (modern standard)
+ * - **All modern platforms**: Phred+33 universal adoption
+ *
+ * **Detection Challenges:**
+ * The overlapping ASCII ranges between encoding schemes create detection ambiguity:
+ * - **Phred+33**: ASCII 33-93 (Q0-Q60)
+ * - **Phred+64**: ASCII 64-104 (Q0-Q40)
+ * - **Solexa+64**: ASCII 59-104 (Q-5-Q40)
+ * - **Overlap zones**: ASCII 64-93 could be either Phred+33 or Phred+64
+ *
+ * **Biological Significance:**
+ * Quality scores directly impact all downstream analysis:
+ * - **Variant calling**: Low-quality bases excluded from analysis
+ * - **Assembly**: Quality guides contig construction decisions
+ * - **Expression analysis**: Quality affects quantification accuracy
+ * - **Error correction**: Quality scores identify sequencing artifacts
+ * - **Data archiving**: Quality-based compression strategies
  *
  * @module quality
  * @since v0.1.0
- *
- * @remarks
- * This module exports functions both individually (tree-shakeable) and as a
- * grouped object for convenience. Choose your preferred style:
- *
- * ```typescript
- * // Import individual functions (tree-shakeable)
- * import { detectEncoding, convertScore } from './quality';
- *
- * // Or use the grouped object
- * import { QualityEncodingDetector } from './quality';
- * QualityEncodingDetector.detect(sequences);
- * ```
  */
 
 import { QualityError } from "../../errors";
@@ -66,19 +87,77 @@ export interface DetectionResult {
 // =============================================================================
 
 /**
- * Detect quality encoding from single quality string (immediate analysis)
+ * Detect quality encoding from single quality string using sequencing technology patterns
  *
- * Uses scientifically validated ASCII ranges for immediate encoding detection.
- * Optimized for real-time parsing where instant results are needed.
+ * Implements intelligent quality encoding detection that accounts for the complex history
+ * of sequencing technology evolution. The algorithm uses ASCII range analysis combined
+ * with pattern recognition to distinguish between Solexa, Phred+64, and Phred+33 encodings.
+ * This is essential for processing legacy sequencing data and ensuring compatibility
+ * across the 15+ year history of high-throughput sequencing.
  *
- * @example
+ * **Detection Algorithm Strategy:**
+ * The algorithm uses a multi-stage approach to handle overlapping ASCII ranges:
+ * 1. **Uniform high patterns**: Q40+ modern data (ASCII 73+) → Phred+33
+ * 2. **Constrained legacy patterns**: High-ASCII only (64-104) → Phred+64 or Solexa
+ * 3. **Mixed modern patterns**: Wide ASCII range (33-93) → Phred+33
+ * 4. **Statistical prevalence**: Default to most common encoding (95% Phred+33)
+ *
+ * **Technological Context:**
+ * - **Phil Green's Phred (1998)**: Original quality scoring for Sanger sequencing
+ * - **Solexa Genome Analyzer (2006)**: Proprietary odds-based scoring
+ * - **Illumina acquisition (2007)**: Continued Solexa format initially
+ * - **Pipeline 1.3+ (2007-2011)**: Switched to Phred scores, kept ASCII+64
+ * - **CASAVA 1.8+ (2011)**: Adopted Sanger-compatible Phred+33 format
+ *
+ * **Detection Challenges:**
+ * The overlapping ASCII ranges create fundamental ambiguity:
+ * - **"High-quality" Phred+33**: ASCII 70-93 (Q37-Q60)
+ * - **"Low-quality" Phred+64**: ASCII 64-75 (Q0-Q11)
+ * - **Overlap zone**: ASCII 64-93 could be either encoding
+ * - **Context clues**: Pattern analysis and prevalence-based decisions
+ *
+ * **Biological Impact of Quality Scores:**
+ * - **Q10**: 90% accuracy (1 in 10 error rate) - poor quality
+ * - **Q20**: 99% accuracy (1 in 100 error rate) - acceptable
+ * - **Q30**: 99.9% accuracy (1 in 1000 error rate) - high quality
+ * - **Q40**: 99.99% accuracy (1 in 10,000 error rate) - excellent
+ *
+ * **Platform-Specific Characteristics:**
+ * - **Solexa GA**: Variable quality, often filtered data in ASCII 64-90
+ * - **Illumina 1.3-1.7**: Higher baseline quality, ASCII 64-104 range
+ * - **Modern Illumina**: Excellent quality, often Q30+ (ASCII 63+)
+ * - **Long-read platforms**: Different quality models entirely
+ *
+ * @param qualityString - Quality string from FASTQ record
+ * @returns Detected quality encoding with confidence assessment
+ *
+ * @example Legacy Illumina data detection
  * ```typescript
- * const encoding = detectEncodingImmediate("!!!!####");
- * console.log(`Detected: ${encoding}`); // "phred33"
+ * // Typical Illumina 1.5 quality string (Phred+64)
+ * const illumina15 = "@@CDEFGHIJKLMNOPQRSTUVWXYZ[\\]";
+ * const encoding = detectEncodingImmediate(illumina15);
+ * console.log(encoding); // "phred64" - legacy Illumina format
  * ```
  *
- * @param qualityString - Quality string to analyze
- * @returns Detected quality encoding
+ * @example Modern high-quality data
+ * ```typescript
+ * // Modern Illumina data with high quality scores
+ * const modernHQ = "IIIIIIIIIIIIIIIIIIIII"; // Q40 across entire read
+ * const encoding = detectEncodingImmediate(modernHQ);
+ * console.log(encoding); // "phred33" - modern standard
+ * ```
+ *
+ * @example Historical Solexa data
+ * ```typescript
+ * // Original Solexa scoring (odds-based, rare in modern data)
+ * const solexa = ";;;;;;;;;;"; // Poor quality, Solexa-specific range
+ * const encoding = detectEncodingImmediate(solexa);
+ * console.log(encoding); // "solexa" - historical format
+ * ```
+ *
+ * @see {@link https://academic.oup.com/nar/article/38/6/1767/3112533} FASTQ Format Evolution (Nucleic Acids Research)
+ * @see {@link https://www.illumina.com/science/technology/next-generation-sequencing/illumina-sequencing-history.html} Illumina Technology History
+ * @see {@link https://en.wikipedia.org/wiki/FASTQ_format} FASTQ Format Specification (Wikipedia)
  *
  * 🔥 NATIVE CANDIDATE: ASCII min/max finding with SIMD acceleration
  */

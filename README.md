@@ -341,7 +341,7 @@ await seqops(sequences)
 
 ### Complete SeqKit Functionality
 
-** SeqKit Feature Parity**
+**SeqKit Feature Parity**
 
 ```typescript
 // Pattern search and filtering (like seqkit grep)

@@ -1,5 +1,5 @@
 /**
- * Core GTF format parser with Tiger Style compliance
+ * Core GTF format parser with comprehensive validation
  *
  * Provides fundamental GTF parsing capabilities with exceptional error quality,
  * streaming architecture, and comprehensive validation. Forms the foundation
@@ -53,7 +53,6 @@ const GtfParserOptionsSchema = type({
 
 /**
  * Detect database variant from attribute patterns
- * Tiger Style: Function under 70 lines, pattern recognition
  *
  * @param attributes Parsed GTF attributes
  * @returns Detected database variant
@@ -110,7 +109,6 @@ function normalizeTagsToArray(tagValue: string | string[] | undefined): string[]
 
 /**
  * Normalize attributes for cross-database compatibility
- * Tiger Style: Function under 70 lines, database-aware normalization
  *
  * @param attributes Original parsed attributes
  * @param sourceDatabase Detected database variant
@@ -160,7 +158,6 @@ export function normalizeGtfAttributes(
 
 /**
  * Validate GTF coordinates with genomics domain knowledge
- * Tiger Style: Function under 70 lines, 1-based coordinate validation
  *
  * @param start Start coordinate (must be >= 1 for GTF)
  * @param end End coordinate (must be >= start)
@@ -171,7 +168,6 @@ export function normalizeGtfAttributes(
 
 /**
  * Parse GTF attributes with robust real-world handling
- * Tiger Style: Function under 70 lines, handles GENCODE/Ensembl variations
  *
  * @param attributeString Raw attribute string from GTF line
  * @returns Parsed attribute key-value pairs with multi-tag support
@@ -239,7 +235,6 @@ export function parseGtfAttributes(attributeString: string): Record<string, stri
 
 /**
  * Validate strand annotation for GTF format
- * Tiger Style: Function under 70 lines, genomics strand validation
  *
  * @param strand Strand string to validate
  * @returns True if valid GTF strand annotation
@@ -252,7 +247,6 @@ export function validateGtfStrand(strand: string): strand is Strand {
 
 /**
  * Parse score field with GTF standards
- * Tiger Style: Function under 70 lines, handles missing values
  *
  * @param scoreStr Score string from GTF (may be "." for missing)
  * @returns Parsed score or null if missing/invalid
@@ -274,7 +268,6 @@ export function parseGtfScore(scoreStr: string): number | null {
 
 /**
  * Parse frame field for CDS features
- * Tiger Style: Function under 70 lines, validates frame values
  *
  * @param frameStr Frame string from GTF (0, 1, 2, or "." for missing)
  * @returns Parsed frame or null if missing/not applicable
@@ -296,7 +289,6 @@ export function parseGtfFrame(frameStr: string): number | null {
 
 /**
  * GTF-specific coordinate validation for 1-based inclusive system
- * Tiger Style: Function under 70 lines, biological domain expertise
  */
 export function validateGtfCoordinates(
   start: number,
@@ -330,7 +322,6 @@ export function validateGtfCoordinates(
 /**
  * Parse GTF coordinates using core coordinate functions
  * Leverages battle-tested coordinate handling with GTF-specific context
- * Tiger Style: Function under 70 lines, reuses core functionality
  */
 function parseGtfCoordinates(
   startStr: string,
@@ -384,7 +375,6 @@ function parseGtfCoordinates(
 
 /**
  * Parse GTF line fields with exceptional error quality
- * Tiger Style: Function under 70 lines, delegates validation to helpers
  */
 function parseGtfLineFields(
   line: string,
@@ -442,7 +432,6 @@ function parseGtfLineFields(
 
 /**
  * Build GTF feature with calculated genomics fields
- * Tiger Style: Function under 70 lines, focused on feature construction
  */
 function buildGtfFeature(
   parsedFields: ReturnType<typeof parseGtfLineFields>,
@@ -507,7 +496,6 @@ function buildGtfFeature(
 
 /**
  * Streaming GTF parser with exceptional quality
- * Tiger Style: All methods under 70 lines, focused responsibilities
  *
  * @example Basic GTF parsing
  * ```typescript
@@ -576,7 +564,6 @@ export class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
 
   /**
    * Parse GTF features from string data
-   * Tiger Style: Function under 70 lines, delegates to parseLines
    *
    * @param data GTF format string data
    * @yields GTF features with parsed attributes and optional normalization
@@ -588,7 +575,6 @@ export class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
 
   /**
    * Parse GTF features from file using streaming I/O
-   * Tiger Style: Function under 70 lines, follows proven FASTA pattern
    *
    * @param filePath Path to GTF file
    * @param options File reading options
@@ -624,7 +610,6 @@ export class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
 
   /**
    * Parse lines with streaming architecture
-   * Tiger Style: Function under 70 lines, focused on line processing
    */
   private async *parseLines(lines: string[], startLineNumber = 1): AsyncIterable<GtfFeature> {
     let lineNumber = startLineNumber;
@@ -675,7 +660,6 @@ export class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
 
   /**
    * Parse lines from async iterable
-   * Tiger Style: Function under 70 lines, maintains streaming contract
    */
   private async *parseLinesFromAsyncIterable(
     lines: AsyncIterable<string>
@@ -723,7 +707,6 @@ export class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
 
   /**
    * Parse single GTF line with exceptional error quality
-   * Tiger Style: Function under 70 lines - major reduction from original 136 lines
    */
   private parseSingleLine(line: string, lineNumber: number): GtfFeature | null {
     try {
@@ -761,7 +744,6 @@ export class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
 
   /**
    * Validate required attributes are present
-   * Tiger Style: Function under 70 lines, focused validation
    */
   private validateRequiredAttributes(feature: GtfFeature, lineNumber: number): void {
     if (!this.options.requiredAttributes) return;
@@ -780,7 +762,6 @@ export class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
 
   /**
    * Check if feature should be included based on filters
-   * Tiger Style: Function under 70 lines, clear filter logic
    */
   private shouldIncludeFeature(feature: GtfFeature): boolean {
     // Check include list

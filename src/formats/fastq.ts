@@ -73,103 +73,6 @@ const FastqParserOptionsSchema = type({
 });
 
 /**
- * Convert ASCII quality string to numeric scores
- */
-export function toNumbers(qualityString: string, encoding: QualityEncoding = "phred33"): number[] {
-  const scores: number[] = [];
-  const offset = getOffset(encoding);
-
-  for (let i = 0; i < qualityString.length; i++) {
-    const ascii = qualityString.charCodeAt(i);
-    const score = ascii - offset;
-
-    // Validate score range
-    if (encoding === "solexa") {
-      // Solexa scores can be negative
-      scores.push(score);
-    } else {
-      // Phred scores should be non-negative
-      if (score < 0) {
-        throw new QualityError(
-          `Invalid quality score: ASCII ${ascii} gives score ${score} (should be >= 0)`,
-          "unknown",
-          encoding
-        );
-      }
-      scores.push(score);
-    }
-  }
-
-  return scores;
-}
-
-/**
- * Convert numeric scores to ASCII quality string
- */
-export function scoresToString(scores: number[], encoding: QualityEncoding = "phred33"): string {
-  const offset = getOffset(encoding);
-  return scores.map((score) => String.fromCharCode(score + offset)).join("");
-}
-
-/**
- * Get ASCII offset for quality encoding
- */
-export function getOffset(encoding: QualityEncoding): number {
-  switch (encoding) {
-    case "phred33":
-      return 33;
-    case "phred64":
-      return 64;
-    case "solexa":
-      return 64;
-    default:
-      throw new Error(`Unknown quality encoding: ${encoding}`);
-  }
-}
-
-/**
- * Calculate quality statistics
- */
-export function calculateStats(scores: number[]): {
-  mean: number;
-  median: number;
-  min: number;
-  max: number;
-  q25: number;
-  q75: number;
-} {
-  if (scores.length === 0) {
-    throw new QualityError("Cannot calculate stats for empty quality array", "unknown");
-  }
-
-  const sorted = [...scores].sort((a, b) => a - b);
-  const length = sorted.length;
-
-  return {
-    mean: scores.reduce((sum, score) => sum + score, 0) / length,
-    median:
-      length % 2 === 0
-        ? ((sorted[length / 2 - 1] ?? 0) + (sorted[length / 2] ?? 0)) / 2
-        : (sorted[Math.floor(length / 2)] ?? 0),
-    min: sorted[0] ?? 0,
-    max: sorted[length - 1] ?? 0,
-    q25: sorted[Math.floor(length * 0.25)] ?? 0,
-    q75: sorted[Math.floor(length * 0.75)] ?? 0,
-  };
-}
-
-/**
- * Quality score conversion utilities
- * @deprecated Use individual function imports for better tree-shaking
- */
-export const QualityScores = {
-  toNumbers,
-  toString: scoresToString,
-  getOffset,
-  calculateStats,
-} as const;
-
-/**
  * Streaming FASTQ parser with quality score handling
  */
 export class FastqParser extends AbstractParser<FastqSequence, FastqParserOptions> {
@@ -855,3 +758,100 @@ export const FastqUtils = {
     return { valid: true };
   },
 };
+
+/**
+ * Convert ASCII quality string to numeric scores
+ */
+export function toNumbers(qualityString: string, encoding: QualityEncoding = "phred33"): number[] {
+  const scores: number[] = [];
+  const offset = getOffset(encoding);
+
+  for (let i = 0; i < qualityString.length; i++) {
+    const ascii = qualityString.charCodeAt(i);
+    const score = ascii - offset;
+
+    // Validate score range
+    if (encoding === "solexa") {
+      // Solexa scores can be negative
+      scores.push(score);
+    } else {
+      // Phred scores should be non-negative
+      if (score < 0) {
+        throw new QualityError(
+          `Invalid quality score: ASCII ${ascii} gives score ${score} (should be >= 0)`,
+          "unknown",
+          encoding
+        );
+      }
+      scores.push(score);
+    }
+  }
+
+  return scores;
+}
+
+/**
+ * Convert numeric scores to ASCII quality string
+ */
+export function scoresToString(scores: number[], encoding: QualityEncoding = "phred33"): string {
+  const offset = getOffset(encoding);
+  return scores.map((score) => String.fromCharCode(score + offset)).join("");
+}
+
+/**
+ * Get ASCII offset for quality encoding
+ */
+export function getOffset(encoding: QualityEncoding): number {
+  switch (encoding) {
+    case "phred33":
+      return 33;
+    case "phred64":
+      return 64;
+    case "solexa":
+      return 64;
+    default:
+      throw new Error(`Unknown quality encoding: ${encoding}`);
+  }
+}
+
+/**
+ * Calculate quality statistics
+ */
+export function calculateStats(scores: number[]): {
+  mean: number;
+  median: number;
+  min: number;
+  max: number;
+  q25: number;
+  q75: number;
+} {
+  if (scores.length === 0) {
+    throw new QualityError("Cannot calculate stats for empty quality array", "unknown");
+  }
+
+  const sorted = [...scores].sort((a, b) => a - b);
+  const length = sorted.length;
+
+  return {
+    mean: scores.reduce((sum, score) => sum + score, 0) / length,
+    median:
+      length % 2 === 0
+        ? ((sorted[length / 2 - 1] ?? 0) + (sorted[length / 2] ?? 0)) / 2
+        : (sorted[Math.floor(length / 2)] ?? 0),
+    min: sorted[0] ?? 0,
+    max: sorted[length - 1] ?? 0,
+    q25: sorted[Math.floor(length * 0.25)] ?? 0,
+    q75: sorted[Math.floor(length * 0.75)] ?? 0,
+  };
+}
+
+/**
+ * Quality score conversion utilities
+ * @deprecated Use individual function imports for better tree-shaking
+ */
+export const QualityScores = {
+  toNumbers,
+  toString: scoresToString,
+  getOffset,
+  calculateStats,
+} as const;

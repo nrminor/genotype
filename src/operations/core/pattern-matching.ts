@@ -190,20 +190,6 @@ export interface MatcherOptions {
 // =============================================================================
 
 /**
- * Build bad character table for Boyer-Moore algorithm
- * @private
- */
-function buildBadCharTable(pattern: string): Map<number, number> {
-  const table = new Map<number, number>();
-
-  for (let i = 0; i < pattern.length - 1; i++) {
-    table.set(pattern.charCodeAt(i), i);
-  }
-
-  return table;
-}
-
-/**
  * Boyer-Moore string search for exact matches
  * One of the most efficient string search algorithms
  *
@@ -307,22 +293,6 @@ export function fuzzyMatch<T extends string>(
 }
 
 /**
- * Check if two bases are compatible considering IUPAC ambiguity codes
- * @private
- */
-function areBasesCompatible(base1: string, base2: string): boolean {
-  // Exact match
-  if (base1 === base2) return true;
-
-  // Expand ambiguous bases and check for overlap
-  const expanded1 = expandAmbiguous(base1);
-  const expanded2 = expandAmbiguous(base2);
-
-  // Check if there's any overlap in possible bases
-  return expanded1.some((b1) => expanded2.includes(b1));
-}
-
-/**
  * Match with IUPAC ambiguity codes
  * Handles degenerate bases in both pattern and text
  *
@@ -366,33 +336,6 @@ export function matchWithAmbiguous(sequence: string, pattern: string): number[] 
   }
 
   return matches;
-}
-
-/**
- * Build Longest Proper Prefix array for KMP algorithm
- * @private
- */
-function buildLPSArray(pattern: string): number[] {
-  const lps = new Array(pattern.length).fill(0);
-  let len = 0;
-  let i = 1;
-
-  while (i < pattern.length) {
-    if (pattern[i] === pattern[len]) {
-      len++;
-      lps[i] = len;
-      i++;
-    } else {
-      if (len !== 0) {
-        len = lps[len - 1];
-      } else {
-        lps[i] = 0;
-        i++;
-      }
-    }
-  }
-
-  return lps;
 }
 
 /**
@@ -598,20 +541,6 @@ export function longestCommonSubstring(
     position2: seq2.indexOf(substring),
     length: maxLength,
   };
-}
-
-/**
- * Check if a sequence is a palindrome
- * @private
- */
-function isPalindrome(sequence: string): boolean {
-  const len = sequence.length;
-  for (let i = 0; i < len / 2; i++) {
-    if (sequence[i] !== sequence[len - 1 - i]) {
-      return false;
-    }
-  }
-  return true;
 }
 
 /**
@@ -1337,10 +1266,87 @@ export function findPatternWithMismatches<T extends string>(
   }
 }
 
+// =============================================================================
+// LEGACY COMPATIBILITY EXPORT
+// =============================================================================
+
 /**
- * IUPAC-aware pattern matching with mismatch tolerance
- * @private
+ * @deprecated Use individual function exports instead
+ * Grouped object for backwards compatibility
  */
+export const PatternMatcher = {
+  boyerMoore,
+  fuzzyMatch,
+  matchWithAmbiguous,
+  kmpSearch,
+  rabinKarp,
+  findOverlapping,
+  longestCommonSubstring,
+  findPalindromes,
+  findTandemRepeats,
+  isPalindromic,
+  findSimplePattern,
+} as const;
+
+// =============================================================================
+// PRIVATE HELPER FUNCTIONS
+// =============================================================================
+
+function buildBadCharTable(pattern: string): Map<number, number> {
+  const table = new Map<number, number>();
+
+  for (let i = 0; i < pattern.length - 1; i++) {
+    table.set(pattern.charCodeAt(i), i);
+  }
+
+  return table;
+}
+
+function areBasesCompatible(base1: string, base2: string): boolean {
+  // Exact match
+  if (base1 === base2) return true;
+
+  // Expand ambiguous bases and check for overlap
+  const expanded1 = expandAmbiguous(base1);
+  const expanded2 = expandAmbiguous(base2);
+
+  // Check if there's any overlap in possible bases
+  return expanded1.some((b1) => expanded2.includes(b1));
+}
+
+function buildLPSArray(pattern: string): number[] {
+  const lps = new Array(pattern.length).fill(0);
+  let len = 0;
+  let i = 1;
+
+  while (i < pattern.length) {
+    if (pattern[i] === pattern[len]) {
+      len++;
+      lps[i] = len;
+      i++;
+    } else {
+      if (len !== 0) {
+        len = lps[len - 1];
+      } else {
+        lps[i] = 0;
+        i++;
+      }
+    }
+  }
+
+  return lps;
+}
+
+function isPalindrome(sequence: string): boolean {
+  const len = sequence.length;
+  for (let i = 0; i < len / 2; i++) {
+    if (sequence[i] !== sequence[len - 1 - i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function findWithIUPACMatching<T extends string>(
   sequence: string,
   pattern: T,
@@ -1367,10 +1373,6 @@ function findWithIUPACMatching<T extends string>(
   return allMatches.sort((a, b) => a.position - b.position);
 }
 
-/**
- * Exact nucleotide matching with mismatch tolerance (fast path)
- * @private
- */
 function findWithExactMatching<T extends string>(
   sequence: string,
   pattern: T,
@@ -1398,10 +1400,6 @@ function findWithExactMatching<T extends string>(
   return allMatches.sort((a, b) => a.position - b.position);
 }
 
-/**
- * Find IUPAC pattern positions with mismatch tolerance
- * @private
- */
 function findIUPACPositions<T extends string>(
   sequence: string,
   pattern: T,
@@ -1427,10 +1425,6 @@ function findIUPACPositions<T extends string>(
   return matches;
 }
 
-/**
- * Count mismatches between text and pattern considering IUPAC compatibility
- * @private
- */
 function countIUPACMismatches(text: string, pattern: string): number {
   if (text.length !== pattern.length) return Infinity;
 
@@ -1458,25 +1452,3 @@ function countIUPACMismatches(text: string, pattern: string): number {
 
   return mismatches;
 }
-
-// =============================================================================
-// LEGACY COMPATIBILITY EXPORT
-// =============================================================================
-
-/**
- * @deprecated Use individual function exports instead
- * Grouped object for backwards compatibility
- */
-export const PatternMatcher = {
-  boyerMoore,
-  fuzzyMatch,
-  matchWithAmbiguous,
-  kmpSearch,
-  rabinKarp,
-  findOverlapping,
-  longestCommonSubstring,
-  findPalindromes,
-  findTandemRepeats,
-  isPalindromic,
-  findSimplePattern,
-} as const;

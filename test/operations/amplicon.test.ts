@@ -220,9 +220,9 @@ describe("AmpliconProcessor", () => {
       expect(results.length).toBeGreaterThanOrEqual(0);
     });
 
-    test("mixed usage: compile-time and runtime primers", async () => {
+    test("mixed usage: template literal and runtime primers", async () => {
       const mixedOptions = {
-        forwardPrimer: primer`ATCGATCGATCGATCG`, // Compile-time validated
+        forwardPrimer: primer`ATCGATCGATCGATCG`, // Template literal validated
         reversePrimer: "CGATCGATCGATCGAT", // Runtime string
         maxMismatches: 1,
       };
@@ -934,8 +934,8 @@ describe("Type Safety Integration Validation", () => {
     expect(typeof mockMatch.pattern).toBe("string"); // String compatibility
   });
 
-  test("union types work for both compile-time and runtime primers", () => {
-    const compileTime = primer`ATCGATCGATCGATCG`;
+  test("union types work for both template literal and runtime primers", () => {
+    const templateLiteral = primer`ATCGATCGATCGATCG`;
     const runTime = "ATCGATCGATCGATCG";
 
     // Both should be valid for union type
@@ -943,7 +943,7 @@ describe("Type Safety Integration Validation", () => {
       return p.length;
     }
 
-    expect(acceptsUnion(compileTime)).toBe(16);
+    expect(acceptsUnion(templateLiteral)).toBe(16);
     expect(acceptsUnion(runTime)).toBe(16);
   });
 });

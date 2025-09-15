@@ -3,7 +3,7 @@
  *
  * This module provides comprehensive amplicon detection and extraction capabilities
  * with advanced type safety, IUPAC degenerate base support, and biological validation.
- * Supports both compile-time validated PrimerSequence types and runtime string validation.
+ * Supports both validated PrimerSequence types and runtime string validation.
  *
  * @module amplicon
  * @since v0.1.0
@@ -24,38 +24,8 @@ import type { AmpliconOptions, Processor } from "./types";
 // =============================================================================
 
 /**
- * Validate and brand primer sequences with biological constraints
- * Ensures consistency between compile-time and runtime validation
- */
-function validateAndBrandPrimer(primer: string | PrimerSequence): PrimerSequence {
-  // If already a validated PrimerSequence, return as-is
-  if (typeof primer === "string" && isPrimerSequence(primer)) {
-    return primer as PrimerSequence;
-  }
-
-  // Validate runtime string with same constraints as template literals
-  if (!IUPAC_DNA.test(primer)) {
-    throw new Error(`Invalid primer: "${primer}". Valid characters: ACGTRYSWKMBDHVN`);
-  }
-  if (primer.length < 10) {
-    // Same as template literal minimum
-    throw new Error(
-      `Primer too short: ${primer.length}bp < 10bp minimum for biological specificity`
-    );
-  }
-  if (primer.length > 50) {
-    // Same as template literal maximum
-    throw new Error(
-      `Primer too long: ${primer.length}bp > 50bp maximum for efficient PCR amplification`
-    );
-  }
-
-  return primer as PrimerSequence;
-}
-
-/**
  * ArkType schema for amplicon options with primer validation and branding
- * Ensures runtime validation matches compile-time template literal constraints
+ * Ensures runtime validation matches template literal constraints
  */
 const AmpliconOptionsSchema = type({
   forwardPrimer: "string>=10",
@@ -676,4 +646,34 @@ export class AmpliconProcessor implements Processor<AmpliconOptions> {
     }
     return "standard";
   }
+}
+
+/**
+ * Validate and brand primer sequences with biological constraints
+ * Ensures consistency between template literal and runtime validation
+ */
+function validateAndBrandPrimer(primer: string | PrimerSequence): PrimerSequence {
+  // If already a validated PrimerSequence, return as-is
+  if (typeof primer === "string" && isPrimerSequence(primer)) {
+    return primer as PrimerSequence;
+  }
+
+  // Validate runtime string with same constraints as template literals
+  if (!IUPAC_DNA.test(primer)) {
+    throw new Error(`Invalid primer: "${primer}". Valid characters: ACGTRYSWKMBDHVN`);
+  }
+  if (primer.length < 10) {
+    // Same as template literal minimum
+    throw new Error(
+      `Primer too short: ${primer.length}bp < 10bp minimum for biological specificity`
+    );
+  }
+  if (primer.length > 50) {
+    // Same as template literal maximum
+    throw new Error(
+      `Primer too long: ${primer.length}bp > 50bp maximum for efficient PCR amplification`
+    );
+  }
+
+  return primer as PrimerSequence;
 }

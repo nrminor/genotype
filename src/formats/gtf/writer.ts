@@ -11,7 +11,6 @@ import type { GtfFeature } from "./types";
 
 /**
  * GTF format writer with exceptional output quality
- * Tiger Style: Simple implementation, focused on formatting
  *
  * @example Basic GTF writing
  * ```typescript
@@ -31,7 +30,6 @@ import type { GtfFeature } from "./types";
 export class GtfWriter {
   /**
    * Format single GTF feature as tab-separated string
-   * Tiger Style: Function under 70 lines, maintains GTF specification
    *
    * @param feature GTF feature to format
    * @returns Properly formatted GTF line
@@ -54,7 +52,6 @@ export class GtfWriter {
 
   /**
    * Format attributes with GTF specification compliance
-   * Tiger Style: Function under 70 lines, proper GTF attribute format
    *
    * @param attributes Attribute key-value pairs to format
    * @returns Properly quoted and separated attribute string
@@ -81,7 +78,6 @@ export class GtfWriter {
 
   /**
    * Format multiple features as string
-   * Tiger Style: Function under 70 lines, simple collection formatting
    *
    * @param features Array of GTF features to format
    * @returns Complete GTF format content
@@ -92,7 +88,6 @@ export class GtfWriter {
 
   /**
    * Write features to WritableStream
-   * Tiger Style: Function under 70 lines, streaming output
    *
    * @param features Async iterable of GTF features
    * @param stream Writable stream for output

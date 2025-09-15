@@ -349,10 +349,6 @@ export class SeqOps<T extends AbstractSequence> {
    * Pattern matching and filtering similar to Unix grep. Supports both
    * simple string patterns and complex options for advanced use cases.
    *
-   * @param pattern - Search pattern (string or regex) or full options object
-   * @param target - Target field ('sequence', 'id', or 'description') - defaults to 'sequence'
-   * @returns New SeqOps instance for chaining
-   *
    * @example
    * ```typescript
    * // Simple sequence search (most common case)
@@ -370,6 +366,15 @@ export class SeqOps<T extends AbstractSequence> {
    *   })
    * ```
    */
+
+  // Method overloads for clean IntelliSense
+  grep(pattern: string): SeqOps<T>;
+  grep(pattern: RegExp): SeqOps<T>;
+  grep(pattern: string, target: "sequence" | "id" | "description"): SeqOps<T>;
+  grep(pattern: RegExp, target: "sequence" | "id" | "description"): SeqOps<T>;
+  grep(options: GrepOptions): SeqOps<T>;
+
+  // Implementation handles all overloads
   grep(
     pattern: string | RegExp | GrepOptions,
     target: "sequence" | "id" | "description" = "sequence"
@@ -489,10 +494,6 @@ export class SeqOps<T extends AbstractSequence> {
    * Apply statistical sampling to select a subset of sequences.
    * Supports both simple count-based sampling and advanced options.
    *
-   * @param count - Number of sequences to sample, or full options object
-   * @param strategy - Sampling strategy (optional, defaults to 'reservoir')
-   * @returns New SeqOps instance for chaining
-   *
    * @example
    * ```typescript
    * // Simple sampling (most common case)
@@ -509,6 +510,13 @@ export class SeqOps<T extends AbstractSequence> {
    *   })
    * ```
    */
+
+  // Method overloads for clean IntelliSense
+  sample(count: number): SeqOps<T>;
+  sample(count: number, strategy: "random" | "systematic" | "reservoir"): SeqOps<T>;
+  sample(options: SampleOptions): SeqOps<T>;
+
+  // Implementation handles all overloads
   sample(
     count: number | SampleOptions,
     strategy: "random" | "systematic" | "reservoir" = "reservoir"
@@ -601,10 +609,6 @@ export class SeqOps<T extends AbstractSequence> {
    * exact Set-based approaches. Supports both simple deduplication and
    * advanced configuration for large datasets.
    *
-   * @param by - Deduplication criterion or full options object
-   * @param exact - Use exact matching (default: false, uses Bloom filter)
-   * @returns New SeqOps instance for chaining
-   *
    * @example
    * ```typescript
    * // Simple deduplication (most common cases)
@@ -621,6 +625,13 @@ export class SeqOps<T extends AbstractSequence> {
    *   })
    * ```
    */
+
+  // Method overloads for clean IntelliSense
+  rmdup(by: "sequence" | "id" | "both"): SeqOps<T>;
+  rmdup(by: "sequence" | "id" | "both", exact: boolean): SeqOps<T>;
+  rmdup(options: RmdupOptions): SeqOps<T>;
+
+  // Implementation handles all overloads
   rmdup(by: "sequence" | "id" | "both" | RmdupOptions, exact: boolean = false): SeqOps<T> {
     const processor = new RmdupProcessor();
 
@@ -1194,10 +1205,6 @@ export class SeqOps<T extends AbstractSequence> {
    * with support for fuzzy matching, strand searching, and various output formats.
    * Mirrors `seqkit locate` functionality.
    *
-   * @param pattern - Pattern to locate (string, regex) or full options object
-   * @param mismatches - Number of allowed mismatches (for simple pattern only)
-   * @returns AsyncIterable of motif locations
-   *
    * @example
    * ```typescript
    * // Simple cases (most common)
@@ -1219,6 +1226,15 @@ export class SeqOps<T extends AbstractSequence> {
    * }
    * ```
    */
+
+  // Method overloads for clean IntelliSense
+  locate(pattern: string): AsyncIterable<MotifLocation>;
+  locate(pattern: RegExp): AsyncIterable<MotifLocation>;
+  locate(pattern: string, mismatches: number): AsyncIterable<MotifLocation>;
+  locate(pattern: RegExp, mismatches: number): AsyncIterable<MotifLocation>;
+  locate(options: LocateOptions): AsyncIterable<MotifLocation>;
+
+  // Implementation handles all overloads
   locate(
     pattern: string | RegExp | LocateOptions,
     mismatches: number = 0

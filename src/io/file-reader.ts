@@ -33,50 +33,6 @@ const DEFAULT_OPTIONS: Required<FileReaderOptions> = {
 };
 
 /**
- * Validate file path using ArkType and return branded type
- * Maintains FileError interface contract for callers
- */
-function validatePath(path: string): FilePath {
-  // TypeScript guarantees path is string - delegate to ArkType for domain validation
-  try {
-    const validationResult = FilePathSchema(path);
-    if (validationResult instanceof type.errors) {
-      throw new FileError(`Invalid file path: ${validationResult.summary}`, path, "stat");
-    }
-    return validationResult;
-  } catch (error) {
-    // Ensure all validation errors become FileError to maintain interface contract
-    throw new FileError(
-      `Invalid file path: ${error instanceof Error ? error.message : String(error)}`,
-      path,
-      "stat"
-    );
-  }
-}
-
-/**
- * Merge user options with runtime-optimized defaults
- */
-function mergeOptions(options: FileReaderOptions, runtime: Runtime): Required<FileReaderOptions> {
-  // TypeScript guarantees types - no defensive checking needed
-
-  const defaults = {
-    ...DEFAULT_OPTIONS,
-    bufferSize: getOptimalBufferSize(runtime),
-  };
-
-  const merged = { ...defaults, ...options };
-
-  // Validate merged options with ArkType
-  const validationResult = FileReaderOptionsSchema(merged);
-  if (validationResult instanceof type.errors) {
-    throw new FileError(`Invalid file reader options: ${validationResult.summary}`, "", "read");
-  }
-
-  return merged;
-}
-
-/**
  * Validate file accessibility and constraints
  */
 async function validateFile(
@@ -647,3 +603,51 @@ export const FileReader = {
   createStream,
   readToString,
 } as const;
+
+// =============================================================================
+// PRIVATE HELPER FUNCTIONS
+// =============================================================================
+
+/**
+ * Validate file path using ArkType and return branded type
+ * Maintains FileError interface contract for callers
+ */
+function validatePath(path: string): FilePath {
+  // TypeScript guarantees path is string - delegate to ArkType for domain validation
+  try {
+    const validationResult = FilePathSchema(path);
+    if (validationResult instanceof type.errors) {
+      throw new FileError(`Invalid file path: ${validationResult.summary}`, path, "stat");
+    }
+    return validationResult;
+  } catch (error) {
+    // Ensure all validation errors become FileError to maintain interface contract
+    throw new FileError(
+      `Invalid file path: ${error instanceof Error ? error.message : String(error)}`,
+      path,
+      "stat"
+    );
+  }
+}
+
+/**
+ * Merge user options with runtime-optimized defaults
+ */
+function mergeOptions(options: FileReaderOptions, runtime: Runtime): Required<FileReaderOptions> {
+  // TypeScript guarantees types - no defensive checking needed
+
+  const defaults = {
+    ...DEFAULT_OPTIONS,
+    bufferSize: getOptimalBufferSize(runtime),
+  };
+
+  const merged = { ...defaults, ...options };
+
+  // Validate merged options with ArkType
+  const validationResult = FileReaderOptionsSchema(merged);
+  if (validationResult instanceof type.errors) {
+    throw new FileError(`Invalid file reader options: ${validationResult.summary}`, "", "read");
+  }
+
+  return merged;
+}

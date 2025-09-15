@@ -174,6 +174,29 @@ export function createSafeOptionsValidator<T>(
 }
 
 /**
+ * Utility function to create contextual errors for validation failures
+ *
+ * This provides consistent error formatting across all validation functions.
+ */
+export function createValidationError(
+  message: string,
+  context?: string,
+  data?: Record<string, unknown>
+): ValidationError {
+  let contextStr =
+    context !== undefined && context !== null && context !== "" ? context : "Validation failed";
+
+  if (data && Object.keys(data).length > 0) {
+    const dataStr = Object.entries(data)
+      .map(([key, value]) => `${key}: ${value}`)
+      .join(", ");
+    contextStr = `${contextStr} - ${dataStr}`;
+  }
+
+  return new ValidationError(message, undefined, contextStr);
+}
+
+/**
  * Common validation patterns for genomic operations
  *
  * These are reusable validation functions that can be used as custom validators
@@ -245,26 +268,3 @@ export const CommonValidators = {
       }
     },
 };
-
-/**
- * Utility function to create contextual errors for validation failures
- *
- * This provides consistent error formatting across all validation functions.
- */
-export function createValidationError(
-  message: string,
-  context?: string,
-  data?: Record<string, unknown>
-): ValidationError {
-  let contextStr =
-    context !== undefined && context !== null && context !== "" ? context : "Validation failed";
-
-  if (data && Object.keys(data).length > 0) {
-    const dataStr = Object.entries(data)
-      .map(([key, value]) => `${key}: ${value}`)
-      .join(", ");
-    contextStr = `${contextStr} - ${dataStr}`;
-  }
-
-  return new ValidationError(message, undefined, contextStr);
-}

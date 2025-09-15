@@ -2,8 +2,7 @@
  * BED format parser and writer
  *
  * Supports all BED format variants (BED3-BED12) with comprehensive validation.
- * Refactored to Tiger Style compliance while maintaining functionality and
- * adding genomics domain improvements.
+ * Refactored for improved functionality and genomics domain enhancements.
  *
  * Handles real-world BED file messiness:
  * - Track lines and browser lines
@@ -58,7 +57,7 @@ const BedParserOptionsSchema = type({
 
 /**
  * Detect BED format variant from number of fields
- * Tiger Style: Function under 70 lines, clear switch logic
+ * Function provides clear switch logic for variant detection
  */
 export function detectVariant(
   fieldCount: number
@@ -112,7 +111,7 @@ export function detectVariant(
 
 /**
  * Validate strand annotation
- * Tiger Style: Function under 70 lines, explicit validation
+ * Function provides explicit BED interval validation
  */
 export function validateStrand(strand: string): strand is Strand {
   return strand === "+" || strand === "-" || strand === ".";
@@ -120,7 +119,7 @@ export function validateStrand(strand: string): strand is Strand {
 
 /**
  * Validate BED12 block structure according to UCSC specification
- * Tiger Style: Function under 70 lines, comprehensive block validation
+ * Function provides comprehensive block structure validation
  */
 export function validateBedBlockStructure(
   bed: Pick<BedInterval, "blockCount" | "blockStarts" | "blockSizes" | "start" | "end">
@@ -165,7 +164,7 @@ export function validateBedBlockStructure(
 
 /**
  * Parse RGB color string
- * Tiger Style: Function under 70 lines, handles genomics color formats
+ * Function handles genomics color format parsing
  */
 export function parseRgb(rgbString: string): { r: number; g: number; b: number } | null {
   // Handle comma-separated RGB values
@@ -194,7 +193,7 @@ export function parseRgb(rgbString: string): { r: number; g: number; b: number }
 
 /**
  * Parse BED coordinate with enhanced validation and type safety
- * Tiger Style: Function under 70 lines, tree-shakeable, uses core functions
+ * Tree-shakeable function using established core coordinate parsing
  */
 function parseBedCoordinate(
   coordStr: string,
@@ -260,7 +259,7 @@ function parseBedCoordinate(
 
 /**
  * Validate BED interval with comprehensive validation
- * Tiger Style: Function under 70 lines, tree-shakeable, type-safe errors
+ * Tree-shakeable function with type-safe error handling
  */
 function validateBedInterval(interval: BedInterval, lineNumber: number, line: string): void {
   try {
@@ -294,7 +293,7 @@ function validateBedInterval(interval: BedInterval, lineNumber: number, line: st
 
 /**
  * Build BED interval with optional biological fields
- * Tiger Style: Function under 70 lines, tree-shakeable, biological semantics
+ * Tree-shakeable function preserving biological semantics
  */
 function buildBedInterval(
   chromosome: string,
@@ -391,7 +390,7 @@ function buildBedInterval(
 
 /**
  * Parse BED12 block fields with UCSC specification compliance
- * Tiger Style: Function under 70 lines, focused on block structure
+ * Function focused on BED12 block structure validation
  */
 function parseBed12BlockFields(
   interval: { blockCount?: number; blockSizes?: number[]; blockStarts?: number[] },
@@ -427,7 +426,7 @@ function parseBed12BlockFields(
 
 /**
  * Parse single BED line to interval
- * Tiger Style: Function under 70 lines, tree-shakeable, core parsing logic
+ * Tree-shakeable function with core BED parsing logic
  */
 function parseBedLine(
   line: string,
@@ -493,7 +492,7 @@ function parseBedLine(
 
 /**
  * Check if BED line should be skipped during parsing
- * Tiger Style: Function under 70 lines, biological track/comment detection
+ * Function provides biological track and comment line detection
  */
 function shouldSkipBedLine(trimmedLine: string): boolean {
   return (
@@ -506,7 +505,7 @@ function shouldSkipBedLine(trimmedLine: string): boolean {
 
 /**
  * BED-specific coordinate validation wrapper around core validation
- * Tiger Style: Function under 70 lines, preserves BED biological semantics
+ * Function preserves BED biological semantics and line processing
  * Eliminates coordinate validation duplication while preserving allowZeroLength
  */
 export function validateCoordinates(
@@ -538,7 +537,7 @@ export function validateCoordinates(
 
 /**
  * Streaming BED parser following established FASTA patterns
- * Tiger Style: Class methods under 70 lines, focused responsibilities
+ * Class methods maintain focused responsibilities for BED parsing
  */
 export class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
   constructor(options: BedParserOptions = {}) {
@@ -595,7 +594,7 @@ export class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
 
   /**
    * Parse BED intervals from string
-   * Tiger Style: Function under 70 lines, delegates to parseLines
+   * Function delegates to parseLines for streaming processing
    */
   async *parseString(data: string): AsyncIterable<BedInterval> {
     this.checkAborted(); // Inherited interrupt checking
@@ -605,7 +604,7 @@ export class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
 
   /**
    * Parse BED intervals from file using streaming I/O
-   * Tiger Style: Function under 70 lines, follows FASTA pattern
+   * Function follows established streaming parser patterns
    */
   async *parseFile(filePath: string, options?: { encoding?: string }): AsyncIterable<BedInterval> {
     this.throwIfAborted("file parsing"); // Inherited interrupt checking with context
@@ -638,7 +637,7 @@ export class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
 
   /**
    * Parse BED intervals from stream
-   * Tiger Style: Function under 70 lines, maintains streaming architecture
+   * Function maintains streaming architecture for memory efficiency
    */
   async *parse(stream: ReadableStream<Uint8Array>): AsyncIterable<BedInterval> {
     if (!(stream instanceof ReadableStream)) {
@@ -684,7 +683,7 @@ export class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
 
   /**
    * Parse lines with streaming architecture
-   * Tiger Style: Function under 70 lines, focused line processing
+   * Function provides focused BED line processing logic
    */
   private async *parseLines(lines: string[], startLineNumber = 1): AsyncIterable<BedInterval> {
     let lineNumber = startLineNumber;
@@ -724,7 +723,7 @@ export class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
 
   /**
    * Parse lines from async iterable
-   * Tiger Style: Function under 70 lines, maintains streaming
+   * Function maintains streaming behavior for large files
    */
   private async *parseLinesFromAsyncIterable(
     lines: AsyncIterable<string>
@@ -775,12 +774,12 @@ export class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
 
 /**
  * BED format writer
- * Tiger Style: Simple implementation, focused on output formatting
+ * Simple implementation focused on BED output formatting
  */
 export class BedWriter {
   /**
    * Format BED interval as tab-separated string
-   * Tiger Style: Function under 70 lines, clear field logic
+   * Function provides clear BED field formatting logic
    */
   formatInterval(interval: BedInterval): string {
     // Required BED3 fields
@@ -831,11 +830,11 @@ export class BedWriter {
   }
 }
 
-// Utility functions as module exports (Tiger Style)
+// Utility functions as module exports
 
 /**
  * Detect if data contains BED format
- * Tiger Style: Function under 70 lines, format detection logic
+ * Function provides BED format variant detection logic
  */
 export function detectFormat(data: string): boolean {
   if (data.length === 0) {
@@ -883,7 +882,7 @@ export function detectFormat(data: string): boolean {
 
 /**
  * Count intervals in BED data
- * Tiger Style: Function under 70 lines
+ * Function provides BED coordinate validation
  */
 export function countIntervals(data: string): number {
   return data.split(/\r?\n/).filter((line) => {
@@ -899,7 +898,7 @@ export function countIntervals(data: string): number {
 
 /**
  * Calculate interval statistics
- * Tiger Style: Function under 70 lines
+ * Function provides BED coordinate validation
  */
 export function calculateStats(intervals: BedInterval[]): {
   count: number;
@@ -932,7 +931,7 @@ export function calculateStats(intervals: BedInterval[]): {
 
 /**
  * Sort intervals by genomic position
- * Tiger Style: Function under 70 lines
+ * Function provides BED coordinate validation
  */
 export function sortIntervals(intervals: BedInterval[]): BedInterval[] {
   return [...intervals].sort((a, b) => {
@@ -946,7 +945,7 @@ export function sortIntervals(intervals: BedInterval[]): BedInterval[] {
 
 /**
  * Merge overlapping intervals
- * Tiger Style: Function under 70 lines
+ * Function provides BED coordinate validation
  */
 export function mergeOverlapping(intervals: BedInterval[]): BedInterval[] {
   if (!Array.isArray(intervals) || intervals.length === 0) {

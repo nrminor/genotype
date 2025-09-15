@@ -214,97 +214,6 @@ export class ExternalSorter<T> {
 /**
  * Min-heap implementation for k-way merge
  */
-class MinHeap<T> {
-  private heap: T[] = [];
-
-  constructor(private readonly compareFn: (a: T, b: T) => number) {}
-
-  insert(value: T): void {
-    this.heap.push(value);
-    this.bubbleUp(this.heap.length - 1);
-  }
-
-  extractMin(): T | undefined {
-    if (this.heap.length === 0) return undefined;
-    if (this.heap.length === 1) return this.heap.pop();
-
-    const min = this.heap[0];
-    const last = this.heap.pop();
-    if (last !== undefined) {
-      this.heap[0] = last;
-      this.bubbleDown(0);
-    }
-
-    return min;
-  }
-
-  isEmpty(): boolean {
-    return this.heap.length === 0;
-  }
-
-  private bubbleUp(index: number): void {
-    while (index > 0) {
-      const parentIndex = Math.floor((index - 1) / 2);
-      const current = this.heap[index];
-      const parent = this.heap[parentIndex];
-      if (current === undefined || parent === undefined || this.compareFn(current, parent) >= 0) {
-        break;
-      }
-      this.swap(index, parentIndex);
-      index = parentIndex;
-    }
-  }
-
-  private bubbleDown(index: number): void {
-    const length = this.heap.length;
-
-    while (true) {
-      const leftIndex = 2 * index + 1;
-      const rightIndex = 2 * index + 2;
-      let smallestIndex = index;
-
-      const left = this.heap[leftIndex];
-      const smallest = this.heap[smallestIndex];
-      if (
-        leftIndex < length &&
-        left !== undefined &&
-        smallest !== undefined &&
-        this.compareFn(left, smallest) < 0
-      ) {
-        smallestIndex = leftIndex;
-      }
-
-      const right = this.heap[rightIndex];
-      const currentSmallest = this.heap[smallestIndex];
-      if (
-        rightIndex < length &&
-        right !== undefined &&
-        currentSmallest !== undefined &&
-        this.compareFn(right, currentSmallest) < 0
-      ) {
-        smallestIndex = rightIndex;
-      }
-
-      if (smallestIndex === index) break;
-
-      this.swap(index, smallestIndex);
-      index = smallestIndex;
-    }
-  }
-
-  private swap(i: number, j: number): void {
-    const temp = this.heap[i];
-    if (temp !== undefined && this.heap[j] !== undefined) {
-      this.heap[i] = this.heap[j];
-      this.heap[j] = temp;
-    }
-  }
-}
-
-/**
- * Memory-aware buffering strategy
- * Automatically adjusts buffer size based on available memory
- */
 export class AdaptiveBuffer<T> {
   private buffer: T[] = [];
   private readonly monitor: MemoryMonitor;
@@ -454,3 +363,99 @@ export class DiskCache<T> {
     return this.cacheFiles.size;
   }
 }
+
+// =============================================================================
+// PRIVATE HELPER CLASSES
+// =============================================================================
+
+class MinHeap<T> {
+  private heap: T[] = [];
+
+  constructor(private readonly compareFn: (a: T, b: T) => number) {}
+
+  insert(value: T): void {
+    this.heap.push(value);
+    this.bubbleUp(this.heap.length - 1);
+  }
+
+  extractMin(): T | undefined {
+    if (this.heap.length === 0) return undefined;
+    if (this.heap.length === 1) return this.heap.pop();
+
+    const min = this.heap[0];
+    const last = this.heap.pop();
+    if (last !== undefined) {
+      this.heap[0] = last;
+      this.bubbleDown(0);
+    }
+
+    return min;
+  }
+
+  isEmpty(): boolean {
+    return this.heap.length === 0;
+  }
+
+  private bubbleUp(index: number): void {
+    while (index > 0) {
+      const parentIndex = Math.floor((index - 1) / 2);
+      const current = this.heap[index];
+      const parent = this.heap[parentIndex];
+      if (current === undefined || parent === undefined || this.compareFn(current, parent) >= 0) {
+        break;
+      }
+      this.swap(index, parentIndex);
+      index = parentIndex;
+    }
+  }
+
+  private bubbleDown(index: number): void {
+    const length = this.heap.length;
+
+    while (true) {
+      const leftIndex = 2 * index + 1;
+      const rightIndex = 2 * index + 2;
+      let smallestIndex = index;
+
+      const left = this.heap[leftIndex];
+      const smallest = this.heap[smallestIndex];
+      if (
+        leftIndex < length &&
+        left !== undefined &&
+        smallest !== undefined &&
+        this.compareFn(left, smallest) < 0
+      ) {
+        smallestIndex = leftIndex;
+      }
+
+      const right = this.heap[rightIndex];
+      const currentSmallest = this.heap[smallestIndex];
+      if (
+        rightIndex < length &&
+        right !== undefined &&
+        currentSmallest !== undefined &&
+        this.compareFn(right, currentSmallest) < 0
+      ) {
+        smallestIndex = rightIndex;
+      }
+
+      if (smallestIndex === index) break;
+
+      this.swap(index, smallestIndex);
+      index = smallestIndex;
+    }
+  }
+
+  private swap(i: number, j: number): void {
+    const temp = this.heap[i];
+    if (temp !== undefined && this.heap[j] !== undefined) {
+      this.heap[i] = this.heap[j];
+      this.heap[j] = temp;
+    }
+  }
+}
+
+/**
+ * Memory-aware buffering strategy
+ * Automatically adjusts buffer size based on available memory
+ */

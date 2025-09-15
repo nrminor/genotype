@@ -86,7 +86,6 @@ const MIN_CONFIDENCE_DISAGREEMENT = 0.3;
  * console.log(format); // 'gzip'
  * ```
  *
- * Tiger Style: Function must not exceed 70 lines, minimum 2 assertions
  */
 export function fromExtension(filePath: string): CompressionFormat {
   // Tiger Style: Validate function arguments with proper error handling
@@ -146,7 +145,6 @@ export function fromExtension(filePath: string): CompressionFormat {
  * console.log(detection.confidence); // 1.0
  * ```
  *
- * Tiger Style: Function must not exceed 70 lines, minimum 2 assertions
  */
 export function fromMagicBytes(bytes: Uint8Array): CompressionDetection {
   // Tiger Style: Validate function arguments with proper error handling
@@ -221,7 +219,6 @@ export function fromMagicBytes(bytes: Uint8Array): CompressionDetection {
  * }
  * ```
  *
- * Tiger Style: Function must not exceed 70 lines, minimum 2 assertions
  */
 export async function fromStream(
   stream: ReadableStream<Uint8Array>
@@ -289,7 +286,6 @@ export async function fromStream(
  * }
  * ```
  *
- * Tiger Style: Function must not exceed 70 lines, minimum 2 assertions
  */
 export function hybrid(filePath: string, bytes?: Uint8Array): CompressionDetection {
   // Tiger Style: Validate function arguments with proper error handling
@@ -399,7 +395,6 @@ export function isReliable(detection: CompressionDetection): boolean {
  *   : FflateGzipDecompressor;
  * ```
  *
- * Tiger Style: Function under 70 lines with explicit validation
  */
 export function detectGzipVariant(data: Uint8Array): "standard" | "bgzf" {
   // Tiger Style: Validate function arguments

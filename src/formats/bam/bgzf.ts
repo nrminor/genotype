@@ -33,6 +33,251 @@ const MAX_BGZF_BLOCK_SIZE = 65536;
 /**
  * Validate buffer has enough data for BGZF header
  */
+export function readBlockHeader(buffer: Uint8Array, offset: number): BGZFBlock {
+  validateBuffer(buffer, offset);
+  const view = new DataView(buffer.buffer, buffer.byteOffset + offset);
+
+  validateGzipHeader(view);
+  validateExtraField(view);
+
+  const compressedSize = readBlockSize(view);
+  validateBlockSize(compressedSize, buffer, offset);
+
+  const { uncompressedSize, crc32 } = readBlockFooter(buffer, offset, compressedSize);
+
+  return {
+    offset,
+    compressedSize,
+    uncompressedSize,
+    crc32,
+  };
+}
+
+/**
+ * Decompress a single BGZF block
+ *
+ * @param blockData Complete BGZF block data
+ * @returns Promise resolving to decompressed data
+ * @throws {CompressionError} If decompression fails
+ */
+export async function decompressBlock(blockData: Uint8Array): Promise<Uint8Array> {
+  // Tiger Style: Assert function arguments
+  if (!(blockData instanceof Uint8Array)) {
+    throw new CompressionError("blockData must be Uint8Array", "gzip", "decompress");
+  }
+
+  if (blockData.length < 26) {
+    throw new CompressionError(
+      `BGZF block too small: ${blockData.length} bytes (minimum 26)`,
+      "gzip",
+      "decompress"
+    );
+  }
+
+  try {
+    // Validate block header first
+    const blockInfo = readBlockHeader(blockData, 0);
+
+    // Extract compressed data (skip 18-byte header, exclude 8-byte footer)
+    const compressedData = blockData.slice(18, blockData.length - 8);
+
+    // Create gzip-compatible stream for decompression
+    // BGZF blocks are standard deflate streams with gzip wrapper
+    const decompressedData = await inflateData(compressedData);
+
+    // Validate decompressed size matches header
+    if (decompressedData.length !== blockInfo.uncompressedSize) {
+      throw new CompressionError(
+        `Size mismatch: expected ${blockInfo.uncompressedSize}, got ${decompressedData.length}`,
+        "gzip",
+        "validate"
+      );
+    }
+
+    // Validate CRC32 if available
+    if (blockInfo.crc32 !== undefined) {
+      const calculatedCrc = await calculateCRC32(decompressedData);
+      if (calculatedCrc !== blockInfo.crc32) {
+        throw new CompressionError(
+          `CRC32 mismatch: expected 0x${blockInfo.crc32.toString(16)}, got 0x${calculatedCrc.toString(16)}`,
+          "gzip",
+          "validate"
+        );
+      }
+    }
+
+    // Tiger Style: Assert postconditions
+    if (!(decompressedData instanceof Uint8Array)) {
+      throw new CompressionError("result must be Uint8Array", "gzip", "validate");
+    }
+    if (decompressedData.length !== blockInfo.uncompressedSize) {
+      throw new CompressionError("result size must match header", "gzip", "validate");
+    }
+
+    return decompressedData;
+  } catch (error) {
+    if (error instanceof CompressionError || error instanceof BamError) {
+      throw error;
+    }
+
+    throw CompressionError.fromSystemError("gzip", "decompress", error, blockData.length);
+  }
+}
+
+/**
+ * Create a streaming BGZF decompressor
+ *
+ * @returns TransformStream for streaming BGZF decompression
+ */
+export function createStream(): TransformStream<Uint8Array, Uint8Array> {
+  let buffer: Uint8Array = new Uint8Array(0);
+
+  return new TransformStream({
+    async transform(chunk, controller): Promise<void> {
+      try {
+        // Tiger Style: Assert chunk validity
+        if (!(chunk instanceof Uint8Array)) {
+          throw new CompressionError("chunk must be Uint8Array", "gzip", "stream");
+        }
+
+        // Append new chunk to buffer
+        const newBuffer = new Uint8Array(buffer.length + chunk.length);
+        newBuffer.set(buffer);
+        newBuffer.set(chunk, buffer.length);
+        buffer = newBuffer;
+
+        // Process complete blocks
+        let offset = 0;
+        while (offset < buffer.length) {
+          try {
+            // Try to read block header
+            if (buffer.length - offset < 18) {
+              break; // Not enough data for header
+            }
+
+            const blockInfo = readBlockHeader(buffer, offset);
+
+            // Check if we have complete block
+            if (buffer.length - offset < blockInfo.compressedSize) {
+              break; // Incomplete block
+            }
+
+            // Extract and decompress block
+            const blockData = buffer.slice(offset, offset + blockInfo.compressedSize);
+            const decompressed = await decompressBlock(blockData);
+
+            // Enqueue decompressed data
+            controller.enqueue(decompressed);
+
+            offset += blockInfo.compressedSize;
+          } catch (error) {
+            if (error instanceof BamError) {
+              // If header is invalid, might be end of stream or corruption
+              break;
+            }
+            throw error;
+          }
+        }
+
+        // Keep remaining data for next chunk
+        if (offset > 0) {
+          buffer = buffer.slice(offset);
+        }
+      } catch (error) {
+        controller.error(CompressionError.fromSystemError("gzip", "stream", error, chunk.length));
+      }
+    },
+
+    async flush(controller): Promise<void> {
+      // Process any remaining data
+      if (buffer.length > 0) {
+        try {
+          const blockInfo = readBlockHeader(buffer, 0);
+          if (buffer.length >= blockInfo.compressedSize) {
+            const blockData = buffer.slice(0, blockInfo.compressedSize);
+            const decompressed = await decompressBlock(blockData);
+            controller.enqueue(decompressed);
+          }
+        } catch (error) {
+          // Log incomplete data errors for debugging - helps with corrupted files
+          console.warn(
+            `BGZF flush warning: ${error instanceof Error ? error.message : String(error)} - possibly incomplete block data`
+          );
+        }
+      }
+    },
+  });
+}
+
+/**
+ * Detect if data contains BGZF blocks
+ * @param data Data to examine
+ * @returns True if BGZF format detected
+ */
+export function detectFormat(data: Uint8Array): boolean {
+  // Tiger Style: Assert function arguments
+  if (!(data instanceof Uint8Array)) {
+    throw new CompressionError("data must be Uint8Array", "gzip", "detect");
+  }
+
+  if (data.length < 18) {
+    return false;
+  }
+
+  try {
+    readBlockHeader(data, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Find all BGZF blocks in a buffer
+ * @param buffer Buffer to scan
+ * @returns Array of BGZFBlock information
+ */
+export function findBlocks(buffer: Uint8Array): BGZFBlock[] {
+  // Tiger Style: Assert function arguments
+  if (!(buffer instanceof Uint8Array)) {
+    throw new CompressionError("buffer must be Uint8Array", "gzip", "detect");
+  }
+
+  const blocks: BGZFBlock[] = [];
+  let offset = 0;
+
+  while (offset < buffer.length) {
+    try {
+      const block = readBlockHeader(buffer, offset);
+      blocks.push(block);
+      offset += block.compressedSize;
+    } catch {
+      // If we can't read a valid block header, we're done
+      break;
+    }
+  }
+
+  // Tiger Style: Assert postconditions
+  if (!Array.isArray(blocks)) {
+    throw new CompressionError("result must be an array", "gzip", "detect");
+  }
+
+  return blocks;
+}
+
+// Backward compatibility namespace export
+export const BGZFReader = {
+  readBlockHeader,
+  decompressBlock,
+  createStream,
+  detectFormat,
+  findBlocks,
+} as const;
+
+// =============================================================================
+// PRIVATE HELPER FUNCTIONS
+// =============================================================================
+
 function validateBuffer(buffer: Uint8Array, offset: number): void {
   if (buffer.length < offset + BGZF_HEADER_SIZE) {
     throw new BamError(
@@ -288,243 +533,3 @@ async function calculateCRC32(data: Uint8Array): Promise<number> {
  * @returns BGZFBlock information if valid
  * @throws {BamError} If block header is invalid
  */
-export function readBlockHeader(buffer: Uint8Array, offset: number): BGZFBlock {
-  validateBuffer(buffer, offset);
-  const view = new DataView(buffer.buffer, buffer.byteOffset + offset);
-
-  validateGzipHeader(view);
-  validateExtraField(view);
-
-  const compressedSize = readBlockSize(view);
-  validateBlockSize(compressedSize, buffer, offset);
-
-  const { uncompressedSize, crc32 } = readBlockFooter(buffer, offset, compressedSize);
-
-  return {
-    offset,
-    compressedSize,
-    uncompressedSize,
-    crc32,
-  };
-}
-
-/**
- * Decompress a single BGZF block
- *
- * @param blockData Complete BGZF block data
- * @returns Promise resolving to decompressed data
- * @throws {CompressionError} If decompression fails
- */
-export async function decompressBlock(blockData: Uint8Array): Promise<Uint8Array> {
-  // Tiger Style: Assert function arguments
-  if (!(blockData instanceof Uint8Array)) {
-    throw new CompressionError("blockData must be Uint8Array", "gzip", "decompress");
-  }
-
-  if (blockData.length < 26) {
-    throw new CompressionError(
-      `BGZF block too small: ${blockData.length} bytes (minimum 26)`,
-      "gzip",
-      "decompress"
-    );
-  }
-
-  try {
-    // Validate block header first
-    const blockInfo = readBlockHeader(blockData, 0);
-
-    // Extract compressed data (skip 18-byte header, exclude 8-byte footer)
-    const compressedData = blockData.slice(18, blockData.length - 8);
-
-    // Create gzip-compatible stream for decompression
-    // BGZF blocks are standard deflate streams with gzip wrapper
-    const decompressedData = await inflateData(compressedData);
-
-    // Validate decompressed size matches header
-    if (decompressedData.length !== blockInfo.uncompressedSize) {
-      throw new CompressionError(
-        `Size mismatch: expected ${blockInfo.uncompressedSize}, got ${decompressedData.length}`,
-        "gzip",
-        "validate"
-      );
-    }
-
-    // Validate CRC32 if available
-    if (blockInfo.crc32 !== undefined) {
-      const calculatedCrc = await calculateCRC32(decompressedData);
-      if (calculatedCrc !== blockInfo.crc32) {
-        throw new CompressionError(
-          `CRC32 mismatch: expected 0x${blockInfo.crc32.toString(16)}, got 0x${calculatedCrc.toString(16)}`,
-          "gzip",
-          "validate"
-        );
-      }
-    }
-
-    // Tiger Style: Assert postconditions
-    if (!(decompressedData instanceof Uint8Array)) {
-      throw new CompressionError("result must be Uint8Array", "gzip", "validate");
-    }
-    if (decompressedData.length !== blockInfo.uncompressedSize) {
-      throw new CompressionError("result size must match header", "gzip", "validate");
-    }
-
-    return decompressedData;
-  } catch (error) {
-    if (error instanceof CompressionError || error instanceof BamError) {
-      throw error;
-    }
-
-    throw CompressionError.fromSystemError("gzip", "decompress", error, blockData.length);
-  }
-}
-
-/**
- * Create a streaming BGZF decompressor
- *
- * @returns TransformStream for streaming BGZF decompression
- */
-export function createStream(): TransformStream<Uint8Array, Uint8Array> {
-  let buffer: Uint8Array = new Uint8Array(0);
-
-  return new TransformStream({
-    async transform(chunk, controller): Promise<void> {
-      try {
-        // Tiger Style: Assert chunk validity
-        if (!(chunk instanceof Uint8Array)) {
-          throw new CompressionError("chunk must be Uint8Array", "gzip", "stream");
-        }
-
-        // Append new chunk to buffer
-        const newBuffer = new Uint8Array(buffer.length + chunk.length);
-        newBuffer.set(buffer);
-        newBuffer.set(chunk, buffer.length);
-        buffer = newBuffer;
-
-        // Process complete blocks
-        let offset = 0;
-        while (offset < buffer.length) {
-          try {
-            // Try to read block header
-            if (buffer.length - offset < 18) {
-              break; // Not enough data for header
-            }
-
-            const blockInfo = readBlockHeader(buffer, offset);
-
-            // Check if we have complete block
-            if (buffer.length - offset < blockInfo.compressedSize) {
-              break; // Incomplete block
-            }
-
-            // Extract and decompress block
-            const blockData = buffer.slice(offset, offset + blockInfo.compressedSize);
-            const decompressed = await decompressBlock(blockData);
-
-            // Enqueue decompressed data
-            controller.enqueue(decompressed);
-
-            offset += blockInfo.compressedSize;
-          } catch (error) {
-            if (error instanceof BamError) {
-              // If header is invalid, might be end of stream or corruption
-              break;
-            }
-            throw error;
-          }
-        }
-
-        // Keep remaining data for next chunk
-        if (offset > 0) {
-          buffer = buffer.slice(offset);
-        }
-      } catch (error) {
-        controller.error(CompressionError.fromSystemError("gzip", "stream", error, chunk.length));
-      }
-    },
-
-    async flush(controller): Promise<void> {
-      // Process any remaining data
-      if (buffer.length > 0) {
-        try {
-          const blockInfo = readBlockHeader(buffer, 0);
-          if (buffer.length >= blockInfo.compressedSize) {
-            const blockData = buffer.slice(0, blockInfo.compressedSize);
-            const decompressed = await decompressBlock(blockData);
-            controller.enqueue(decompressed);
-          }
-        } catch (error) {
-          // Log incomplete data errors for debugging - helps with corrupted files
-          console.warn(
-            `BGZF flush warning: ${error instanceof Error ? error.message : String(error)} - possibly incomplete block data`
-          );
-        }
-      }
-    },
-  });
-}
-
-/**
- * Detect if data contains BGZF blocks
- * @param data Data to examine
- * @returns True if BGZF format detected
- */
-export function detectFormat(data: Uint8Array): boolean {
-  // Tiger Style: Assert function arguments
-  if (!(data instanceof Uint8Array)) {
-    throw new CompressionError("data must be Uint8Array", "gzip", "detect");
-  }
-
-  if (data.length < 18) {
-    return false;
-  }
-
-  try {
-    readBlockHeader(data, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Find all BGZF blocks in a buffer
- * @param buffer Buffer to scan
- * @returns Array of BGZFBlock information
- */
-export function findBlocks(buffer: Uint8Array): BGZFBlock[] {
-  // Tiger Style: Assert function arguments
-  if (!(buffer instanceof Uint8Array)) {
-    throw new CompressionError("buffer must be Uint8Array", "gzip", "detect");
-  }
-
-  const blocks: BGZFBlock[] = [];
-  let offset = 0;
-
-  while (offset < buffer.length) {
-    try {
-      const block = readBlockHeader(buffer, offset);
-      blocks.push(block);
-      offset += block.compressedSize;
-    } catch {
-      // If we can't read a valid block header, we're done
-      break;
-    }
-  }
-
-  // Tiger Style: Assert postconditions
-  if (!Array.isArray(blocks)) {
-    throw new CompressionError("result must be an array", "gzip", "detect");
-  }
-
-  return blocks;
-}
-
-// Backward compatibility namespace export
-export const BGZFReader = {
-  readBlockHeader,
-  decompressBlock,
-  createStream,
-  detectFormat,
-  findBlocks,
-} as const;

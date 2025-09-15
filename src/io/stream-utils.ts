@@ -392,6 +392,18 @@ export async function* batchLines(
 /**
  * Check memory usage and throw error if excessive
  */
+export const StreamUtils = {
+  readLines,
+  processBuffer,
+  pipe,
+  processChunks,
+  batchLines,
+} as const;
+
+// =============================================================================
+// PRIVATE HELPER FUNCTIONS
+// =============================================================================
+
 function checkMemoryUsage(bufferSize: number, totalProcessed: number): void {
   // TypeScript guarantees types - check meaningful invariants only
 
@@ -453,10 +465,3 @@ function estimateMemoryUsage(): number {
  * Implements streaming algorithms optimized for genomic data formats
  * with proper memory management and error handling.
  */
-export const StreamUtils = {
-  readLines,
-  processBuffer,
-  pipe,
-  processChunks,
-  batchLines,
-} as const;

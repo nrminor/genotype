@@ -150,6 +150,52 @@ export type SequenceType = (typeof SequenceType)[keyof typeof SequenceType];
  * console.log(isStrictValid); // true
  * ```
  */
+
+// =============================================================================
+// VALIDATION SCHEMAS
+// =============================================================================
+
+/**
+ * Validation mode schema for runtime type checking
+ */
+export const ValidationModeSchema = type('"strict"|"normal"|"permissive"');
+
+/**
+ * Sequence type schema for runtime type checking
+ */
+export const SequenceTypeSchema = type('"dna"|"rna"|"protein"|"unknown"');
+
+/**
+ * Validation options schema with comprehensive parameter validation
+ */
+export const ValidationOptionsSchema = type({
+  mode: ValidationModeSchema,
+  type: SequenceTypeSchema,
+  "replaceChar?": type("string").pipe((char: string) => {
+    if (char.length !== 1) {
+      throw new Error("replaceChar must be a single character");
+    }
+    return char;
+  }),
+  "strict?": "boolean",
+}).pipe((options) => {
+  // Additional cross-field validation if needed
+  return options;
+});
+
+/**
+ * Sequence validation result schema
+ */
+export const ValidationResultSchema = type({
+  isValid: "boolean",
+  sequence: "string",
+  mode: ValidationModeSchema,
+  type: SequenceTypeSchema,
+  "errors?": "string[]",
+  "warnings?": "string[]",
+  "cleaned?": "string",
+});
+
 export class SequenceValidator {
   /**
    * Validation mode for this validator instance
@@ -571,51 +617,6 @@ export class SequenceValidator {
     return expansionMap[upperBase] || [upperBase];
   }
 }
-
-// =============================================================================
-// VALIDATION SCHEMA USING ARKTYPE
-// =============================================================================
-
-/**
- * Validation mode schema for runtime type checking
- */
-export const ValidationModeSchema = type('"strict"|"normal"|"permissive"');
-
-/**
- * Sequence type schema for runtime type checking
- */
-export const SequenceTypeSchema = type('"dna"|"rna"|"protein"|"unknown"');
-
-/**
- * Validation options schema with comprehensive parameter validation
- */
-export const ValidationOptionsSchema = type({
-  mode: ValidationModeSchema,
-  type: SequenceTypeSchema,
-  "replaceChar?": type("string").pipe((char: string) => {
-    if (char.length !== 1) {
-      throw new Error("replaceChar must be a single character");
-    }
-    return char;
-  }),
-  "strict?": "boolean",
-}).pipe((options) => {
-  // Additional cross-field validation if needed
-  return options;
-});
-
-/**
- * Sequence validation result schema
- */
-export const ValidationResultSchema = type({
-  isValid: "boolean",
-  sequence: "string",
-  mode: ValidationModeSchema,
-  type: SequenceTypeSchema,
-  "errors?": "string[]",
-  "warnings?": "string[]",
-  "cleaned?": "string",
-});
 
 // =============================================================================
 // UTILITY FUNCTIONS

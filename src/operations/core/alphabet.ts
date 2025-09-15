@@ -1,9 +1,9 @@
 /**
  * Alphabet validation and template literal tags for biological sequences
  *
- * This module provides compile-time sequence validation through TypeScript's
+ * This module provides sequence validation through TypeScript's
  * template literal types and branded types. Enables beautiful syntax like
- * `dna`ATCG`` with full compile-time validation and string compatibility.
+ * `dna`ATCG`` with runtime validation and string compatibility.
  *
  * @module alphabet
  * @since v0.1.0
@@ -11,7 +11,7 @@
  * @example
  * ```typescript
  * const sequence = dna`ATCGATCG`;           // ✅ Valid DNA
- * const invalid = dna`ATCGXYZ`;            // ❌ Compiler error
+ * const invalid = dna`ATCGXYZ`;            // ❌ Runtime error
  * const withIUPAC = iupac`ATCGRYSWKMN`;    // ✅ IUPAC codes
  * const covidPrimer = primer`ACCAGGAACTAATCAGACAAG`; // ✅ Valid primer length
  *
@@ -130,7 +130,7 @@ type ValidPrimerLength<T extends string> = T["length"] extends 0 | 1 | 2 | 3 | 4
 // =============================================================================
 
 /**
- * Branded type for compile-time validated standard DNA sequences
+ * Branded type for runtime validated standard DNA sequences
  */
 export type DNASequence<T extends string = string> = T & {
   readonly __brand: "DNA";
@@ -138,7 +138,7 @@ export type DNASequence<T extends string = string> = T & {
 };
 
 /**
- * Branded type for compile-time validated IUPAC DNA sequences
+ * Branded type for validated IUPAC DNA sequences
  */
 export type IUPACSequence<T extends string = string> = T & {
   readonly __brand: "DNA";
@@ -146,7 +146,7 @@ export type IUPACSequence<T extends string = string> = T & {
 };
 
 /**
- * Branded type for compile-time validated RNA sequences
+ * Branded type for validated RNA sequences
  */
 export type RNASequence<T extends string = string> = T & {
   readonly __brand: "RNA";
@@ -154,7 +154,7 @@ export type RNASequence<T extends string = string> = T & {
 };
 
 /**
- * Branded type for compile-time validated primer sequences with biological constraints
+ * Branded type for validated primer sequences with biological constraints
  */
 export type PrimerSequence<T extends string = string> = T & {
   readonly __brand: "Primer";
@@ -169,7 +169,7 @@ export type PrimerSequence<T extends string = string> = T & {
 /**
  * Template literal tag for standard DNA sequences
  *
- * Creates compile-time validated DNA sequences that can only contain A, C, G, T.
+ * Creates validated DNA sequences that can only contain A, C, G, T.
  * Provides beautiful syntax with full type safety and automatic string widening.
  *
  * @param template - Template strings array from template literal
@@ -180,8 +180,8 @@ export type PrimerSequence<T extends string = string> = T & {
  * ```typescript
  * const seq = dna`ATCGATCG`;        // ✅ Valid standard DNA
  * const mixed = dna`ATCGatcg`;      // ✅ Mixed case OK
- * const invalid = dna`ATCGXYZ`;     // ❌ Compiler error - X,Y,Z invalid
- * const withU = dna`ATCGU`;         // ❌ Compiler error - U not in DNA alphabet
+ * const invalid = dna`ATCGXYZ`;     // ❌ Runtime error - X,Y,Z invalid
+ * const withU = dna`ATCGU`;         // ❌ Runtime error - U not in DNA alphabet
  *
  * // Automatic string widening
  * processSequence(seq); // Works with any function expecting string
@@ -204,7 +204,7 @@ export function dna<T extends string>(
 /**
  * Template literal tag for IUPAC DNA sequences (includes degenerate bases)
  *
- * Creates compile-time validated IUPAC DNA sequences supporting all ambiguity codes.
+ * Creates validated IUPAC DNA sequences supporting all ambiguity codes.
  * Essential for primers with degenerate positions and biological variation handling.
  *
  * @param template - Template strings array from template literal
@@ -217,7 +217,7 @@ export function dna<T extends string>(
  * const degenerate = iupac`ATCGRYSWKMN`;      // ✅ All IUPAC codes
  * const threeBases = iupac`ATCGBDHV`;         // ✅ Three-base codes (B,D,H,V)
  * const universal = iupac`GTGCCAGCMGCCGCGGTAA`; // ✅ Real 515F primer (M=A|C)
- * const invalid = iupac`ATCGXYZ`;             // ❌ Compiler error - X,Y,Z invalid
+ * const invalid = iupac`ATCGXYZ`;             // ❌ Runtime error - X,Y,Z invalid
  *
  * // String compatibility maintained
  * const length = degenerate.length;          // Works like normal string
@@ -242,7 +242,7 @@ export function iupac<T extends string>(
 /**
  * Template literal tag for RNA sequences
  *
- * Creates compile-time validated RNA sequences with U instead of T.
+ * Creates validated RNA sequences with U instead of T.
  * Supports all IUPAC ambiguity codes for RNA analysis.
  *
  * @param template - Template strings array from template literal
@@ -276,7 +276,7 @@ export function rna<T extends string>(
 /**
  * Template literal tag for primer sequences with biological constraints
  *
- * Creates compile-time validated primer sequences with biological length constraints.
+ * Creates validated primer sequences with biological length constraints.
  * Combines IUPAC validation with primer-specific requirements (15-50 bp length).
  * Perfect for PCR primer validation in amplicon detection workflows.
  *
@@ -295,9 +295,9 @@ export function rna<T extends string>(
  * const microbial806R = primer`GGACTACHVGGGTWTCTAAT`;    // ✅ 20bp, H=A|C|T, V=A|C|G, W=A|T
  *
  * // Biological constraint validation
- * const tooShort = primer`ATCG`;                        // ❌ 4bp < 15bp minimum
- * const tooLong = primer`${'A'.repeat(60)}`;            // ❌ 60bp > 50bp maximum
- * const invalidChars = primer`ATCGXYZ${unknown}`;       // ❌ X,Y,Z not valid IUPAC
+ * const tooShort = primer`ATCG`;                        // ❌ Runtime error: 4bp < 15bp minimum
+ * const tooLong = primer`${'A'.repeat(60)}`;            // ❌ Runtime error: 60bp > 50bp maximum
+ * const invalidChars = primer`ATCGXYZ${unknown}`;       // ❌ Runtime error: X,Y,Z not valid IUPAC
  *
  * // String compatibility for algorithms
  * const length = covidN.length;                         // Works like string

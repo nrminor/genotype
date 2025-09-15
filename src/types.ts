@@ -24,64 +24,6 @@ import {
 /**
  * Validate CIGAR string consistency with sequence length
  */
-function validateCigarSequenceConsistency(cigar: string, sequence: string): void {
-  if (cigar === "*" || sequence === "*") {
-    return;
-  }
-
-  const operations = cigar.match(/\d+[MIDNSHPX=]/g) || [];
-  let consumesQuery = 0;
-
-  for (const op of operations) {
-    const length = parseInt(op.slice(0, -1));
-    const operation = op.slice(-1);
-
-    // Operations that consume query sequence
-    if ("MIS=X".includes(operation)) {
-      consumesQuery += length;
-    }
-  }
-
-  // Check if CIGAR matches sequence length (allow some flexibility for edge cases)
-  if (consumesQuery > 0 && Math.abs(consumesQuery - sequence.length) > sequence.length * 0.1) {
-    throw CigarValidationError.withMismatchAnalysis(cigar, sequence.length, consumesQuery);
-  }
-}
-
-/**
- * Validate BAI chunk ordering by beginOffset
- */
-function validateChunkOrdering(chunks: any[]): void {
-  for (let i = 1; i < chunks.length; i++) {
-    const current = chunks[i];
-    const previous = chunks[i - 1];
-
-    if (!isValidChunk(current) || !isValidChunk(previous)) {
-      continue;
-    }
-
-    if (current.beginOffset <= previous.beginOffset) {
-      throw new Error(`BAI chunks must be sorted by beginOffset`);
-    }
-  }
-}
-
-/**
- * Check if object is a valid chunk with beginOffset
- */
-function isValidChunk(chunk: any): chunk is { beginOffset: number } {
-  return (
-    chunk !== null &&
-    chunk !== undefined &&
-    typeof chunk === "object" &&
-    "beginOffset" in chunk &&
-    typeof chunk.beginOffset === "number"
-  );
-}
-
-/**
- * Base sequence interface - foundation for all genomic sequence types
- */
 export interface AbstractSequence {
   /** Sequence identifier (required, but may be empty string in malformed data) */
   readonly id: string;
@@ -2240,3 +2182,66 @@ export {
   primer,
   rna,
 } from "./operations/core/alphabet";
+
+// =============================================================================
+// PRIVATE HELPER FUNCTIONS
+// =============================================================================
+
+function validateCigarSequenceConsistency(cigar: string, sequence: string): void {
+  if (cigar === "*" || sequence === "*") {
+    return;
+  }
+
+  const operations = cigar.match(/\d+[MIDNSHPX=]/g) || [];
+  let consumesQuery = 0;
+
+  for (const op of operations) {
+    const length = parseInt(op.slice(0, -1));
+    const operation = op.slice(-1);
+
+    // Operations that consume query sequence
+    if ("MIS=X".includes(operation)) {
+      consumesQuery += length;
+    }
+  }
+
+  // Check if CIGAR matches sequence length (allow some flexibility for edge cases)
+  if (consumesQuery > 0 && Math.abs(consumesQuery - sequence.length) > sequence.length * 0.1) {
+    throw CigarValidationError.withMismatchAnalysis(cigar, sequence.length, consumesQuery);
+  }
+}
+
+/**
+ * Validate BAI chunk ordering by beginOffset
+ */
+function validateChunkOrdering(chunks: any[]): void {
+  for (let i = 1; i < chunks.length; i++) {
+    const current = chunks[i];
+    const previous = chunks[i - 1];
+
+    if (!isValidChunk(current) || !isValidChunk(previous)) {
+      continue;
+    }
+
+    if (current.beginOffset <= previous.beginOffset) {
+      throw new Error(`BAI chunks must be sorted by beginOffset`);
+    }
+  }
+}
+
+/**
+ * Check if object is a valid chunk with beginOffset
+ */
+function isValidChunk(chunk: any): chunk is { beginOffset: number } {
+  return (
+    chunk !== null &&
+    chunk !== undefined &&
+    typeof chunk === "object" &&
+    "beginOffset" in chunk &&
+    typeof chunk.beginOffset === "number"
+  );
+}
+
+/**
+ * Base sequence interface - foundation for all genomic sequence types
+ */

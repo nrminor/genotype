@@ -54,6 +54,103 @@ const DecompressorOptionsSchema = type({
 
 // Tiger Style: Helper functions under 70 lines each
 
+export async function decompress(
+  compressed: Uint8Array,
+  options: DecompressorOptions = {}
+): Promise<Uint8Array> {
+  // Tiger Style: Validate function arguments
+  validateCompressedData(compressed);
+  validateStandardGzipFormat(compressed);
+
+  const mergedOptions = validateAndMergeOptions(options);
+
+  // Check abort signal before starting
+  if (mergedOptions.signal?.aborted) {
+    throw new CompressionError("Operation was aborted", "gzip", "decompress");
+  }
+
+  const method = selectDecompressionMethod(compressed.length);
+
+  try {
+    return await performFflateDecompression(compressed, mergedOptions, method);
+  } catch (error) {
+    // Tiger Style: Explicit error handling with context preservation
+    if (error instanceof CompressionError) throw error;
+
+    throw new CompressionError(
+      error instanceof Error ? error.message : String(error),
+      "gzip",
+      "decompress",
+      0,
+      "Verify file is valid gzip format and not corrupted"
+    );
+  }
+}
+
+/**
+ * Create gzip decompression transform stream using fflate
+ *
+ * Returns a TransformStream maintaining API compatibility with existing
+ * implementation while using fflate's callback-based streaming internally.
+ *
+ * @param options Optional decompression configuration
+ * @returns TransformStream for gzip decompression
+ * @throws {CompressionError} If stream creation fails
+ *
+ * @example Transform stream for pipeline processing
+ * ```typescript
+ * const transform = createStream({
+ *   maxOutputSize: 1024 * 1024 * 1024 // 1GB limit for genomic files
+ * });
+ * const decompressed = compressedStream.pipeThrough(transform);
+ * ```
+ *
+ */
+export function createStream(
+  options: DecompressorOptions = {}
+): TransformStream<Uint8Array, Uint8Array> {
+  const mergedOptions = validateAndMergeOptions(options);
+  return createFflateTransformStream(mergedOptions);
+}
+
+export function wrapStream(
+  input: ReadableStream<Uint8Array>,
+  options: DecompressorOptions = {}
+): ReadableStream<Uint8Array> {
+  // Tiger Style: Assert function arguments
+  if (!(input instanceof ReadableStream)) {
+    throw new CompressionError("Input must be ReadableStream", "gzip", "stream");
+  }
+
+  try {
+    const transform = createStream(options);
+    return input.pipeThrough(transform);
+  } catch (error) {
+    // Tiger Style: Explicit error handling with context
+    throw new CompressionError(
+      `Stream wrapping failed: ${error instanceof Error ? error.message : String(error)}`,
+      "gzip",
+      "stream"
+    );
+  }
+}
+
+/**
+ * Gzip decompressor interface maintaining existing API
+ *
+ * Provides drop-in replacement for previous implementation while using
+ * fflate internally for improved performance and reduced complexity.
+ */
+export const GzipDecompressor = {
+  decompress,
+  createStream,
+  wrapStream,
+} as const;
+
+// =============================================================================
+// PRIVATE HELPER FUNCTIONS
+// =============================================================================
+
 function validateCompressedData(compressed: Uint8Array): void {
   if (!(compressed instanceof Uint8Array)) {
     throw new CompressionError("Compressed data must be Uint8Array", "gzip", "decompress");
@@ -267,68 +364,7 @@ function concatenateDecompressedChunks(chunks: Uint8Array[], totalSize: number):
  * const decompressed = await decompress(largeFasta);
  * ```
  *
- * Tiger Style: Function under 70 lines - delegates to helper functions
  */
-export async function decompress(
-  compressed: Uint8Array,
-  options: DecompressorOptions = {}
-): Promise<Uint8Array> {
-  // Tiger Style: Validate function arguments
-  validateCompressedData(compressed);
-  validateStandardGzipFormat(compressed);
-
-  const mergedOptions = validateAndMergeOptions(options);
-
-  // Check abort signal before starting
-  if (mergedOptions.signal?.aborted) {
-    throw new CompressionError("Operation was aborted", "gzip", "decompress");
-  }
-
-  const method = selectDecompressionMethod(compressed.length);
-
-  try {
-    return await performFflateDecompression(compressed, mergedOptions, method);
-  } catch (error) {
-    // Tiger Style: Explicit error handling with context preservation
-    if (error instanceof CompressionError) throw error;
-
-    throw new CompressionError(
-      error instanceof Error ? error.message : String(error),
-      "gzip",
-      "decompress",
-      0,
-      "Verify file is valid gzip format and not corrupted"
-    );
-  }
-}
-
-/**
- * Create gzip decompression transform stream using fflate
- *
- * Returns a TransformStream maintaining API compatibility with existing
- * implementation while using fflate's callback-based streaming internally.
- *
- * @param options Optional decompression configuration
- * @returns TransformStream for gzip decompression
- * @throws {CompressionError} If stream creation fails
- *
- * @example Transform stream for pipeline processing
- * ```typescript
- * const transform = createStream({
- *   maxOutputSize: 1024 * 1024 * 1024 // 1GB limit for genomic files
- * });
- * const decompressed = compressedStream.pipeThrough(transform);
- * ```
- *
- * Tiger Style: Function under 70 lines with delegation to helpers
- */
-export function createStream(
-  options: DecompressorOptions = {}
-): TransformStream<Uint8Array, Uint8Array> {
-  const mergedOptions = validateAndMergeOptions(options);
-  return createFflateTransformStream(mergedOptions);
-}
-
 function createFflateTransformStream(options: {
   maxOutputSize: number;
   validateIntegrity: boolean;
@@ -422,38 +458,4 @@ function createFflateTransformStream(options: {
  * }
  * ```
  *
- * Tiger Style: Function under 70 lines with simple delegation
  */
-export function wrapStream(
-  input: ReadableStream<Uint8Array>,
-  options: DecompressorOptions = {}
-): ReadableStream<Uint8Array> {
-  // Tiger Style: Assert function arguments
-  if (!(input instanceof ReadableStream)) {
-    throw new CompressionError("Input must be ReadableStream", "gzip", "stream");
-  }
-
-  try {
-    const transform = createStream(options);
-    return input.pipeThrough(transform);
-  } catch (error) {
-    // Tiger Style: Explicit error handling with context
-    throw new CompressionError(
-      `Stream wrapping failed: ${error instanceof Error ? error.message : String(error)}`,
-      "gzip",
-      "stream"
-    );
-  }
-}
-
-/**
- * Gzip decompressor interface maintaining existing API
- *
- * Provides drop-in replacement for previous implementation while using
- * fflate internally for improved performance and reduced complexity.
- */
-export const GzipDecompressor = {
-  decompress,
-  createStream,
-  wrapStream,
-} as const;

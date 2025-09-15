@@ -109,186 +109,6 @@ const SplitOptionsSchema = type({
 /**
  * Split sequences into files by size
  */
-export async function splitBySize(
-  sequences: AsyncIterable<AbstractSequence>,
-  sequencesPerFile: number,
-  outputDir: string = "./split",
-  prefix: string = "part"
-): Promise<SplitSummary> {
-  if (sequencesPerFile <= 0) {
-    throw new SplitError(`Invalid sequencesPerFile: ${sequencesPerFile}`, "splitBySize", "by-size");
-  }
-
-  const filesCreated: string[] = [];
-  const sequencesPerFileActual: number[] = [];
-
-  let currentPart = 1;
-  let currentCount = 0;
-  let currentWriter: Bun.FileSink | null = null;
-
-  try {
-    for await (const sequence of sequences) {
-      // Create new file when needed
-      if (!currentWriter || currentCount >= sequencesPerFile) {
-        if (currentWriter) {
-          await currentWriter.end();
-          sequencesPerFileActual.push(currentCount);
-        }
-
-        const filePath = `${outputDir}/${prefix}_${String(currentPart)}.fasta`;
-        currentWriter = Bun.file(filePath).writer();
-        filesCreated.push(filePath);
-        currentCount = 0;
-        currentPart++;
-      }
-
-      // Write sequence in FASTA format
-      const writer = new FastaWriter();
-      const formatted = writer.formatSequence({
-        format: "fasta",
-        id: sequence.id,
-        sequence: sequence.sequence,
-        length: sequence.length,
-        ...(sequence.description && { description: sequence.description }),
-      } as FastaSequence);
-
-      currentWriter.write(formatted);
-      currentCount++;
-    }
-
-    // Close final writer
-    if (currentWriter) {
-      await currentWriter.end();
-      sequencesPerFileActual.push(currentCount);
-    }
-
-    return {
-      filesCreated,
-      totalSequences: sequencesPerFileActual.reduce((sum, count) => sum + count, 0),
-      sequencesPerFile: sequencesPerFileActual,
-    };
-  } catch (error) {
-    if (currentWriter) {
-      await currentWriter.end();
-    }
-
-    throw new SplitError(
-      `Failed to split sequences: ${error instanceof Error ? error.message : String(error)}`,
-      "splitBySize",
-      "by-size"
-    );
-  }
-}
-
-/**
- * Split sequences into equal parts
- */
-export async function splitByParts(
-  sequences: AsyncIterable<AbstractSequence>,
-  numParts: number,
-  outputDir: string = "./split",
-  prefix: string = "part"
-): Promise<SplitSummary> {
-  if (numParts <= 0) {
-    throw new SplitError(`Invalid numParts: ${numParts}`, "splitByParts");
-  }
-
-  // Collect sequences to determine total count
-  const allSequences: AbstractSequence[] = [];
-  for await (const seq of sequences) {
-    allSequences.push(seq);
-  }
-
-  if (allSequences.length === 0) {
-    return { filesCreated: [], totalSequences: 0, sequencesPerFile: [] };
-  }
-
-  const sequencesPerPart = Math.ceil(allSequences.length / numParts);
-
-  // Convert array back to async iterable and split
-  async function* arrayToIterable() {
-    for (const seq of allSequences) {
-      yield seq;
-    }
-  }
-
-  return splitBySize(arrayToIterable(), sequencesPerPart, outputDir, prefix);
-}
-
-/**
- * Split sequences by ID pattern
- */
-export async function splitById(
-  sequences: AsyncIterable<AbstractSequence>,
-  idPattern: RegExp,
-  outputDir: string = "./split",
-  prefix: string = "group"
-): Promise<SplitSummary> {
-  const writers = new Map<string, Bun.FileSink>();
-  const filesCreated: string[] = [];
-  const groupCounts = new Map<string, number>();
-
-  try {
-    for await (const sequence of sequences) {
-      // Extract group ID
-      const match = idPattern.exec(sequence.id);
-      const groupId = match?.[1] ?? match?.[0] ?? "ungrouped";
-
-      // Get or create writer
-      if (!writers.has(groupId)) {
-        const filePath = outputDir + "/" + prefix + "_" + groupId + ".fasta";
-        const writer = Bun.file(filePath).writer();
-        writers.set(groupId, writer);
-        filesCreated.push(filePath);
-        groupCounts.set(groupId, 0);
-      }
-
-      const writer = writers.get(groupId)!;
-      const count = groupCounts.get(groupId)! || 0;
-
-      // Write sequence
-      const fastaWriter = new FastaWriter();
-      const formatted = fastaWriter.formatSequence({
-        format: "fasta",
-        id: sequence.id,
-        sequence: sequence.sequence,
-        length: sequence.length,
-        ...(sequence.description && { description: sequence.description }),
-      } as FastaSequence);
-
-      writer.write(formatted);
-      groupCounts.set(groupId, count + 1);
-    }
-
-    // Close all writers
-    for (const writer of writers.values()) {
-      await writer.end();
-    }
-
-    return {
-      filesCreated,
-      totalSequences: Array.from(groupCounts.values()).reduce((sum, count) => sum + count, 0),
-      sequencesPerFile: Array.from(groupCounts.values()),
-    };
-  } catch (error) {
-    // Clean up on error
-    for (const writer of writers.values()) {
-      await writer.end();
-    }
-
-    throw new SplitError(
-      `Failed to split by ID: ${error instanceof Error ? error.message : String(error)}`,
-      "splitById"
-    );
-  }
-}
-
-/**
- * Complete SplitProcessor implementation that creates actual files
- *
- * This processor both creates files on disk AND yields SplitResult objects
- * for pipeline integration, following Tiger Style principles.
- */
 export class SplitProcessor {
   private readonly activeWriters = new Map<string | number, Bun.FileSink>();
 
@@ -701,3 +521,183 @@ export class SplitProcessor {
     return filesCreated.map((file) => fileCounts.get(file) ?? 0);
   }
 }
+export async function splitBySize(
+  sequences: AsyncIterable<AbstractSequence>,
+  sequencesPerFile: number,
+  outputDir: string = "./split",
+  prefix: string = "part"
+): Promise<SplitSummary> {
+  if (sequencesPerFile <= 0) {
+    throw new SplitError(`Invalid sequencesPerFile: ${sequencesPerFile}`, "splitBySize", "by-size");
+  }
+
+  const filesCreated: string[] = [];
+  const sequencesPerFileActual: number[] = [];
+
+  let currentPart = 1;
+  let currentCount = 0;
+  let currentWriter: Bun.FileSink | null = null;
+
+  try {
+    for await (const sequence of sequences) {
+      // Create new file when needed
+      if (!currentWriter || currentCount >= sequencesPerFile) {
+        if (currentWriter) {
+          await currentWriter.end();
+          sequencesPerFileActual.push(currentCount);
+        }
+
+        const filePath = `${outputDir}/${prefix}_${String(currentPart)}.fasta`;
+        currentWriter = Bun.file(filePath).writer();
+        filesCreated.push(filePath);
+        currentCount = 0;
+        currentPart++;
+      }
+
+      // Write sequence in FASTA format
+      const writer = new FastaWriter();
+      const formatted = writer.formatSequence({
+        format: "fasta",
+        id: sequence.id,
+        sequence: sequence.sequence,
+        length: sequence.length,
+        ...(sequence.description && { description: sequence.description }),
+      } as FastaSequence);
+
+      currentWriter.write(formatted);
+      currentCount++;
+    }
+
+    // Close final writer
+    if (currentWriter) {
+      await currentWriter.end();
+      sequencesPerFileActual.push(currentCount);
+    }
+
+    return {
+      filesCreated,
+      totalSequences: sequencesPerFileActual.reduce((sum, count) => sum + count, 0),
+      sequencesPerFile: sequencesPerFileActual,
+    };
+  } catch (error) {
+    if (currentWriter) {
+      await currentWriter.end();
+    }
+
+    throw new SplitError(
+      `Failed to split sequences: ${error instanceof Error ? error.message : String(error)}`,
+      "splitBySize",
+      "by-size"
+    );
+  }
+}
+
+/**
+ * Split sequences into equal parts
+ */
+export async function splitByParts(
+  sequences: AsyncIterable<AbstractSequence>,
+  numParts: number,
+  outputDir: string = "./split",
+  prefix: string = "part"
+): Promise<SplitSummary> {
+  if (numParts <= 0) {
+    throw new SplitError(`Invalid numParts: ${numParts}`, "splitByParts");
+  }
+
+  // Collect sequences to determine total count
+  const allSequences: AbstractSequence[] = [];
+  for await (const seq of sequences) {
+    allSequences.push(seq);
+  }
+
+  if (allSequences.length === 0) {
+    return { filesCreated: [], totalSequences: 0, sequencesPerFile: [] };
+  }
+
+  const sequencesPerPart = Math.ceil(allSequences.length / numParts);
+
+  // Convert array back to async iterable and split
+  async function* arrayToIterable() {
+    for (const seq of allSequences) {
+      yield seq;
+    }
+  }
+
+  return splitBySize(arrayToIterable(), sequencesPerPart, outputDir, prefix);
+}
+
+/**
+ * Split sequences by ID pattern
+ */
+export async function splitById(
+  sequences: AsyncIterable<AbstractSequence>,
+  idPattern: RegExp,
+  outputDir: string = "./split",
+  prefix: string = "group"
+): Promise<SplitSummary> {
+  const writers = new Map<string, Bun.FileSink>();
+  const filesCreated: string[] = [];
+  const groupCounts = new Map<string, number>();
+
+  try {
+    for await (const sequence of sequences) {
+      // Extract group ID
+      const match = idPattern.exec(sequence.id);
+      const groupId = match?.[1] ?? match?.[0] ?? "ungrouped";
+
+      // Get or create writer
+      if (!writers.has(groupId)) {
+        const filePath = outputDir + "/" + prefix + "_" + groupId + ".fasta";
+        const writer = Bun.file(filePath).writer();
+        writers.set(groupId, writer);
+        filesCreated.push(filePath);
+        groupCounts.set(groupId, 0);
+      }
+
+      const writer = writers.get(groupId)!;
+      const count = groupCounts.get(groupId)! || 0;
+
+      // Write sequence
+      const fastaWriter = new FastaWriter();
+      const formatted = fastaWriter.formatSequence({
+        format: "fasta",
+        id: sequence.id,
+        sequence: sequence.sequence,
+        length: sequence.length,
+        ...(sequence.description && { description: sequence.description }),
+      } as FastaSequence);
+
+      writer.write(formatted);
+      groupCounts.set(groupId, count + 1);
+    }
+
+    // Close all writers
+    for (const writer of writers.values()) {
+      await writer.end();
+    }
+
+    return {
+      filesCreated,
+      totalSequences: Array.from(groupCounts.values()).reduce((sum, count) => sum + count, 0),
+      sequencesPerFile: Array.from(groupCounts.values()),
+    };
+  } catch (error) {
+    // Clean up on error
+    for (const writer of writers.values()) {
+      await writer.end();
+    }
+
+    throw new SplitError(
+      `Failed to split by ID: ${error instanceof Error ? error.message : String(error)}`,
+      "splitById"
+    );
+  }
+}
+
+/**
+ * Complete SplitProcessor implementation that creates actual files
+ *
+ * This processor both creates files on disk AND yields SplitResult objects
+ * for pipeline integration, following Tiger Style principles.
+ */

@@ -13,34 +13,6 @@ import { ParseError } from "../errors";
 import type { ParserOptions } from "../types";
 
 /**
- * Interrupt handler utility for AbortSignal integration
- * Tiger Style: Function under 70 lines, focused responsibility
- */
-class InterruptHandler {
-  constructor(private readonly signal?: AbortSignal) {}
-
-  /**
-   * Check if operation should be aborted
-   * Throws AbortError if signal is aborted
-   */
-  checkAborted(): void {
-    if (this.signal?.aborted) {
-      throw new DOMException("Operation was aborted", "AbortError");
-    }
-  }
-
-  /**
-   * Check abortion with biological/format context
-   * Provides genomics-specific error context for cancellation
-   */
-  throwIfAborted(context: string): void {
-    if (this.signal?.aborted) {
-      throw new DOMException(`${context} was cancelled`, "AbortError");
-    }
-  }
-}
-
-/**
  * Abstract parser base class with shared interrupt handling only
  *
  * Provides consistent AbortSignal support across all genomic format parsers
@@ -125,4 +97,33 @@ export abstract class AbstractParser<T, TOptions extends ParserOptions = ParserO
   protected abstract getFormatName(): string;
 
   // Each format implements its own parsing logic - no shared implementation imposed
+}
+
+/**
+ * Interrupt handler utility for AbortSignal integration
+ * Utility class for AbortSignal integration across format parsers
+ */
+class InterruptHandler {
+  constructor(private readonly signal?: AbortSignal) {}
+
+  /**
+   * Check if operation has been aborted
+   * @throws {ParseError} If operation was aborted
+   */
+  checkAborted(): void {
+    if (this.signal?.aborted) {
+      throw new ParseError("Operation was aborted", "ABORTED");
+    }
+  }
+
+  /**
+   * Throw with context if aborted
+   * @param context - Descriptive context for where abortion was checked
+   * @throws {ParseError} If operation was aborted
+   */
+  throwIfAborted(context: string): void {
+    if (this.signal?.aborted) {
+      throw new ParseError(`Operation aborted during ${context}`, "ABORTED");
+    }
+  }
 }

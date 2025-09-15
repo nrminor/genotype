@@ -452,6 +452,62 @@ export class SequenceSorter {
  * @internal
  * @class MinHeap
  */
+export async function sortSequences(
+  sequences: AsyncIterable<AbstractSequence>,
+  options?: SortOptions
+): Promise<AbstractSequence[]> {
+  const sorter = new SequenceSorter(options);
+  const result: AbstractSequence[] = [];
+
+  for await (const seq of sorter.sort(sequences)) {
+    result.push(seq);
+  }
+
+  return result;
+}
+
+/**
+ * Get top N sequences without creating a SequenceSorter instance.
+ *
+ * Convenience function for efficient top-N selection from large datasets.
+ * Uses a min-heap for O(n*log(k)) performance.
+ *
+ * @param sequences - Async iterable of sequences to process
+ * @param n - Number of top sequences to return
+ * @param sortBy - Sorting strategy (default: 'length')
+ * @returns Promise resolving to array of top N sequences
+ *
+ * @example
+ * ```typescript
+ * // Get 10 highest GC content sequences
+ * const topGC = await getTopSequences(sequences, 10, 'gc');
+ * topGC.forEach(seq => {
+ *   const gc = (seq.sequence.match(/[GC]/gi) || []).length / seq.sequence.length;
+ *   console.log(`${seq.id}: ${(gc * 100).toFixed(1)}% GC`);
+ * });
+ * ```
+ *
+ * @since v0.1.0
+ */
+export async function getTopSequences(
+  sequences: AsyncIterable<AbstractSequence>,
+  n: number,
+  sortBy: SortBy = "length"
+): Promise<AbstractSequence[]> {
+  const sorter = new SequenceSorter({ sortBy });
+  const result: AbstractSequence[] = [];
+
+  for await (const seq of sorter.getTopN(sequences, n)) {
+    result.push(seq);
+  }
+
+  return result;
+}
+
+// =============================================================================
+// PRIVATE HELPER CLASSES
+// =============================================================================
+
 class MinHeap<T> {
   private heap: T[] = [];
   private readonly maxSize: number;
@@ -584,54 +640,3 @@ class MinHeap<T> {
  *
  * @since v0.1.0
  */
-export async function sortSequences(
-  sequences: AsyncIterable<AbstractSequence>,
-  options?: SortOptions
-): Promise<AbstractSequence[]> {
-  const sorter = new SequenceSorter(options);
-  const result: AbstractSequence[] = [];
-
-  for await (const seq of sorter.sort(sequences)) {
-    result.push(seq);
-  }
-
-  return result;
-}
-
-/**
- * Get top N sequences without creating a SequenceSorter instance.
- *
- * Convenience function for efficient top-N selection from large datasets.
- * Uses a min-heap for O(n*log(k)) performance.
- *
- * @param sequences - Async iterable of sequences to process
- * @param n - Number of top sequences to return
- * @param sortBy - Sorting strategy (default: 'length')
- * @returns Promise resolving to array of top N sequences
- *
- * @example
- * ```typescript
- * // Get 10 highest GC content sequences
- * const topGC = await getTopSequences(sequences, 10, 'gc');
- * topGC.forEach(seq => {
- *   const gc = (seq.sequence.match(/[GC]/gi) || []).length / seq.sequence.length;
- *   console.log(`${seq.id}: ${(gc * 100).toFixed(1)}% GC`);
- * });
- * ```
- *
- * @since v0.1.0
- */
-export async function getTopSequences(
-  sequences: AsyncIterable<AbstractSequence>,
-  n: number,
-  sortBy: SortBy = "length"
-): Promise<AbstractSequence[]> {
-  const sorter = new SequenceSorter({ sortBy });
-  const result: AbstractSequence[] = [];
-
-  for await (const seq of sorter.getTopN(sequences, n)) {
-    result.push(seq);
-  }
-
-  return result;
-}

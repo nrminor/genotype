@@ -12,7 +12,6 @@ import type { GtfFeature } from "./types";
 
 /**
  * Detect if string contains GTF format data
- * Tiger Style: Function under 70 lines, robust format detection
  *
  * @param data String data to analyze for GTF format
  * @returns True if data appears to contain valid GTF format
@@ -73,7 +72,6 @@ export function detectGtfFormat(data: string): boolean {
 
 /**
  * Count features in GTF data without full parsing
- * Tiger Style: Function under 70 lines, simple counting
  *
  * @param data GTF format string data
  * @returns Number of non-comment, non-empty lines
@@ -97,7 +95,6 @@ export function countGtfFeatures(data: string): number {
 
 /**
  * Filter features by type with streaming architecture
- * Tiger Style: Function under 70 lines, maintains AsyncIterable contract
  *
  * @param features Input feature stream to filter
  * @param featureTypes Array of feature types to include

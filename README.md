@@ -127,7 +127,7 @@ using PCR primers, with support for long reads and biological validation.
 ```typescript
 import { primer, seqops } from "genotype";
 
-// Define primers with compile-time validation and IUPAC support
+// Define primers with validation and IUPAC support
 const forwardPrimer = primer`TCGTCGGCAGCGTCAGATGTGTATAAGAGACAG`; // Nextera adapter
 const reversePrimer = primer`GTCTCGTGGGCTCGGAGATGTGTATAAGAGACAG`; // Nextera adapter
 
@@ -404,5 +404,5 @@ GenoType follows these core principles:
   complex tasks possible
 - **Fail-fast validation**: Clear error messages that help you fix problems
   quickly
-- **Tiger Style compliance**: Correctness over performance, simplicity over
+- **Code quality focus**: Correctness over performance, simplicity over
   cleverness

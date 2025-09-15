@@ -9,116 +9,6 @@ import { join } from "path";
  *
  * @returns Target string in format "arch-platform" (e.g., "x86_64-macos")
  */
-function getPlatformTarget(): string {
-  const platform = os.platform();
-  const arch = os.arch();
-
-  // Tiger Style: Assert function preconditions
-  if (typeof platform !== "string" || platform.length === 0) {
-    throw new Error("platform must be non-empty string");
-  }
-  if (typeof arch !== "string" || arch.length === 0) {
-    throw new Error("arch must be non-empty string");
-  }
-
-  const platformMap: Record<string, string> = {
-    darwin: "macos",
-    win32: "windows",
-    linux: "linux",
-  };
-
-  const archMap: Record<string, string> = {
-    x64: "x86_64",
-    arm64: "aarch64",
-  };
-
-  const zigPlatform =
-    platformMap[platform] !== undefined &&
-    platformMap[platform] !== null &&
-    platformMap[platform] !== ""
-      ? platformMap[platform]
-      : platform;
-  const zigArch =
-    archMap[arch] !== undefined && archMap[arch] !== null && archMap[arch] !== ""
-      ? archMap[arch]
-      : arch;
-
-  return `${zigArch}-${zigPlatform}`;
-}
-
-/**
- * Locate the native genomic processing library for the current platform
- * Searches in Cargo target directory for platform-specific libraries
- * Following OpenTUI's library discovery pattern
- *
- * @returns Absolute path to the native library
- * @throws Error if library cannot be found for current platform
- */
-function findLibrary(): string {
-  const target = getPlatformTarget();
-
-  // Tiger Style: Assert function preconditions
-  if (typeof target !== "string" || !target.includes("-")) {
-    throw new Error("target must be valid platform-arch string");
-  }
-
-  // Use Rust's conventional target directory structure
-  const cargoTargetDir = join(__dirname, "..", "target", "release");
-
-  // Complete library name logic following Rust conventions
-  const [_arch, os] = target.split("-");
-  const getLibraryName = (platform: string): string => {
-    const prefix = platform === "windows" ? "" : "lib";
-    const extension = platform === "windows" ? ".dll" : platform === "macos" ? ".dylib" : ".so";
-    return `${prefix}genotype${extension}`; // Matches Cargo.toml [lib] name
-  };
-
-  const libraryName = getLibraryName(os !== undefined && os !== null && os !== "" ? os : "linux");
-  const targetLibPath = join(cargoTargetDir, libraryName);
-
-  if (existsSync(targetLibPath)) {
-    return targetLibPath;
-  }
-
-  // Tiger Style: Provide actionable error message
-  throw new Error(
-    `Could not find genotype native library for platform: ${target}. ` +
-      `Expected at: ${targetLibPath}. Run 'cargo build --release' to build the native library.`
-  );
-}
-
-/**
- * Load the native Rust library with FFI bindings
- * Defines all exported function signatures for genomic data processing
- * Following OpenTUI's dlopen pattern
- *
- * @param libPath Optional custom path to library (for testing)
- * @returns FFI binding object with native function symbols
- */
-function getGenotypeLib(libPath?: string): {
-  symbols: {
-    calculate_gc_content: (sequenceData: Uint8Array, sequenceLength: number) => number;
-    // TODO: Add other functions as they're implemented in Rust:
-    // decompress_bgzf_block, decode_packed_sequence, convert_quality_scores
-  };
-} {
-  const resolvedLibPath =
-    libPath !== undefined && libPath !== null && libPath !== "" ? libPath : findLibrary();
-
-  // Only expose what we actually implement - honest interface
-  return dlopen(resolvedLibPath, {
-    calculate_gc_content: {
-      args: ["ptr", "usize"],
-      returns: "f64",
-    },
-  });
-}
-
-/**
- * Interface defining the native genomic processing library API
- * Provides type-safe wrappers around raw FFI calls to Zig implementation
- * All methods are performance-critical operations optimized in native code
- */
 export interface LibGenotype {
   /**
    * Calculate GC content for a nucleotide sequence
@@ -266,3 +156,118 @@ export function isNativeLibAvailable(): boolean {
 export function getCurrentPlatformTarget(): string {
   return getPlatformTarget();
 }
+
+// =============================================================================
+// PRIVATE HELPER FUNCTIONS
+// =============================================================================
+
+function getPlatformTarget(): string {
+  const platform = os.platform();
+  const arch = os.arch();
+
+  // Tiger Style: Assert function preconditions
+  if (typeof platform !== "string" || platform.length === 0) {
+    throw new Error("platform must be non-empty string");
+  }
+  if (typeof arch !== "string" || arch.length === 0) {
+    throw new Error("arch must be non-empty string");
+  }
+
+  const platformMap: Record<string, string> = {
+    darwin: "macos",
+    win32: "windows",
+    linux: "linux",
+  };
+
+  const archMap: Record<string, string> = {
+    x64: "x86_64",
+    arm64: "aarch64",
+  };
+
+  const zigPlatform =
+    platformMap[platform] !== undefined &&
+    platformMap[platform] !== null &&
+    platformMap[platform] !== ""
+      ? platformMap[platform]
+      : platform;
+  const zigArch =
+    archMap[arch] !== undefined && archMap[arch] !== null && archMap[arch] !== ""
+      ? archMap[arch]
+      : arch;
+
+  return `${zigArch}-${zigPlatform}`;
+}
+
+/**
+ * Locate the native genomic processing library for the current platform
+ * Searches in Cargo target directory for platform-specific libraries
+ * Following OpenTUI's library discovery pattern
+ *
+ * @returns Absolute path to the native library
+ * @throws Error if library cannot be found for current platform
+ */
+function findLibrary(): string {
+  const target = getPlatformTarget();
+
+  // Tiger Style: Assert function preconditions
+  if (typeof target !== "string" || !target.includes("-")) {
+    throw new Error("target must be valid platform-arch string");
+  }
+
+  // Use Rust's conventional target directory structure
+  const cargoTargetDir = join(__dirname, "..", "target", "release");
+
+  // Complete library name logic following Rust conventions
+  const [_arch, os] = target.split("-");
+  const getLibraryName = (platform: string): string => {
+    const prefix = platform === "windows" ? "" : "lib";
+    const extension = platform === "windows" ? ".dll" : platform === "macos" ? ".dylib" : ".so";
+    return `${prefix}genotype${extension}`; // Matches Cargo.toml [lib] name
+  };
+
+  const libraryName = getLibraryName(os !== undefined && os !== null && os !== "" ? os : "linux");
+  const targetLibPath = join(cargoTargetDir, libraryName);
+
+  if (existsSync(targetLibPath)) {
+    return targetLibPath;
+  }
+
+  // Tiger Style: Provide actionable error message
+  throw new Error(
+    `Could not find genotype native library for platform: ${target}. ` +
+      `Expected at: ${targetLibPath}. Run 'cargo build --release' to build the native library.`
+  );
+}
+
+/**
+ * Load the native Rust library with FFI bindings
+ * Defines all exported function signatures for genomic data processing
+ * Following OpenTUI's dlopen pattern
+ *
+ * @param libPath Optional custom path to library (for testing)
+ * @returns FFI binding object with native function symbols
+ */
+function getGenotypeLib(libPath?: string): {
+  symbols: {
+    calculate_gc_content: (sequenceData: Uint8Array, sequenceLength: number) => number;
+    // TODO: Add other functions as they're implemented in Rust:
+    // decompress_bgzf_block, decode_packed_sequence, convert_quality_scores
+  };
+} {
+  const resolvedLibPath =
+    libPath !== undefined && libPath !== null && libPath !== "" ? libPath : findLibrary();
+
+  // Only expose what we actually implement - honest interface
+  return dlopen(resolvedLibPath, {
+    calculate_gc_content: {
+      args: ["ptr", "usize"],
+      returns: "f64",
+    },
+  });
+}
+
+/**
+ * Interface defining the native genomic processing library API
+ * Provides type-safe wrappers around raw FFI calls to Zig implementation
+ * All methods are performance-critical operations optimized in native code
+ */

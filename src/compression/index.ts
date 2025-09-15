@@ -29,16 +29,16 @@
  * ```
  */
 
-// Core compression components
-export { CompressionDetector } from "./detector";
-export { GzipDecompressor } from "./gzip";
-export { ZstdDecompressor } from "./zstd";
-
 // Import for internal use
 import { CompressionError } from "../errors";
 import type { CompressionFormat } from "../types";
 import { GzipDecompressor } from "./gzip";
 import { ZstdDecompressor } from "./zstd";
+
+// Core compression components
+export { CompressionDetector } from "./detector";
+export { GzipDecompressor } from "./gzip";
+export { ZstdDecompressor } from "./zstd";
 
 // Constants for file size thresholds
 const MIN_FILE_SIZE_FOR_COMPRESSION = 10_000;

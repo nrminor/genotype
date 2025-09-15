@@ -14,7 +14,7 @@ import type { AbstractSequence, PrimerSequence } from "../types";
 /**
  * Options for amplicon extraction via primer sequences
  *
- * Supports both compile-time validated PrimerSequence types and runtime strings.
+ * Supports both validated PrimerSequence types and runtime strings.
  * Runtime strings are validated and branded as PrimerSequence by ArkType schema.
  */
 export interface AmpliconOptions {

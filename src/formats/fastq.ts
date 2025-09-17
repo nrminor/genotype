@@ -1,12 +1,36 @@
 /**
- * FASTQ format parser and writer
+ * FASTQ format parser and writer with multi-line support
  *
- * Handles the complexity of FASTQ files:
- * - Multiple quality encodings (Phred+33, Phred+64, Solexa)
- * - Multiline sequences and quality scores
- * - Malformed quality lines
- * - Quality/sequence length mismatches
- * - Automatic quality encoding detection
+ * FASTQ format parsing presents unique challenges due to format ambiguities in the original
+ * specification. The 4-line record structure (header/sequence/separator/quality) can have
+ * sequences and quality scores wrapped across multiple lines, similar to FASTA format.
+ * This creates parsing complexity because '@' and '+' characters can appear in quality
+ * strings, making naive line-based parsing unreliable.
+ *
+ * **Parsing Challenges:**
+ * - Multi-line sequences: Original Sanger specification allows line wrapping
+ * - Quality contamination: '@' (ASCII 64) and '+' (ASCII 43) appear in quality data
+ * - Record boundary detection: Cannot rely on '@' markers for record starts
+ * - Length-based parsing: Only reliable method is sequence-quality length matching
+ *
+ * **State Machine Solution:**
+ * ```
+ * WAITING_HEADER → READING_SEQUENCE → WAITING_SEPARATOR → READING_QUALITY
+ *      ↓               ↓                    ↓                    ↓
+ *   Find @ line    Collect lines      Find + line         Collect until
+ *                 until + found                          length matches
+ * ```
+ *
+ * **Quality Encoding Detection:**
+ * - Phred+33: ASCII 33-93, modern standard (2011+)
+ * - Phred+64: ASCII 64-104, legacy Illumina (2007-2011)
+ * - Solexa+64: ASCII 59-104, historical Solexa (2006-2007)
+ * - Overlap zones require statistical analysis for accurate detection
+ *
+ * **Performance Considerations:**
+ * - Validation disabled by default for large dataset performance
+ * - Quality score parsing optional due to memory allocation overhead
+ * - Streaming architecture maintains constant memory usage
  */
 
 import { type } from "arktype";
@@ -17,10 +41,328 @@ import {
   SequenceError,
   ValidationError,
 } from "../errors";
-import { detectEncodingImmediate } from "../operations/core/encoding";
+import { detectEncodingImmediate, detectEncodingWithConfidence } from "../operations/core/encoding";
 import type { FastqSequence, ParserOptions, QualityEncoding } from "../types";
 import { SequenceSchema } from "../types";
 import { AbstractParser } from "./abstract-parser";
+import { validateFastaSequence } from "./fasta";
+
+// =============================================================================
+// MULTI-LINE PARSING STATE MACHINE
+// =============================================================================
+
+/**
+ * FASTQ parsing states for multi-line record handling
+ * Based on readfq/kseq algorithm for robust specification compliance
+ */
+enum FastqParsingState {
+  WAITING_HEADER, // Looking for @ line to start new record
+  READING_SEQUENCE, // Accumulating sequence lines until + separator
+  WAITING_SEPARATOR, // Looking for + line (may be contaminated in quality)
+  READING_QUALITY, // Accumulating quality until length matches sequence
+}
+
+/**
+ * State machine parser context for multi-line FASTQ parsing
+ * Tracks parsing state and accumulated data for robust record detection
+ */
+interface FastqParserContext {
+  state: FastqParsingState;
+  header?: string;
+  sequenceLines: string[];
+  separator?: string;
+  qualityLines: string[];
+  sequenceLength: number;
+  currentQualityLength: number;
+}
+
+/**
+ * Parse FASTQ records using state machine for multi-line support
+ *
+ * Implements length-tracking algorithm to handle @ and + contamination in quality strings.
+ * This approach is necessary because the original Sanger FASTQ specification allows sequence
+ * and quality lines to be wrapped, but '@' and '+' characters can appear in quality data,
+ * making simple line-marker detection unreliable.
+ *
+ * **Algorithm pseudocode:**
+ * ```
+ * for each line in input:
+ *   switch (state):
+ *     case WAITING_HEADER:
+ *       if line starts with '@': store header, state = READING_SEQUENCE
+ *     case READING_SEQUENCE:
+ *       if line starts with '+': store separator, calculate sequence length, state = READING_QUALITY
+ *       else: accumulate sequence data
+ *     case READING_QUALITY:
+ *       accumulate quality data
+ *       if quality.length >= sequence.length: record complete, state = WAITING_HEADER
+ * ```
+ *
+ * **Why not simple '@' detection:**
+ * '@' can appear at start of quality lines (ASCII 64 in Phred+64 encoding), so line-marker
+ * detection would incorrectly split records. Length-based parsing is the only reliable method.
+ */
+function parseMultiLineFastq(
+  lines: string[],
+  startLineNumber: number = 1,
+  options: { maxLineLength: number; onError: (msg: string, line?: number) => void }
+): FastqSequence[] {
+  const results: FastqSequence[] = [];
+  let lineNumber = startLineNumber;
+
+  const context: FastqParserContext = {
+    state: FastqParsingState.WAITING_HEADER,
+    sequenceLines: [],
+    qualityLines: [],
+    sequenceLength: 0,
+    currentQualityLength: 0,
+  };
+
+  for (const line of lines) {
+    lineNumber++;
+
+    // Skip empty lines in any state
+    const trimmedLine = line.trim();
+    if (!trimmedLine) continue;
+
+    // Check line length bounds
+    if (line.length > options.maxLineLength) {
+      options.onError(`Line too long (${line.length} > ${options.maxLineLength})`, lineNumber);
+      continue;
+    }
+
+    // State machine processing
+    switch (context.state) {
+      case FastqParsingState.WAITING_HEADER:
+        if (trimmedLine.startsWith("@")) {
+          context.header = trimmedLine;
+          context.state = FastqParsingState.READING_SEQUENCE;
+          context.sequenceLines = [];
+        } else {
+          options.onError(`Expected FASTQ header starting with @, got: ${trimmedLine}`, lineNumber);
+        }
+        break;
+
+      case FastqParsingState.READING_SEQUENCE:
+        if (trimmedLine.startsWith("+")) {
+          // Found separator, calculate sequence length for quality tracking
+          context.separator = trimmedLine;
+          context.sequenceLength = context.sequenceLines.join("").length;
+          context.state = FastqParsingState.READING_QUALITY;
+          context.qualityLines = [];
+          context.currentQualityLength = 0;
+        } else {
+          // Accumulate sequence lines
+          context.sequenceLines.push(trimmedLine);
+        }
+        break;
+
+      case FastqParsingState.READING_QUALITY:
+        // Accumulate quality characters
+        context.qualityLines.push(trimmedLine);
+        context.currentQualityLength += trimmedLine.length;
+
+        // Check if quality length matches sequence length (record complete)
+        if (context.currentQualityLength >= context.sequenceLength) {
+          // Create FASTQ record
+          const sequence = context.sequenceLines.join("");
+          const quality = context.qualityLines.join("");
+
+          // Validate exact length match
+          if (quality.length !== sequence.length) {
+            options.onError(
+              `Quality length (${quality.length}) != sequence length (${sequence.length})`,
+              lineNumber
+            );
+          } else {
+            // Parse header using tree-shakeable function
+            const headerData = parseFastqHeader(context.header || "", lineNumber, {
+              skipValidation: false, // Always validate in state machine for robustness
+              onWarning: (msg, line) => console.warn(`FASTQ Warning (line ${line}): ${msg}`),
+            });
+
+            // Enhanced encoding detection with confidence reporting
+            const encodingResult = detectEncodingWithConfidence(quality);
+            if (encodingResult.confidence < 0.8) {
+              console.warn(
+                `Uncertain quality encoding detection for sequence '${headerData.id}': ${encodingResult.reasoning} (confidence: ${(encodingResult.confidence * 100).toFixed(1)}%). Consider specifying sourceEncoding explicitly if conversion results seem incorrect.`
+              );
+            }
+
+            const fastqRecord: FastqSequence = {
+              format: "fastq",
+              id: headerData.id,
+              ...(headerData.description && { description: headerData.description }),
+              sequence,
+              quality,
+              qualityEncoding: encodingResult.encoding,
+              length: sequence.length,
+            };
+
+            results.push(fastqRecord);
+          }
+
+          // Reset for next record
+          context.state = FastqParsingState.WAITING_HEADER;
+        }
+        break;
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Parse FASTQ header line and extract ID and description
+ * Tree-shakeable function adapted from FASTA header parsing
+ */
+export function parseFastqHeader(
+  headerLine: string,
+  lineNumber: number,
+  options: { skipValidation?: boolean; onWarning?: (msg: string, line?: number) => void }
+): { id: string; description?: string } {
+  // Validate FASTQ header format
+  if (!headerLine.startsWith("@")) {
+    throw new ValidationError('FASTQ header must start with "@"');
+  }
+
+  const header = headerLine.slice(1); // Remove '@'
+  if (!header) {
+    if (options.skipValidation) {
+      options.onWarning?.("Empty FASTQ header", lineNumber);
+      return { id: "" };
+    } else {
+      throw new ParseError(
+        'Empty FASTQ header: header must contain an identifier after "@"',
+        "FASTQ",
+        lineNumber,
+        headerLine
+      );
+    }
+  }
+
+  // Extract ID and description (same logic as FASTA)
+  const firstSpace = header.search(/\s/);
+  const id = firstSpace === -1 ? header : header.slice(0, firstSpace);
+  const description = firstSpace === -1 ? undefined : header.slice(firstSpace + 1).trim();
+
+  // FASTQ-specific validation (adapted from FASTA NCBI guidelines)
+  if (!options.skipValidation) {
+    // NCBI-compatible ID validation
+    if (id.length > 50) {
+      options.onWarning?.(
+        `FASTQ sequence ID '${id}' is very long (${id.length} chars). ` +
+          `Long IDs may cause compatibility issues with some bioinformatics tools.`,
+        lineNumber
+      );
+    }
+
+    // Check for spaces in sequence ID
+    if (id.includes(" ")) {
+      throw new SequenceError(
+        `FASTQ sequence ID '${id}' contains spaces. ` +
+          `Use underscores (_) or hyphens (-) for better tool compatibility.`,
+        id,
+        lineNumber,
+        headerLine
+      );
+    }
+  }
+
+  return description !== undefined ? { id, description } : { id };
+}
+
+/**
+ * Validate FASTQ quality string length matches sequence length
+ * Tree-shakeable function for FASTQ quality validation
+ */
+export function validateFastqQuality(
+  qualityLine: string,
+  sequence: string,
+  sequenceId: string,
+  lineNumber: number
+): string {
+  const quality = qualityLine.replace(/\s/g, "");
+
+  if (quality.length !== sequence.length) {
+    throw new QualityError(
+      `FASTQ quality length (${quality.length}) != sequence length (${sequence.length}). ` +
+        `Each base must have exactly one quality score. Check for truncated quality data or ` +
+        `sequence-quality synchronization issues in paired-end files.`,
+      sequenceId,
+      undefined,
+      lineNumber,
+      qualityLine
+    );
+  }
+
+  return quality;
+}
+
+/**
+ * Detect if string contains FASTQ format data
+ * Tree-shakeable function for FASTQ format detection
+ */
+export function detectFastqFormat(data: string): boolean {
+  const trimmed = data.trim();
+  const lines = trimmed.split(/\r?\n/);
+  return (
+    lines.length >= 4 &&
+    (lines[0]?.startsWith("@") ?? false) &&
+    (lines[2]?.startsWith("+") ?? false)
+  );
+}
+
+/**
+ * Count FASTQ reads in data without full parsing
+ * Tree-shakeable function for efficient read counting
+ */
+export function countFastqReads(data: string): number {
+  const lines = data.split(/\r?\n/).filter((line) => line.trim());
+  return Math.floor(lines.length / 4);
+}
+
+/**
+ * Extract read IDs from FASTQ data without full parsing
+ * Tree-shakeable function for quick ID extraction
+ */
+export function extractFastqIds(data: string): string[] {
+  const matches = data.match(/^@([^\s\n\r]+)/gm);
+  return matches ? matches.map((m) => m.slice(1)) : [];
+}
+
+/**
+ * Validate FASTQ sequence using FASTA validation with FASTQ-specific context
+ * Tree-shakeable function leveraging proven FASTA sequence validation
+ */
+export function validateFastqSequence(
+  sequenceLine: string,
+  lineNumber: number,
+  options: { skipValidation?: boolean }
+): string {
+  // For FASTQ performance: validation is expensive, often disabled for large datasets
+  if (options.skipValidation) {
+    return sequenceLine.replace(/\s/g, "");
+  }
+
+  // Leverage FASTA sequence validation with FASTQ-specific error context
+  try {
+    return validateFastaSequence(sequenceLine, lineNumber, options);
+  } catch (error) {
+    if (error instanceof SequenceError) {
+      // Enhance error with FASTQ-specific context
+      throw new SequenceError(
+        `FASTQ sequence validation failed: ${error.message}\n` +
+          `Note: FASTQ sequence validation is optional for performance. ` +
+          `Consider skipValidation: true for large read datasets if sequence quality is trusted.`,
+        error.sequenceId || "unknown",
+        lineNumber,
+        sequenceLine
+      );
+    }
+    throw error;
+  }
+}
 
 /**
  * FASTQ-specific parser options
@@ -67,6 +409,19 @@ const FastqParserOptionsSchema = type({
       message:
         "Quality score parsing allocates large arrays - reduce maxLineLength or disable parseQualityScores",
     });
+  }
+
+  // Performance guidance for validation on large FASTQ datasets
+  if (
+    options.skipValidation === false &&
+    options.maxLineLength &&
+    options.maxLineLength > 10_000_000
+  ) {
+    console.warn(
+      `FASTQ parsing with validation enabled for reads >10MB may impact performance significantly. ` +
+        `For large sequencing datasets (PacBio/Nanopore), consider skipValidation: true for production workflows. ` +
+        `Validation provides exceptional error detection but adds substantial processing overhead.`
+    );
   }
 
   return true;
@@ -139,6 +494,18 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
   }
 
   /**
+   * Parse multi-line FASTQ sequences using state machine
+   * Provides full FASTQ specification compliance for wrapped sequences
+   */
+  parseMultiLineString(data: string): FastqSequence[] {
+    const lines = data.split(/\r?\n/);
+    return parseMultiLineFastq(lines, 1, {
+      maxLineLength: this.options.maxLineLength!,
+      onError: this.options.onError!,
+    });
+  }
+
+  /**
    * Parse FASTQ sequences from a file using streaming I/O
    * @param filePath Path to FASTQ file to parse
    * @param options File reading options for performance tuning
@@ -158,15 +525,9 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
     filePath: string,
     options?: import("../types").FileReaderOptions
   ): AsyncIterable<FastqSequence> {
-    // Tiger Style: Assert function arguments
-    if (typeof filePath !== "string") {
-      throw new ValidationError("filePath must be a string");
-    }
+    // Validate meaningful constraints (preserve biological validation)
     if (filePath.length === 0) {
       throw new ValidationError("filePath must not be empty");
-    }
-    if (options && typeof options !== "object") {
-      throw new ValidationError("options must be an object if provided");
     }
 
     // Import I/O modules dynamically to avoid circular dependencies
@@ -331,9 +692,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
     const fastqSequence: FastqSequence = {
       format: "fastq",
       id,
-      ...(description !== undefined && description !== null && description !== ""
-        ? { description }
-        : {}),
+      ...(description && { description }),
       sequence,
       quality,
       qualityEncoding,
@@ -348,7 +707,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
         (fastqSequence as any).qualityScores = qualityScores;
 
         // Calculate quality statistics when scores are available
-        if (qualityScores !== undefined && qualityScores !== null && qualityScores.length > 0) {
+        if (qualityScores?.length > 0) {
           const mean = qualityScores.reduce((sum, score) => sum + score, 0) / qualityScores.length;
           const min = Math.min(...qualityScores);
           const max = Math.max(...qualityScores);
@@ -425,19 +784,8 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
     sequenceId: string,
     lineNumber: number
   ): string {
-    const quality = qualityLine.replace(/\s/g, "");
-
-    if (quality.length !== sequence.length) {
-      throw new QualityError(
-        `Quality length (${quality.length}) != sequence length (${sequence.length})`,
-        sequenceId,
-        undefined,
-        lineNumber,
-        qualityLine
-      );
-    }
-
-    return quality;
+    // Delegate to tree-shakeable function
+    return validateFastqQuality(qualityLine, sequence, sequenceId, lineNumber);
   }
 
   /**
@@ -466,10 +814,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
    * @throws {ParseError} If file path is invalid or file is not accessible
    */
   private async validateFilePath(filePath: string): Promise<string> {
-    // Tiger Style: Assert function arguments
-    if (typeof filePath !== "string") {
-      throw new ValidationError("filePath must be a string");
-    }
+    // Validate meaningful constraints (preserve biological validation)
     if (filePath.length === 0) {
       throw new ValidationError("filePath must not be empty");
     }
@@ -529,10 +874,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
   private async *parseLinesFromAsyncIterable(
     lines: AsyncIterable<string>
   ): AsyncIterable<FastqSequence> {
-    // Tiger Style: Assert function arguments
-    if (typeof lines !== "object" || !(Symbol.asyncIterator in lines)) {
-      throw new ValidationError("lines must be async iterable");
-    }
+    // TypeScript guarantees lines is AsyncIterable<string>
 
     let lineNumber = 0;
     const lineBuffer: string[] = [];
@@ -582,7 +924,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
           `Incomplete FASTQ record: expected 4 lines, got ${lineBuffer.length}`,
           "FASTQ",
           lineNumber,
-          `Record starts with: ${lineBuffer[0] !== undefined && lineBuffer[0] !== null && lineBuffer[0] !== "" ? lineBuffer[0] : "unknown"}`
+          `Record starts with: ${lineBuffer[0] || "unknown"}`
         );
 
         if (!this.options.skipValidation) {
@@ -689,31 +1031,17 @@ export const FastqUtils = {
   /**
    * Detect if string contains FASTQ format data
    */
-  detectFormat(data: string): boolean {
-    const trimmed = data.trim();
-    const lines = trimmed.split(/\r?\n/);
-    return (
-      lines.length >= 4 &&
-      (lines[0]?.startsWith("@") ?? false) &&
-      (lines[2]?.startsWith("+") ?? false)
-    );
-  },
+  detectFormat: detectFastqFormat,
 
   /**
    * Count sequences in FASTQ data without parsing
    */
-  countSequences(data: string): number {
-    const lines = data.split(/\r?\n/).filter((line) => line.trim());
-    return Math.floor(lines.length / 4);
-  },
+  countSequences: countFastqReads,
 
   /**
    * Extract sequence IDs without full parsing
    */
-  extractIds(data: string): string[] {
-    const matches = data.match(/^@([^\s\n\r]+)/gm);
-    return matches ? matches.map((m) => m.slice(1)) : [];
-  },
+  extractIds: extractFastqIds,
 
   /**
    * Convert between quality encodings

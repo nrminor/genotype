@@ -97,8 +97,10 @@
 # === BUILD & DEPLOYMENT SCRIPTS ===
 # Automation scripts
 !/scripts/
-!/scripts/*.mjs
-!/scripts/*.ts
+!/scripts/build.mjs
+!/scripts/pack.mjs
+!/scripts/publish.mjs
+
 
 # === GITHUB WORKFLOWS ===
 # CI/CD and automation

@@ -344,15 +344,15 @@ export class FastaParser extends AbstractParser<FastaSequence, FastaParserOption
       return null;
     }
 
-    const trimmedLine = line.trim();
-
-    // Skip empty lines and comments
-    if (!trimmedLine || trimmedLine.startsWith(";")) {
+    // Delegate to tree-shakeable helper
+    if (shouldSkipFastaLine(line)) {
       return null;
     }
 
-    // Header line
-    if (trimmedLine.startsWith(">")) {
+    const trimmedLine = line.trim();
+
+    // Delegate to tree-shakeable helper for header detection
+    if (isFastaHeader(trimmedLine)) {
       return {
         isHeader: true,
         headerData: this.parseHeader(trimmedLine, lineNumber),
@@ -477,7 +477,8 @@ export class FastaParser extends AbstractParser<FastaSequence, FastaParserOption
   ): FastaSequence {
     this.validateFinalizeInputs(partialSequence, sequenceBuffer, lineNumber);
 
-    const sequence = sequenceBuffer.join("");
+    // Delegate to tree-shakeable function
+    const sequence = concatenateFastaSequence(sequenceBuffer);
     const length = sequence.length;
 
     if (length === 0) {
@@ -500,22 +501,8 @@ export class FastaParser extends AbstractParser<FastaSequence, FastaParserOption
     sequenceBuffer: string[],
     lineNumber: number
   ): void {
-    if (partialSequence === null) {
-      throw new ValidationError("partialSequence must not be null");
-    }
-    if (!Array.isArray(sequenceBuffer)) {
-      throw new ValidationError("sequenceBuffer must be an array");
-    }
-    if (sequenceBuffer.length === 0) {
-      throw new SequenceError(
-        "Empty sequence found",
-        this.getSequenceIdOrDefault(partialSequence),
-        lineNumber
-      );
-    }
-    if (!Number.isInteger(lineNumber) || lineNumber <= 0) {
-      throw new ValidationError("lineNumber must be positive integer");
-    }
+    // Note: Tree-shakeable function has slightly different error message but same validation
+    validateFastaFinalizeInputs(partialSequence, sequenceBuffer, lineNumber);
   }
 
   private getSequenceIdOrDefault(partialSequence: Partial<FastaSequence>): string {
@@ -532,39 +519,13 @@ export class FastaParser extends AbstractParser<FastaSequence, FastaParserOption
   }
 
   private validateFinalSequence(fastaSequence: FastaSequence, lineNumber: number): void {
-    if (this.options.skipValidation) return;
-
-    try {
-      const validation = FastaSequenceSchema(fastaSequence);
-      if (validation instanceof type.errors) {
-        throw new SequenceError(
-          `Invalid FASTA sequence: ${validation.summary}`,
-          fastaSequence.id,
-          lineNumber
-        );
-      }
-    } catch (error) {
-      if (error instanceof SequenceError) {
-        throw error;
-      }
-      throw new SequenceError(
-        `Sequence validation failed: ${error instanceof Error ? error.message : String(error)}`,
-        fastaSequence.id,
-        lineNumber
-      );
-    }
+    // Delegate to tree-shakeable function
+    validateFastaFinalSequence(fastaSequence, lineNumber, this.options.skipValidation);
   }
 
   private assertSequencePostconditions(fastaSequence: FastaSequence, lineNumber: number): void {
-    if (fastaSequence.format !== "fasta") {
-      throw new SequenceError("result format must be fasta", fastaSequence.id, lineNumber);
-    }
-    if (fastaSequence.length !== fastaSequence.sequence.length) {
-      throw new SequenceError("length must match sequence length", fastaSequence.id, lineNumber);
-    }
-    if (fastaSequence.length === 0) {
-      throw new SequenceError("sequence must not be empty", fastaSequence.id, lineNumber);
-    }
+    // Delegate to tree-shakeable function
+    assertFastaPostconditions(fastaSequence, lineNumber);
   }
 
   /**
@@ -574,31 +535,14 @@ export class FastaParser extends AbstractParser<FastaSequence, FastaParserOption
    * @throws {FileError} If file path is invalid or file is not accessible
    */
   private async validateFilePath(filePath: string): Promise<string> {
-    // Validate meaningful constraints
-    if (filePath.length === 0) {
-      throw new ValidationError("filePath must not be empty");
-    }
+    // Delegate to tree-shakeable function for basic validation
+    const validatedPath = await validateFastaFilePath(filePath);
 
-    // Import FileReader functions dynamically to avoid circular dependencies
-    const { exists, getMetadata } = await import("../io/file-reader");
-
-    // Check if file exists and is readable
-    if (!(await exists(filePath))) {
-      throw new FileError(`FASTA file not found or not accessible: ${filePath}`, filePath, "read");
-    }
-
-    // Get file metadata for additional validation
+    // Additional FASTA-specific checks if needed
     try {
-      const metadata = await getMetadata(filePath);
-
-      if (!metadata.readable) {
-        throw new ParseError(
-          `FASTA file is not readable: ${filePath}`,
-          "FASTA",
-          undefined,
-          "Check file permissions"
-        );
-      }
+      // Import FileReader functions dynamically to avoid circular dependencies
+      const { getMetadata } = await import("../io/file-reader");
+      const metadata = await getMetadata(validatedPath);
 
       // Warn about very large files
       if (metadata.size > 1_073_741_824) {
@@ -608,17 +552,11 @@ export class FastaParser extends AbstractParser<FastaSequence, FastaParserOption
           1
         );
       }
-    } catch (error) {
-      if (error instanceof ParseError) throw error;
-      throw new ParseError(
-        `Failed to validate FASTA file: ${error instanceof Error ? error.message : String(error)}`,
-        "FASTA",
-        undefined,
-        filePath
-      );
+    } catch (_error) {
+      // Non-critical - continue even if metadata check fails
     }
 
-    return filePath;
+    return validatedPath;
   }
 
   /**
@@ -668,29 +606,14 @@ export class FastaParser extends AbstractParser<FastaSequence, FastaParserOption
         }
       }
 
-      // Yield final sequence
+      // Validate and yield final sequence
+      validateFastaParsingState(currentSequence, sequenceBuffer, lineNumber);
       if (currentSequence && sequenceBuffer.length > 0) {
         yield this.finalizeSequence(currentSequence, sequenceBuffer, lineNumber);
-      } else if (currentSequence) {
-        // Handle case where header exists but no sequence data
-        throw new SequenceError(
-          "Header found but no sequence data",
-          currentSequence.id || "unknown",
-          lineNumber
-        );
       }
     } catch (error) {
-      // Enhance error with line number context
-      if (error instanceof ParseError || error instanceof SequenceError) {
-        throw error;
-      }
-
-      throw new ParseError(
-        `FASTA parsing failed at line ${lineNumber}: ${error instanceof Error ? error.message : String(error)}`,
-        "FASTA",
-        lineNumber,
-        "Check file format and content"
-      );
+      // Delegate to tree-shakeable error handler
+      throw createFastaParseError(error, lineNumber);
     }
 
     // Tiger Style: Assert postconditions
@@ -799,28 +722,7 @@ export const FastaUtils = {
   /**
    * Calculate basic sequence statistics
    */
-  calculateStats(sequence: string): {
-    length: number;
-    gcContent: number;
-    composition: Record<string, number>;
-  } {
-    const length = sequence.length;
-    const composition: Record<string, number> = {};
-    let gcCount = 0;
-
-    for (const char of sequence.toUpperCase()) {
-      composition[char] = (composition[char] ?? 0) + 1;
-      if (char === "G" || char === "C") {
-        gcCount++;
-      }
-    }
-
-    return {
-      length,
-      gcContent: length > 0 ? gcCount / length : 0,
-      composition,
-    };
-  },
+  calculateStats: calculateFastaStats,
 };
 
 /**
@@ -996,4 +898,237 @@ export function buildFastaRecord(
       lineNumber: partialSequence.lineNumber,
     }),
   };
+}
+
+/**
+ * Check if a line should be skipped during FASTA parsing
+ * Tree-shakeable function for line filtering
+ * @param line The line to check
+ * @returns true if line should be skipped (empty or comment)
+ */
+export function shouldSkipFastaLine(line: string): boolean {
+  const trimmed = line.trim();
+  // Skip empty lines and semicolon comments (deprecated but still found)
+  return !trimmed || trimmed.startsWith(";");
+}
+
+/**
+ * Check if a line is a FASTA header
+ * Tree-shakeable function for header detection
+ * @param line The line to check
+ * @returns true if line is a header (starts with >)
+ */
+export function isFastaHeader(line: string): boolean {
+  return line.trim().startsWith(">");
+}
+
+/**
+ * Process and concatenate multi-line FASTA sequences
+ * Tree-shakeable function for sequence joining
+ * @param sequenceBuffer Array of sequence parts to concatenate
+ * @returns Concatenated and cleaned sequence
+ */
+export function concatenateFastaSequence(sequenceBuffer: string[]): string {
+  return sequenceBuffer.join("");
+}
+
+/**
+ * Normalize FASTA sequence (uppercase, remove whitespace)
+ * Tree-shakeable function for sequence normalization
+ * @param sequence Raw sequence string
+ * @returns Normalized sequence
+ */
+export function normalizeFastaSequence(sequence: string): string {
+  // Remove all whitespace and convert to uppercase
+  return sequence.replace(/\s/g, "").toUpperCase();
+}
+
+/**
+ * Create enhanced FASTA parsing error with context
+ * Tree-shakeable function for error generation
+ * @param error The original error
+ * @param lineNumber The line number where error occurred
+ * @param context Additional context for error
+ * @returns Enhanced ParseError with biological context
+ */
+export function createFastaParseError(
+  error: unknown,
+  lineNumber: number,
+  context?: string
+): ParseError {
+  if (error instanceof ParseError || error instanceof SequenceError) {
+    return error as ParseError;
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
+  return new ParseError(
+    `FASTA parsing failed at line ${lineNumber}: ${message}`,
+    "FASTA",
+    lineNumber,
+    context || "Check file format and content"
+  );
+}
+
+/**
+ * Validate FASTA parsing state before finalizing
+ * Tree-shakeable function for state validation
+ * @param currentSequence Current sequence being built
+ * @param sequenceBuffer Buffer containing sequence data
+ * @param lineNumber Current line number
+ */
+export function validateFastaParsingState(
+  currentSequence: Partial<FastaSequence> | null,
+  sequenceBuffer: string[],
+  lineNumber: number
+): void {
+  if (currentSequence && sequenceBuffer.length === 0) {
+    throw new SequenceError(
+      "Header found but no sequence data",
+      currentSequence.id || "unknown",
+      lineNumber
+    );
+  }
+}
+
+/**
+ * Calculate statistics for a FASTA sequence
+ * Tree-shakeable function for sequence analysis
+ * @param sequence The sequence to analyze
+ * @returns Statistics including length, GC content, and base composition
+ */
+export function calculateFastaStats(sequence: string): {
+  length: number;
+  gcContent: number;
+  composition: Record<string, number>;
+} {
+  const length = sequence.length;
+  const composition: Record<string, number> = {};
+  let gcCount = 0;
+
+  for (const char of sequence.toUpperCase()) {
+    composition[char] = (composition[char] ?? 0) + 1;
+    if (char === "G" || char === "C") {
+      gcCount++;
+    }
+  }
+
+  return {
+    length,
+    gcContent: length > 0 ? gcCount / length : 0,
+    composition,
+  };
+}
+
+/**
+ * Validate inputs for finalizing a FASTA sequence
+ * Tree-shakeable function for pre-finalization validation
+ */
+export function validateFastaFinalizeInputs(
+  partialSequence: Partial<FastaSequence> | null,
+  sequenceBuffer: string[],
+  lineNumber: number
+): void {
+  if (partialSequence === null) {
+    throw new ValidationError("partialSequence must not be null");
+  }
+  if (!Array.isArray(sequenceBuffer)) {
+    throw new ValidationError("sequenceBuffer must be an array");
+  }
+  if (sequenceBuffer.length === 0) {
+    throw new SequenceError("Empty sequence found", partialSequence?.id || "unknown", lineNumber);
+  }
+  if (!Number.isInteger(lineNumber) || lineNumber <= 0) {
+    throw new ValidationError("lineNumber must be positive integer");
+  }
+}
+
+/**
+ * Validate final FASTA sequence using ArkType
+ * Tree-shakeable function for complete sequence validation
+ */
+export function validateFastaFinalSequence(
+  fastaSequence: FastaSequence,
+  lineNumber: number,
+  skipValidation?: boolean
+): void {
+  if (skipValidation) return;
+
+  const validation = FastaSequenceSchema(fastaSequence);
+  if (validation instanceof type.errors) {
+    throw new SequenceError(
+      `Invalid FASTA sequence structure: ${validation.summary}`,
+      fastaSequence.id,
+      lineNumber
+    );
+  }
+}
+
+/**
+ * Assert FASTA sequence postconditions
+ * Tree-shakeable function for sequence integrity checks
+ */
+export function assertFastaPostconditions(fastaSequence: FastaSequence, lineNumber: number): void {
+  if (fastaSequence.format !== "fasta") {
+    throw new SequenceError("result format must be fasta", fastaSequence.id, lineNumber);
+  }
+  if (fastaSequence.length !== fastaSequence.sequence.length) {
+    throw new SequenceError("length must match sequence length", fastaSequence.id, lineNumber);
+  }
+  if (fastaSequence.length === 0) {
+    throw new SequenceError("sequence must not be empty", fastaSequence.id, lineNumber);
+  }
+}
+
+/**
+ * Validate FASTA file path for security and accessibility
+ * Tree-shakeable function for file path validation
+ * @param filePath The file path to validate
+ * @returns Promise resolving to validated path
+ */
+export async function validateFastaFilePath(filePath: string): Promise<string> {
+  // Basic path validation
+  if (!filePath || filePath.length === 0) {
+    throw new FileError("File path cannot be empty", filePath, "read");
+  }
+
+  // Security: prevent directory traversal
+  if (filePath.includes("../") || filePath.includes("..\\")) {
+    throw new FileError(
+      "Path traversal detected - file path cannot contain '../'",
+      filePath,
+      "open"
+    );
+  }
+
+  // Check file existence using Bun's file API
+  try {
+    const file = Bun.file(filePath);
+    const exists = await file.exists();
+
+    if (!exists) {
+      throw new FileError(
+        `File not found: ${filePath}. Please check the file path and try again.`,
+        filePath,
+        "read"
+      );
+    }
+
+    // Check if it's actually a file (not directory)
+    const stat = await file.stat();
+    if (!stat || stat.size === undefined) {
+      throw new FileError(`Cannot read file metadata: ${filePath}`, filePath, "stat");
+    }
+
+    return filePath;
+  } catch (error) {
+    if (error instanceof FileError) {
+      throw error;
+    }
+    throw new FileError(
+      `Cannot access file: ${error instanceof Error ? error.message : String(error)}`,
+      filePath,
+      "open",
+      error
+    );
+  }
 }

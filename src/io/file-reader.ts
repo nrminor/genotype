@@ -434,7 +434,7 @@ export async function createStream(
 
     // Enhanced error with context for debugging
     const elapsed = Date.now() - context.startTime;
-    const enhanced = FileError.fromSystemError("open", validatedPath, error);
+    const enhanced = FileError.fromSystemError("read", validatedPath, error);
     enhanced.message += ` (failed after ${elapsed}ms, runtime: ${context.runtime}, bufferSize: ${context.bufferSize})`;
     throw enhanced;
   }

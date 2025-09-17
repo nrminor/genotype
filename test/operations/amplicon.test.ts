@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { skip } from "node:test";
 import { AmpliconProcessor } from "../../src/operations/amplicon";
 import { primer } from "../../src/operations/core/alphabet";
 import type { AbstractSequence, PrimerSequence } from "../../src/types";
-import { skip } from "node:test";
 
 describe("AmpliconProcessor", () => {
   let processor: AmpliconProcessor;

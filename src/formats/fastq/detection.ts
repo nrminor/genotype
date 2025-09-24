@@ -16,6 +16,38 @@ import type { PlatformInfo } from "./validation";
 import { detectIlluminaPlatform, detectNanoporePlatform, detectPacBioPlatform } from "./validation";
 
 // ============================================================================
+// CONSTANTS
+// ============================================================================
+
+/**
+ * Confidence zone rules for quality encoding detection
+ *
+ * Data-driven approach for determining confidence based on ASCII character ranges.
+ * Each zone has a condition, confidence level, and explanatory reason.
+ */
+const CONFIDENCE_ZONES = [
+  {
+    name: "Clear Phred+33",
+    condition: (min: number, _max: number) => min < ASCII_BOUNDARIES.CLEAR_PHRED33_BOUNDARY,
+    confidence: CONFIDENCE_LEVELS.HIGH,
+    reason: "Characters below ASCII 59 are unique to Phred+33",
+  },
+  {
+    name: "Overlap zone",
+    condition: (min: number, max: number) =>
+      min >= ASCII_BOUNDARIES.OVERLAP_START && max <= ASCII_BOUNDARIES.OVERLAP_END,
+    confidence: CONFIDENCE_LEVELS.MEDIUM,
+    reason: "ASCII 64-126 could be either Phred+33 or Phred+64",
+  },
+  {
+    name: "Clear Phred+64/Solexa",
+    condition: (_min: number, max: number) => max > ASCII_BOUNDARIES.PHRED33_MAX,
+    confidence: CONFIDENCE_LEVELS.HIGH,
+    reason: "Characters above ASCII 126 are not valid in Phred+33",
+  },
+] as const;
+
+// ============================================================================
 // FORMAT COMPLEXITY DETECTION
 // ============================================================================
 
@@ -75,34 +107,6 @@ export function detectFastqComplexity(
 // ============================================================================
 // QUALITY ENCODING DETECTION
 // ============================================================================
-
-/**
- * Confidence zone rules for quality encoding detection
- *
- * Data-driven approach for determining confidence based on ASCII character ranges.
- * Each zone has a condition, confidence level, and explanatory reason.
- */
-const CONFIDENCE_ZONES = [
-  {
-    name: "Clear Phred+33",
-    condition: (min: number, max: number) => min < ASCII_BOUNDARIES.CLEAR_PHRED33_BOUNDARY,
-    confidence: CONFIDENCE_LEVELS.HIGH,
-    reason: "Characters below ASCII 59 are unique to Phred+33",
-  },
-  {
-    name: "Overlap zone",
-    condition: (min: number, max: number) =>
-      min >= ASCII_BOUNDARIES.OVERLAP_START && max <= ASCII_BOUNDARIES.OVERLAP_END,
-    confidence: CONFIDENCE_LEVELS.MEDIUM,
-    reason: "ASCII 64-126 could be either Phred+33 or Phred+64",
-  },
-  {
-    name: "Clear Phred+64/Solexa",
-    condition: (min: number, max: number) => max > ASCII_BOUNDARIES.PHRED33_MAX,
-    confidence: CONFIDENCE_LEVELS.HIGH,
-    reason: "Characters above ASCII 126 are not valid in Phred+33",
-  },
-] as const;
 
 /**
  * Determine confidence level based on character range

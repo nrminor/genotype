@@ -33,6 +33,10 @@
  * - Streaming architecture maintains constant memory usage
  */
 
+// =============================================================================
+// IMPORTS
+// =============================================================================
+
 import { type } from "arktype";
 import {
   getErrorSuggestion,
@@ -43,18 +47,11 @@ import {
 } from "../../errors";
 import { createStream, exists, getMetadata } from "../../io/file-reader";
 import { StreamUtils } from "../../io/stream-utils";
-import {
-  calculateQualityStats,
-  convertQuality,
-  detectEncoding,
-  getEncodingInfo,
-  qualityToScores,
-  scoresToQuality,
-} from "../../operations/core/quality";
+import { detectEncoding, qualityToScores } from "../../operations/core/quality";
 import type { FastqSequence, FileReaderOptions, QualityEncoding } from "../../types";
 import { SequenceSchema } from "../../types";
 import { AbstractParser } from "../abstract-parser";
-import { CONFIDENCE_LEVELS, QUALITY_THRESHOLDS } from "./constants";
+import { QUALITY_THRESHOLDS } from "./constants";
 import { detectFastqComplexity } from "./detection";
 import {
   extractDescription,
@@ -69,336 +66,33 @@ import {
   countFastqReads,
   detectFastqFormat,
   extractFastqIds,
-  FastqUtils,
   parseFastqHeader,
   validateFastqQuality,
   validateFastqSequence,
 } from "./utils";
-import { createValidationContext, type ValidationLevel, validateFastqRecord } from "./validation";
+import { type ValidationLevel, validateFastqRecord } from "./validation";
 import { FastqWriter } from "./writer";
 
-// Re-export for backward compatibility
-export { FastqWriter };
-export {
-  parseFastqHeader,
-  validateFastqQuality,
-  detectFastqFormat,
-  countFastqReads,
-  extractFastqIds,
-  validateFastqSequence,
-  FastqUtils,
-};
-
-export { parseMultiLineFastq } from "./state-machine";
-export type { FastqParserContext, FastqWriterOptions } from "./types";
-export { FastqParsingState } from "./types";
-
 // =============================================================================
-// ERROR HANDLING HELPERS
+// CONSTANTS
 // =============================================================================
 
-/**
- * Generate context-aware suggestions for quality-related errors
- *
- * @param encoding - Quality encoding being used
- * @param error - Original error or error message
- * @returns Helpful suggestion for fixing the error
- * @internal
- */
-function getQualityErrorSuggestion(encoding: QualityEncoding, error: unknown): string {
-  const errorMessage = error instanceof Error ? error.message : String(error);
-  const msg = errorMessage.toLowerCase();
-
-  // Encoding mismatch suggestions
-  if (msg.includes("out of range") || msg.includes("invalid character")) {
-    if (encoding === "phred64") {
-      return "File may use modern Phred+33 encoding (most files after 2011). Try setting qualityEncoding: 'phred33'";
-    } else if (encoding === "phred33") {
-      return "File may use legacy Phred+64 encoding (Illumina 1.3-1.7). Try setting qualityEncoding: 'phred64'";
-    }
-    return "Check if quality encoding matches file format. Use autodetection if unsure.";
-  }
-
-  // Length mismatch
-  if (msg.includes("length")) {
-    return "Quality string length must match sequence length. File may be corrupted or truncated.";
-  }
-
-  // Generic quality score issues
-  if (msg.includes("quality") || msg.includes("score")) {
-    return `Verify quality scores are valid for ${encoding} encoding (ASCII ${
-      encoding === "phred33" ? "33-126" : encoding === "phred64" ? "64-157" : "59-126"
-    })`;
-  }
-
-  return "Check FASTQ file format and quality encoding settings";
-}
-
-/**
- * Generate suggestions for sequence validation errors
- *
- * @param errors - Array of validation error messages
- * @returns Actionable suggestion for fixing the errors
- * @internal
- */
-function getValidationErrorSuggestion(errors?: string[]): string {
-  if (!errors || errors.length === 0) {
-    return "Check FASTQ record structure and format compliance";
-  }
-
-  // Analyze error patterns
-  const errorStr = errors.join(" ").toLowerCase();
-
-  if (errorStr.includes("header")) {
-    return "FASTQ headers must start with '@' followed by sequence ID. Check for file corruption.";
-  }
-
-  if (errorStr.includes("separator")) {
-    return "FASTQ separator line must start with '+'. Note: '+' can also appear in quality scores.";
-  }
-
-  if (errorStr.includes("quality") && errorStr.includes("length")) {
-    return "Quality string length must exactly match sequence length. File may have wrapped lines.";
-  }
-
-  if (errorStr.includes("nucleotide") || errorStr.includes("sequence")) {
-    return "Sequence contains invalid characters. Valid: A,C,G,T,U,N and IUPAC ambiguity codes.";
-  }
-
-  if (errorStr.includes("empty")) {
-    return "FASTQ records cannot have empty sequences or quality strings.";
-  }
-
-  // Multiple errors
-  if (errors.length > 3) {
-    return "Multiple validation errors detected. File may be corrupted or not in FASTQ format.";
-  }
-
-  return `Fix these issues: ${errors.slice(0, 3).join("; ")}${errors.length > 3 ? "..." : ""}`;
-}
-
-/**
- * Build detailed error context for debugging
- *
- * @param operation - What operation was being performed
- * @param id - Sequence ID
- * @param lineNumber - Line number where error occurred
- * @param sample - Sample of problematic data
- * @returns Formatted error context
- * @internal
- */
-function buildErrorContext(
-  operation: string,
-  id: string,
-  lineNumber?: number,
-  sample?: string
-): string {
-  const parts: string[] = [`Failed during: ${operation}`];
-
-  if (id) {
-    parts.push(`Sequence ID: ${id}`);
-  }
-
-  if (lineNumber !== undefined && lineNumber !== null) {
-    parts.push(`At line: ${lineNumber}`);
-  }
-
-  if (sample) {
-    // Truncate long samples for readability
-    const truncated =
-      sample.length > 50 ? `${sample.slice(0, 50)}... (${sample.length} chars total)` : sample;
-    parts.push(`Data sample: ${truncated}`);
-  }
-
-  return parts.join(" | ");
-}
+// No module-level constants needed here
 
 // =============================================================================
-// QUALITY STATISTICS CALCULATION
+// TYPES
 // =============================================================================
 
-/**
- * Calculate comprehensive quality statistics from scores
- *
- * Pure function for computing quality metrics in a single efficient pass.
- * Avoids multiple array iterations for better performance.
- *
- * @param scores - Array of numeric quality scores
- * @param options - Configuration for statistics calculation
- * @returns Quality statistics object or undefined if no scores
- * @internal
- */
-function calculateQualityStatistics(
-  scores: number[] | undefined,
-  options: { lowQualityThreshold?: number } = {}
-): FastqSequence["qualityStats"] | undefined {
-  if (!scores || scores.length === 0) {
-    return undefined;
-  }
-
-  const { lowQualityThreshold = QUALITY_THRESHOLDS.LOW_BASE } = options;
-
-  // Single pass for efficiency - O(n) time, O(1) space
-  let sum = 0;
-  let min = Number.MAX_SAFE_INTEGER;
-  let max = Number.MIN_SAFE_INTEGER;
-  let lowQualityCount = 0;
-
-  for (let i = 0; i < scores.length; i++) {
-    const score = scores[i];
-    if (score === undefined) continue; // Skip undefined values (shouldn't happen but be safe)
-
-    sum += score;
-    if (score < min) min = score;
-    if (score > max) max = score;
-    if (score < lowQualityThreshold) lowQualityCount++;
-  }
-
-  return {
-    mean: sum / scores.length,
-    min,
-    max,
-    lowQualityBases: lowQualityCount,
-  };
-}
+// Types are imported from ./types module
 
 // =============================================================================
-// FAST PATH PARSER
+// INTERFACES
 // =============================================================================
 
-/**
- * Optimized parser for simple 4-line FASTQ format
- *
- * Assumptions:
- * - Exactly 4 lines per record
- * - No wrapped sequences or quality strings
- * - '@' and '+' only appear as record markers
- *
- * @param lines - Async iterable of input lines
- * @returns Async generator of parsed FASTQ sequences
- *
- * @performance O(n) single pass, minimal allocations
- * @internal
- */
-export async function* parseFastPath(
-  lines: AsyncIterable<string>,
-  qualityEncoding: QualityEncoding = "phred33",
-  validationLevel: ValidationLevel = "quick"
-): AsyncGenerator<FastqSequence> {
-  let lineNumber = 0;
-  let record: Partial<{
-    id: string;
-    description: string | undefined;
-    sequence: string;
-    quality: string;
-  }> = {};
-
-  for await (const line of lines) {
-    const position = lineNumber % 4;
-
-    switch (position) {
-      case 0: // Header
-        if (!isValidHeader(line)) {
-          throw new ParseError(
-            `Invalid FASTQ header at line ${lineNumber + 1}: must start with '@'`,
-            "FASTQ",
-            lineNumber + 1
-          );
-        }
-        record.id = extractId(line);
-        record.description = extractDescription(line);
-        break;
-
-      case 1: // Sequence
-        record.sequence = line.trim();
-        break;
-
-      case 2: // Separator
-        if (!isValidSeparator(line, record.id)) {
-          throw new ParseError(
-            `Invalid separator at line ${lineNumber + 1}: must start with '+'`,
-            "FASTQ",
-            lineNumber + 1
-          );
-        }
-        break;
-
-      case 3: {
-        // Quality
-        record.quality = line.trim();
-        if (!lengthsMatch(record.sequence!, record.quality)) {
-          throw new ValidationError(
-            `Quality length (${record.quality.length}) doesn't match sequence length (${record.sequence!.length}) at line ${lineNumber + 1}`,
-            undefined,
-            "FASTQ quality validation"
-          );
-        }
-
-        // Build the record conditionally (all required fields are present)
-        const fastqRecord: FastqSequence =
-          record.description !== undefined
-            ? {
-                format: "fastq" as const,
-                id: record.id!,
-                description: record.description,
-                sequence: record.sequence!,
-                quality: record.quality!,
-                qualityEncoding,
-                length: record.sequence!.length,
-                lineNumber: lineNumber - 3,
-              }
-            : {
-                format: "fastq" as const,
-                id: record.id!,
-                sequence: record.sequence!,
-                quality: record.quality!,
-                qualityEncoding,
-                length: record.sequence!.length,
-                lineNumber: lineNumber - 3,
-              };
-
-        // Validate if requested
-        if (validationLevel !== "none") {
-          const result = validateFastqRecord(fastqRecord, validationLevel);
-          if (!result.valid) {
-            throw new ValidationError(
-              result.errors?.join("; ") || "Validation failed",
-              undefined,
-              "FASTQ validation"
-            );
-          }
-          // Emit the validated record if present, otherwise the original
-          if (result.record) {
-            yield result.record;
-          } else {
-            // Validation passed but no modified record, use original
-            yield fastqRecord;
-          }
-        } else {
-          // No validation - emit directly
-          yield fastqRecord;
-        }
-
-        record = {}; // Reset for next record
-        break;
-      }
-    }
-
-    lineNumber++;
-  }
-
-  // Check for incomplete record at end
-  if (Object.keys(record).length > 0) {
-    throw new ParseError(
-      `Incomplete FASTQ record at end of file (${Object.keys(record).length}/4 lines)`,
-      "FASTQ",
-      lineNumber
-    );
-  }
-}
+// Interfaces are imported from ./types module
 
 // =============================================================================
-// PARSER OPTIONS VALIDATION
+// ARKTYPE SCHEMAS
 // =============================================================================
 
 /**
@@ -457,6 +151,10 @@ const FastqParserOptionsSchema = type({
 
   return true;
 });
+
+// =============================================================================
+// CLASSES
+// =============================================================================
 
 /**
  * FASTQ format parser with intelligent path selection and quality score handling
@@ -1498,7 +1196,319 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
 }
 
 // =============================================================================
-// RE-EXPORTED MODULES
+// HELPER FUNCTIONS
 // =============================================================================
+
+/**
+ * Generate context-aware suggestions for quality-related errors
+ *
+ * @param encoding - Quality encoding being used
+ * @param error - Original error or error message
+ * @returns Helpful suggestion for fixing the error
+ * @internal
+ */
+function getQualityErrorSuggestion(encoding: QualityEncoding, error: unknown): string {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  const msg = errorMessage.toLowerCase();
+
+  // Encoding mismatch suggestions
+  if (msg.includes("out of range") || msg.includes("invalid character")) {
+    if (encoding === "phred64") {
+      return "File may use modern Phred+33 encoding (most files after 2011). Try setting qualityEncoding: 'phred33'";
+    } else if (encoding === "phred33") {
+      return "File may use legacy Phred+64 encoding (Illumina 1.3-1.7). Try setting qualityEncoding: 'phred64'";
+    }
+    return "Check if quality encoding matches file format. Use autodetection if unsure.";
+  }
+
+  // Length mismatch
+  if (msg.includes("length")) {
+    return "Quality string length must match sequence length. File may be corrupted or truncated.";
+  }
+
+  // Generic quality score issues
+  if (msg.includes("quality") || msg.includes("score")) {
+    return `Verify quality scores are valid for ${encoding} encoding (ASCII ${
+      encoding === "phred33" ? "33-126" : encoding === "phred64" ? "64-157" : "59-126"
+    })`;
+  }
+
+  return "Check FASTQ file format and quality encoding settings";
+}
+
+/**
+ * Generate suggestions for sequence validation errors
+ *
+ * @param errors - Array of validation error messages
+ * @returns Actionable suggestion for fixing the errors
+ * @internal
+ */
+function getValidationErrorSuggestion(errors?: string[]): string {
+  if (!errors || errors.length === 0) {
+    return "Check FASTQ record structure and format compliance";
+  }
+
+  // Analyze error patterns
+  const errorStr = errors.join(" ").toLowerCase();
+
+  if (errorStr.includes("header")) {
+    return "FASTQ headers must start with '@' followed by sequence ID. Check for file corruption.";
+  }
+
+  if (errorStr.includes("separator")) {
+    return "FASTQ separator line must start with '+'. Note: '+' can also appear in quality scores.";
+  }
+
+  if (errorStr.includes("quality") && errorStr.includes("length")) {
+    return "Quality string length must exactly match sequence length. File may have wrapped lines.";
+  }
+
+  if (errorStr.includes("nucleotide") || errorStr.includes("sequence")) {
+    return "Sequence contains invalid characters. Valid: A,C,G,T,U,N and IUPAC ambiguity codes.";
+  }
+
+  if (errorStr.includes("empty")) {
+    return "FASTQ records cannot have empty sequences or quality strings.";
+  }
+
+  // Multiple errors
+  if (errors.length > 3) {
+    return "Multiple validation errors detected. File may be corrupted or not in FASTQ format.";
+  }
+
+  return `Fix these issues: ${errors.slice(0, 3).join("; ")}${errors.length > 3 ? "..." : ""}`;
+}
+
+/**
+ * Build detailed error context for debugging
+ *
+ * @param operation - What operation was being performed
+ * @param id - Sequence ID
+ * @param lineNumber - Line number where error occurred
+ * @param sample - Sample of problematic data
+ * @returns Formatted error context
+ * @internal
+ */
+function buildErrorContext(
+  operation: string,
+  id: string,
+  lineNumber?: number,
+  sample?: string
+): string {
+  const parts: string[] = [`Failed during: ${operation}`];
+
+  if (id) {
+    parts.push(`Sequence ID: ${id}`);
+  }
+
+  if (lineNumber !== undefined && lineNumber !== null) {
+    parts.push(`At line: ${lineNumber}`);
+  }
+
+  if (sample) {
+    // Truncate long samples for readability
+    const truncated =
+      sample.length > 50 ? `${sample.slice(0, 50)}... (${sample.length} chars total)` : sample;
+    parts.push(`Data sample: ${truncated}`);
+  }
+
+  return parts.join(" | ");
+}
+
+/**
+ * Calculate comprehensive quality statistics from scores
+ *
+ * Pure function for computing quality metrics in a single efficient pass.
+ * Avoids multiple array iterations for better performance.
+ *
+ * @param scores - Array of numeric quality scores
+ * @param options - Configuration for statistics calculation
+ * @returns Quality statistics object or undefined if no scores
+ * @internal
+ */
+function calculateQualityStatistics(
+  scores: number[] | undefined,
+  options: { lowQualityThreshold?: number } = {}
+): FastqSequence["qualityStats"] | undefined {
+  if (!scores || scores.length === 0) {
+    return undefined;
+  }
+
+  const { lowQualityThreshold = QUALITY_THRESHOLDS.LOW_BASE } = options;
+
+  // Single pass for efficiency - O(n) time, O(1) space
+  let sum = 0;
+  let min = Number.MAX_SAFE_INTEGER;
+  let max = Number.MIN_SAFE_INTEGER;
+  let lowQualityCount = 0;
+
+  for (let i = 0; i < scores.length; i++) {
+    const score = scores[i];
+    if (score === undefined) continue; // Skip undefined values (shouldn't happen but be safe)
+
+    sum += score;
+    if (score < min) min = score;
+    if (score > max) max = score;
+    if (score < lowQualityThreshold) lowQualityCount++;
+  }
+
+  return {
+    mean: sum / scores.length,
+    min,
+    max,
+    lowQualityBases: lowQualityCount,
+  };
+}
+
+/**
+ * Optimized parser for simple 4-line FASTQ format
+ *
+ * Assumptions:
+ * - Exactly 4 lines per record
+ * - No wrapped sequences or quality strings
+ * - '@' and '+' only appear as record markers
+ *
+ * @param lines - Async iterable of input lines
+ * @returns Async generator of parsed FASTQ sequences
+ *
+ * @performance O(n) single pass, minimal allocations
+ * @internal
+ */
+export async function* parseFastPath(
+  lines: AsyncIterable<string>,
+  qualityEncoding: QualityEncoding = "phred33",
+  validationLevel: ValidationLevel = "quick"
+): AsyncGenerator<FastqSequence> {
+  let lineNumber = 0;
+  let record: Partial<{
+    id: string;
+    description: string | undefined;
+    sequence: string;
+    quality: string;
+  }> = {};
+
+  for await (const line of lines) {
+    const position = lineNumber % 4;
+
+    switch (position) {
+      case 0: // Header
+        if (!isValidHeader(line)) {
+          throw new ParseError(
+            `Invalid FASTQ header at line ${lineNumber + 1}: must start with '@'`,
+            "FASTQ",
+            lineNumber + 1
+          );
+        }
+        record.id = extractId(line);
+        record.description = extractDescription(line);
+        break;
+
+      case 1: // Sequence
+        record.sequence = line.trim();
+        break;
+
+      case 2: // Separator
+        if (!isValidSeparator(line, record.id)) {
+          throw new ParseError(
+            `Invalid separator at line ${lineNumber + 1}: must start with '+'`,
+            "FASTQ",
+            lineNumber + 1
+          );
+        }
+        break;
+
+      case 3: {
+        // Quality
+        record.quality = line.trim();
+        if (!lengthsMatch(record.sequence!, record.quality)) {
+          throw new ValidationError(
+            `Quality length (${record.quality.length}) doesn't match sequence length (${record.sequence!.length}) at line ${lineNumber + 1}`,
+            undefined,
+            "FASTQ quality validation"
+          );
+        }
+
+        // Build the record conditionally (all required fields are present)
+        const fastqRecord: FastqSequence =
+          record.description !== undefined
+            ? {
+                format: "fastq" as const,
+                id: record.id!,
+                description: record.description,
+                sequence: record.sequence!,
+                quality: record.quality!,
+                qualityEncoding,
+                length: record.sequence!.length,
+                lineNumber: lineNumber - 3,
+              }
+            : {
+                format: "fastq" as const,
+                id: record.id!,
+                sequence: record.sequence!,
+                quality: record.quality!,
+                qualityEncoding,
+                length: record.sequence!.length,
+                lineNumber: lineNumber - 3,
+              };
+
+        // Validate if requested
+        if (validationLevel !== "none") {
+          const result = validateFastqRecord(fastqRecord, validationLevel);
+          if (!result.valid) {
+            throw new ValidationError(
+              result.errors?.join("; ") || "Validation failed",
+              undefined,
+              "FASTQ validation"
+            );
+          }
+          // Emit the validated record if present, otherwise the original
+          if (result.record) {
+            yield result.record;
+          } else {
+            // Validation passed but no modified record, use original
+            yield fastqRecord;
+          }
+        } else {
+          // No validation - emit directly
+          yield fastqRecord;
+        }
+
+        record = {}; // Reset for next record
+        break;
+      }
+    }
+
+    lineNumber++;
+  }
+
+  // Check for incomplete record at end
+  if (Object.keys(record).length > 0) {
+    throw new ParseError(
+      `Incomplete FASTQ record at end of file (${Object.keys(record).length}/4 lines)`,
+      "FASTQ",
+      lineNumber
+    );
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+// Re-export for backward compatibility
+export { FastqWriter };
+export {
+  parseFastqHeader,
+  validateFastqQuality,
+  detectFastqFormat,
+  countFastqReads,
+  extractFastqIds,
+  validateFastqSequence,
+};
+
+export { parseMultiLineFastq } from "./state-machine";
+export type { FastqParserContext, FastqWriterOptions } from "./types";
+export { FastqParsingState } from "./types";
+
 // Quality operations are now in the core quality module:
 // import from "@/operations/core/quality" for all quality score operations

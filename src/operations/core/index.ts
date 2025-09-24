@@ -49,22 +49,13 @@ export {
   validateRegionParts,
   validateRegionString,
 } from "./coordinates";
-// Quality score encoding detection and conversion
-// Export both individual functions and grouped object for flexibility
+// Deprecated exports for backward compatibility
 export {
   averageQuality,
-  charToScore,
   convertScore,
-  // Individual functions (tree-shakeable)
-  detectEncoding,
-  detectEncodingImmediate,
-  detectEncodingStatistical,
-  errorProbabilityToScore,
+  detectEncodingImmediate, // Maps to detectEncoding
   getEncodingRange,
-  // Grouped object for convenience
   QualityEncodingDetector,
-  scoreToChar,
-  scoreToErrorProbability,
   validateQualityString,
 } from "./encoding";
 // NCBI genetic code tables (tree-shakeable functions)
@@ -119,6 +110,35 @@ export {
   // High-level class
   SequenceMatcher,
 } from "./pattern-matching";
+// Quality score encoding detection and conversion
+// Now re-exported from the unified quality module
+export {
+  calculateAverageQuality,
+  calculateErrorRate,
+  // Statistics
+  calculateQualityStats,
+  // Core conversions
+  charToScore,
+  convertQuality,
+  // Types
+  type DetectionResult,
+  // Detection
+  detectEncoding,
+  detectEncodingStatistical,
+  detectEncodingWithConfidence,
+  errorProbabilityToScore,
+  // Encoding info
+  getEncodingInfo,
+  getSupportedEncodings,
+  isValidEncoding,
+  percentAboveThreshold,
+  type QualityEncodingInfo,
+  type QualityStats,
+  qualityToScores,
+  scoresToQuality,
+  scoreToChar,
+  scoreToErrorProbability,
+} from "./quality";
 // Reservoir sampling for streaming
 export {
   BernoulliSampler,

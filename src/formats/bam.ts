@@ -90,13 +90,8 @@ export class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParse
   private baiIndex?: BAIIndex;
   private referenceNames: string[] = [];
 
-  /**
-   * Create a new BAM parser with specified options and interrupt support
-   * @param options BAM parser configuration options including AbortSignal
-   */
-  constructor(options: BamParserOptions = {}) {
-    // Provide BAM-specific defaults (binary format considerations)
-    super({
+  protected getDefaultOptions(): Partial<BamParserOptions> {
+    return {
       skipValidation: false,
       maxLineLength: 100_000_000, // 100MB max record for long reads
       trackLineNumbers: false, // Not applicable to binary format
@@ -108,8 +103,15 @@ export class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParse
       onWarning: (warning: string): void => {
         console.warn(`BAM Warning: ${warning}`);
       },
-      ...options, // User options override defaults
-    } as BamParserOptions);
+    };
+  }
+
+  /**
+   * Create a new BAM parser with specified options and interrupt support
+   * @param options BAM parser configuration options including AbortSignal
+   */
+  constructor(options: BamParserOptions = {}) {
+    super(options);
   }
 
   protected getFormatName(): string {

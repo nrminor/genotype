@@ -91,13 +91,8 @@ const FastaParserOptionsSchema = type({
  * ```
  */
 export class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
-  /**
-   * Create a new FASTA parser with specified options and interrupt support
-   * @param options FASTA parser configuration options including AbortSignal
-   */
-  constructor(options: FastaParserOptions = {}) {
-    // Step 1: Prepare options with FASTA-specific defaults for genomic sequences
-    const optionsWithDefaults = {
+  protected getDefaultOptions(): Partial<FastaParserOptions> {
+    return {
       skipValidation: false,
       maxLineLength: 1_000_000, // 1MB max line length (suitable for most sequences)
       trackLineNumbers: true,
@@ -107,11 +102,16 @@ export class FastaParser extends AbstractParser<FastaSequence, FastaParserOption
       onWarning: (warning: string, lineNumber?: number): void => {
         console.warn(`FASTA Warning (line ${lineNumber}): ${warning}`);
       },
-      ...options, // User options override defaults
     };
+  }
 
-    // Step 2: ArkType validation with FASTA domain expertise
-    const validationResult = FastaParserOptionsSchema(optionsWithDefaults);
+  /**
+   * Create a new FASTA parser with specified options and interrupt support
+   * @param options FASTA parser configuration options including AbortSignal
+   */
+  constructor(options: FastaParserOptions = {}) {
+    // Step 1: ArkType validation with FASTA domain expertise
+    const validationResult = FastaParserOptionsSchema(options);
 
     if (validationResult instanceof type.errors) {
       throw new ValidationError(
@@ -121,8 +121,8 @@ export class FastaParser extends AbstractParser<FastaSequence, FastaParserOption
       );
     }
 
-    // Step 3: Pass validated options to base class
-    super(optionsWithDefaults as FastaParserOptions);
+    // Step 2: Pass validated options to base class (which will merge with defaults)
+    super(options);
   }
 
   protected getFormatName(): string {

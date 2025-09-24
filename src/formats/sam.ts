@@ -74,13 +74,8 @@ interface SamParserOptions extends ParserOptions {
  * ```
  */
 export class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOptions> {
-  /**
-   * Create a new SAM parser with specified options and interrupt support
-   * @param options SAM parser configuration options including AbortSignal
-   */
-  constructor(options: SamParserOptions = {}) {
-    // Provide SAM-specific defaults (including format-specific properties)
-    super({
+  protected getDefaultOptions(): Partial<SamParserOptions> {
+    return {
       skipValidation: false,
       maxLineLength: 10_000_000, // 10MB max line length for long reads
       trackLineNumbers: true,
@@ -92,8 +87,15 @@ export class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParse
       onWarning: (warning: string, lineNumber?: number): void => {
         console.warn(`SAM Warning (line ${lineNumber}): ${warning}`);
       },
-      ...options, // User options override defaults
-    } as SamParserOptions);
+    };
+  }
+
+  /**
+   * Create a new SAM parser with specified options and interrupt support
+   * @param options SAM parser configuration options including AbortSignal
+   */
+  constructor(options: SamParserOptions = {}) {
+    super(options);
   }
 
   protected getFormatName(): string {

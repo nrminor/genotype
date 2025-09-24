@@ -519,14 +519,8 @@ function buildGtfFeature(
  * @public
  */
 export class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
-  /**
-   * Create new GTF parser with specified options
-   *
-   * @param options Parser configuration options
-   */
-  constructor(options: GtfParserOptions = {}) {
-    // Step 1: Prepare options with GTF-specific defaults
-    const optionsWithDefaults = {
+  protected getDefaultOptions(): Partial<GtfParserOptions> {
+    return {
       skipValidation: false,
       maxLineLength: 1_000_000,
       trackLineNumbers: true,
@@ -540,11 +534,17 @@ export class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
       onWarning: (warning: string, lineNumber?: number): void => {
         console.warn(`GTF Warning (line ${lineNumber}): ${warning}`);
       },
-      ...options, // User options override defaults
     };
+  }
 
-    // Step 2: ArkType validation with domain expertise
-    const validationResult = GtfParserOptionsSchema(optionsWithDefaults);
+  /**
+   * Create new GTF parser with specified options
+   *
+   * @param options Parser configuration options
+   */
+  constructor(options: GtfParserOptions = {}) {
+    // Step 1: ArkType validation with domain expertise
+    const validationResult = GtfParserOptionsSchema(options);
 
     if (validationResult instanceof type.errors) {
       throw new ValidationError(
@@ -554,7 +554,7 @@ export class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
       );
     }
 
-    // Step 3: Pass validated options to type-safe parent
+    // Step 2: Pass validated options to parent (which will merge with defaults)
     super(validationResult);
   }
 

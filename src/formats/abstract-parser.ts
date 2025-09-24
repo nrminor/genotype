@@ -26,23 +26,32 @@ export abstract class AbstractParser<T, TOptions extends ParserOptions = ParserO
   private readonly interruptHandler: InterruptHandler;
 
   constructor(options: TOptions) {
-    // Provide defaults for base ParserOptions, format provides format-specific defaults
-    const defaultOptions = {
+    // Merge base defaults, format-specific defaults, and user options
+    const baseDefaults = {
       skipValidation: false,
       maxLineLength: 1_000_000,
       trackLineNumbers: true,
-      signal: undefined,
       onError: (error: string, lineNumber?: number): void => {
         throw new ParseError(error, this.getFormatName(), lineNumber);
       },
       onWarning: (warning: string, lineNumber?: number): void => {
         console.warn(`${this.getFormatName()} Warning (line ${lineNumber}): ${warning}`);
       },
-    } as Partial<TOptions>;
+    };
 
-    this.options = { ...defaultOptions, ...options } as Required<TOptions>;
+    // Get format-specific defaults from subclass
+    const formatDefaults = this.getDefaultOptions();
+
+    // Merge in order: base -> format-specific -> user options
+    this.options = { ...baseDefaults, ...formatDefaults, ...options } as Required<TOptions>;
     this.interruptHandler = new InterruptHandler(this.options.signal);
   }
+
+  /**
+   * Get format-specific default options
+   * Each parser must implement this to provide their defaults
+   */
+  protected abstract getDefaultOptions(): Partial<TOptions>;
 
   // ============================================================================
   // SHARED INTERRUPT HANDLING ONLY (Concrete Implementation)

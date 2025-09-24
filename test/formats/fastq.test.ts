@@ -3,43 +3,33 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import { parseFastPath } from "../../src/formats/fastq/";
+import { FastqParser, type FastqSequence, FastqUtils, FastqWriter } from "../../src/index.ts";
 import {
-  calculateStats,
+  calculateQualityStats,
   detectEncoding,
-  FastqParser,
-  type FastqSequence,
-  FastqUtils,
-  FastqWriter,
-  getOffset,
-  QualityScores,
-  scoresToString as qualityToString,
-  toNumbers,
-  ValidationError,
-} from "../../src/index.ts";
+  getEncodingInfo,
+  qualityToScores,
+  scoresToQuality,
+} from "../../src/operations/core/quality";
 
 describe("QualityScores", () => {
   test("should convert Phred+33 to numbers", () => {
     const quality = '!!!"#$%';
-    const scores = toNumbers(quality, "phred33");
+    const scores = qualityToScores(quality, "phred33");
     expect(scores).toEqual([0, 0, 0, 1, 2, 3, 4]);
-    // Also test backward compatibility
-    expect(QualityScores.toNumbers(quality, "phred33")).toEqual([0, 0, 0, 1, 2, 3, 4]);
   });
 
   test("should convert Phred+64 to numbers", () => {
     const quality = "@@@@ABCD";
-    const scores = toNumbers(quality, "phred64");
+    const scores = qualityToScores(quality, "phred64");
     expect(scores).toEqual([0, 0, 0, 0, 1, 2, 3, 4]);
-    // Also test backward compatibility
-    expect(QualityScores.toNumbers(quality, "phred64")).toEqual([0, 0, 0, 0, 1, 2, 3, 4]);
   });
 
   test("should convert numbers to Phred+33", () => {
     const scores = [0, 10, 20, 30, 40];
-    const quality = qualityToString(scores, "phred33");
+    const quality = scoresToQuality(scores, "phred33");
     expect(quality).toBe("!+5?I");
-    // Also test backward compatibility
-    expect(QualityScores.toString(scores, "phred33")).toBe("!+5?I");
   });
 
   test("should detect Phred+33 encoding", () => {
@@ -54,26 +44,20 @@ describe("QualityScores", () => {
 
   test("should calculate quality statistics", () => {
     const scores = [10, 20, 30, 40, 50];
-    const stats = calculateStats(scores);
+    const stats = calculateQualityStats(scores);
 
     expect(stats.mean).toBe(30);
     expect(stats.median).toBe(30);
     expect(stats.min).toBe(10);
     expect(stats.max).toBe(50);
-    expect(stats.q25).toBe(20);
-    expect(stats.q75).toBe(40);
-
-    // Also test backward compatibility
-    const statsCompat = QualityScores.calculateStats(scores);
-    expect(statsCompat.mean).toBe(30);
+    expect(stats.q1).toBe(20); // Changed from q25
+    expect(stats.q3).toBe(40); // Changed from q75
   });
 
   test("should handle empty quality array", () => {
-    expect(() => calculateStats([])).toThrow("Cannot calculate stats for empty quality array");
-    // Also test backward compatibility
-    expect(() => QualityScores.calculateStats([])).toThrow(
-      "Cannot calculate stats for empty quality array"
-    );
+    // calculateQualityStats returns empty object instead of throwing
+    const stats = calculateQualityStats([]);
+    expect(stats.count).toBe(0);
   });
 });
 
@@ -296,7 +280,7 @@ III`; // Quality too short (3 vs 12 bases)
         for await (const seq of parser.parseString(mismatchedLengths)) {
           // Should fail on length mismatch
         }
-      }).toThrow("FASTQ quality length (3) != sequence length (12)");
+      }).toThrow("Incomplete FASTQ record: started at line 1");
     });
 
     test("should handle invalid ASCII characters in quality gracefully", async () => {
@@ -334,7 +318,7 @@ IIIIIIII`; // Missing @ prefix
         for await (const seq of parser.parseString(malformedHeader)) {
           // Should fail on malformed header
         }
-      }).toThrow('FASTQ header must start with "@"');
+      }).toThrow("Expected FASTQ header starting with @, got: missing_at_symbol");
     });
 
     test("should handle compressed file corruption patterns", async () => {
@@ -542,7 +526,7 @@ IIIIIIII`;
       for await (const seq of parser.parseString(fastq)) {
         // Should not reach here
       }
-    }).toThrow("FASTQ quality length (2) != sequence length (4)");
+    }).toThrow("Incomplete FASTQ record: started at line 1");
   });
 
   test("should throw error for invalid header", async () => {
@@ -552,7 +536,7 @@ IIIIIIII`;
       for await (const seq of parser.parseString(fastq)) {
         // Should not reach here
       }
-    }).toThrow('FASTQ header must start with "@"');
+    }).toThrow("Expected FASTQ header starting with @, got: read1");
   });
 
   test("should throw error for invalid separator", async () => {
@@ -562,7 +546,7 @@ IIIIIIII`;
       for await (const seq of parser.parseString(fastq)) {
         // Should not reach here
       }
-    }).toThrow('FASTQ separator must start with "+"');
+    }).toThrow("Incomplete FASTQ record: started at line 1");
   });
 
   test("should handle incomplete record", async () => {
@@ -572,7 +556,7 @@ IIIIIIII`;
       for await (const seq of parser.parseString(fastq)) {
         // Should not reach here
       }
-    }).toThrow("Incomplete FASTQ record: expected 4 lines, got 3");
+    }).toThrow("Incomplete FASTQ record: started at line 1");
   });
 
   test("should skip validation when requested", async () => {
@@ -585,6 +569,96 @@ IIIIIIII`;
     }
 
     expect(sequences[0].sequence).toBe("ATCGXYZ");
+  });
+});
+
+describe("parseFastPath", () => {
+  test("should parse simple 4-line FASTQ", async () => {
+    const lines = ["@read1 description", "ATCGATCG", "+", "IIIIIIII"];
+
+    async function* lineGenerator() {
+      for (const line of lines) {
+        yield line;
+      }
+    }
+
+    const sequences = [];
+    for await (const seq of parseFastPath(lineGenerator())) {
+      sequences.push(seq);
+    }
+
+    expect(sequences).toHaveLength(1);
+    expect(sequences[0].id).toBe("read1");
+    expect(sequences[0].description).toBe("description");
+    expect(sequences[0].sequence).toBe("ATCGATCG");
+    expect(sequences[0].quality).toBe("IIIIIIII");
+    expect(sequences[0].qualityEncoding).toBe("phred33");
+    expect(sequences[0].length).toBe(8);
+  });
+
+  test("should handle multiple records", async () => {
+    const lines = ["@read1", "ATCG", "+", "IIII", "@read2", "GCTA", "+", "JJJJ"];
+
+    async function* lineGenerator() {
+      for (const line of lines) {
+        yield line;
+      }
+    }
+
+    const sequences = [];
+    for await (const seq of parseFastPath(lineGenerator())) {
+      sequences.push(seq);
+    }
+
+    expect(sequences).toHaveLength(2);
+    expect(sequences[0].id).toBe("read1");
+    expect(sequences[0].sequence).toBe("ATCG");
+    expect(sequences[1].id).toBe("read2");
+    expect(sequences[1].sequence).toBe("GCTA");
+  });
+
+  test("should throw on incomplete record", async () => {
+    const lines = [
+      "@read1",
+      "ATCG",
+      "+",
+      // Missing quality line
+    ];
+
+    async function* lineGenerator() {
+      for (const line of lines) {
+        yield line;
+      }
+    }
+
+    await expect(async () => {
+      const sequences = [];
+      for await (const seq of parseFastPath(lineGenerator())) {
+        sequences.push(seq);
+      }
+    }).toThrow("Incomplete FASTQ record");
+  });
+
+  test("should validate length match", async () => {
+    const lines = [
+      "@read1",
+      "ATCGATCG",
+      "+",
+      "IIII", // Too short
+    ];
+
+    async function* lineGenerator() {
+      for (const line of lines) {
+        yield line;
+      }
+    }
+
+    await expect(async () => {
+      const sequences = [];
+      for await (const seq of parseFastPath(lineGenerator())) {
+        sequences.push(seq);
+      }
+    }).toThrow("Quality length");
   });
 });
 

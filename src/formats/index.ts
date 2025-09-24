@@ -42,18 +42,36 @@ export {
   validateCoordinates,
   validateStrand,
 } from "./bed";
+// DSV/CSV/TSV format exports
+export {
+  CSVParser,
+  CSVWriter,
+  calculateBaseCount,
+  calculateGC,
+  type DSVFormat,
+  DSVParser,
+  type DSVParserOptions,
+  type DSVRecord,
+  DSVWriter,
+  type DSVWriterOptions,
+  detectDelimiter,
+  detectHeaders,
+  handleRaggedRow,
+  normalizeLineEndings,
+  parseCSVRow,
+  protectFromExcel,
+  removeBOM,
+  TSVParser,
+  TSVWriter,
+  validateFieldSize,
+} from "./dsv";
 // FASTA format exports
 export { FastaParser, FastaUtils, FastaWriter } from "./fasta";
 // FASTQ format exports
 export {
-  calculateStats,
   FastqParser,
   FastqUtils,
   FastqWriter,
-  getOffset,
-  QualityScores,
-  scoresToString,
-  toNumbers,
 } from "./fastq";
 // GTF format exports
 export {

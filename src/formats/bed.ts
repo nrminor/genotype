@@ -540,9 +540,8 @@ export function validateCoordinates(
  * Class methods maintain focused responsibilities for BED parsing
  */
 export class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
-  constructor(options: BedParserOptions = {}) {
-    // Step 1: Prepare options with BED-specific defaults
-    const optionsWithDefaults = {
+  protected getDefaultOptions(): Partial<BedParserOptions> {
+    return {
       skipValidation: false,
       maxLineLength: 1_000_000,
       trackLineNumbers: true,
@@ -553,11 +552,12 @@ export class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
       onWarning: (warning: string, lineNumber?: number): void => {
         console.warn(`BED Warning (line ${lineNumber}): ${warning}`);
       },
-      ...options, // User options override defaults
     };
+  }
 
-    // Step 2: ArkType validation with genomics domain expertise
-    const validationResult = BedParserOptionsSchema(optionsWithDefaults);
+  constructor(options: BedParserOptions = {}) {
+    // Step 1: ArkType validation with genomics domain expertise
+    const validationResult = BedParserOptionsSchema(options);
 
     if (validationResult instanceof type.errors) {
       throw new ValidationError(
@@ -567,25 +567,25 @@ export class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
       );
     }
 
+    // Step 2: Pass validated options to parent (which will merge with defaults)
+    super(options);
+
     // Step 3: Application-level warnings based on validated options
-    if (validationResult.allowZeroLength === false) {
-      optionsWithDefaults.onWarning?.(
+    if (this.options.allowZeroLength === false) {
+      this.options.onWarning?.(
         "allowZeroLength: false disables insertion sites and point mutations - " +
           "these are valid genomics features in BED format",
         undefined
       );
     }
 
-    if (validationResult.skipValidation === true && !optionsWithDefaults.onError) {
-      optionsWithDefaults.onWarning?.(
+    if (this.options.skipValidation === true && !this.options.onError) {
+      this.options.onWarning?.(
         "skipValidation: true without custom onError handler may silently ignore " +
           "malformed BED data - consider providing error handler for production use",
         undefined
       );
     }
-
-    // Step 4: Pass complete options to type-safe parent (ArkType validates subset)
-    super(optionsWithDefaults);
   }
 
   protected getFormatName(): string {

@@ -160,6 +160,8 @@ export interface DetectionResult {
  * @see {@link https://en.wikipedia.org/wiki/FASTQ_format} FASTQ Format Specification (Wikipedia)
  *
  * 🔥 NATIVE CANDIDATE: ASCII min/max finding with SIMD acceleration
+ *
+ * @deprecated Use detectEncoding from '@/operations/core/quality' instead
  */
 export function detectEncodingImmediate(qualityString: string): QualityEncoding {
   if (!qualityString || qualityString.length === 0) {

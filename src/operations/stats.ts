@@ -19,7 +19,7 @@
 import { type } from "arktype";
 import { SequenceError, ValidationError } from "../errors";
 import type { AbstractSequence, FASTXSequence, FastqSequence, QualityEncoding } from "../types";
-import { charToScore } from "./core/encoding";
+import { charToScore } from "./core/quality";
 
 // =============================================================================
 // TYPES AND INTERFACES

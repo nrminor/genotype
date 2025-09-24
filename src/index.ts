@@ -20,6 +20,7 @@ export {
   CompressionError,
   ConcatError,
   createContextualError,
+  DSVParseError,
   ERROR_SUGGESTIONS,
   FileError,
   FormatDetectionError,
@@ -57,14 +58,9 @@ export { BedFormat, BedParser, BedUtils, BedWriter } from "./formats/bed";
 export { FastaParser, FastaUtils, FastaWriter } from "./formats/fasta";
 // FASTQ format
 export {
-  calculateStats,
   FastqParser,
   FastqUtils,
   FastqWriter,
-  getOffset,
-  QualityScores,
-  scoresToString,
-  toNumbers,
 } from "./formats/fastq";
 // SAM format
 export { SAMParser, SAMUtils, SAMWriter } from "./formats/sam";
@@ -113,14 +109,33 @@ export {
   type TransformOptions,
   type ValidateOptions,
 } from "./operations";
-// Quality encoding detection (shared functionality)
+// Quality score operations (shared functionality)
 export {
+  // Branded types
+  type AsciiOffset,
+  calculateAverageQuality,
+  calculateErrorRate,
+  calculateQualityStats,
+  charToScore,
+  convertQuality,
   type DetectionResult,
   detectEncoding,
-  detectEncodingImmediate,
   detectEncodingStatistical,
   detectEncodingWithConfidence,
-} from "./operations/core/encoding";
+  errorProbabilityToScore,
+  getEncodingInfo,
+  getSupportedEncodings,
+  isValidAsciiOffset,
+  isValidEncoding,
+  isValidQualityScore,
+  percentAboveThreshold,
+  type QualityChar,
+  type QualityScore,
+  qualityToScores,
+  scoresToQuality,
+  scoreToChar,
+  scoreToErrorProbability,
+} from "./operations/core/quality";
 // Core types
 export type {
   AbstractSequence,

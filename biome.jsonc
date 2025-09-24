@@ -29,7 +29,10 @@
       "!src/native/",
       "!**/*.rs",
       "!**/bun.lockb",
-      "!**/CHANGELOG.md"
+      "!**/CHANGELOG.md",
+      "!reports/**/*",
+      "!**/*.backup*",
+      "!**/backup*/**/*"
     ]
   },
   "linter": {
@@ -102,6 +105,9 @@
       "!node_modules/**/*",
       "!src/native/**/*",
       "!docs/**/*",
+      "!reports/**/*",
+      "!**/*.backup*",
+      "!**/backup*/**/*",
       "!*.js",
       "!*.d.ts"
     ]

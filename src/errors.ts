@@ -60,6 +60,29 @@ export class ParseError extends GenotypeError {
 }
 
 /**
+ * DSV-specific parsing error with column context
+ */
+export class DSVParseError extends ParseError {
+  constructor(
+    message: string,
+    public readonly line?: number,
+    public readonly column?: number,
+    public readonly field?: string
+  ) {
+    const context = [
+      line && `line ${line}`,
+      column && `column ${column}`,
+      field && `field "${field}"`,
+    ]
+      .filter(Boolean)
+      .join(", ");
+
+    super(context ? `${message} (${context})` : message, "DSV", line);
+    this.name = "DSVParseError";
+  }
+}
+
+/**
  * Compression/decompression errors with detailed context
  */
 export class CompressionError extends GenotypeError {

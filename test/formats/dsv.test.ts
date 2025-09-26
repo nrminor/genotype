@@ -17,13 +17,13 @@ import {
   calculateGC,
   DSVParser,
   type DSVRecord,
+  DSVUtils,
   DSVWriter,
   detectDelimiter,
   normalizeLineEndings,
   parseCSVRow,
   protectFromExcel,
   removeBOM,
-  sniff,
   TSVParser,
   TSVWriter,
 } from "../../src/formats/dsv";
@@ -721,19 +721,19 @@ seq2,GCTAGCTA,JJJJJJJJ`;
       await fs.unlink(testPath);
     });
 
-    test("sniff() comprehensively detects format", async () => {
+    test("DSVUtils.sniff() comprehensively detects format", async () => {
       // Test with CSV string
       const csvContent = "gene,expression,pvalue\nBRCA1,5.2,0.001\nTP53,3.8,0.005";
-      const csvResult = await sniff(csvContent);
+      const csvResult = await DSVUtils.sniff(csvContent);
 
       expect(csvResult.delimiter).toBe(",");
       expect(csvResult.hasHeaders).toBe(true);
-      expect(csvResult.compression).toBe("none");
+      expect(csvResult.compression).toBe(null); // null for uncompressed
       expect(csvResult.confidence).toBeGreaterThan(0.5);
 
       // Test with TSV string
       const tsvContent = "id\tsequence\tquality\nseq1\tATCG\tIIII\nseq2\tGCTA\tJJJJ";
-      const tsvResult = await sniff(tsvContent);
+      const tsvResult = await DSVUtils.sniff(tsvContent);
 
       expect(tsvResult.delimiter).toBe("\t");
       // Note: Header detection may not work for all cases - this is a known limitation
@@ -741,7 +741,7 @@ seq2,GCTAGCTA,JJJJJJJJ`;
 
       // Test with compressed data (gzip magic bytes)
       const gzipBytes = new Uint8Array([0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00]);
-      const gzipResult = await sniff(gzipBytes);
+      const gzipResult = await DSVUtils.sniff(gzipBytes);
 
       expect(gzipResult.compression).toBe("gzip");
       expect(gzipResult.confidence).toBeGreaterThan(0);
@@ -868,7 +868,7 @@ seq2,GCTAGCTA,JJJJJJJJ`;
       const csvContent = "id,sequence,quality\nseq1,ATCG,IIII";
       const compressed = gzipSync(csvContent);
 
-      const result = await sniff(new Uint8Array(compressed));
+      const result = await DSVUtils.sniff(new Uint8Array(compressed));
       expect(result.compression).toBe("gzip");
       expect(result.confidence).toBeGreaterThan(0);
     });

@@ -29,8 +29,37 @@
  * @module gtf
  */
 
+// Imports for namespace creation
+import {
+  parseGtfAttributes,
+  parseGtfFrame,
+  parseGtfScore,
+  validateGtfCoordinates,
+  validateGtfStrand,
+} from "./parser";
+
+import { countGtfFeatures, detectGtfFormat, filterFeaturesByType } from "./utils";
+
+// Namespace exports for backward compatibility
+const GtfFormat = {
+  validateGtfCoordinates,
+  parseGtfAttributes,
+  validateGtfStrand,
+  parseGtfScore,
+  parseGtfFrame,
+} as const;
+
+const GtfUtils = {
+  detectGtfFormat,
+  countGtfFeatures,
+  filterFeaturesByType,
+} as const;
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
 // Core parsing functionality
-// Parsing functions (for advanced usage)
 export {
   detectDatabaseVariant,
   GtfParser,
@@ -43,6 +72,7 @@ export {
   validateGtfCoordinates,
   validateGtfStrand,
 } from "./parser";
+
 // Type definitions and interfaces
 export type {
   AlternativeSplicingGeneModel,
@@ -66,38 +96,15 @@ export type {
   TranscriptModel,
   ValidGenomicRegion,
 } from "./types";
+
 // Constants for user guidance
 export { GTF_LIMITS, STANDARD_GTF_FEATURES } from "./types";
+
 // Utility functions
-export {
-  countGtfFeatures,
-  detectGtfFormat,
-  filterFeaturesByType,
-} from "./utils";
+export { countGtfFeatures, detectGtfFormat, filterFeaturesByType } from "./utils";
+
+// Writer
 export { GtfWriter } from "./writer";
 
-// Import for namespace creation
-import {
-  parseGtfAttributes,
-  parseGtfFrame,
-  parseGtfScore,
-  validateGtfCoordinates,
-  validateGtfStrand,
-} from "./parser";
-
-import { countGtfFeatures, detectGtfFormat, filterFeaturesByType } from "./utils";
-
-// Namespace exports for backward compatibility
-export const GtfFormat = {
-  validateGtfCoordinates,
-  parseGtfAttributes,
-  validateGtfStrand,
-  parseGtfScore,
-  parseGtfFrame,
-} as const;
-
-export const GtfUtils = {
-  detectGtfFormat,
-  countGtfFeatures,
-  filterFeaturesByType,
-} as const;
+// Namespace exports
+export { GtfFormat, GtfUtils };

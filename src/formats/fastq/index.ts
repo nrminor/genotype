@@ -45,25 +45,39 @@
  */
 
 // ============================================================================
-// CORE CLASSES
+// EXPORTS
 // ============================================================================
 
+// Re-exports from parent module
+/**
+ * FASTQ sequence record type
+ * @group Types
+ */
+export type { FastqSequence } from "../../types";
+/**
+ * Quality encoding schemes
+ * @group Types
+ */
+export { QualityEncoding } from "../../types";
+// Detection Functions
+/**
+ * Detection functions for FASTQ format analysis
+ * @group Detection
+ */
+export {
+  autoDetectFastqFormat,
+  detectFastqComplexity,
+  detectFastqFormat,
+  detectQualityEncoding,
+  detectSequencingPlatform,
+} from "./detection";
+// Core Classes
 /**
  * Primary FASTQ parser with streaming support and multi-line handling
  * @group Core
  */
 export { FastqParser, parseFastPath } from "./parser";
-
-/**
- * FASTQ writer with quality encoding conversion
- * @group Core
- */
-export { FastqWriter } from "./writer";
-
-// ============================================================================
-// QUALITY SCORE OPERATIONS
-// ============================================================================
-
+// Quality Score Operations
 /**
  * Quality score operations for FASTQ sequences
  *
@@ -87,85 +101,15 @@ export {
   toPhredScores,
   validateQualityString,
 } from "./quality";
-
-// ============================================================================
-// DETECTION FUNCTIONS
-// ============================================================================
-
+// Advanced Exports
 /**
- * Detect FASTQ format complexity (simple vs multi-line)
- * @group Detection
+ * Low-level state machine for multi-line FASTQ parsing
+ * Used internally but exposed for advanced use cases
+ * @group Advanced
  */
-/**
- * Detect quality encoding from FASTQ records
- * @group Detection
- */
-/**
- * Detect sequencing platform from record characteristics
- * @group Detection
- */
-/**
- * Comprehensive FASTQ format auto-detection
- * @group Detection
- */
-export {
-  autoDetectFastqFormat,
-  detectFastqComplexity,
-  detectQualityEncoding,
-  detectSequencingPlatform,
-} from "./detection";
+export { parseMultiLineFastq } from "./state-machine";
 
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
-
-// Re-export detectFastqFormat from detection module
-export { detectFastqFormat } from "./detection";
-
-/**
- * FASTQ utility functions for common operations
- *
- * These utilities provide efficient operations without full parsing:
- * - Header line parsing to extract ID and description
- * - Quality string length validation against sequence
- * - Format detection for quick file type identification
- * - Read counting without loading full sequences
- * - Fast ID extraction for indexing
- * - Sequence character validation
- *
- * @group Utilities
- */
-export {
-  countFastqReads,
-  extractFastqIds,
-  parseFastqHeader,
-  validateFastqQuality,
-  validateFastqSequence,
-} from "./utils";
-
-// ============================================================================
-// AGGREGATE EXPORTS
-// ============================================================================
-
-/**
- * Collection of FASTQ utility functions
- * @deprecated Import individual functions for better tree-shaking
- * @group Utilities
- */
-export { FastqUtils } from "./utils";
-
-/**
- * Collection of quality score functions
- * @deprecated Import individual functions for better tree-shaking
- * @group Quality
- */
-// QualityScores utilities moved to @/operations/core/quality
-// Import directly from there for better tree-shaking
-
-// ============================================================================
-// TYPE EXPORTS
-// ============================================================================
-
+// Type Exports
 /**
  * FASTQ type definitions for parser and writer configuration
  *
@@ -182,34 +126,35 @@ export type { FastqParserContext, FastqParserOptions, FastqWriterOptions } from 
  * @group Types
  */
 export { FastqParsingState } from "./types";
-
-// ============================================================================
-// ADVANCED EXPORTS (for library extensions)
-// ============================================================================
-
+// Utility Functions
 /**
- * Low-level state machine for multi-line FASTQ parsing
- * Used internally but exposed for advanced use cases
- * @group Advanced
+ * FASTQ utility functions for common operations
+ *
+ * These utilities provide efficient operations without full parsing:
+ * - Header line parsing to extract ID and description
+ * - Quality string length validation against sequence
+ * - Format detection for quick file type identification
+ * - Read counting without loading full sequences
+ * - Fast ID extraction for indexing
+ * - Sequence character validation
+ *
+ * @group Utilities
  */
-export { parseMultiLineFastq } from "./state-machine";
-
-// ============================================================================
-// RE-EXPORTS FROM PARENT (for convenience)
-// ============================================================================
-
-// Note: FastqSequence and QualityEncoding types are defined in the main types
-// module and should be imported from there, but we re-export them here for
-// convenience when working specifically with FASTQ functionality.
-
 /**
- * FASTQ sequence record type
- * @group Types
+ * Collection of FASTQ utility functions
+ * @deprecated Import individual functions for better tree-shaking
+ * @group Utilities
  */
-export type { FastqSequence } from "../../types";
-
+export {
+  countFastqReads,
+  extractFastqIds,
+  FastqUtils,
+  parseFastqHeader,
+  validateFastqQuality,
+  validateFastqSequence,
+} from "./utils";
 /**
- * Quality encoding schemes
- * @group Types
+ * FASTQ writer with quality encoding conversion
+ * @group Core
  */
-export { QualityEncoding } from "../../types";
+export { FastqWriter } from "./writer";

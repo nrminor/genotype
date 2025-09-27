@@ -90,7 +90,7 @@ const FastaParserOptionsSchema = type({
  * });
  * ```
  */
-export class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
+class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
   protected getDefaultOptions(): Partial<FastaParserOptions> {
     return {
       skipValidation: false,
@@ -626,7 +626,7 @@ export class FastaParser extends AbstractParser<FastaSequence, FastaParserOption
 /**
  * FASTA writer for outputting sequences
  */
-export class FastaWriter {
+class FastaWriter {
   private readonly lineWidth: number;
   private readonly includeDescription: boolean;
   private readonly lineEnding: string;
@@ -703,7 +703,7 @@ export class FastaWriter {
 /**
  * Utility functions for FASTA format
  */
-export const FastaUtils = {
+const FastaUtils = {
   /**
    * Detect if string contains FASTA format data
    */
@@ -729,7 +729,7 @@ export const FastaUtils = {
  * Parse FASTA header line and extract ID and description
  * Tree-shakeable function for FASTA header processing
  */
-export function parseFastaHeader(
+function parseFastaHeader(
   headerLine: string,
   lineNumber: number,
   options: { skipValidation?: boolean; onWarning?: (msg: string, line?: number) => void }
@@ -810,7 +810,7 @@ export function parseFastaHeader(
  * Validate and clean FASTA sequence data
  * Tree-shakeable function for FASTA sequence processing
  */
-export function validateFastaSequence(
+function validateFastaSequence(
   sequenceLine: string,
   lineNumber: number,
   options: { skipValidation?: boolean }
@@ -853,7 +853,7 @@ export function validateFastaSequence(
  * Detect if string contains FASTA format data
  * Tree-shakeable function for FASTA format detection
  */
-export function detectFastaFormat(data: string): boolean {
+function detectFastaFormat(data: string): boolean {
   const trimmed = data.trim();
   return trimmed.startsWith(">") && trimmed.includes("\n");
 }
@@ -862,7 +862,7 @@ export function detectFastaFormat(data: string): boolean {
  * Count sequences in FASTA data without full parsing
  * Tree-shakeable function for efficient sequence counting
  */
-export function countFastaSequences(data: string): number {
+function countFastaSequences(data: string): number {
   return (data.match(/^>/gm) || []).length;
 }
 
@@ -870,7 +870,7 @@ export function countFastaSequences(data: string): number {
  * Extract sequence IDs from FASTA data without full parsing
  * Tree-shakeable function for quick ID extraction
  */
-export function extractFastaIds(data: string): string[] {
+function extractFastaIds(data: string): string[] {
   const matches = data.match(/^>([^\s\n\r]+)/gm);
   return matches ? matches.map((m) => m.slice(1)) : [];
 }
@@ -879,7 +879,7 @@ export function extractFastaIds(data: string): string[] {
  * Build complete FASTA sequence record from parsed components
  * Tree-shakeable function for FASTA record construction
  */
-export function buildFastaRecord(
+function buildFastaRecord(
   partialSequence: Partial<FastaSequence>,
   sequence: string,
   length: number
@@ -906,7 +906,7 @@ export function buildFastaRecord(
  * @param line The line to check
  * @returns true if line should be skipped (empty or comment)
  */
-export function shouldSkipFastaLine(line: string): boolean {
+function shouldSkipFastaLine(line: string): boolean {
   const trimmed = line.trim();
   // Skip empty lines and semicolon comments (deprecated but still found)
   return !trimmed || trimmed.startsWith(";");
@@ -918,7 +918,7 @@ export function shouldSkipFastaLine(line: string): boolean {
  * @param line The line to check
  * @returns true if line is a header (starts with >)
  */
-export function isFastaHeader(line: string): boolean {
+function isFastaHeader(line: string): boolean {
   return line.trim().startsWith(">");
 }
 
@@ -928,7 +928,7 @@ export function isFastaHeader(line: string): boolean {
  * @param sequenceBuffer Array of sequence parts to concatenate
  * @returns Concatenated and cleaned sequence
  */
-export function concatenateFastaSequence(sequenceBuffer: string[]): string {
+function concatenateFastaSequence(sequenceBuffer: string[]): string {
   return sequenceBuffer.join("");
 }
 
@@ -938,7 +938,7 @@ export function concatenateFastaSequence(sequenceBuffer: string[]): string {
  * @param sequence Raw sequence string
  * @returns Normalized sequence
  */
-export function normalizeFastaSequence(sequence: string): string {
+function normalizeFastaSequence(sequence: string): string {
   // Remove all whitespace and convert to uppercase
   return sequence.replace(/\s/g, "").toUpperCase();
 }
@@ -951,11 +951,7 @@ export function normalizeFastaSequence(sequence: string): string {
  * @param context Additional context for error
  * @returns Enhanced ParseError with biological context
  */
-export function createFastaParseError(
-  error: unknown,
-  lineNumber: number,
-  context?: string
-): ParseError {
+function createFastaParseError(error: unknown, lineNumber: number, context?: string): ParseError {
   if (error instanceof ParseError || error instanceof SequenceError) {
     return error as ParseError;
   }
@@ -976,7 +972,7 @@ export function createFastaParseError(
  * @param sequenceBuffer Buffer containing sequence data
  * @param lineNumber Current line number
  */
-export function validateFastaParsingState(
+function validateFastaParsingState(
   currentSequence: Partial<FastaSequence> | null,
   sequenceBuffer: string[],
   lineNumber: number
@@ -996,7 +992,7 @@ export function validateFastaParsingState(
  * @param sequence The sequence to analyze
  * @returns Statistics including length, GC content, and base composition
  */
-export function calculateFastaStats(sequence: string): {
+function calculateFastaStats(sequence: string): {
   length: number;
   gcContent: number;
   composition: Record<string, number>;
@@ -1023,7 +1019,7 @@ export function calculateFastaStats(sequence: string): {
  * Validate inputs for finalizing a FASTA sequence
  * Tree-shakeable function for pre-finalization validation
  */
-export function validateFastaFinalizeInputs(
+function validateFastaFinalizeInputs(
   partialSequence: Partial<FastaSequence> | null,
   sequenceBuffer: string[],
   lineNumber: number
@@ -1046,7 +1042,7 @@ export function validateFastaFinalizeInputs(
  * Validate final FASTA sequence using ArkType
  * Tree-shakeable function for complete sequence validation
  */
-export function validateFastaFinalSequence(
+function validateFastaFinalSequence(
   fastaSequence: FastaSequence,
   lineNumber: number,
   skipValidation?: boolean
@@ -1067,7 +1063,7 @@ export function validateFastaFinalSequence(
  * Assert FASTA sequence postconditions
  * Tree-shakeable function for sequence integrity checks
  */
-export function assertFastaPostconditions(fastaSequence: FastaSequence, lineNumber: number): void {
+function assertFastaPostconditions(fastaSequence: FastaSequence, lineNumber: number): void {
   if (fastaSequence.format !== "fasta") {
     throw new SequenceError("result format must be fasta", fastaSequence.id, lineNumber);
   }
@@ -1085,7 +1081,7 @@ export function assertFastaPostconditions(fastaSequence: FastaSequence, lineNumb
  * @param filePath The file path to validate
  * @returns Promise resolving to validated path
  */
-export async function validateFastaFilePath(filePath: string): Promise<string> {
+async function validateFastaFilePath(filePath: string): Promise<string> {
   // Basic path validation
   if (!filePath || filePath.length === 0) {
     throw new FileError("File path cannot be empty", filePath, "read");
@@ -1132,3 +1128,27 @@ export async function validateFastaFilePath(filePath: string): Promise<string> {
     );
   }
 }
+
+// Exports - grouped at end per project style guide
+export {
+  FastaParser,
+  FastaWriter,
+  FastaUtils,
+  parseFastaHeader,
+  validateFastaSequence,
+  detectFastaFormat,
+  countFastaSequences,
+  extractFastaIds,
+  buildFastaRecord,
+  shouldSkipFastaLine,
+  isFastaHeader,
+  concatenateFastaSequence,
+  normalizeFastaSequence,
+  createFastaParseError,
+  validateFastaParsingState,
+  calculateFastaStats,
+  validateFastaFinalizeInputs,
+  validateFastaFinalSequence,
+  assertFastaPostconditions,
+  validateFastaFilePath,
+};

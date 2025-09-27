@@ -34,10 +34,13 @@ export { BloomFilter, CountingBloomFilter, ScalableBloomFilter } from "./bloom-f
 export {
   atContent,
   baseComposition,
+  baseContent,
+  baseCount,
   findQualityTrimEnd,
   findQualityTrimStart,
   gcContent,
   SequenceCalculations,
+  sequenceAlphabet,
   translateSimple,
 } from "./calculations";
 // Genomic coordinate parsing and validation
@@ -72,6 +75,16 @@ export {
   translateCodon,
   translateSixFrames,
 } from "./genetic-codes";
+// Hashing utilities
+export {
+  type HashAlgorithm,
+  hash,
+  hashMD5,
+  hashSHA1,
+  hashSHA256,
+  hashString,
+  murmurHash3,
+} from "./hashing";
 // Memory management strategies
 export { MemoryStrategy } from "./interfaces";
 // Memory management strategies (low-level)

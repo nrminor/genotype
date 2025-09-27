@@ -318,6 +318,132 @@ export function findQualityTrimEnd(
 // =============================================================================
 
 /**
+ * Calculate content percentage of specified bases in a sequence
+ *
+ * This is a generalized version of gcContent/atContent that works with any base set.
+ * Used for SeqKit fx2tab compatibility.
+ *
+ * @example
+ * ```typescript
+ * baseContent('ATCGATCG', 'AT') // 50
+ * baseContent('ATCGATCG', 'GC') // 50
+ * baseContent('NNNATCG', 'N') // 42.86
+ * baseContent('atcg', 'AT', true) // 0 (case sensitive)
+ * ```
+ *
+ * @param sequence - DNA or RNA sequence
+ * @param bases - Bases to count (e.g., "AT", "GC", "N")
+ * @param caseSensitive - Whether to use case-sensitive matching (default: false)
+ * @returns Percentage of specified bases (0-100)
+ *
+ * 🔥 NATIVE: SIMD character counting for specific base sets
+ */
+export function baseContent(sequence: string, bases: string, caseSensitive = false): number {
+  // Tiger Style: Assert input
+  if (!sequence || typeof sequence !== "string") {
+    throw new Error("Sequence must be a non-empty string");
+  }
+  if (!bases || typeof bases !== "string") {
+    throw new Error("Bases must be a non-empty string");
+  }
+
+  const seq = caseSensitive ? sequence : sequence.toUpperCase();
+  const baseSet = new Set(caseSensitive ? bases : bases.toUpperCase());
+  let count = 0;
+
+  // 🔥 NATIVE: SIMD character matching against set
+  for (let i = 0; i < seq.length; i++) {
+    const char = seq[i];
+    if (char && baseSet.has(char)) {
+      count++;
+    }
+  }
+
+  return seq.length === 0 ? 0 : (count / seq.length) * 100;
+}
+
+/**
+ * Count occurrences of specified bases in a sequence
+ *
+ * @example
+ * ```typescript
+ * baseCount('ATCGATCG', 'AT') // 4
+ * baseCount('NNNATCG', 'N') // 3
+ * baseCount('atcg', 'AT', true) // 0 (case sensitive)
+ * ```
+ *
+ * @param sequence - DNA or RNA sequence
+ * @param bases - Bases to count (e.g., "AT", "GC", "N")
+ * @param caseSensitive - Whether to use case-sensitive matching (default: false)
+ * @returns Count of specified bases
+ *
+ * 🔥 NATIVE: SIMD population count for base matching
+ */
+export function baseCount(sequence: string, bases: string, caseSensitive = false): number {
+  // Tiger Style: Assert input
+  if (!sequence || typeof sequence !== "string") {
+    throw new Error("Sequence must be a non-empty string");
+  }
+  if (!bases || typeof bases !== "string") {
+    throw new Error("Bases must be a non-empty string");
+  }
+
+  const seq = caseSensitive ? sequence : sequence.toUpperCase();
+  const baseSet = new Set(caseSensitive ? bases : bases.toUpperCase());
+  let count = 0;
+
+  // 🔥 NATIVE: SIMD character counting
+  for (let i = 0; i < seq.length; i++) {
+    const char = seq[i];
+    if (char && baseSet.has(char)) {
+      count++;
+    }
+  }
+
+  return count;
+}
+
+/**
+ * Extract unique alphabet (characters) from a sequence
+ *
+ * Returns a sorted string of all unique characters found in the sequence.
+ * Useful for determining sequence type and detecting non-standard characters.
+ *
+ * @example
+ * ```typescript
+ * sequenceAlphabet('AAACCCGGGTTT') // 'ACGT'
+ * sequenceAlphabet('ACGTNNNN') // 'ACGNT'
+ * sequenceAlphabet('AACCggtt', false) // 'ACGT' (case insensitive)
+ * sequenceAlphabet('AACCggtt', true) // 'ACgtg' (case sensitive)
+ * ```
+ *
+ * @param sequence - Input sequence
+ * @param caseSensitive - Whether to preserve case (default: false)
+ * @returns Sorted string of unique characters
+ *
+ * 🔥 NATIVE: Bit vector for character presence
+ */
+export function sequenceAlphabet(sequence: string, caseSensitive = false): string {
+  // Tiger Style: Assert input
+  if (!sequence || typeof sequence !== "string") {
+    throw new Error("Sequence must be a non-empty string");
+  }
+
+  const seq = caseSensitive ? sequence : sequence.toUpperCase();
+  const chars = new Set<string>();
+
+  // 🔥 NATIVE: Bit vector character accumulation
+  for (let i = 0; i < seq.length; i++) {
+    const char = seq[i];
+    if (char) {
+      chars.add(char);
+    }
+  }
+
+  return Array.from(chars).sort().join("");
+}
+
+/**
  * Grouped export of all calculation functions
  *
  * @example
@@ -330,6 +456,9 @@ export const SequenceCalculations = {
   gcContent,
   atContent,
   baseComposition,
+  baseContent,
+  baseCount,
+  sequenceAlphabet,
   translateSimple,
   findQualityTrimStart,
   findQualityTrimEnd,

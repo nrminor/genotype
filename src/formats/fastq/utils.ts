@@ -3,17 +3,42 @@
  *
  * Provides helper functions for FASTQ validation, detection, and manipulation.
  * These are tree-shakeable functions that can be imported individually.
+ *
+ * NOTE: Most validation has been moved to the validation module.
+ * This module primarily provides parsing helpers and deprecated compatibility.
  */
 
-import { ParseError, QualityError, SequenceError, ValidationError } from "../../errors";
+// =============================================================================
+// IMPORTS
+// =============================================================================
+
+import { ParseError, QualityError, SequenceError } from "../../errors";
+import { qualityToScores, scoresToQuality } from "../../operations/core/quality";
 import type { QualityEncoding } from "../../types";
 import { validateFastaSequence } from "../fasta";
 import { detectFastqFormat } from "./detection";
 
-// Re-export detectFastqFormat for backward compatibility
-export { detectFastqFormat };
+// =============================================================================
+// CONSTANTS
+// =============================================================================
 
-import { qualityToScores, scoresToQuality } from "../../operations/core/quality";
+// No module-level constants needed
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+// No module-level types needed
+
+// =============================================================================
+// INTERFACES
+// =============================================================================
+
+// No module-level interfaces needed
+
+// =============================================================================
+// FUNCTIONS
+// =============================================================================
 
 /**
  * Parse FASTQ header line and extract ID and description
@@ -33,7 +58,7 @@ export function parseFastqHeader(
 ): { id: string; description?: string } {
   // Validate FASTQ header format
   if (!headerLine.startsWith("@")) {
-    throw new ValidationError('FASTQ header must start with "@"');
+    throw new ParseError('FASTQ header must start with "@"', "FASTQ", lineNumber, headerLine);
   }
 
   const header = headerLine.slice(1); // Remove '@'
@@ -212,6 +237,7 @@ export const FastqUtils = {
 
   /**
    * Perform quick validation of FASTQ structure
+   * @deprecated Use validateFastqRecord from validation module
    */
   validateStructure: (data: string): boolean => {
     try {
@@ -245,6 +271,7 @@ export const FastqUtils = {
 
   /**
    * Validate FASTQ record structure
+   * @deprecated Use validateFastqRecord from validation module instead
    */
   validateRecord(lines: string[]): { valid: boolean; error?: string } {
     if (lines.length !== 4) {
@@ -272,3 +299,10 @@ export const FastqUtils = {
     return { valid: true };
   },
 } as const;
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+// Re-export detectFastqFormat for backward compatibility
+export { detectFastqFormat };

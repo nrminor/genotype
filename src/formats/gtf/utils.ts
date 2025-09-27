@@ -27,7 +27,7 @@ import type { GtfFeature } from "./types";
  *
  * @public
  */
-export function detectGtfFormat(data: string): boolean {
+function detectGtfFormat(data: string): boolean {
   if (typeof data !== "string" || data.length === 0) {
     return false;
   }
@@ -84,7 +84,7 @@ export function detectGtfFormat(data: string): boolean {
  *
  * @public
  */
-export function countGtfFeatures(data: string): number {
+function countGtfFeatures(data: string): number {
   if (typeof data !== "string") return 0;
 
   return data.split(/\r?\n/).filter((line) => {
@@ -110,7 +110,7 @@ export function countGtfFeatures(data: string): number {
  *
  * @public
  */
-export function filterFeaturesByType(
+function filterFeaturesByType(
   features: AsyncIterable<GtfFeature>,
   featureTypes: string[]
 ): AsyncIterable<GtfFeature> {
@@ -126,3 +126,9 @@ export function filterFeaturesByType(
     },
   };
 }
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export { detectGtfFormat, countGtfFeatures, filterFeaturesByType };

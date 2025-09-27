@@ -9,13 +9,130 @@
 
 import type { ParserOptions, Strand } from "../../types";
 
+// =============================================================================
+// CONSTANTS
+// =============================================================================
+
+/**
+ * Standard GTF feature types from specification
+ * Useful for validation, user guidance, and ensuring GTF compliance
+ *
+ * @public
+ */
+const STANDARD_GTF_FEATURES = [
+  "gene",
+  "transcript",
+  "exon",
+  "CDS",
+  "UTR",
+  "start_codon",
+  "stop_codon",
+  "Selenocysteine",
+] as const;
+
+/**
+ * GTF coordinate limits based on genomics domain knowledge
+ *
+ * @public
+ */
+const GTF_LIMITS = {
+  /** Maximum chromosome size - larger than any known chromosome */
+  MAX_CHROMOSOME_SIZE: 2_500_000_000, // 2.5GB (aligned with enhanced coordinate system for large genomes)
+  /** Minimum coordinate value - GTF is 1-based */
+  MIN_COORDINATE: 1,
+} as const;
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+/**
+ * Database variant types for GTF format sources
+ *
+ * @public
+ */
+type DatabaseVariant = "GENCODE" | "Ensembl" | "RefSeq" | "unknown";
+
+/**
+ * Standard GTF feature types per specification
+ * Constrained set compared to GFF3's extensive Sequence Ontology terms
+ *
+ * @public
+ */
+type GtfFeatureType =
+  | "gene"
+  | "transcript"
+  | "exon"
+  | "CDS"
+  | "UTR"
+  | "start_codon"
+  | "stop_codon"
+  | "Selenocysteine";
+
+/**
+ * Human chromosome names with template literal validation
+ * Prevents common typos in chromosome specifications
+ *
+ * @public
+ */
+type HumanChromosome =
+  | `chr${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22}`
+  | "chrX"
+  | "chrY"
+  | "chrM"
+  | "chrMT";
+
+/**
+ * Valid genomic region string with compile-time format validation
+ * Parses and validates genomic region format (chr:start-end) with biological constraints
+ *
+ * @example
+ * ```typescript
+ * type Valid1 = ValidGenomicRegion<'chr1:1000-2000'>;  // ✅ Valid
+ * type Valid2 = ValidGenomicRegion<'chrX:500-1500'>;   // ✅ Valid
+ * type Invalid1 = ValidGenomicRegion<'chr25:1000-2000'>; // ❌ Compile error: Invalid chromosome
+ * type Invalid2 = ValidGenomicRegion<'invalid-format'>; // ❌ Compile error: Bad format
+ * ```
+ *
+ * @public
+ */
+type ValidGenomicRegion<T extends string> = T extends `${infer Chr}:${infer Start}-${infer End}`
+  ? Chr extends HumanChromosome
+    ? Start extends `${number}`
+      ? End extends `${number}`
+        ? T // Valid region format with human chromosome
+        : never
+      : never
+    : never
+  : never;
+
+/**
+ * Standard gene biotype classifications
+ * Based on GENCODE and Ensembl biotype ontologies
+ *
+ * @public
+ */
+type StandardGeneType =
+  | "protein_coding"
+  | "lncRNA"
+  | "miRNA"
+  | "pseudogene"
+  | "antisense"
+  | "misc_RNA"
+  | "processed_pseudogene"
+  | "unprocessed_pseudogene";
+
+// =============================================================================
+// INTERFACES
+// =============================================================================
+
 /**
  * GTF feature annotation
  * Represents a single feature from GTF format with parsed attributes
  *
  * @public
  */
-export interface GtfFeature {
+interface GtfFeature {
   /** Chromosome or sequence name (e.g., "chr1", "chrX") */
   readonly seqname: string;
   /** Annotation source (e.g., "HAVANA", "GENCODE", "Ensembl") */
@@ -48,7 +165,7 @@ export interface GtfFeature {
  *
  * @public
  */
-export interface NormalizedGtfAttributes {
+interface NormalizedGtfAttributes {
   /** Normalized gene classification (from gene_type or gene_biotype) */
   geneType?: string;
   /** Normalized transcript classification */
@@ -66,7 +183,7 @@ export interface NormalizedGtfAttributes {
  *
  * @public
  */
-export interface GtfParserOptions extends ParserOptions {
+interface GtfParserOptions extends ParserOptions {
   /** Feature types to include (default: all) */
   includeFeatures?: string[];
   /** Feature types to exclude */
@@ -84,129 +201,12 @@ export interface GtfParserOptions extends ParserOptions {
 }
 
 /**
- * Database variant types for GTF format sources
- *
- * @public
- */
-export type DatabaseVariant = "GENCODE" | "Ensembl" | "RefSeq" | "unknown";
-
-/**
- * Standard GTF feature types per specification
- * Constrained set compared to GFF3's extensive Sequence Ontology terms
- *
- * @public
- */
-export type GtfFeatureType =
-  | "gene"
-  | "transcript"
-  | "exon"
-  | "CDS"
-  | "UTR"
-  | "start_codon"
-  | "stop_codon"
-  | "Selenocysteine";
-
-/**
- * Human chromosome names with template literal validation
- * Prevents common typos in chromosome specifications
- *
- * @public
- */
-export type HumanChromosome =
-  | `chr${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22}`
-  | "chrX"
-  | "chrY"
-  | "chrM"
-  | "chrMT";
-
-/**
- * Valid genomic region string with compile-time format validation
- * Parses and validates genomic region format (chr:start-end) with biological constraints
- *
- * @example
- * ```typescript
- * type Valid1 = ValidGenomicRegion<'chr1:1000-2000'>;  // ✅ Valid
- * type Valid2 = ValidGenomicRegion<'chrX:500-1500'>;   // ✅ Valid
- * type Invalid1 = ValidGenomicRegion<'chr25:1000-2000'>; // ❌ Compile error: Invalid chromosome
- * type Invalid2 = ValidGenomicRegion<'invalid-format'>; // ❌ Compile error: Bad format
- * ```
- *
- * @public
- */
-export type ValidGenomicRegion<T extends string> =
-  T extends `${infer Chr}:${infer Start}-${infer End}`
-    ? Chr extends HumanChromosome
-      ? Start extends `${number}`
-        ? End extends `${number}`
-          ? T // Valid region format with human chromosome
-          : never
-        : never
-      : never
-    : never;
-
-/**
- * Standard gene biotype classifications
- * Based on GENCODE and Ensembl biotype ontologies
- *
- * @public
- */
-export type StandardGeneType =
-  | "protein_coding"
-  | "lncRNA"
-  | "miRNA"
-  | "pseudogene"
-  | "antisense"
-  | "misc_RNA"
-  | "processed_pseudogene"
-  | "unprocessed_pseudogene";
-
-// Feature-specific types with type safety constraints
-/** Gene feature with type safety constraints */
-export type GtfGeneFeature = GtfFeature & {
-  feature: "gene";
-  frame: null;
-  attributes: { gene_id: string } & { transcript_id?: never };
-};
-
-/** Transcript feature with required attributes */
-export type GtfTranscriptFeature = GtfFeature & {
-  feature: "transcript";
-  attributes: { gene_id: string; transcript_id: string };
-};
-
-/** Exon feature with transcript relationship */
-export type GtfExonFeature = GtfFeature & {
-  feature: "exon";
-  attributes: { gene_id: string; transcript_id: string; exon_number: string };
-};
-
-/** CDS feature with required frame */
-export type GtfCdsFeature = GtfFeature & {
-  feature: "CDS";
-  frame: 0 | 1 | 2;
-  attributes: { gene_id: string; transcript_id: string };
-};
-
-/** UTR feature variants */
-export type GtfUtrFeature = GtfFeature & {
-  feature: "UTR" | "5UTR" | "3UTR";
-  attributes: { gene_id: string; transcript_id: string };
-};
-
-/** Codon features (start/stop) */
-export type GtfCodonFeature = GtfFeature & {
-  feature: "start_codon" | "stop_codon";
-  frame: 0;
-  attributes: { gene_id: string; transcript_id: string };
-};
-
-/**
  * Hierarchical gene model structure
  * Represents complete gene annotation with all associated features
  *
  * @public
  */
-export interface GeneModel {
+interface GeneModel {
   /** Gene-level feature */
   gene: GtfGeneFeature;
   /** All transcript isoforms with their components */
@@ -220,7 +220,7 @@ export interface GeneModel {
  *
  * @public
  */
-export interface TranscriptModel {
+interface TranscriptModel {
   /** Transcript feature */
   transcript: GtfTranscriptFeature;
   /** All exons for this transcript */
@@ -241,7 +241,7 @@ export interface TranscriptModel {
  *
  * @public
  */
-export interface GeneModelMetadata {
+interface GeneModelMetadata {
   /** Number of transcript isoforms */
   transcriptCount: number;
   /** Total exon count across all isoforms */
@@ -258,8 +258,48 @@ export interface GeneModelMetadata {
   biotype: StandardGeneType | "unknown";
 }
 
+// Feature-specific types with type safety constraints
+/** Gene feature with type safety constraints */
+type GtfGeneFeature = GtfFeature & {
+  feature: "gene";
+  frame: null;
+  attributes: { gene_id: string } & { transcript_id?: never };
+};
+
+/** Transcript feature with required attributes */
+type GtfTranscriptFeature = GtfFeature & {
+  feature: "transcript";
+  attributes: { gene_id: string; transcript_id: string };
+};
+
+/** Exon feature with transcript relationship */
+type GtfExonFeature = GtfFeature & {
+  feature: "exon";
+  attributes: { gene_id: string; transcript_id: string; exon_number: string };
+};
+
+/** CDS feature with required frame */
+type GtfCdsFeature = GtfFeature & {
+  feature: "CDS";
+  frame: 0 | 1 | 2;
+  attributes: { gene_id: string; transcript_id: string };
+};
+
+/** UTR feature variants */
+type GtfUtrFeature = GtfFeature & {
+  feature: "UTR" | "5UTR" | "3UTR";
+  attributes: { gene_id: string; transcript_id: string };
+};
+
+/** Codon features (start/stop) */
+type GtfCodonFeature = GtfFeature & {
+  feature: "start_codon" | "stop_codon";
+  frame: 0;
+  attributes: { gene_id: string; transcript_id: string };
+};
+
 /** Protein-coding gene model with required CDS components */
-export type ProteinCodingGeneModel = GeneModel & {
+type ProteinCodingGeneModel = GeneModel & {
   gene: GtfGeneFeature & { attributes: { gene_type: "protein_coding" } };
   transcripts: Array<
     TranscriptModel & {
@@ -272,7 +312,7 @@ export type ProteinCodingGeneModel = GeneModel & {
 };
 
 /** Long non-coding RNA gene model */
-export type LncRNAGeneModel = GeneModel & {
+type LncRNAGeneModel = GeneModel & {
   gene: GtfGeneFeature & { attributes: { gene_type: "lncRNA" } };
   transcripts: Array<
     TranscriptModel & {
@@ -285,36 +325,36 @@ export type LncRNAGeneModel = GeneModel & {
 };
 
 /** Gene model with alternative splicing */
-export type AlternativeSplicingGeneModel = GeneModel & {
+type AlternativeSplicingGeneModel = GeneModel & {
   transcripts: [TranscriptModel, TranscriptModel, ...TranscriptModel[]]; // At least 2
   metadata: GeneModelMetadata & { hasAlternativeSplicing: true; transcriptCount: number };
 };
 
-/**
- * Standard GTF feature types from specification
- * Useful for validation, user guidance, and ensuring GTF compliance
- *
- * @public
- */
-export const STANDARD_GTF_FEATURES = [
-  "gene",
-  "transcript",
-  "exon",
-  "CDS",
-  "UTR",
-  "start_codon",
-  "stop_codon",
-  "Selenocysteine",
-] as const;
+// =============================================================================
+// EXPORTS
+// =============================================================================
 
-/**
- * GTF coordinate limits based on genomics domain knowledge
- *
- * @public
- */
-export const GTF_LIMITS = {
-  /** Maximum chromosome size - larger than any known chromosome */
-  MAX_CHROMOSOME_SIZE: 2_500_000_000, // 2.5GB (aligned with enhanced coordinate system for large genomes)
-  /** Minimum coordinate value - GTF is 1-based */
-  MIN_COORDINATE: 1,
-} as const;
+export { STANDARD_GTF_FEATURES, GTF_LIMITS };
+
+export type {
+  DatabaseVariant,
+  GtfFeatureType,
+  HumanChromosome,
+  ValidGenomicRegion,
+  StandardGeneType,
+  GtfFeature,
+  NormalizedGtfAttributes,
+  GtfParserOptions,
+  GeneModel,
+  TranscriptModel,
+  GeneModelMetadata,
+  GtfGeneFeature,
+  GtfTranscriptFeature,
+  GtfExonFeature,
+  GtfCdsFeature,
+  GtfUtrFeature,
+  GtfCodonFeature,
+  ProteinCodingGeneModel,
+  LncRNAGeneModel,
+  AlternativeSplicingGeneModel,
+};

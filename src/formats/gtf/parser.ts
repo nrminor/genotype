@@ -9,12 +9,7 @@
  */
 
 import { type } from "arktype";
-import { GenotypeError, ParseError, ValidationError } from "../../errors";
-import {
-  parseEndPosition,
-  parseStartPosition,
-  validateFinalCoordinates,
-} from "../../operations/core/coordinates";
+import { ParseError, ValidationError } from "../../errors";
 import type { Strand } from "../../types";
 import { AbstractParser } from "../abstract-parser";
 import type {
@@ -27,7 +22,7 @@ import type {
   StandardGeneType,
   ValidGenomicRegion,
 } from "./types";
-import { GTF_LIMITS, STANDARD_GTF_FEATURES } from "./types";
+import { GTF_LIMITS } from "./types";
 
 /**
  * ArkType validation for GTF parser options
@@ -59,9 +54,7 @@ const GtfParserOptionsSchema = type({
  *
  * @public
  */
-export function detectDatabaseVariant(
-  attributes: Record<string, string | string[]>
-): DatabaseVariant {
+function detectDatabaseVariant(attributes: Record<string, string | string[]>): DatabaseVariant {
   // GENCODE indicators: gene_type, level, havana_gene, embedded versions
   if (attributes.gene_type || attributes.level || attributes.havana_gene) {
     return "GENCODE";
@@ -116,7 +109,7 @@ function normalizeTagsToArray(tagValue: string | string[] | undefined): string[]
  *
  * @public
  */
-export function normalizeGtfAttributes(
+function normalizeGtfAttributes(
   attributes: Record<string, string | string[]>,
   sourceDatabase: DatabaseVariant
 ): NormalizedGtfAttributes {
@@ -181,7 +174,7 @@ export function normalizeGtfAttributes(
  *
  * @public
  */
-export function parseGtfAttributes(attributeString: string): Record<string, string | string[]> {
+function parseGtfAttributes(attributeString: string): Record<string, string | string[]> {
   const attributes: Record<string, string | string[]> = {};
 
   if (!attributeString || attributeString.trim() === "") {
@@ -241,7 +234,7 @@ export function parseGtfAttributes(attributeString: string): Record<string, stri
  *
  * @public
  */
-export function validateGtfStrand(strand: string): strand is Strand {
+function validateGtfStrand(strand: string): strand is Strand {
   return strand === "+" || strand === "-" || strand === ".";
 }
 
@@ -253,7 +246,7 @@ export function validateGtfStrand(strand: string): strand is Strand {
  *
  * @public
  */
-export function parseGtfScore(scoreStr: string): number | null {
+function parseGtfScore(scoreStr: string): number | null {
   if (scoreStr === "." || scoreStr === "") {
     return null;
   }
@@ -274,7 +267,7 @@ export function parseGtfScore(scoreStr: string): number | null {
  *
  * @public
  */
-export function parseGtfFrame(frameStr: string): number | null {
+function parseGtfFrame(frameStr: string): number | null {
   if (frameStr === "." || frameStr === "") {
     return null;
   }
@@ -290,7 +283,7 @@ export function parseGtfFrame(frameStr: string): number | null {
 /**
  * GTF-specific coordinate validation for 1-based inclusive system
  */
-export function validateGtfCoordinates(
+function validateGtfCoordinates(
   start: number,
   end: number,
   sequenceLength = Number.MAX_SAFE_INTEGER,
@@ -518,7 +511,7 @@ function buildGtfFeature(
  *
  * @public
  */
-export class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
+class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
   protected getDefaultOptions(): Partial<GtfParserOptions> {
     return {
       skipValidation: false,
@@ -798,7 +791,7 @@ export class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
  *
  * @public
  */
-export class GtfQueryBuilder<TCurrentFilter = GtfFeature> {
+class GtfQueryBuilder<TCurrentFilter = GtfFeature> {
   /**
    * Create query builder with GTF feature source
    * @param source AsyncIterable of GTF features to query
@@ -989,7 +982,7 @@ export class GtfQueryBuilder<TCurrentFilter = GtfFeature> {
  *
  * @public
  */
-export function queryGtf(parser: GtfParser): {
+function queryGtf(parser: GtfParser): {
   from: (data: string) => GtfQueryBuilder<GtfFeature>;
 } {
   return {
@@ -999,3 +992,20 @@ export function queryGtf(parser: GtfParser): {
     },
   };
 }
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  detectDatabaseVariant,
+  normalizeGtfAttributes,
+  parseGtfAttributes,
+  validateGtfStrand,
+  parseGtfScore,
+  parseGtfFrame,
+  validateGtfCoordinates,
+  GtfParser,
+  GtfQueryBuilder,
+  queryGtf,
+};

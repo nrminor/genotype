@@ -85,7 +85,7 @@ interface BamParserOptions extends ParserOptions {
  * });
  * ```
  */
-export class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOptions> {
+class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOptions> {
   private baiReader?: BAIReader;
   private baiIndex?: BAIIndex;
   private referenceNames: string[] = [];
@@ -1496,7 +1496,7 @@ export class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParse
 /**
  * BAM utility functions for format detection and operations
  */
-export const BAMUtils = {
+const BAMUtils = {
   /**
    * Detect if binary data contains BAM format
    */
@@ -1542,11 +1542,10 @@ export const BAMUtils = {
   },
 };
 
-// Export BAM writing components
-export { BAMWriter, type BAMWriterOptions };
-export { BGZFCompressor };
+// Exports - grouped at end per project style guide
+export { BAMParser, BAMUtils, BAMWriter, type BAMWriterOptions, BGZFCompressor };
 
-// Export BAI indexing components
+// Re-export BAI indexing components
 export { BAIReader } from "./bam/bai-reader";
 export { BinningUtils, VirtualOffsetUtils } from "./bam/bai-utils";
 export { BAIWriter } from "./bam/bai-writer";

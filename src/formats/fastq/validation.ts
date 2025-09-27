@@ -18,7 +18,6 @@
  */
 
 import { type } from "arktype";
-import { ValidationError } from "../../errors";
 import type { FastqSequence } from "../../types";
 
 // =============================================================================
@@ -28,12 +27,12 @@ import type { FastqSequence } from "../../types";
 /**
  * Validation levels for performance/safety tradeoffs
  */
-export type ValidationLevel = "none" | "quick" | "full";
+type ValidationLevel = "none" | "quick" | "full";
 
 /**
  * Platform detection result
  */
-export interface PlatformInfo {
+interface PlatformInfo {
   platform: "illumina" | "pacbio" | "nanopore" | "unknown";
   confidence: number;
   formatVersion?: string;
@@ -43,7 +42,7 @@ export interface PlatformInfo {
 /**
  * Validation warning with biological context
  */
-export interface ValidationWarning {
+interface ValidationWarning {
   message: string;
   severity: "low" | "medium" | "high";
   context?: Record<string, unknown>;
@@ -52,7 +51,7 @@ export interface ValidationWarning {
 /**
  * Validation result with warnings and platform info
  */
-export interface ValidationResult {
+interface ValidationResult {
   valid: boolean;
   record?: FastqSequence;
   warnings: ValidationWarning[];
@@ -71,7 +70,7 @@ export interface ValidationResult {
  * @performance O(1) - Only length comparison
  * @overhead ~14ns per record (ArkType baseline)
  */
-export const FastqRecordQuickValidator = type({
+const FastqRecordQuickValidator = type({
   id: "string>0",
   sequence: "string>0",
   quality: "string>0",
@@ -91,7 +90,7 @@ export const FastqRecordQuickValidator = type({
 });
 
 // Type inference for quick validation
-export type QuickValidatedRecord = typeof FastqRecordQuickValidator.infer;
+type QuickValidatedRecord = typeof FastqRecordQuickValidator.infer;
 
 // =============================================================================
 // PLATFORM DETECTION FUNCTIONS
@@ -100,10 +99,7 @@ export type QuickValidatedRecord = typeof FastqRecordQuickValidator.infer;
 /**
  * Detect Illumina platform characteristics
  */
-export function detectIlluminaPlatform(record: {
-  id: string;
-  quality?: string;
-}): PlatformInfo | null {
+function detectIlluminaPlatform(record: { id: string; quality?: string }): PlatformInfo | null {
   // Check for Illumina ID pattern
   // CASAVA 1.8+ format: @<instrument>:<run>:<flowcell>:<lane>:<tile>:<x>:<y>
   const illuminaMatch = record.id.match(
@@ -142,10 +138,7 @@ export function detectIlluminaPlatform(record: {
 /**
  * Detect PacBio platform characteristics
  */
-export function detectPacBioPlatform(record: {
-  id: string;
-  sequence?: string;
-}): PlatformInfo | null {
+function detectPacBioPlatform(record: { id: string; sequence?: string }): PlatformInfo | null {
   // Classic PacBio pattern: @m<movie>_<zmw>_<start>_<end>
   if (record.id.match(/^m\d+[_e]\d+_\d+/)) {
     const info: PlatformInfo = {
@@ -184,7 +177,7 @@ export function detectPacBioPlatform(record: {
 /**
  * Detect Oxford Nanopore platform characteristics
  */
-export function detectNanoporePlatform(record: {
+function detectNanoporePlatform(record: {
   id: string;
   description?: string;
   sequence?: string;
@@ -228,7 +221,7 @@ export function detectNanoporePlatform(record: {
 /**
  * Detect platform from FASTQ record
  */
-export function detectPlatform(record: {
+function detectPlatform(record: {
   id: string;
   description?: string;
   sequence?: string;
@@ -259,7 +252,7 @@ export function detectPlatform(record: {
 /**
  * Generate warnings for FASTQ record issues
  */
-export function generateValidationWarnings(record: {
+function generateValidationWarnings(record: {
   id: string;
   sequence: string;
   quality: string;
@@ -433,7 +426,7 @@ export function generateValidationWarnings(record: {
  * @performance O(n) where n = sequence length (for pattern detection)
  * @overhead ~100ns per record (with pattern matching and quality analysis)
  */
-export const FastqRecordFullValidator = type({
+const FastqRecordFullValidator = type({
   id: "string>0",
   sequence: "string>0",
   quality: "string>0",
@@ -483,7 +476,7 @@ export const FastqRecordFullValidator = type({
 });
 
 // Type inference for full validation
-export type FullValidatedRecord = typeof FastqRecordFullValidator.infer;
+type FullValidatedRecord = typeof FastqRecordFullValidator.infer;
 
 // =============================================================================
 // PERFORMANCE BENCHMARKING
@@ -492,7 +485,7 @@ export type FullValidatedRecord = typeof FastqRecordFullValidator.infer;
 /**
  * Performance characteristics and recommendations for validation levels
  */
-export const ValidationBenchmark = {
+const ValidationBenchmark = {
   /**
    * Overhead per record for each validation level (in nanoseconds)
    */
@@ -544,7 +537,7 @@ export const ValidationBenchmark = {
  * @param level - Validation level (none, quick, or full)
  * @returns Validation result with warnings and platform info
  */
-export function validateFastqRecord(
+function validateFastqRecord(
   record: Partial<FastqSequence>,
   level: ValidationLevel = "quick"
 ): ValidationResult {
@@ -614,7 +607,7 @@ export function validateFastqRecord(
 /**
  * Create a validation context with consistent warning handling
  */
-export function createValidationContext(level: ValidationLevel = "quick"): {
+function createValidationContext(level: ValidationLevel = "quick"): {
   level: ValidationLevel;
   warnings: ValidationWarning[];
   platformInfo?: PlatformInfo;
@@ -656,3 +649,29 @@ export function createValidationContext(level: ValidationLevel = "quick"): {
 
   return context;
 }
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export type {
+  ValidationLevel,
+  PlatformInfo,
+  ValidationWarning,
+  ValidationResult,
+  QuickValidatedRecord,
+  FullValidatedRecord,
+};
+
+export {
+  FastqRecordQuickValidator,
+  FastqRecordFullValidator,
+  detectIlluminaPlatform,
+  detectPacBioPlatform,
+  detectNanoporePlatform,
+  detectPlatform,
+  generateValidationWarnings,
+  ValidationBenchmark,
+  validateFastqRecord,
+  createValidationContext,
+};

@@ -26,6 +26,16 @@ import { CleanProcessor } from "./clean";
 import { ConcatProcessor } from "./concat";
 import { ConvertProcessor } from "./convert";
 import { FilterProcessor } from "./filter";
+import {
+  type ColumnId,
+  type Fx2TabOptions,
+  type Fx2TabRow,
+  fx2tab,
+  rowsToStrings,
+  type Tab2FxOptions,
+  TabularOps,
+  tab2fx,
+} from "./fx2tab";
 import { GrepProcessor } from "./grep";
 import { LocateProcessor } from "./locate";
 import { QualityProcessor } from "./quality";
@@ -86,6 +96,90 @@ export class SeqOps<T extends AbstractSequence> {
    * @param source - Input sequences (async iterable)
    */
   constructor(private readonly source: AsyncIterable<T>) {}
+
+  // =============================================================================
+  // STATIC FACTORY METHODS
+  // =============================================================================
+
+  /**
+   * Create SeqOps pipeline from delimiter-separated file
+   *
+   * Supports auto-detection of delimiter and format. Files can be compressed
+   * (.gz, .zst) and will be automatically decompressed during streaming.
+   *
+   * @param path - Path to DSV file (TSV, CSV, or custom delimiter)
+   * @param options - Parsing options (delimiter auto-detected if not specified)
+   * @returns New SeqOps pipeline for sequence processing
+   *
+   * @example
+   * ```typescript
+   * // Auto-detect delimiter
+   * const sequences = await SeqOps.fromDSV('data.txt').collect();
+   *
+   * // Explicit delimiter with custom columns
+   * const genes = await SeqOps.fromDSV('genes.psv', {
+   *   delimiter: '|',
+   *   format: 'fastq'
+   * }).filter({ minLength: 100 });
+   * ```
+   *
+   * @since 2.1.0
+   */
+  static fromDSV(path: string, options?: Tab2FxOptions): SeqOps<AbstractSequence> {
+    return new SeqOps(tab2fx(path, options));
+  }
+
+  /**
+   * Create SeqOps pipeline from TSV (tab-separated) file
+   *
+   * Convenience method for TSV files with tab delimiter pre-configured.
+   *
+   * @param path - Path to TSV file
+   * @param options - Parsing options (delimiter forced to tab)
+   * @returns New SeqOps pipeline
+   *
+   * @example
+   * ```typescript
+   * await SeqOps.fromTSV('sequences.tsv')
+   *   .filter({ minLength: 50 })
+   *   .writeFasta('filtered.fa');
+   * ```
+   *
+   * @since 2.1.0
+   */
+  static fromTSV(
+    path: string,
+    options?: Omit<Tab2FxOptions, "delimiter">
+  ): SeqOps<AbstractSequence> {
+    return SeqOps.fromDSV(path, { ...options, delimiter: "\t" });
+  }
+
+  /**
+   * Create SeqOps pipeline from CSV (comma-separated) file
+   *
+   * Convenience method for CSV files with comma delimiter pre-configured.
+   * Handles Excel-exported CSV files with proper quote escaping.
+   *
+   * @param path - Path to CSV file
+   * @param options - Parsing options (delimiter forced to comma)
+   * @returns New SeqOps pipeline
+   *
+   * @example
+   * ```typescript
+   * await SeqOps.fromCSV('excel_export.csv')
+   *   .clean()
+   *   .stats()
+   *   .writeFastq('processed.fq');
+   * ```
+   *
+   * @since 2.1.0
+   */
+  static fromCSV(
+    path: string,
+    options?: Omit<Tab2FxOptions, "delimiter">
+  ): SeqOps<AbstractSequence> {
+    return SeqOps.fromDSV(path, { ...options, delimiter: "," });
+  }
 
   // =============================================================================
   // SEMANTIC API METHODS
@@ -1133,6 +1227,135 @@ export class SeqOps<T extends AbstractSequence> {
   }
 
   /**
+   * Convert sequences to tabular format (chainable)
+   *
+   * Returns a TabularOps instance that provides chainable operations on
+   * tabular row data. Can be filtered, transformed, and written to files.
+   *
+   * @param options - Conversion options
+   * @returns TabularOps instance for chaining
+   *
+   * @example
+   * ```typescript
+   * // Chain tabular operations
+   * await seqops(sequences)
+   *   .fx2tab({ columns: ['id', 'seq', 'gc'] })
+   *   .filter(row => row.gc > 40)
+   *   .writeTSV('high_gc.tsv');
+   *
+   * // Convert back to sequences
+   * for await (const seq of seqops(sequences)
+   *   .fx2tab({ columns: ['id', 'seq'] })
+   *   .toSequences()) {
+   *   console.log(seq.id);
+   * }
+   * ```
+   */
+  fx2tab<Columns extends readonly ColumnId[] = readonly ["id", "seq", "length"]>(
+    options?: Fx2TabOptions<Columns>
+  ): TabularOps<Columns> {
+    return new TabularOps(fx2tab(this.source, options));
+  }
+
+  /**
+   * Write sequences as TSV (tab-separated values)
+   *
+   * Terminal operation that writes sequences as tab-separated values.
+   *
+   * @param path - Output file path
+   * @param options - Conversion options (delimiter will be set to tab)
+   *
+   * @example
+   * ```typescript
+   * // Simple TSV output
+   * await seqops(sequences).writeTSV('output.tsv');
+   *
+   * // With column selection
+   * await seqops(sequences).writeTSV('output.tsv', {
+   *   columns: ['id', 'seq', 'length', 'gc']
+   * });
+   * ```
+   */
+  async writeTSV(path: string, options: Omit<Fx2TabOptions, "delimiter"> = {}): Promise<void> {
+    const stream = Bun.file(path).writer();
+
+    try {
+      for await (const row of fx2tab(this.source, { ...options, delimiter: "\t" })) {
+        await stream.write(row.__raw + "\n");
+      }
+    } finally {
+      stream.end();
+    }
+  }
+
+  /**
+   * Write sequences as CSV (comma-separated values)
+   *
+   * Terminal operation that writes sequences as comma-separated values.
+   * Excel protection is recommended for CSV files.
+   *
+   * @param path - Output file path
+   * @param options - Conversion options (delimiter will be set to comma)
+   *
+   * @example
+   * ```typescript
+   * // CSV with Excel protection
+   * await seqops(sequences).writeCSV('output.csv', {
+   *   excelSafe: true
+   * });
+   * ```
+   */
+  async writeCSV(path: string, options: Omit<Fx2TabOptions, "delimiter"> = {}): Promise<void> {
+    const stream = Bun.file(path).writer();
+
+    try {
+      for await (const row of fx2tab(this.source, { ...options, delimiter: "," })) {
+        await stream.write(row.__raw + "\n");
+      }
+    } finally {
+      stream.end();
+    }
+  }
+
+  /**
+   * Write sequences as DSV with custom delimiter
+   *
+   * Terminal operation for any delimiter-separated format.
+   *
+   * @param path - Output file path
+   * @param delimiter - Custom delimiter character(s)
+   * @param options - Conversion options
+   *
+   * @example
+   * ```typescript
+   * // Pipe-delimited output
+   * await seqops(sequences).writeDSV('output.psv', '|', {
+   *   columns: ['id', 'seq', 'length']
+   * });
+   *
+   * // Semicolon for European Excel
+   * await seqops(sequences).writeDSV('output.csv', ';', {
+   *   excelSafe: true
+   * });
+   * ```
+   */
+  async writeDSV(
+    path: string,
+    delimiter: string,
+    options: Omit<Fx2TabOptions, "delimiter"> = {}
+  ): Promise<void> {
+    const stream = Bun.file(path).writer();
+
+    try {
+      for await (const row of fx2tab(this.source, { ...options, delimiter })) {
+        await stream.write(row.__raw + "\n");
+      }
+    } finally {
+      stream.end();
+    }
+  }
+
+  /**
    * Collect all sequences into an array
    *
    * Terminal operation that materializes all sequences in memory.
@@ -1388,6 +1611,16 @@ seqops.concat = (
 // Export processors for advanced usage
 export { AmpliconProcessor } from "./amplicon";
 export { ConcatProcessor } from "./concat";
+export {
+  type ColumnId,
+  type Fx2TabOptions,
+  type Fx2TabRow,
+  fx2tab,
+  rowsToStrings,
+  type Tab2FxOptions,
+  TabularOps,
+  tab2fx,
+} from "./fx2tab";
 // Export split-specific types
 export { SplitProcessor, type SplitResult, type SplitSummary } from "./split";
 // Re-export types and classes for convenience

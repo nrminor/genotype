@@ -59,9 +59,7 @@ const BedParserOptionsSchema = type({
  * Detect BED format variant from number of fields
  * Function provides clear switch logic for variant detection
  */
-export function detectVariant(
-  fieldCount: number
-): "BED3" | "BED4" | "BED5" | "BED6" | "BED9" | "BED12" {
+function detectVariant(fieldCount: number): "BED3" | "BED4" | "BED5" | "BED6" | "BED9" | "BED12" {
   if (fieldCount < 3) {
     throw new BedError(
       `Invalid BED format: requires at least 3 fields, got ${fieldCount}`,
@@ -113,7 +111,7 @@ export function detectVariant(
  * Validate strand annotation
  * Function provides explicit BED interval validation
  */
-export function validateStrand(strand: string): strand is Strand {
+function validateStrand(strand: string): strand is Strand {
   return strand === "+" || strand === "-" || strand === ".";
 }
 
@@ -121,7 +119,7 @@ export function validateStrand(strand: string): strand is Strand {
  * Validate BED12 block structure according to UCSC specification
  * Function provides comprehensive block structure validation
  */
-export function validateBedBlockStructure(
+function validateBedBlockStructure(
   bed: Pick<BedInterval, "blockCount" | "blockStarts" | "blockSizes" | "start" | "end">
 ): void {
   // Early return for features without blocks
@@ -166,7 +164,7 @@ export function validateBedBlockStructure(
  * Parse RGB color string
  * Function handles genomics color format parsing
  */
-export function parseRgb(rgbString: string): { r: number; g: number; b: number } | null {
+function parseRgb(rgbString: string): { r: number; g: number; b: number } | null {
   // Handle comma-separated RGB values
   if (/^\d+,\d+,\d+$/.test(rgbString)) {
     const parts = rgbString.split(",").map(Number);
@@ -508,7 +506,7 @@ function shouldSkipBedLine(trimmedLine: string): boolean {
  * Function preserves BED biological semantics and line processing
  * Eliminates coordinate validation duplication while preserving allowZeroLength
  */
-export function validateCoordinates(
+function validateCoordinates(
   start: number,
   end: number,
   allowZeroLength = true
@@ -539,7 +537,7 @@ export function validateCoordinates(
  * Streaming BED parser following established FASTA patterns
  * Class methods maintain focused responsibilities for BED parsing
  */
-export class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
+class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
   protected getDefaultOptions(): Partial<BedParserOptions> {
     return {
       skipValidation: false,
@@ -776,7 +774,7 @@ export class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
  * BED format writer
  * Simple implementation focused on BED output formatting
  */
-export class BedWriter {
+class BedWriter {
   /**
    * Format BED interval as tab-separated string
    * Function provides clear BED field formatting logic
@@ -836,7 +834,7 @@ export class BedWriter {
  * Detect if data contains BED format
  * Function provides BED format variant detection logic
  */
-export function detectFormat(data: string): boolean {
+function detectFormat(data: string): boolean {
   if (data.length === 0) {
     return false;
   }
@@ -884,7 +882,7 @@ export function detectFormat(data: string): boolean {
  * Count intervals in BED data
  * Function provides BED coordinate validation
  */
-export function countIntervals(data: string): number {
+function countIntervals(data: string): number {
   return data.split(/\r?\n/).filter((line) => {
     const trimmed = line.trim();
     return (
@@ -900,7 +898,7 @@ export function countIntervals(data: string): number {
  * Calculate interval statistics
  * Function provides BED coordinate validation
  */
-export function calculateStats(intervals: BedInterval[]): {
+function calculateStats(intervals: BedInterval[]): {
   count: number;
   totalLength: number;
   averageLength: number;
@@ -933,7 +931,7 @@ export function calculateStats(intervals: BedInterval[]): {
  * Sort intervals by genomic position
  * Function provides BED coordinate validation
  */
-export function sortIntervals(intervals: BedInterval[]): BedInterval[] {
+function sortIntervals(intervals: BedInterval[]): BedInterval[] {
   return [...intervals].sort((a, b) => {
     const chrCompare = a.chromosome.localeCompare(b.chromosome);
     if (chrCompare !== 0) return chrCompare;
@@ -947,7 +945,7 @@ export function sortIntervals(intervals: BedInterval[]): BedInterval[] {
  * Merge overlapping intervals
  * Function provides BED coordinate validation
  */
-export function mergeOverlapping(intervals: BedInterval[]): BedInterval[] {
+function mergeOverlapping(intervals: BedInterval[]): BedInterval[] {
   if (!Array.isArray(intervals) || intervals.length === 0) {
     return [];
   }
@@ -977,17 +975,35 @@ export function mergeOverlapping(intervals: BedInterval[]): BedInterval[] {
 }
 
 // Namespace exports maintaining existing API
-export const BedFormat = {
+const BedFormat = {
   detectVariant,
   validateStrand,
   parseRgb,
   validateCoordinates,
 } as const;
 
-export const BedUtils = {
+const BedUtils = {
   detectFormat,
   countIntervals,
   calculateStats,
   sortIntervals,
   mergeOverlapping,
 } as const;
+
+// Exports - grouped at end per project style guide
+export {
+  detectVariant,
+  validateStrand,
+  validateBedBlockStructure,
+  parseRgb,
+  validateCoordinates,
+  BedParser,
+  BedWriter,
+  detectFormat,
+  countIntervals,
+  calculateStats,
+  sortIntervals,
+  mergeOverlapping,
+  BedFormat,
+  BedUtils,
+};

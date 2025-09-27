@@ -176,6 +176,22 @@
       }
     },
     {
+      "includes": ["examples/**/*.ts"],
+      "javascript": {
+        "globals": ["Bun", "console", "process", "Buffer", "TextEncoder", "TextDecoder"]
+      },
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noUndeclaredVariables": "off"
+          },
+          "suspicious": {
+            "noExplicitAny": "off"
+          }
+        }
+      }
+    },
+    {
       "includes": ["test/**/*.ts"],
       "javascript": {
         "globals": [

@@ -27,7 +27,7 @@ import type { GtfFeature } from "./types";
  *
  * @public
  */
-export class GtfWriter {
+class GtfWriter {
   /**
    * Format single GTF feature as tab-separated string
    *
@@ -109,3 +109,9 @@ export class GtfWriter {
     }
   }
 }
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export { GtfWriter };

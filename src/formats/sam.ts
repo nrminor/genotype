@@ -73,7 +73,7 @@ interface SamParserOptions extends ParserOptions {
  * });
  * ```
  */
-export class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOptions> {
+class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOptions> {
   protected getDefaultOptions(): Partial<SamParserOptions> {
     return {
       skipValidation: false,
@@ -949,7 +949,7 @@ export class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParse
  * }());
  * ```
  */
-export class SAMWriter {
+class SAMWriter {
   private readonly options: {
     validate: boolean;
     includeLineNumbers: boolean;
@@ -1407,7 +1407,7 @@ export class SAMWriter {
 /**
  * SAM utility functions for format detection and operations
  */
-export const SAMUtils = {
+const SAMUtils = {
   /**
    * Detect if string contains SAM format data
    */
@@ -1491,3 +1491,6 @@ export const SAMUtils = {
       .reduce((sum, op) => sum + op.length, 0);
   },
 };
+
+// Exports - grouped at end per project style guide
+export { SAMParser, SAMWriter, SAMUtils };

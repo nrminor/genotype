@@ -24,7 +24,7 @@ import { QUALITY_THRESHOLDS, QUALITY_WINDOWS, TRIMMING_DEFAULTS } from "./consta
 /**
  * Quality encoding ASCII offsets
  */
-export const QUALITY_OFFSETS = {
+const QUALITY_OFFSETS = {
   phred33: 33,
   phred64: 64,
   solexa: 59,
@@ -33,11 +33,40 @@ export const QUALITY_OFFSETS = {
 /**
  * Quality score valid ranges
  */
-export const QUALITY_RANGES = {
+const QUALITY_RANGES = {
   phred33: { min: 0, max: 93, asciiMin: 33, asciiMax: 126 },
   phred64: { min: 0, max: 93, asciiMin: 64, asciiMax: 157 },
   solexa: { min: -5, max: 62, asciiMin: 59, asciiMax: 126 },
 } as const;
+
+/**
+ * Quality level definitions for declarative assessment
+ *
+ * Ordered from highest to lowest quality for find() operation.
+ * Each level includes threshold, name, and recommendation.
+ */
+const QUALITY_LEVELS = [
+  {
+    minScore: QUALITY_THRESHOLDS.EXCELLENT,
+    level: "excellent" as const,
+    recommendation: "High-quality data suitable for most analyses",
+  },
+  {
+    minScore: QUALITY_THRESHOLDS.GOOD,
+    level: "good" as const,
+    recommendation: "Good quality data, minimal trimming needed",
+  },
+  {
+    minScore: QUALITY_THRESHOLDS.FAIR,
+    level: "fair" as const,
+    recommendation: "Consider quality trimming before analysis",
+  },
+  {
+    minScore: 0,
+    level: "poor" as const,
+    recommendation: "Poor quality data, aggressive trimming recommended",
+  },
+] as const;
 
 // ============================================================================
 // TYPES
@@ -61,7 +90,7 @@ type AsciiOffset = 33 | 64 | 59;
  * @param encoding - Quality encoding to validate against
  * @returns Validation result with details
  */
-export function validateQualityString(
+function validateQualityString(
   quality: QualityString,
   encoding: QualityEncoding
 ): {
@@ -129,7 +158,7 @@ export function validateQualityString(
  * @param toEncoding - Target encoding
  * @returns Converted quality string
  */
-export function convertQualityEncoding(
+function convertQualityEncoding(
   quality: QualityString,
   fromEncoding: QualityEncoding,
   toEncoding: QualityEncoding
@@ -152,57 +181,14 @@ export function convertQualityEncoding(
  * @param encoding - Quality encoding
  * @returns Statistics including mean, median, min, max, Q1, Q3
  */
-export function getQualityStatistics(quality: QualityString, encoding: QualityEncoding) {
+function getQualityStatistics(quality: QualityString, encoding: QualityEncoding) {
   const scores = qualityToScores(quality, encoding);
   return calculateQualityStats(scores);
 }
 
 // ============================================================================
-// QUALITY SCORE HELPERS
-// ============================================================================
-
-// Re-export quality conversion functions directly - no wrappers needed
-export {
-  getEncodingInfo as getQualityEncodingInfo,
-  qualityToScores as toPhredScores,
-  scoresToQuality as fromPhredScores,
-} from "../../operations/core/quality";
-
-// Import for internal use with the exported names
-const toPhredScores = qualityToScores;
-
-// ============================================================================
 // QUALITY ASSESSMENT
 // ============================================================================
-
-/**
- * Quality level definitions for declarative assessment
- *
- * Ordered from highest to lowest quality for find() operation.
- * Each level includes threshold, name, and recommendation.
- */
-const QUALITY_LEVELS = [
-  {
-    minScore: QUALITY_THRESHOLDS.EXCELLENT,
-    level: "excellent" as const,
-    recommendation: "High-quality data suitable for most analyses",
-  },
-  {
-    minScore: QUALITY_THRESHOLDS.GOOD,
-    level: "good" as const,
-    recommendation: "Good quality data, minimal trimming needed",
-  },
-  {
-    minScore: QUALITY_THRESHOLDS.FAIR,
-    level: "fair" as const,
-    recommendation: "Consider quality trimming before analysis",
-  },
-  {
-    minScore: 0,
-    level: "poor" as const,
-    recommendation: "Poor quality data, aggressive trimming recommended",
-  },
-] as const;
 
 /**
  * Assess overall quality of a sequence
@@ -213,7 +199,7 @@ const QUALITY_LEVELS = [
  * @param encoding - Quality encoding
  * @returns Quality assessment
  */
-export function assessQuality(
+function assessQuality(
   quality: QualityString,
   encoding: QualityEncoding
 ): {
@@ -239,16 +225,6 @@ export function assessQuality(
 // QUALITY WINDOW ANALYSIS
 // ============================================================================
 
-/**
- * Analyze quality in sliding windows
- *
- * Useful for identifying quality drops along read length.
- *
- * @param quality - Quality string
- * @param encoding - Quality encoding
- * @param windowSize - Size of sliding window (default: 10)
- * @returns Array of window statistics
- */
 /**
  * Analyze a single quality window
  *
@@ -280,7 +256,17 @@ function analyzeWindow(
   };
 }
 
-export function analyzeQualityWindows(
+/**
+ * Analyze quality in sliding windows
+ *
+ * Useful for identifying quality drops along read length.
+ *
+ * @param quality - Quality string
+ * @param encoding - Quality encoding
+ * @param windowSize - Size of sliding window (default: 10)
+ * @returns Array of window statistics
+ */
+function analyzeQualityWindows(
   quality: QualityString,
   encoding: QualityEncoding,
   windowSize = QUALITY_WINDOWS.DEFAULT_SIZE
@@ -321,12 +307,12 @@ export function analyzeQualityWindows(
  * @param threshold - Minimum acceptable quality score
  * @returns Positions where quality is below threshold
  */
-export function findLowQualityPositions(
+function findLowQualityPositions(
   quality: QualityString,
   encoding: QualityEncoding,
   threshold: number
 ): number[] {
-  const scores = toPhredScores(quality, encoding);
+  const scores = qualityToScores(quality, encoding);
   return scores
     .map((score, index) => (score < threshold ? index : -1))
     .filter((index) => index >= 0);
@@ -341,7 +327,7 @@ export function findLowQualityPositions(
  * @param minLength - Minimum acceptable length after trimming
  * @returns Suggested trim positions
  */
-export function suggestQualityTrimming(
+function suggestQualityTrimming(
   quality: QualityString,
   encoding: QualityEncoding,
   minQuality = TRIMMING_DEFAULTS.MIN_QUALITY,
@@ -352,7 +338,7 @@ export function suggestQualityTrimming(
   newLength: number;
   meanQualityAfter: number;
 } | null {
-  const scores = toPhredScores(quality, encoding);
+  const scores = qualityToScores(quality, encoding);
 
   // Find first position with good quality
   let trimStart = 0;
@@ -391,3 +377,28 @@ export function suggestQualityTrimming(
     meanQualityAfter: stats.mean,
   };
 }
+
+// ============================================================================
+// EXPORTS
+// ============================================================================
+
+// Export constants
+export { QUALITY_OFFSETS, QUALITY_RANGES };
+
+// Export functions
+export {
+  validateQualityString,
+  convertQualityEncoding,
+  getQualityStatistics,
+  assessQuality,
+  analyzeQualityWindows,
+  findLowQualityPositions,
+  suggestQualityTrimming,
+};
+
+// Re-export quality conversion functions from core module
+export {
+  getEncodingInfo as getQualityEncodingInfo,
+  qualityToScores as toPhredScores,
+  scoresToQuality as fromPhredScores,
+} from "../../operations/core/quality";

@@ -1227,34 +1227,61 @@ export class SeqOps<T extends AbstractSequence> {
   }
 
   /**
-   * Convert sequences to tabular format (chainable)
+   * Convert sequences to tabular format
    *
-   * Returns a TabularOps instance that provides chainable operations on
-   * tabular row data. Can be filtered, transformed, and written to files.
+   * Transform sequences into a tabular representation with configurable columns.
+   * This is the primary method for tabular conversion, providing a more intuitive
+   * name than the seqkit-inspired fx2tab.
    *
-   * @param options - Conversion options
-   * @returns TabularOps instance for chaining
+   * @param options - Column selection and formatting options
+   * @returns TabularOps instance for further processing or writing
    *
    * @example
    * ```typescript
-   * // Chain tabular operations
+   * // Basic conversion to tabular format
+   * await seqops(sequences)
+   *   .toTabular({ columns: ['id', 'seq', 'length', 'gc'] })
+   *   .writeTSV('output.tsv');
+   *
+   * // With custom columns
+   * await seqops(sequences)
+   *   .toTabular({
+   *     columns: ['id', 'seq', 'gc'],
+   *     customColumns: {
+   *       high_gc: (seq) => seq.gc > 60 ? 'HIGH' : 'NORMAL'
+   *     }
+   *   })
+   *   .writeCSV('analysis.csv');
+   * ```
+   */
+  toTabular<Columns extends readonly ColumnId[] = readonly ["id", "seq", "length"]>(
+    options?: Fx2TabOptions<Columns>
+  ): TabularOps<Columns> {
+    return new TabularOps(fx2tab(this.source, options));
+  }
+
+  /**
+   * Convert sequences to tabular format (SeqKit compatibility)
+   *
+   * Alias for `.toTabular()` maintained for SeqKit parity and backward compatibility.
+   * New code should prefer `.toTabular()` for better clarity.
+   *
+   * @param options - Column selection and formatting options
+   * @returns TabularOps instance for further processing or writing
+   * @see {@link toTabular} - Primary method for tabular conversion
+   *
+   * @example
+   * ```typescript
+   * // Legacy name for SeqKit users
    * await seqops(sequences)
    *   .fx2tab({ columns: ['id', 'seq', 'gc'] })
-   *   .filter(row => row.gc > 40)
-   *   .writeTSV('high_gc.tsv');
-   *
-   * // Convert back to sequences
-   * for await (const seq of seqops(sequences)
-   *   .fx2tab({ columns: ['id', 'seq'] })
-   *   .toSequences()) {
-   *   console.log(seq.id);
-   * }
+   *   .writeTSV('output.tsv');
    * ```
    */
   fx2tab<Columns extends readonly ColumnId[] = readonly ["id", "seq", "length"]>(
     options?: Fx2TabOptions<Columns>
   ): TabularOps<Columns> {
-    return new TabularOps(fx2tab(this.source, options));
+    return this.toTabular(options);
   }
 
   /**

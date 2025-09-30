@@ -402,6 +402,62 @@ describe("fx2tab", () => {
     });
   });
 
+  describe("toTabular() alias", () => {
+    test("toTabular() produces same output as fx2tab()", async () => {
+      // Use asyncSequences() generator function, not testSequences array
+
+      // Test that both methods produce identical results
+      const toTabularResults = await seqops(asyncSequences())
+        .toTabular({ columns: ["id", "sequence", "length", "gc"], header: false })
+        .toArray();
+
+      const fx2tabResults = await seqops(asyncSequences())
+        .fx2tab({ columns: ["id", "sequence", "length", "gc"], header: false })
+        .toArray();
+
+      expect(toTabularResults).toEqual(fx2tabResults);
+      expect(toTabularResults).toHaveLength(3);
+      expect(toTabularResults[0]).toMatchObject({
+        id: "seq1",
+        sequence: "ATCGATCG",
+        length: 8,
+        gc: 50,
+      });
+    });
+
+    test("toTabular() works with default columns", async () => {
+      const result = await seqops(asyncSequences()).toTabular().toArray();
+
+      // Default includes header
+      expect(result).toHaveLength(4);
+      // Check first data row
+      expect(result[1]).toMatchObject({
+        id: "seq1",
+        sequence: "ATCGATCG",
+        length: 8,
+      });
+    });
+
+    test("toTabular() supports custom columns", async () => {
+      const result = await seqops(asyncSequences())
+        .toTabular({
+          columns: ["id", "gc", "custom"] as const,
+          customColumns: {
+            custom: (seq) => `${seq.id}_custom`,
+          },
+          header: false,
+        })
+        .toArray();
+
+      expect(result).toHaveLength(3);
+      expect(result[0]).toMatchObject({
+        id: "seq1",
+        gc: 50,
+        custom: "seq1_custom",
+      });
+    });
+  });
+
   describe("TabularOps chainability", () => {
     test("supports row filtering", async () => {
       const results = await new TabularOps(

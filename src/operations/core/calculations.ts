@@ -8,6 +8,7 @@
  * @since v0.1.0
  */
 
+import * as QualityUtils from "./encoding";
 import { getGeneticCode } from "./genetic-codes";
 
 // =============================================================================
@@ -245,13 +246,10 @@ export function findQualityTrimStart(
     throw new Error("Window size must be positive");
   }
 
-  // Use dynamic import to avoid circular dependencies
-  const qualityUtils = require("./encoding");
-
   // 🔥 NATIVE: Sliding window analysis with quality score conversion
   for (let i = 0; i <= quality.length - windowSize; i++) {
     const window = quality.slice(i, i + windowSize);
-    const avgQual = qualityUtils.averageQuality(window, encoding);
+    const avgQual = QualityUtils.averageQuality(window, encoding);
 
     if (avgQual >= threshold) {
       return i;
@@ -297,13 +295,10 @@ export function findQualityTrimEnd(
     throw new Error("Start position out of range");
   }
 
-  // Use dynamic import to avoid circular dependencies
-  const qualityUtils = require("./encoding");
-
   // 🔥 NATIVE: Sliding window analysis from end
   for (let i = quality.length - windowSize; i >= start; i--) {
     const window = quality.slice(i, i + windowSize);
-    const avgQual = qualityUtils.averageQuality(window, encoding);
+    const avgQual = QualityUtils.averageQuality(window, encoding);
 
     if (avgQual >= threshold) {
       return i + windowSize;

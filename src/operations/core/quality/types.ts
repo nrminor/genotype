@@ -9,10 +9,6 @@
 
 import type { QualityEncoding } from "../../../types";
 
-// ============================================================================
-// BRANDED TYPES FOR COMPILE-TIME SAFETY
-// ============================================================================
-
 /**
  * Branded type for standard quality scores (Phred33/Phred64)
  * @minimum 0
@@ -52,6 +48,181 @@ export type QualityChar = number & {
 };
 
 /**
+ * Valid Phred+33 quality characters (ASCII 33-126)
+ * Used for compile-time validation of literal quality characters
+ */
+export type ValidPhred33Char =
+  | "!"
+  | '"'
+  | "#"
+  | "$"
+  | "%"
+  | "&"
+  | "'"
+  | "("
+  | ")"
+  | "*"
+  | "+"
+  | ","
+  | "-"
+  | "."
+  | "/"
+  | "0"
+  | "1"
+  | "2"
+  | "3"
+  | "4"
+  | "5"
+  | "6"
+  | "7"
+  | "8"
+  | "9"
+  | ":"
+  | ";"
+  | "<"
+  | "="
+  | ">"
+  | "?"
+  | "@"
+  | "A"
+  | "B"
+  | "C"
+  | "D"
+  | "E"
+  | "F"
+  | "G"
+  | "H"
+  | "I"
+  | "J"
+  | "K"
+  | "L"
+  | "M"
+  | "N"
+  | "O"
+  | "P"
+  | "Q"
+  | "R"
+  | "S"
+  | "T"
+  | "U"
+  | "V"
+  | "W"
+  | "X"
+  | "Y"
+  | "Z"
+  | "["
+  | "\\"
+  | "]"
+  | "^"
+  | "_"
+  | "`"
+  | "a"
+  | "b"
+  | "c"
+  | "d"
+  | "e"
+  | "f"
+  | "g"
+  | "h"
+  | "i"
+  | "j"
+  | "k"
+  | "l"
+  | "m"
+  | "n"
+  | "o"
+  | "p"
+  | "q"
+  | "r"
+  | "s"
+  | "t"
+  | "u"
+  | "v"
+  | "w"
+  | "x"
+  | "y"
+  | "z"
+  | "{"
+  | "|"
+  | "}"
+  | "~";
+
+/**
+ * Valid Phred+64 quality characters (ASCII 64-126)
+ * Used for compile-time validation of literal quality characters
+ */
+export type ValidPhred64Char =
+  | "@"
+  | "A"
+  | "B"
+  | "C"
+  | "D"
+  | "E"
+  | "F"
+  | "G"
+  | "H"
+  | "I"
+  | "J"
+  | "K"
+  | "L"
+  | "M"
+  | "N"
+  | "O"
+  | "P"
+  | "Q"
+  | "R"
+  | "S"
+  | "T"
+  | "U"
+  | "V"
+  | "W"
+  | "X"
+  | "Y"
+  | "Z"
+  | "["
+  | "\\"
+  | "]"
+  | "^"
+  | "_"
+  | "`"
+  | "a"
+  | "b"
+  | "c"
+  | "d"
+  | "e"
+  | "f"
+  | "g"
+  | "h"
+  | "i"
+  | "j"
+  | "k"
+  | "l"
+  | "m"
+  | "n"
+  | "o"
+  | "p"
+  | "q"
+  | "r"
+  | "s"
+  | "t"
+  | "u"
+  | "v"
+  | "w"
+  | "x"
+  | "y"
+  | "z"
+  | "{"
+  | "|"
+  | "}"
+  | "~";
+
+/**
+ * Valid Solexa quality characters (ASCII 59-126)
+ * Includes additional low-quality range characters
+ */
+export type ValidSolexaChar = ";" | "<" | "=" | ">" | "?" | ValidPhred64Char;
+
+/**
  * Type guard to validate standard quality score range
  */
 export const isValidQualityScore = (score: number): score is QualityScore => {
@@ -77,6 +248,37 @@ export const isValidAsciiOffset = (offset: number): offset is AsciiOffset => {
  */
 export const isValidQualityChar = (charCode: number): charCode is QualityChar => {
   return charCode >= 33 && charCode <= 126 && Number.isInteger(charCode);
+};
+
+/**
+ * Type guard to check if a string is a valid quality character for an encoding
+ */
+export const isValidQualityCharForEncoding = (char: string, encoding: QualityEncoding): boolean => {
+  if (char.length !== 1) return false;
+  const code = char.charCodeAt(0);
+
+  switch (encoding) {
+    case "phred33":
+      return code >= 33 && code <= 126;
+    case "phred64":
+      return code >= 64 && code <= 126;
+    case "solexa":
+      return code >= 59 && code <= 126;
+    default:
+      return false;
+  }
+};
+
+/**
+ * Type guard to check if a number is a valid quality score for an encoding
+ */
+export const isValidQualityScoreForEncoding = (
+  score: number,
+  encoding: QualityEncoding
+): boolean => {
+  if (!Number.isInteger(score)) return false;
+
+  return encoding === "solexa" ? score >= -5 && score <= 62 : score >= 0 && score <= 93;
 };
 
 /**

@@ -103,15 +103,28 @@ export function charToScore(char: string, encoding: QualityEncoding): QualitySco
  * @performance O(1) - Direct calculation with constant time validation
  * @since 0.1.0
  */
-export function scoreToChar(score: QualityScore | number, encoding: QualityEncoding): string {
+export function scoreToChar(
+  score: QualityScore | SolexaScore | number,
+  encoding: QualityEncoding
+): string {
   const info = getEncodingInfo(encoding);
 
-  // Accept either branded QualityScore or validate the number
-  if (!isValidQualityScore(score)) {
-    throw new Error(`Invalid quality score ${score}. Must be an integer between 0 and 93.`);
+  // Validate based on encoding
+  if (encoding === "solexa") {
+    if (!isValidSolexaScore(score)) {
+      throw new Error(
+        `Invalid Solexa quality score ${score}. Must be an integer between -5 and 62.`
+      );
+    }
+  } else {
+    if (!isValidQualityScore(score)) {
+      throw new Error(
+        `Invalid quality score ${score} for ${encoding}. Must be an integer between 0 and 93.`
+      );
+    }
   }
 
-  // Check encoding-specific bounds
+  // Check encoding-specific bounds (redundant but keeps the original logic)
   if (score < info.minScore || score > info.maxScore) {
     throw new Error(
       `Quality score ${score} is outside valid range for ${encoding} encoding. ` +

@@ -24,7 +24,7 @@ import type {
 import { AmpliconProcessor } from "./amplicon";
 import { CleanProcessor } from "./clean";
 import { ConcatProcessor } from "./concat";
-import { ConvertProcessor } from "./convert";
+import { ConvertProcessor, type Fa2FqOptions, fa2fq, fq2fa } from "./convert";
 import { FilterProcessor } from "./filter";
 import {
   type ColumnId,
@@ -415,6 +415,78 @@ export class SeqOps<T extends AbstractSequence> {
   convert<U extends T & FastqSequence>(this: SeqOps<U>, options: ConvertOptions): SeqOps<U> {
     const processor = new ConvertProcessor();
     return new SeqOps<U>(processor.process(this.source, options) as AsyncIterable<U>);
+  }
+
+  /**
+   * Convert FASTA sequences to FASTQ format
+   *
+   * Converts FASTA sequences to FASTQ by adding uniform quality scores.
+   * This method is only available when working with FASTA sequences and
+   * will cause a compile-time error if called on FASTQ sequences.
+   *
+   * @param options - Conversion options with compile-time validation for literal values
+   * @returns New SeqOps instance with FASTQ sequences
+   *
+   * @example
+   * ```typescript
+   * // Convert with default quality (Phred+33 score 40)
+   * await seqops(fastaSeqs)
+   *   .toFastqSequence()
+   *   .writeFastq('output.fastq');
+   *
+   * // Convert with custom quality character
+   * await seqops(fastaSeqs)
+   *   .toFastqSequence({ quality: 'I' }) // Valid
+   *   .writeFastq('output.fastq');
+   *
+   * // These will cause compile-time errors:
+   * // seqops(fastaSeqs).toFastqSequence({ quality: '€' }); // Invalid character
+   * // seqops(fastqSeqs).toFastqSequence(); // Cannot convert FASTQ to FASTQ
+   * ```
+   */
+  toFastqSequence<U extends T & FastaSequence>(
+    this: SeqOps<U>,
+    options?: Fa2FqOptions
+  ): SeqOps<FastqSequence> {
+    // The type constraint ensures U extends FastaSequence
+    // so this.source is AsyncIterable<U> where U extends FastaSequence
+    // fa2fq applies ValidateQuality internally for compile-time validation
+    return new SeqOps<FastqSequence>(fa2fq(this.source, options));
+  }
+
+  /**
+   * Convert FASTQ sequences to FASTA format
+   *
+   * Converts FASTQ sequences to FASTA by removing quality scores.
+   * This method is only available when working with FASTQ sequences and
+   * will cause a compile-time error if called on FASTA sequences.
+   *
+   * @param options - Conversion options
+   * @returns New SeqOps instance with FASTA sequences
+   *
+   * @example
+   * ```typescript
+   * // Convert FASTQ to FASTA for BLAST database
+   * await seqops(fastqSeqs)
+   *   .toFastaSequence()
+   *   .writeFasta('blast_db.fasta');
+   *
+   * // Preserve quality metrics for QC tracking
+   * await seqops(fastqSeqs)
+   *   .toFastaSequence({ includeQualityStats: true })
+   *   .writeFasta('assembly_input.fasta');
+   *
+   * // This will cause a compile-time error:
+   * // seqops(fastaSeqs).toFastaSequence(); // Cannot convert FASTA to FASTA
+   * ```
+   */
+  toFastaSequence<U extends T & FastqSequence>(
+    this: SeqOps<U>,
+    options?: Record<string, never>
+  ): SeqOps<FastaSequence> {
+    // The type constraint ensures U extends FastqSequence
+    // so this.source is AsyncIterable<U> where U extends FastqSequence
+    return new SeqOps<FastaSequence>(fq2fa(this.source, options));
   }
 
   /**
@@ -1638,6 +1710,14 @@ seqops.concat = (
 // Export processors for advanced usage
 export { AmpliconProcessor } from "./amplicon";
 export { ConcatProcessor } from "./concat";
+export { ConvertProcessor, type Fa2FqOptions, fa2fq, fq2fa } from "./convert";
+export {
+  type ExtractOptions,
+  FaiBuilder,
+  Faidx,
+  type FaidxOptions,
+  type FaidxRecord,
+} from "./faidx";
 export {
   type ColumnId,
   type Fx2TabOptions,

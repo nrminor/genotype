@@ -36,16 +36,18 @@ export type {
   QualityScore,
   QualityStats,
   SolexaScore,
-  TrimOptions,
-  TrimPositions,
-  ValidationResult,
+  ValidPhred33Char,
+  ValidPhred64Char,
+  ValidSolexaChar,
 } from "./types";
 
 // Export type guards for branded types
 export {
   isValidAsciiOffset,
   isValidQualityChar,
+  isValidQualityCharForEncoding,
   isValidQualityScore,
+  isValidQualityScoreForEncoding,
   isValidSolexaScore,
 } from "./types";
 

@@ -11,8 +11,15 @@
 
 import { beforeAll, describe, expect, test } from "bun:test";
 import { ValidationError } from "../../src/errors";
-import { ConvertProcessor } from "../../src/operations/convert";
-import type { AbstractSequence, FastqSequence } from "../../src/types";
+import { seqops } from "../../src/operations";
+import {
+  ConvertProcessor,
+  type Fa2FqOptions,
+  type Fq2FaOptions,
+  fa2fq,
+  fq2fa,
+} from "../../src/operations/convert";
+import type { AbstractSequence, FastaSequence, FastqSequence } from "../../src/types";
 
 // Test data generators following established patterns
 function createFastqSequence(
@@ -42,6 +49,20 @@ function createFastaSequence(id: string, sequence: string): AbstractSequence {
 }
 
 async function* singleSequence(seq: AbstractSequence): AsyncIterable<AbstractSequence> {
+  yield seq;
+}
+
+async function* asyncIterable<T>(items: T[]): AsyncIterable<T> {
+  for (const item of items) {
+    yield item;
+  }
+}
+
+async function* singleFastqSequence(seq: FastqSequence): AsyncIterable<FastqSequence> {
+  yield seq;
+}
+
+async function* singleFastaSequence(seq: FastaSequence): AsyncIterable<FastaSequence> {
   yield seq;
 }
 
@@ -760,6 +781,331 @@ describe("ConvertProcessor", () => {
         expect(converted.quality.length).toBe(testCase.quality.length);
         // Should convert regardless of detection (user controls target)
       }
+    });
+  });
+});
+
+describe("Format conversions", () => {
+  describe("fq2fa", () => {
+    test("converts FASTQ to FASTA", async () => {
+      const fastqSeqs: FastqSequence[] = [
+        {
+          format: "fastq",
+          id: "read1",
+          sequence: "ATCGATCG",
+          quality: "IIIIIIII",
+          qualityEncoding: "phred33",
+          length: 8,
+          description: "test read",
+        },
+      ];
+
+      const results: FastaSequence[] = [];
+      for await (const seq of fq2fa(singleFastqSequence(fastqSeqs[0]))) {
+        results.push(seq);
+      }
+
+      expect(results).toHaveLength(1);
+      expect(results[0]).toMatchObject({
+        format: "fasta",
+        id: "read1",
+        sequence: "ATCGATCG",
+        description: "test read",
+        length: 8,
+      });
+      expect("quality" in results[0]).toBe(false);
+      expect("qualityEncoding" in results[0]).toBe(false);
+    });
+
+    test("includes quality statistics when requested", async () => {
+      const fastqSeqs: FastqSequence[] = [
+        {
+          format: "fastq",
+          id: "read1",
+          sequence: "ATCG",
+          quality: "IIHH", // Mix of scores (40, 40, 39, 39)
+          qualityEncoding: "phred33",
+          length: 4,
+        },
+      ];
+
+      const results: FastaSequence[] = [];
+      for await (const seq of fq2fa(singleFastqSequence(fastqSeqs[0]), {
+        includeQualityStats: true,
+      })) {
+        results.push(seq);
+      }
+
+      expect(results[0].description).toContain("avg_qual=");
+      expect(results[0].description).toContain("min_qual=");
+      expect(results[0].description).toContain("max_qual=");
+    });
+
+    test("handles empty description", async () => {
+      const fastqSeqs: FastqSequence[] = [
+        {
+          format: "fastq",
+          id: "read1",
+          sequence: "ATCG",
+          quality: "IIII",
+          qualityEncoding: "phred33",
+          length: 4,
+        },
+      ];
+
+      const results: FastaSequence[] = [];
+      for await (const seq of fq2fa(singleFastqSequence(fastqSeqs[0]), {
+        includeQualityStats: true,
+      })) {
+        results.push(seq);
+      }
+
+      // Description should only have stats, no leading space
+      expect(results[0].description).toMatch(/^avg_qual=/);
+    });
+
+    test("validates options with ArkType", async () => {
+      const fastqSeqs: FastqSequence[] = [
+        {
+          format: "fastq",
+          id: "read1",
+          sequence: "ATCG",
+          quality: "IIII",
+          qualityEncoding: "phred33",
+          length: 4,
+        },
+      ];
+
+      // Test with an invalid option value rather than unknown property
+      let errorThrown = false;
+      try {
+        const invalidOptions = {
+          includeQualityStats: "not-a-boolean", // Should be boolean
+        } as unknown as Fq2FaOptions;
+        const iterator = fq2fa(singleFastqSequence(fastqSeqs[0]), invalidOptions);
+        // Actually start the iteration to trigger validation
+        await iterator[Symbol.asyncIterator]().next();
+      } catch (error) {
+        errorThrown = true;
+        expect(error).toBeInstanceOf(ValidationError);
+        expect((error as ValidationError).message).toContain("Invalid fq2fa options");
+      }
+      expect(errorThrown).toBe(true);
+    });
+  });
+
+  describe("fa2fq", () => {
+    test("converts FASTA to FASTQ with default quality", async () => {
+      const fastaSeqs: FastaSequence[] = [
+        {
+          format: "fasta",
+          id: "seq1",
+          sequence: "ATCGATCG",
+          length: 8,
+          description: "test sequence",
+        },
+      ];
+
+      const results: FastqSequence[] = [];
+      for await (const seq of fa2fq(singleFastaSequence(fastaSeqs[0]))) {
+        results.push(seq);
+      }
+
+      expect(results).toHaveLength(1);
+      expect(results[0]).toMatchObject({
+        format: "fastq",
+        id: "seq1",
+        sequence: "ATCGATCG",
+        quality: "IIIIIIII", // Default quality
+        qualityEncoding: "phred33",
+        description: "test sequence",
+        length: 8,
+      });
+    });
+
+    test("uses custom quality score", async () => {
+      const fastaSeqs: FastaSequence[] = [
+        {
+          format: "fasta",
+          id: "seq1",
+          sequence: "ATCG",
+          length: 4,
+        },
+      ];
+
+      const results: FastqSequence[] = [];
+      for await (const seq of fa2fq(singleFastaSequence(fastaSeqs[0]), {
+        qualityScore: 30,
+        encoding: "phred33",
+      })) {
+        results.push(seq);
+      }
+
+      // Score 30 in Phred+33 = ASCII 63 = '?'
+      expect(results[0].quality).toBe("????");
+    });
+
+    test("uses custom quality character", async () => {
+      const fastaSeqs: FastaSequence[] = [
+        {
+          format: "fasta",
+          id: "seq1",
+          sequence: "ATCG",
+          length: 4,
+        },
+      ];
+
+      const results: FastqSequence[] = [];
+      for await (const seq of fa2fq(singleFastaSequence(fastaSeqs[0]), {
+        quality: "J",
+      })) {
+        results.push(seq);
+      }
+
+      expect(results[0].quality).toBe("JJJJ");
+    });
+
+    test("rejects both quality and qualityScore", async () => {
+      const fastaSeqs: FastaSequence[] = [
+        {
+          format: "fasta",
+          id: "seq1",
+          sequence: "ATCG",
+          length: 4,
+        },
+      ];
+
+      // The validation happens when we start iterating
+      let errorThrown = false;
+      try {
+        const invalidOptions = {
+          quality: "I",
+          qualityScore: 40,
+        } as Fa2FqOptions; // Both specified, which is invalid
+        const iterator = fa2fq(singleFastaSequence(fastaSeqs[0]), invalidOptions);
+        // Actually start the iteration to trigger validation
+        await iterator[Symbol.asyncIterator]().next();
+      } catch (error) {
+        errorThrown = true;
+        expect(error).toBeInstanceOf(ValidationError);
+      }
+      expect(errorThrown).toBe(true);
+    });
+
+    test("rejects multi-character quality string", async () => {
+      const fastaSeqs: FastaSequence[] = [
+        {
+          format: "fasta",
+          id: "seq1",
+          sequence: "ATCG",
+          length: 4,
+        },
+      ];
+
+      // The validation happens when we start iterating
+      let errorThrown = false;
+      try {
+        const invalidOptions = {
+          quality: "II", // Two characters - invalid
+        } as Fa2FqOptions;
+        const iterator = fa2fq(singleFastaSequence(fastaSeqs[0]), invalidOptions);
+        // Actually start the iteration to trigger validation
+        await iterator[Symbol.asyncIterator]().next();
+      } catch (error) {
+        errorThrown = true;
+        expect(error).toBeInstanceOf(ValidationError);
+      }
+      expect(errorThrown).toBe(true);
+    });
+  });
+
+  describe("SeqOps integration", () => {
+    test("fq2fa only available on FastqSequence", async () => {
+      const fastqSeq: FastqSequence = {
+        format: "fastq",
+        id: "test",
+        sequence: "ATCG",
+        quality: "IIII",
+        qualityEncoding: "phred33",
+        length: 4,
+      };
+
+      // This should compile and work
+      const results: FastaSequence[] = [];
+      // Create properly typed async iterable
+      async function* fastqIterable(): AsyncIterable<FastqSequence> {
+        yield fastqSeq;
+      }
+      for await (const seq of seqops(fastqIterable()).toFastaSequence()) {
+        results.push(seq);
+      }
+
+      expect(results[0].format).toBe("fasta");
+
+      // Test that it's not available on FastaSequence
+      const fastaSeq: FastaSequence = {
+        format: "fasta",
+        id: "test",
+        sequence: "ATCG",
+        length: 4,
+      };
+
+      // This would be a compile-time error, but we can't test that in runtime
+      // So we just verify the correct type constraint works
+      expect(results[0]).not.toHaveProperty("quality");
+    });
+
+    test("fa2fq only available on FastaSequence", async () => {
+      const fastaSeq: FastaSequence = {
+        format: "fasta",
+        id: "test",
+        sequence: "ATCG",
+        length: 4,
+      };
+
+      // This should compile and work
+      const results: FastqSequence[] = [];
+      // Create properly typed async iterable
+      async function* fastaIterable(): AsyncIterable<FastaSequence> {
+        yield fastaSeq;
+      }
+      for await (const seq of seqops(fastaIterable()).toFastqSequence()) {
+        results.push(seq);
+      }
+
+      expect(results[0].format).toBe("fastq");
+      expect(results[0].quality).toBe("IIII");
+    });
+
+    test("conversion pipeline works correctly", async () => {
+      const fastqSeq: FastqSequence = {
+        format: "fastq",
+        id: "test",
+        sequence: "ATCGATCG",
+        quality: "IIIIIIII",
+        qualityEncoding: "phred33",
+        length: 8,
+        description: "original",
+      };
+
+      // FASTQ -> FASTA -> FASTQ round-trip
+      const results: FastqSequence[] = [];
+      // Create properly typed async iterable
+      async function* fastqPipelineIterable(): AsyncIterable<FastqSequence> {
+        yield fastqSeq;
+      }
+      for await (const seq of seqops(fastqPipelineIterable())
+        .toFastaSequence()
+        .toFastqSequence({ qualityScore: 35 })) {
+        results.push(seq);
+      }
+
+      expect(results[0].format).toBe("fastq");
+      expect(results[0].id).toBe("test");
+      expect(results[0].sequence).toBe("ATCGATCG");
+      expect(results[0].description).toBe("original");
+      // New quality should be uniform score 35
+      expect(results[0].quality).toBe("DDDDDDDD"); // ASCII 68 = score 35
     });
   });
 });

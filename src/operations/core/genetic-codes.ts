@@ -107,6 +107,7 @@
  */
 
 import { reverseComplement } from "./sequence-manipulation";
+import { expandAmbiguous } from "./sequence-validation";
 
 /**
  * Genetic code identifiers matching NCBI standards
@@ -1250,9 +1251,6 @@ export function translateCodon(
   if (directTranslation !== undefined) {
     return directTranslation;
   }
-
-  // Handle ambiguous codons by expanding possibilities
-  const { expandAmbiguous } = require("./sequence-validation");
 
   // Get all possible amino acids for this ambiguous codon
   const possibleAminoAcids = new Set<string>();

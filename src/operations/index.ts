@@ -13,6 +13,12 @@
  */
 
 import { FastaParser, FastaWriter, FastqWriter } from "../formats";
+import {
+  JSONLParser,
+  type JSONParseOptions,
+  JSONParser,
+  type JSONWriteOptions,
+} from "../formats/json";
 import type {
   AbstractSequence,
   FastaSequence,
@@ -179,6 +185,73 @@ export class SeqOps<T extends AbstractSequence> {
     options?: Omit<Tab2FxOptions, "delimiter">
   ): SeqOps<AbstractSequence> {
     return SeqOps.fromDSV(path, { ...options, delimiter: "," });
+  }
+
+  /**
+   * Create SeqOps pipeline from JSON file
+   *
+   * Parses JSON files containing sequence arrays. Supports both simple
+   * array format and wrapped format with metadata. Suitable for datasets
+   * under 100K sequences (loads entire file into memory).
+   *
+   * @param path - Path to JSON file
+   * @param options - Parsing options (format, quality encoding)
+   * @returns New SeqOps pipeline
+   *
+   * @example
+   * ```typescript
+   * // Parse JSON array of sequences
+   * await SeqOps.fromJSON('sequences.json')
+   *   .filter({ minLength: 100 })
+   *   .writeFasta('filtered.fa');
+   *
+   * // Parse FASTQ sequences with quality encoding
+   * await SeqOps.fromJSON('reads.json', {
+   *   format: 'fastq',
+   *   qualityEncoding: 'phred33'
+   * }).quality({ minScore: 20 });
+   * ```
+   *
+   * @performance O(n) memory - loads entire file. Use fromJSONL() for large datasets.
+   * @since 0.1.0
+   */
+  static fromJSON(path: string, options?: JSONParseOptions): SeqOps<AbstractSequence> {
+    const parser = new JSONParser();
+    return new SeqOps(parser.parseFile(path, options));
+  }
+
+  /**
+   * Create SeqOps pipeline from JSONL (JSON Lines) file
+   *
+   * Parses JSONL files where each line is a separate JSON object.
+   * Provides streaming with O(1) memory usage, suitable for datasets
+   * with millions of sequences.
+   *
+   * @param path - Path to JSONL file
+   * @param options - Parsing options (format, quality encoding)
+   * @returns New SeqOps pipeline
+   *
+   * @example
+   * ```typescript
+   * // Stream large JSONL dataset
+   * await SeqOps.fromJSONL('huge-dataset.jsonl')
+   *   .filter({ minLength: 100 })
+   *   .sample(1000)
+   *   .writeFasta('sampled.fa');
+   *
+   * // Process FASTQ from JSONL
+   * await SeqOps.fromJSONL('reads.jsonl', { format: 'fastq' })
+   *   .quality({ minScore: 30 })
+   *   .clean()
+   *   .writeFastq('clean.fq');
+   * ```
+   *
+   * @performance O(1) memory - streams line-by-line. Ideal for large files.
+   * @since 0.1.0
+   */
+  static fromJSONL(path: string, options?: JSONParseOptions): SeqOps<AbstractSequence> {
+    const parser = new JSONLParser();
+    return new SeqOps(parser.parseFile(path, options));
   }
 
   /**
@@ -1416,6 +1489,100 @@ export class SeqOps<T extends AbstractSequence> {
   }
 
   /**
+   * Write sequences to JSON file
+   *
+   * Convenience method that converts sequences to tabular format and writes
+   * as JSON. Supports both simple array format and wrapped format with metadata.
+   * Loads entire dataset into memory before writing.
+   *
+   * @param path - Output file path
+   * @param options - Combined column selection and JSON formatting options
+   * @returns Promise resolving when write is complete
+   *
+   * @example
+   * ```typescript
+   * // Simple JSON array
+   * await SeqOps.fromFasta('input.fa')
+   *   .writeJSON('output.json');
+   *
+   * // With selected columns
+   * await SeqOps.fromFasta('input.fa')
+   *   .writeJSON('output.json', {
+   *     columns: ['id', 'sequence', 'length', 'gc']
+   *   });
+   *
+   * // Pretty-printed with metadata
+   * await SeqOps.fromFasta('input.fa')
+   *   .writeJSON('output.json', {
+   *     columns: ['id', 'sequence', 'length'],
+   *     pretty: true,
+   *     includeMetadata: true
+   *   });
+   * ```
+   *
+   * @performance O(n) memory - loads all sequences. Use writeJSONL() for large datasets.
+   * @since 0.1.0
+   */
+  async writeJSON(
+    path: string,
+    options?: Fx2TabOptions<readonly ColumnId[]> & JSONWriteOptions
+  ): Promise<void> {
+    // Separate Fx2TabOptions from JSONWriteOptions
+    const { pretty, includeMetadata, nullValue: jsonNullValue, ...fx2tabOptions } = options || {};
+
+    // Build JSON-specific options
+    const jsonOptions: JSONWriteOptions = {
+      ...(pretty !== undefined && { pretty }),
+      ...(includeMetadata !== undefined && { includeMetadata }),
+      ...(jsonNullValue !== undefined && { nullValue: jsonNullValue }),
+    };
+
+    // Force header: false to exclude header row from JSON output
+    await this.toTabular({ ...fx2tabOptions, header: false }).writeJSON(path, jsonOptions);
+  }
+
+  /**
+   * Write sequences to JSONL (JSON Lines) file
+   *
+   * Convenience method that converts sequences to tabular format and writes
+   * as JSONL (one JSON object per line). Provides streaming with O(1) memory
+   * usage, ideal for large datasets.
+   *
+   * Note: JSONL format does not support metadata or pretty-printing.
+   * Each line is a separate, compact JSON object.
+   *
+   * @param path - Output file path
+   * @param options - Column selection options (JSON formatting options not applicable)
+   * @returns Promise resolving when write is complete
+   *
+   * @example
+   * ```typescript
+   * // Basic JSONL output
+   * await SeqOps.fromFasta('input.fa')
+   *   .writeJSONL('output.jsonl');
+   *
+   * // With selected columns
+   * await SeqOps.fromFasta('input.fa')
+   *   .writeJSONL('output.jsonl', {
+   *     columns: ['id', 'sequence', 'length', 'gc']
+   *   });
+   *
+   * // Large dataset streaming
+   * await SeqOps.fromFasta('huge-dataset.fa')
+   *   .filter({ minLength: 100 })
+   *   .writeJSONL('filtered.jsonl'); // O(1) memory
+   * ```
+   *
+   * @performance O(1) memory - streams line-by-line. Use for large datasets.
+   * @since 0.1.0
+   */
+  async writeJSONL(path: string, options?: Fx2TabOptions<readonly ColumnId[]>): Promise<void> {
+    // JSONL doesn't support pretty-printing or metadata (line-oriented format)
+    // Force header: false to exclude header row from output
+    await this.toTabular({ ...options, header: false }).writeJSONL(path);
+  }
+
+  /**
    * Convert sequences to tabular format
    *
    * Transform sequences into a tabular representation with configurable columns.
@@ -1468,6 +1635,47 @@ export class SeqOps<T extends AbstractSequence> {
    * ```
    */
   fx2tab<Columns extends readonly ColumnId[] = readonly ["id", "seq", "length"]>(
+    options?: Fx2TabOptions<Columns>
+  ): TabularOps<Columns> {
+    return this.toTabular(options);
+  }
+
+  /**
+   * Convert sequences to row-based format
+   *
+   * Clearer alias for `.toTabular()` that emphasizes the row-based structure
+   * used for output to various formats (TSV, CSV, JSON, JSONL).
+   *
+   * This method converts sequences into a structured row format that can be
+   * written to tabular formats (TSV/CSV) or object formats (JSON/JSONL).
+   * Use this when the term "tabular" feels semantically incorrect for your
+   * output format (e.g., JSON).
+   *
+   * @param options - Column selection and formatting options
+   * @returns TabularOps instance for further processing or writing
+   * @see {@link toTabular} - Original method name
+   *
+   * @example
+   * ```typescript
+   * // Writing to JSON - "rows" is clearer than "tabular"
+   * await seqops(sequences)
+   *   .asRows({ columns: ['id', 'sequence', 'length'] })
+   *   .writeJSON('output.json');
+   *
+   * // Writing to JSONL
+   * await seqops(sequences)
+   *   .asRows({ columns: ['id', 'seq', 'gc'] })
+   *   .writeJSONL('output.jsonl');
+   *
+   * // Also works for tabular formats
+   * await seqops(sequences)
+   *   .asRows({ columns: ['id', 'seq', 'length'] })
+   *   .writeTSV('output.tsv');
+   * ```
+   *
+   * @since 0.1.0
+   */
+  asRows<Columns extends readonly ColumnId[] = readonly ["id", "seq", "length"]>(
     options?: Fx2TabOptions<Columns>
   ): TabularOps<Columns> {
     return this.toTabular(options);

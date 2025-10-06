@@ -42,6 +42,8 @@
 !/src/formats/gtf/*.ts
 !/src/formats/fastq/
 !/src/formats/fastq/*.ts
+!/src/formats/json/
+!/src/formats/json/*.ts
 !/src/io/
 !/src/io/*.ts
 !/src/utils/

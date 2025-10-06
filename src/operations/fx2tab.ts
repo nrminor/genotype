@@ -25,6 +25,15 @@ import {
   TSVParser,
   TSVWriter,
 } from "../formats/dsv";
+import type { JSONWriteOptions } from "../formats/json";
+import {
+  generateCollectionMetadata,
+  rowsToJSONL,
+  serializeJSON,
+  serializeJSONPretty,
+  serializeJSONWithMetadata,
+  serializeJSONWithMetadataPretty,
+} from "../formats/json";
 import type { AbstractSequence, FastqSequence } from "../types";
 import {
   atContent,
@@ -384,6 +393,131 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
       header: false, // We handle header ourselves
     });
     return this.writeToFile(path, writer, "DSV");
+  }
+
+  /**
+   * Write rows as JSON array file
+   *
+   * Creates a JSON file with array of sequence objects. For large datasets,
+   * consider writeJSONL() which streams one object per line instead.
+   *
+   * @param path - Output file path
+   * @param options - JSON formatting options
+   * @throws {FileError} If file cannot be written
+   * @example
+   * ```typescript
+   * await tabularOps.writeJSON('output.json');
+   * await tabularOps.writeJSON('output.json', { pretty: true });
+   * await tabularOps.writeJSON('data.json', { includeMetadata: true });
+   * ```
+   * @performance O(n) time, O(n) memory - buffers entire dataset
+   * @since 2.0.0
+   */
+  async writeJSON(path: string, options?: JSONWriteOptions): Promise<void> {
+    let stream;
+    try {
+      const rows = await this.toArray();
+
+      let output: string;
+
+      if (options?.includeMetadata) {
+        const metadata = generateCollectionMetadata({
+          count: rows.length,
+          columns: rows[0]?.__columns ? [...rows[0].__columns] : [],
+          includeTimestamp: true,
+        });
+
+        const data = {
+          sequences: rows,
+          metadata,
+        };
+
+        const morph = options?.pretty ? serializeJSONWithMetadataPretty : serializeJSONWithMetadata;
+
+        const result = morph(data);
+
+        if (result instanceof type.errors) {
+          throw new FileError(`JSON validation failed: ${result.summary}`, path, "write", result);
+        }
+
+        output = result;
+      } else {
+        const morph = options?.pretty ? serializeJSONPretty : serializeJSON;
+
+        const result = morph(rows);
+
+        if (result instanceof type.errors) {
+          throw new FileError(`JSON validation failed: ${result.summary}`, path, "write", result);
+        }
+
+        output = result;
+      }
+
+      stream = Bun.file(path).writer();
+      await stream.write(output);
+    } catch (error) {
+      if (error instanceof FileError) {
+        throw error;
+      }
+      throw new FileError(
+        `Failed to write JSON to ${path}: ${error instanceof Error ? error.message : String(error)}`,
+        path,
+        "write",
+        error
+      );
+    } finally {
+      if (stream) {
+        await stream.end();
+      }
+    }
+  }
+
+  /**
+   * Write rows as JSONL (JSON Lines) file
+   *
+   * Creates a JSONL file with one JSON object per line. This format enables
+   * streaming with O(1) memory usage, making it suitable for very large datasets.
+   * Each line is a complete, compact JSON object.
+   *
+   * @param path - Output file path
+   * @param options - JSON formatting options (pretty and includeMetadata not applicable)
+   * @throws {FileError} If file cannot be written
+   * @example
+   * ```typescript
+   * // Basic usage
+   * await tabularOps.writeJSONL('output.jsonl');
+   *
+   * // With custom null handling
+   * await tabularOps.writeJSONL('data.jsonl', { nullValue: 'NA' });
+   * ```
+   * @performance O(n) time, O(1) memory - streams one row at a time
+   * @since 2.0.0
+   */
+  async writeJSONL(path: string, options?: JSONWriteOptions): Promise<void> {
+    let stream;
+    try {
+      stream = Bun.file(path).writer();
+
+      for await (const row of this.source) {
+        const line = JSON.stringify(row);
+        await stream.write(line);
+        await stream.write("\n");
+      }
+    } catch (error) {
+      if (error instanceof FileError) {
+        throw error;
+      }
+      throw new FileError(
+        `Failed to write JSONL to ${path}: ${error instanceof Error ? error.message : String(error)}`,
+        path,
+        "write",
+        error
+      );
+    } finally {
+      if (stream) {
+        await stream.end();
+      }
+    }
   }
 
   /**
@@ -787,19 +921,18 @@ export async function* tab2fx(
         throw new ParseError(`Missing required fields (id, sequence) in record`, "tab2fx");
       }
 
-      // Build sequence object
-      const seq: AbstractSequence = {
-        id,
-        sequence,
-        length,
-        ...(description && { description }),
-        ...(format === "fastq" &&
-          quality && {
-            quality,
-            qualityEncoding,
-            format: "fastq" as const,
-          }),
-      };
+      // Convert record to sequence using shared conversion logic
+      const seq = convertRecordToSequence(
+        {
+          id,
+          sequence,
+          ...(quality && { quality }),
+          ...(description && { description }),
+          length,
+        },
+        format,
+        qualityEncoding
+      );
 
       yield seq;
     }
@@ -809,6 +942,52 @@ export async function* tab2fx(
       "tab2fx"
     );
   }
+}
+
+/**
+ * Convert a record with sequence fields to an AbstractSequence
+ *
+ * Shared conversion logic used by both tab2fx() and JSON parsers.
+ * Handles both FASTA and FASTQ formats based on presence of quality field.
+ *
+ * @param record - Object with id, sequence, and optional quality/description fields
+ * @param format - Target format ("fasta" or "fastq")
+ * @param qualityEncoding - Quality encoding for FASTQ sequences
+ * @returns Typed AbstractSequence object
+ *
+ * @internal
+ */
+export function convertRecordToSequence(
+  record: {
+    id: string;
+    sequence: string;
+    quality?: string;
+    description?: string;
+    length?: number;
+  },
+  format: "fasta" | "fastq" = "fasta",
+  qualityEncoding: "phred33" | "phred64" | "solexa" = "phred33"
+): AbstractSequence {
+  const { id, sequence, quality, description, length } = record;
+
+  // Build sequence object with conditional fields
+  const seq: AbstractSequence = {
+    id,
+    sequence,
+    length: length || sequence.length,
+    ...(description && { description }),
+    ...(format === "fastq" &&
+      quality && {
+        quality,
+        qualityEncoding,
+        format: "fastq" as const,
+      }),
+    ...(format === "fasta" && {
+      format: "fasta" as const,
+    }),
+  };
+
+  return seq;
 }
 
 // =============================================================================

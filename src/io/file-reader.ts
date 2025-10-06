@@ -101,6 +101,32 @@ async function createBaseStream(
   }
 }
 
+// import { Effect } from "effect";
+// import { NodeContext, NodeRuntime } from "@effect/platform-node";
+// import { BunContext } from "@effect/platform-bun";
+// import { FileSystem } from "@effect/platform";
+
+// function createEffectStream(
+//   validatedPath: string,
+//   mergedOptions: Required<FileReaderOptions>,
+//   runtime: Runtime
+// ) {
+//   const dataSource = Effect.gen(function* () {
+//     const fs = yield* FileSystem.FileSystem;
+
+//     return fs.stream(validatedPath);
+//   });
+
+//   switch (runtime) {
+//     case "node":
+//       return Effect.runSync(dataSource.pipe(Effect.provide(NodeContext.layer)));
+//     case "bun":
+//       return Effect.runSync(dataSource.pipe(Effect.provide(BunContext.layer)));
+//     default:
+//       throw new CompatibilityError(`Unsupported runtime: ${runtime}`, runtime, "filesystem");
+//   }
+// }
+
 function createNodeStream(
   validatedPath: FilePath,
   mergedOptions: Required<FileReaderOptions>

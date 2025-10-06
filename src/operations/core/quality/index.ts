@@ -95,3 +95,19 @@ export {
   percentAboveThreshold,
   scoreToErrorProbability,
 } from "./statistics";
+
+// ============================================================================
+// BINNING
+// ============================================================================
+
+export type { BinnedResult, BinningStrategy, Platform } from "./binning";
+
+export {
+  binQualityString,
+  calculateBinDistribution,
+  calculateCompressionRatio,
+  calculateRepresentatives,
+  findBinIndex,
+  PRESETS,
+  validateBoundaries,
+} from "./binning";

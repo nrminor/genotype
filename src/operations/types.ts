@@ -146,11 +146,38 @@ export interface CleanOptions {
 }
 
 /**
- * Options for FASTQ quality operations
+ * Type-safe boundary arrays for compile-time validation
  *
- * These operations only apply to FASTQ sequences with quality scores.
+ * Ensures boundaries array length matches the number of bins at compile time.
+ * For N bins, you need exactly N-1 boundary values.
+ *
+ * @example
+ * ```typescript
+ * const boundaries2: BoundariesForBins<2> = [20];              // ✅ 1 boundary for 2 bins
+ * const boundaries3: BoundariesForBins<3> = [15, 30];          // ✅ 2 boundaries for 3 bins
+ * const boundaries5: BoundariesForBins<5> = [10, 20, 30, 35];  // ✅ 4 boundaries for 5 bins
+ *
+ * const invalid1: BoundariesForBins<3> = [20];                 // ❌ Compile error: Need 2, got 1
+ * const invalid2: BoundariesForBins<2> = [15, 30];             // ❌ Compile error: Need 1, got 2
+ * ```
+ *
+ * @public
  */
-export interface QualityOptions {
+export type BoundariesForBins<N extends 2 | 3 | 5> = N extends 2
+  ? readonly [number]
+  : N extends 3
+    ? readonly [number, number]
+    : readonly [number, number, number, number];
+
+/**
+ * Base quality operations (filtering, trimming)
+ *
+ * These operations are independent of binning and can be used alone
+ * or combined with binning options.
+ *
+ * @internal
+ */
+interface QualityBaseOptions {
   /** Minimum average quality score */
   minScore?: number;
 
@@ -172,9 +199,79 @@ export interface QualityOptions {
   /** Trim low quality from 3' end */
   trimFromEnd?: boolean;
 
-  /** Quality score encoding */
-  encoding?: "phred33" | "phred64";
+  /** Quality score encoding (Phred+33, Phred+64, or Solexa+64) */
+  encoding?: "phred33" | "phred64" | "solexa";
 }
+
+/**
+ * Quality score binning options
+ *
+ * Discriminated union ensuring type safety:
+ * - Either preset OR boundaries, never both
+ * - Boundary array length matches bin count (compile-time checked)
+ * - bins is always specified when binning is requested
+ *
+ * @internal
+ */
+type QualityBinningOptions<N extends 2 | 3 | 5 = 2 | 3 | 5> =
+  | {
+      bins: N;
+      preset: "illumina" | "pacbio" | "nanopore";
+      boundaries?: never;
+    }
+  | {
+      bins: N;
+      boundaries: BoundariesForBins<N>;
+      preset?: never;
+    };
+
+/**
+ * Options for FASTQ quality operations
+ *
+ * Supports filtering, trimming, and binning operations with compile-time type safety.
+ * Invalid option combinations are caught at compile-time rather than runtime.
+ *
+ * @example
+ * ```typescript
+ * // ✅ Filtering only
+ * const opt1: QualityOptions = { minScore: 20, maxScore: 40 };
+ *
+ * // ✅ Trimming only
+ * const opt2: QualityOptions = { trim: true, trimThreshold: 15, trimWindow: 4 };
+ *
+ * // ✅ Binning with platform preset (90% use case)
+ * const opt3: QualityOptions = { bins: 3, preset: 'illumina' };
+ *
+ * // ✅ Binning with custom boundaries (compile-time length validation!)
+ * const opt4: QualityOptions = { bins: 2, boundaries: [20] };
+ * const opt5: QualityOptions = { bins: 3, boundaries: [15, 30] };
+ * const opt6: QualityOptions = { bins: 5, boundaries: [10, 20, 30, 35] };
+ *
+ * // ✅ Combined: filtering + trimming + binning
+ * const opt7: QualityOptions = {
+ *   minScore: 20,
+ *   trim: true,
+ *   trimThreshold: 15,
+ *   bins: 3,
+ *   preset: 'illumina'
+ * };
+ *
+ * // ❌ COMPILE ERROR: bins without preset or boundaries
+ * const bad1: QualityOptions = { bins: 3 };
+ *
+ * // ❌ COMPILE ERROR: Both preset AND boundaries
+ * const bad2: QualityOptions = { bins: 3, preset: 'illumina', boundaries: [15, 30] };
+ *
+ * // ❌ COMPILE ERROR: Wrong boundary length
+ * const bad3: QualityOptions = { bins: 3, boundaries: [20] };
+ *
+ * // ❌ COMPILE ERROR: preset without bins
+ * const bad4: QualityOptions = { preset: 'illumina' };
+ * ```
+ *
+ * @public
+ */
+export type QualityOptions = QualityBaseOptions & ({} | QualityBinningOptions);
 
 /**
  * Options for quality score encoding conversion

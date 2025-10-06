@@ -363,17 +363,47 @@ export class SeqOps<T extends AbstractSequence> {
   /**
    * FASTQ quality operations
    *
-   * Filter and trim sequences based on quality scores. Only affects
-   * FASTQ sequences; FASTA sequences pass through unchanged.
+   * Filter, trim, and bin sequences based on quality scores.
+   * Supports filtering, trimming, and binning operations - all operations
+   * are optional and can be combined. Only affects FASTQ sequences;
+   * FASTA sequences pass through unchanged.
    *
-   * @param options - Quality options
+   * @param options - Quality filtering, trimming, and binning options
    * @returns New SeqOps instance for chaining
    *
-   * @example
+   * @example Basic filtering
    * ```typescript
    * seqops(sequences)
    *   .quality({ minScore: 20 })
+   * ```
+   *
+   * @example Quality trimming
+   * ```typescript
+   * seqops(sequences)
    *   .quality({ trim: true, trimThreshold: 20, trimWindow: 4 })
+   * ```
+   *
+   * @example Quality binning for compression
+   * ```typescript
+   * seqops(sequences)
+   *   .quality({ bins: 3, preset: 'illumina' })
+   * ```
+   *
+   * @example Combined operations
+   * ```typescript
+   * seqops(sequences)
+   *   .quality({
+   *     minScore: 20,        // 1. Filter low quality
+   *     trim: true,          // 2. Trim ends
+   *     bins: 3,             // 3. Bin for compression
+   *     preset: 'illumina'
+   *   })
+   * ```
+   *
+   * @example Custom binning boundaries
+   * ```typescript
+   * seqops(sequences)
+   *   .quality({ bins: 2, boundaries: [25] })
    * ```
    */
   quality<U extends T & FastqSequence>(this: SeqOps<U>, options: QualityOptions): SeqOps<U> {

@@ -181,6 +181,93 @@ export class SeqOps<T extends AbstractSequence> {
     return SeqOps.fromDSV(path, { ...options, delimiter: "," });
   }
 
+  /**
+   * Create SeqOps pipeline from array of sequences
+   *
+   * Convenient method to convert arrays to SeqOps pipelines.
+   * Most common use case for examples and small datasets.
+   *
+   * @param sequences - Array of sequences
+   * @returns New SeqOps instance
+   *
+   * @example
+   * ```typescript
+   * const sequences = [
+   *   { id: 'seq1', sequence: 'ATCG', length: 4 },
+   *   { id: 'seq2', sequence: 'GCTA', length: 4 }
+   * ];
+   *
+   * const result = await SeqOps.from(sequences)
+   *   .translate()
+   *   .writeFasta('proteins.fasta');
+   * ```
+   *
+   * @since 2.0.0
+   */
+  static from<T extends AbstractSequence>(sequences: T[]): SeqOps<T> {
+    async function* arrayToAsyncIterable(): AsyncIterable<T> {
+      for (const seq of sequences) {
+        yield seq as T;
+      }
+    }
+    return new SeqOps(arrayToAsyncIterable());
+  }
+
+  /**
+   * Concatenate multiple sequence files into a single pipeline
+   *
+   * Static factory function that creates a SeqOps pipeline from multiple files.
+   * Elegant API for combining sequence sources with simple duplicate handling.
+   *
+   * @param filePaths - Array of file paths to concatenate
+   * @param handleDuplicateIds - How to handle duplicate IDs: 'suffix' | 'ignore' (default: 'ignore')
+   * @returns New SeqOps instance for chaining
+   *
+   * @example
+   * ```typescript
+   * // Simple concatenation
+   * const combined = SeqOps.concat(['file1.fasta', 'file2.fasta']);
+   *
+   * // With duplicate ID suffixing
+   * const merged = SeqOps.concat(['db1.fa', 'db2.fa'], 'suffix')
+   *   .filter({ minLength: 100 })
+   *   .writeFasta('combined.fa');
+   * ```
+   *
+   * @since 2.0.0
+   */
+  static concat(
+    filePaths: string[],
+    handleDuplicateIds: "suffix" | "ignore" = "ignore"
+  ): SeqOps<FastaSequence> {
+    async function* concatenateFiles(): AsyncIterable<FastaSequence> {
+      const seenIds = new Set<string>();
+
+      for (let sourceIndex = 0; sourceIndex < filePaths.length; sourceIndex++) {
+        const filePath = filePaths[sourceIndex];
+        if (!filePath) continue;
+
+        // Simple format detection and parsing
+        const parser = new FastaParser();
+        const sequences = parser.parseFile(filePath);
+
+        for await (const seq of sequences) {
+          let finalSeq = seq;
+
+          // Handle duplicate IDs simply
+          if (seenIds.has(seq.id) && handleDuplicateIds === "suffix") {
+            finalSeq = { ...seq, id: `${seq.id}_${sourceIndex}` };
+          }
+
+          seenIds.add(finalSeq.id);
+          yield finalSeq;
+        }
+      }
+    }
+
+    return new SeqOps(concatenateFiles());
+  }
+
   // =============================================================================
   // SEMANTIC API METHODS
   // =============================================================================
@@ -1653,89 +1740,6 @@ export class SeqOps<T extends AbstractSequence> {
 export function seqops<T extends AbstractSequence>(sequences: AsyncIterable<T>): SeqOps<T> {
   return new SeqOps<T>(sequences as AsyncIterable<T>);
 }
-
-/**
- * Create SeqOps pipeline from array of sequences
- *
- * Convenient method to convert arrays to SeqOps pipelines.
- * Most common use case for examples and small datasets.
- *
- * @param sequences - Array of sequences
- * @returns New SeqOps instance
- *
- * @example
- * ```typescript
- * const sequences = [
- *   { id: 'seq1', sequence: 'ATCG', length: 4 },
- *   { id: 'seq2', sequence: 'GCTA', length: 4 }
- * ];
- *
- * const result = await seqops.from(sequences)
- *   .translate()
- *   .writeFasta('proteins.fasta');
- * ```
- */
-seqops.from = <T extends AbstractSequence>(sequences: T[]): SeqOps<T> => {
-  async function* arrayToAsyncIterable(): AsyncIterable<T> {
-    for (const seq of sequences) {
-      yield seq as T;
-    }
-  }
-  return new SeqOps(arrayToAsyncIterable());
-};
-
-/**
- * Concatenate multiple sequence files into a single pipeline
- *
- * Static factory function that creates a SeqOps pipeline from multiple files.
- * Elegant API for combining sequence sources with simple duplicate handling.
- *
- * @param filePaths - Array of file paths to concatenate
- * @param handleDuplicateIds - How to handle duplicate IDs: 'suffix' | 'ignore' (default: 'ignore')
- * @returns New SeqOps instance for chaining
- *
- * @example
- * ```typescript
- * // Simple concatenation
- * const combined = seqops.concat(['file1.fasta', 'file2.fasta']);
- *
- * // With duplicate ID suffixing
- * const merged = seqops.concat(['db1.fa', 'db2.fa'], 'suffix')
- *   .filter({ minLength: 100 })
- *   .writeFasta('combined.fa');
- * ```
- */
-seqops.concat = (
-  filePaths: string[],
-  handleDuplicateIds: "suffix" | "ignore" = "ignore"
-): SeqOps<FastaSequence> => {
-  async function* concatenateFiles(): AsyncIterable<FastaSequence> {
-    const seenIds = new Set<string>();
-
-    for (let sourceIndex = 0; sourceIndex < filePaths.length; sourceIndex++) {
-      const filePath = filePaths[sourceIndex];
-      if (!filePath) continue;
-
-      // Simple format detection and parsing
-      const parser = new FastaParser();
-      const sequences = parser.parseFile(filePath);
-
-      for await (const seq of sequences) {
-        let finalSeq = seq;
-
-        // Handle duplicate IDs simply
-        if (seenIds.has(seq.id) && handleDuplicateIds === "suffix") {
-          finalSeq = { ...seq, id: `${seq.id}_${sourceIndex}` };
-        }
-
-        seenIds.add(finalSeq.id);
-        yield finalSeq;
-      }
-    }
-  }
-
-  return new SeqOps(concatenateFiles());
-};
 
 // Export processors for advanced usage
 export { AmpliconProcessor } from "./amplicon";

@@ -36,6 +36,8 @@ import {
 } from "./core/calculations";
 import { hashMD5 } from "./core/hashing";
 import { calculateAverageQuality } from "./core/quality";
+import { charToScore } from "./core/quality/conversion";
+import { getEncodingInfo } from "./core/quality/encoding-info";
 
 // =============================================================================
 // CONSTANTS
@@ -49,6 +51,23 @@ const DEFAULT_PRECISION = 2;
 
 /** Number of lines to sample for delimiter detection */
 const DELIMITER_DETECTION_SAMPLE_LINES = 5;
+
+/** Standard DSV field names for round-trip compatibility */
+const DSV_FIELDS = ["id", "sequence", "quality", "description"] as const;
+
+/** Columns that should always be formatted as integers */
+const INTEGER_COLUMNS = ["length", "index", "line_number", "min_qual", "max_qual"] as const;
+
+/** Columns that should always use decimal precision */
+const PRECISION_COLUMNS = [
+  "gc",
+  "at",
+  "gc_skew",
+  "at_skew",
+  "complexity",
+  "entropy",
+  "avg_qual",
+] as const;
 
 /** Column headers for display */
 const COLUMN_HEADERS: Record<string, string> = {
@@ -601,7 +620,7 @@ export async function* fx2tab<Columns extends readonly ColumnId[]>(
       }
       // For DSV compatibility, write lowercase field names for standard columns
       // This ensures DSVParser can read them back correctly
-      if (col === "id" || col === "sequence" || col === "quality" || col === "description") {
+      if (DSV_FIELDS.includes(col as (typeof DSV_FIELDS)[number])) {
         return col; // Use lowercase for DSV compatibility
       }
 
@@ -882,35 +901,21 @@ function formatColumnValue(
   }
 ): string {
   if (typeof value === "number") {
-    // Don't apply decimal precision to integer-only columns
-    const integerColumns = ["length", "index", "line_number", "min_qual", "max_qual"];
-
     // base_count columns should be integers
     if (column.startsWith("base_count_")) {
       return String(Math.round(value));
     }
 
-    if (integerColumns.includes(column)) {
+    if (INTEGER_COLUMNS.includes(column as (typeof INTEGER_COLUMNS)[number])) {
       return String(Math.round(value));
     }
-
-    // Always apply precision to percentage and scientific columns for consistency
-    const alwaysPrecisionColumns = [
-      "gc",
-      "at",
-      "gc_skew",
-      "at_skew",
-      "complexity",
-      "entropy",
-      "avg_qual",
-    ];
 
     // base_content columns are percentages
     if (column.startsWith("base_content_")) {
       return value.toFixed(options.precision);
     }
 
-    if (alwaysPrecisionColumns.includes(column)) {
+    if (PRECISION_COLUMNS.includes(column as (typeof PRECISION_COLUMNS)[number])) {
       return value.toFixed(options.precision);
     }
 
@@ -1008,11 +1013,11 @@ function computeColumn(
       if (!fastq.quality) return null;
 
       const encoding = fastq.qualityEncoding || "phred33";
-      const offset = encoding === "phred33" ? 33 : 64;
       let minQual = Number.MAX_SAFE_INTEGER;
 
       for (let i = 0; i < fastq.quality.length; i++) {
-        const qual = fastq.quality.charCodeAt(i) - offset;
+        const char = fastq.quality.charAt(i);
+        const qual = charToScore(char, encoding);
         minQual = Math.min(minQual, qual);
       }
       return minQual;
@@ -1022,11 +1027,11 @@ function computeColumn(
       if (!fastq.quality) return null;
 
       const encoding = fastq.qualityEncoding || "phred33";
-      const offset = encoding === "phred33" ? 33 : 64;
-      let maxQual = 0;
+      let maxQual = Number.MIN_SAFE_INTEGER;
 
       for (let i = 0; i < fastq.quality.length; i++) {
-        const qual = fastq.quality.charCodeAt(i) - offset;
+        const char = fastq.quality.charAt(i);
+        const qual = charToScore(char, encoding);
         maxQual = Math.max(maxQual, qual);
       }
       return maxQual;

@@ -675,6 +675,88 @@ describe("fx2tab", () => {
     });
   });
 
+  describe("Quality encoding support", () => {
+    test("handles Solexa encoding with min_qual and max_qual columns", async () => {
+      const solexaSeq = {
+        id: "solexa_seq",
+        sequence: "ATCG",
+        length: 4,
+        quality: ";@AB", // Solexa: -5, 0, 1, 2
+        qualityEncoding: "solexa" as const,
+        format: "fastq" as const,
+      };
+
+      async function* solexaSequences() {
+        yield solexaSeq;
+      }
+
+      const rows: Fx2TabRow<readonly ["id", "min_qual", "max_qual", "avg_qual"]>[] = [];
+      for await (const row of fx2tab(solexaSequences(), {
+        columns: ["id", "min_qual", "max_qual", "avg_qual"] as const,
+      })) {
+        rows.push(row);
+      }
+
+      expect(rows).toHaveLength(2); // header + 1 sequence
+      expect(rows[1].id).toBe("solexa_seq");
+      expect(rows[1].min_qual).toBe(-5); // Solexa can have negative scores
+      expect(rows[1].max_qual).toBe(2);
+      expect(typeof rows[1].avg_qual).toBe("number");
+    });
+
+    test("handles Phred33 encoding with quality columns", async () => {
+      const phred33Seq = {
+        id: "phred33_seq",
+        sequence: "ATCG",
+        length: 4,
+        quality: "!+5?", // Phred33: 0, 10, 20, 30
+        qualityEncoding: "phred33" as const,
+        format: "fastq" as const,
+      };
+
+      async function* phred33Sequences() {
+        yield phred33Seq;
+      }
+
+      const rows: Fx2TabRow<readonly ["id", "min_qual", "max_qual"]>[] = [];
+      for await (const row of fx2tab(phred33Sequences(), {
+        columns: ["id", "min_qual", "max_qual"] as const,
+      })) {
+        rows.push(row);
+      }
+
+      expect(rows).toHaveLength(2);
+      expect(rows[1].min_qual).toBe(0);
+      expect(rows[1].max_qual).toBe(30);
+    });
+
+    test("handles Phred64 encoding with quality columns", async () => {
+      const phred64Seq = {
+        id: "phred64_seq",
+        sequence: "ATCG",
+        length: 4,
+        quality: "@JT^", // Phred64: 0, 10, 20, 30
+        qualityEncoding: "phred64" as const,
+        format: "fastq" as const,
+      };
+
+      async function* phred64Sequences() {
+        yield phred64Seq;
+      }
+
+      const rows: Fx2TabRow<readonly ["id", "min_qual", "max_qual"]>[] = [];
+      for await (const row of fx2tab(phred64Sequences(), {
+        columns: ["id", "min_qual", "max_qual"] as const,
+      })) {
+        rows.push(row);
+      }
+
+      expect(rows).toHaveLength(2);
+      expect(rows[1].min_qual).toBe(0);
+      expect(rows[1].max_qual).toBe(30);
+    });
+  });
+
   // Cleanup test files
   afterEach(async () => {
     // Clean up any test files

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { primer } from "../../src/operations/core/alphabet";
-import { seqops } from "../../src/operations/index";
+import { SeqOps, seqops } from "../../src/operations/index";
 import type { AbstractSequence } from "../../src/types";
 
 describe("SeqOps Amplicon Integration", () => {
@@ -25,7 +25,7 @@ describe("SeqOps Amplicon Integration", () => {
 
   describe("90% use case: maximum simplicity", () => {
     test("simple two-primer amplicon extraction", async () => {
-      const result = await seqops
+      const result = await SeqOps
         .from(testSequences)
         .amplicon("ATCGATCGATCGATCG", "ATCGATCGATCGATCG")
         .collect();
@@ -37,7 +37,7 @@ describe("SeqOps Amplicon Integration", () => {
     });
 
     test("with mismatch tolerance (common case)", async () => {
-      const result = await seqops
+      const result = await SeqOps
         .from(testSequences)
         .amplicon("ATCGATCGATCGATCG", "ATCGATCGATCGATCG", 1)
         .collect();
@@ -46,7 +46,7 @@ describe("SeqOps Amplicon Integration", () => {
     });
 
     test("single primer (auto-canonical matching)", async () => {
-      const result = await seqops.from(testSequences).amplicon("ATCGATCGATCGATCG").collect();
+      const result = await SeqOps.from(testSequences).amplicon("ATCGATCGATCGATCG").collect();
 
       expect(result.length).toBeGreaterThanOrEqual(0);
     });
@@ -56,7 +56,7 @@ describe("SeqOps Amplicon Integration", () => {
       const covidReverse = primer`CAAAGACCAATCCTACCATGAG`;
 
       // Should work seamlessly with pre-validated primers
-      const result = await seqops
+      const result = await SeqOps
         .from([
           {
             format: "fasta",
@@ -83,7 +83,7 @@ describe("SeqOps Amplicon Integration", () => {
       };
 
       const start = performance.now();
-      const result = await seqops
+      const result = await SeqOps
         .from([longRead])
         .amplicon({
           forwardPrimer: "ATCGATCGATCGATCG",
@@ -98,7 +98,7 @@ describe("SeqOps Amplicon Integration", () => {
     });
 
     test("flanking regions with seqkit compatibility", async () => {
-      const result = await seqops
+      const result = await SeqOps
         .from(testSequences)
         .amplicon({
           forwardPrimer: "ATCGATCGATCGATCG",
@@ -118,7 +118,7 @@ describe("SeqOps Amplicon Integration", () => {
       const bedPrimer1 = "ATCGATCGATCGATCG"; // Simulated BED extraction
       const bedPrimer2 = "ATCGATCGATCGATCG"; // Same orientation from BED
 
-      const result = await seqops
+      const result = await SeqOps
         .from(testSequences)
         .amplicon({
           forwardPrimer: bedPrimer1,
@@ -138,7 +138,7 @@ describe("SeqOps Amplicon Integration", () => {
         length: 1042,
       };
 
-      const result = await seqops
+      const result = await SeqOps
         .from([nanoporeRead])
         .amplicon({
           forwardPrimer: primer`ACCAGGAACTAATCAGACAAG`,
@@ -161,7 +161,7 @@ describe("SeqOps Amplicon Integration", () => {
 
   describe("pipeline integration", () => {
     test("chains seamlessly with other operations", async () => {
-      const result = await seqops
+      const result = await SeqOps
         .from(testSequences)
         .filter({ minLength: 40 })
         .amplicon("ATCGATCGATCGATCG", "ATCGATCGATCGATCG")
@@ -187,7 +187,7 @@ describe("SeqOps Amplicon Integration", () => {
         length: 88,
       };
 
-      const diagnosticResult = await seqops
+      const diagnosticResult = await SeqOps
         .from([covidSample])
         .quality({ minScore: 20 }) // Quality filtering
         .amplicon(
@@ -209,7 +209,7 @@ describe("SeqOps Amplicon Integration", () => {
         length: 340,
       };
 
-      const microbiomeResult = await seqops
+      const microbiomeResult = await SeqOps
         .from([microbialSample])
         .amplicon({
           forwardPrimer: primer`GTGCCAGCMGCCGCGGTAA`, // 515F (M=A|C)
@@ -228,9 +228,9 @@ describe("SeqOps Amplicon Integration", () => {
   describe("progressive disclosure validation", () => {
     test("simple cases require zero complexity", () => {
       // These should compile and be intuitive
-      const simple1 = seqops.from(testSequences).amplicon("FORWARD", "REVERSE");
-      const simple2 = seqops.from(testSequences).amplicon("FORWARD", "REVERSE", 2);
-      const simple3 = seqops.from(testSequences).amplicon("SINGLE_PRIMER");
+      const simple1 = SeqOps.from(testSequences).amplicon("FORWARD", "REVERSE");
+      const simple2 = SeqOps.from(testSequences).amplicon("FORWARD", "REVERSE", 2);
+      const simple3 = SeqOps.from(testSequences).amplicon("SINGLE_PRIMER");
 
       expect(simple1).toBeDefined();
       expect(simple2).toBeDefined();
@@ -239,7 +239,7 @@ describe("SeqOps Amplicon Integration", () => {
 
     test("advanced features available when needed", () => {
       // Full options object should work for sophisticated use cases
-      const advanced = seqops.from(testSequences).amplicon({
+      const advanced = SeqOps.from(testSequences).amplicon({
         forwardPrimer: primer`ATCGATCGATCGATCG`,
         reversePrimer: primer`CGATCGATCGATCGAT`,
         maxMismatches: 3,
@@ -255,7 +255,7 @@ describe("SeqOps Amplicon Integration", () => {
 
     test("parameter type checking works correctly", async () => {
       // Should handle mixed parameter types gracefully
-      const mixedTypes = await seqops
+      const mixedTypes = await SeqOps
         .from(testSequences)
         .amplicon(
           primer`ATCGATCGATCGATCG`, // PrimerSequence type
@@ -270,7 +270,7 @@ describe("SeqOps Amplicon Integration", () => {
 
   describe("method chaining and type safety", () => {
     test("maintains SeqOps type through chain", () => {
-      const chain = seqops
+      const chain = SeqOps
         .from(testSequences)
         .amplicon("FORWARD", "REVERSE")
         .filter({ minLength: 10 })
@@ -281,7 +281,7 @@ describe("SeqOps Amplicon Integration", () => {
     });
 
     test("works with all terminal operations", async () => {
-      const seqOpsChain = seqops
+      const seqOpsChain = SeqOps
         .from(testSequences)
         .amplicon("ATCGATCGATCGATCG", "ATCGATCGATCGATCG");
 

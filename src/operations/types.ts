@@ -390,6 +390,53 @@ export interface RmdupOptions {
 }
 
 /**
+ * Options for renaming duplicate sequence IDs
+ *
+ * Ensures unique IDs by appending numeric suffixes to duplicates.
+ * Matches seqkit rename functionality with type-safe TypeScript interface.
+ */
+export interface RenameOptions {
+  /**
+   * Check duplication by full name instead of just ID
+   *
+   * When true, considers both ID and description for duplicate detection.
+   * When false (default), only the sequence ID is used.
+   *
+   * @default false
+   */
+  readonly byName?: boolean;
+
+  /**
+   * Separator between original ID and counter
+   *
+   * Must be a non-empty string. Common choices: "_", ".", "-", "|"
+   *
+   * @default "_"
+   */
+  readonly separator?: string;
+
+  /**
+   * Starting count number for duplicates
+   *
+   * Must be a non-negative number (>= 0). The first duplicate gets this number,
+   * subsequent duplicates increment from here.
+   *
+   * @default 2
+   */
+  readonly startNum?: number;
+
+  /**
+   * Also rename the first occurrence
+   *
+   * When true, ALL occurrences get suffixes including the first.
+   * When false (default), first occurrence keeps original ID.
+   *
+   * @default false
+   */
+  readonly renameFirst?: boolean;
+}
+
+/**
  * Options for grouping sequences
  */
 export interface GroupOptions {

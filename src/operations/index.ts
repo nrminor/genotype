@@ -45,6 +45,7 @@ import {
 import { GrepProcessor } from "./grep";
 import { LocateProcessor } from "./locate";
 import { QualityProcessor } from "./quality";
+import { rename } from "./rename";
 import { RmdupProcessor } from "./rmdup";
 import { SampleProcessor } from "./sample";
 import { SortProcessor } from "./sort";
@@ -62,6 +63,7 @@ import type {
   GrepOptions,
   LocateOptions,
   QualityOptions,
+  RenameOptions,
   RmdupOptions,
   SampleOptions,
   SortOptions,
@@ -1001,27 +1003,26 @@ export class SeqOps<T extends AbstractSequence> {
   }
 
   /**
-   * Remove sequence duplicates (convenience method)
+   * Rename duplicated sequence IDs
    *
-   * Most common deduplication use case - remove sequences with identical content.
+   * Appends numeric suffixes to duplicate IDs to ensure uniqueness.
+   * Useful after merging datasets or processing PCR replicates.
    *
-   * @param caseSensitive - Whether to consider case (default: true)
-   * @returns New SeqOps instance for chaining
+   * @param options - Rename options
+   * @returns New SeqOps with unique IDs
+   *
+   * @example
+   * ```typescript
+   * // Basic usage - duplicates get "_2", "_3" suffixes
+   * seqops(sequences).rename();
+   *
+   * // Rename all occurrences including first
+   * seqops(sequences).rename({ renameFirst: true, startNum: 1 });
+   * // Result: "id_1", "id_2", "id_3"
+   * ```
    */
-  removeSequenceDuplicates(caseSensitive: boolean = true): SeqOps<T> {
-    return this.rmdup({ by: "sequence", caseSensitive, exact: false });
-  }
-
-  /**
-   * Remove ID duplicates (convenience method)
-   *
-   * Remove sequences with duplicate IDs, keeping first occurrence.
-   *
-   * @param exact - Use exact matching (default: true for IDs)
-   * @returns New SeqOps instance for chaining
-   */
-  removeIdDuplicates(exact: boolean = true): SeqOps<T> {
-    return this.rmdup({ by: "id", exact });
+  rename(options?: RenameOptions): SeqOps<T> {
+    return new SeqOps(rename(this.source, options));
   }
 
   /**
@@ -1970,6 +1971,7 @@ export {
   TabularOps,
   tab2fx,
 } from "./fx2tab";
+export { rename } from "./rename";
 // Export split-specific types
 export { SplitProcessor, type SplitResult, type SplitSummary } from "./split";
 // Re-export types and classes for convenience
@@ -1992,6 +1994,7 @@ export type {
   GroupOptions,
   LocateOptions,
   QualityOptions,
+  RenameOptions,
   RmdupOptions,
   SampleOptions,
   SortOptions,

@@ -101,10 +101,11 @@ contribution **our finest work yet.**
    exhaustive justification
 8. **MANDATORY: Run validation workflows** - All features MUST pass
    `bun run validate` or `bun run validate:full` before being declared complete
-9. **MANDATORY AFTER COMPACTION: Re-read CLAUDE.md _and_ AGENTS.md _and_
-   onboarding documents in an onboarding directory, if available** - After ANY
-   context compaction or conversation continuation, you MUST re-read these
-   documents BEFORE proceeding with ANY work
+9. **MANDATORY AFTER COMPACTION: Re-read AGENTS.md _and_ onboarding documents in
+   an onboarding directory, if available** (the directory may also be all caps,
+   e.g., `ONBOARDING/`) - After ANY context compaction or conversation
+   continuation, you MUST re-read these documents BEFORE proceeding with ANY
+   work
 
 **NO EXCEPTIONS. Any code that doesn't follow these guidelines OR fails
 validation will be rejected.**

@@ -1,0 +1,16 @@
+[
+  {
+    "id": "read1",
+    "sequence": "ATCGATCG",
+    "quality": "IIIIIIII",
+    "qualityEncoding": "phred33",
+    "length": 8
+  },
+  {
+    "id": "read2",
+    "sequence": "GCTAGCTA",
+    "quality": "HHHHHHHH",
+    "qualityEncoding": "phred33",
+    "length": 8
+  }
+]

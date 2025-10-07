@@ -99,6 +99,8 @@
 !/test/fixtures/*.fasta
 !/test/fixtures/*.fastq
 !/test/fixtures/*.bed
+!/test/fixtures/*.json
+!/test/fixtures/*.jsonl
 
 # === BUILD & DEPLOYMENT SCRIPTS ===
 # Automation scripts

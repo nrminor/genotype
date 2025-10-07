@@ -1,0 +1,22 @@
+[
+  {
+    "id": "seq1",
+    "sequence": "ATCGATCG",
+    "description": "test sequence 1",
+    "length": 8,
+    "gc": 50.0
+  },
+  {
+    "id": "seq2",
+    "sequence": "GGCCGGCC",
+    "description": "test sequence 2",
+    "length": 8,
+    "gc": 100.0
+  },
+  {
+    "id": "seq3",
+    "sequence": "TTAATTAA",
+    "length": 8,
+    "gc": 0.0
+  }
+]

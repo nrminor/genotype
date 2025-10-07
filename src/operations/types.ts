@@ -437,6 +437,476 @@ export interface RenameOptions {
 }
 
 /**
+ * Base options for the replace operation (all common fields)
+ *
+ * This type contains all fields that are independent of the key-value source.
+ * Use ReplaceOptions for the public API, which enforces mutual exclusivity
+ * of kvMap and kvFile at compile-time.
+ *
+ * @internal
+ */
+type BaseReplaceOptions = {
+  /**
+   * Regular expression pattern to match
+   *
+   * The pattern is compiled with JavaScript RegExp and applied to either
+   * sequence IDs (default) or sequence content (with bySeq option).
+   * Must be a valid regex pattern.
+   *
+   * Corresponds to seqkit's -p/--pattern flag.
+   *
+   * @example
+   * ```typescript
+   * // Remove descriptions
+   * pattern: '\\s.+'
+   *
+   * // Match first word
+   * pattern: '^(\\w+)'
+   *
+   * // Remove gaps
+   * pattern: '[ \\-]'
+   * ```
+   */
+  readonly pattern: string;
+
+  /**
+   * Replacement string with support for capture variables and special symbols
+   *
+   * Supports standard regex capture variables ($1, $2, etc.) and special
+   * placeholders like {nr}, {kv}, {fn}, {fbn}, {fbne}.
+   *
+   * Corresponds to seqkit's -r/--replacement flag.
+   *
+   * @example
+   * ```typescript
+   * // Remove matched content
+   * replacement: ''
+   *
+   * // Use capture variables
+   * replacement: 'prefix_$1_suffix'
+   *
+   * // Add record number
+   * replacement: 'seq_{nr}'
+   *
+   * // Key-value lookup
+   * replacement: '$1_{kv}'
+   * ```
+   */
+  readonly replacement: string;
+
+  /**
+   * Replace in sequence content instead of sequence name
+   *
+   * When true, applies pattern to sequence content (FASTA only).
+   * When false (default), applies pattern to sequence ID/name.
+   *
+   * IMPORTANT: Only works with FASTA format. Throws error for FASTQ.
+   *
+   * Corresponds to seqkit's -s/--by-seq flag.
+   *
+   * @default false
+   *
+   * @example
+   * ```typescript
+   * // Remove gaps from sequence
+   * { pattern: '[ \\-]', replacement: '', bySeq: true }
+   *
+   * // Add space after each base
+   * { pattern: '(.)', replacement: '$1 ', bySeq: true }
+   * ```
+   */
+  readonly bySeq?: boolean;
+
+  /**
+   * Case-insensitive pattern matching
+   *
+   * When true, pattern matching ignores case.
+   * When false (default), matching is case-sensitive.
+   *
+   * Corresponds to seqkit's -i/--ignore-case flag.
+   *
+   * @default false
+   *
+   * @example
+   * ```typescript
+   * // Match 'GENE', 'gene', 'Gene', etc.
+   * { pattern: 'gene', replacement: 'GENE', ignoreCase: true }
+   * ```
+   */
+  readonly ignoreCase?: boolean;
+
+  /**
+   * Minimum width for record number formatting
+   *
+   * Used with {nr} placeholder. Pads record numbers with leading zeros.
+   * Must be a positive integer (>= 1).
+   *
+   * Corresponds to seqkit's --nr-width flag.
+   *
+   * @default 1
+   *
+   * @example
+   * ```typescript
+   * // Default: seq_1, seq_2, seq_10
+   * { replacement: 'seq_{nr}', nrWidth: 1 }
+   *
+   * // Width 3: seq_001, seq_002, seq_010
+   * { replacement: 'seq_{nr}', nrWidth: 3 }
+   *
+   * // Width 5: seq_00001, seq_00002, seq_00010
+   * { replacement: 'seq_{nr}', nrWidth: 5 }
+   * ```
+   */
+  readonly nrWidth?: number;
+
+  /**
+   * Source file name for {fn}, {fbn}, {fbne} placeholders
+   *
+   * Optional file path used to populate file name placeholders in replacement string.
+   * If not provided, placeholders default to 'stdin'.
+   *
+   * Placeholders:
+   * - {fn}: Full file name/path
+   * - {fbn}: Base name (last component of path)
+   * - {fbne}: Base name without extension
+   *
+   * @example
+   * ```typescript
+   * // With file name
+   * {
+   *   fileName: '/data/sequences.fasta',
+   *   replacement: '{fn}__{fbn}__{fbne}'
+   * }
+   * // Result: '/data/sequences.fasta__sequences.fasta__sequences'
+   *
+   * // Without file name (defaults to 'stdin')
+   * { replacement: '{fn}' }
+   * // Result: 'stdin'
+   * ```
+   */
+  readonly fileName?: string;
+
+  // NOTE: kvMap and kvFile are NOT included in BaseReplaceOptions
+  // They are added via discriminated union below to enforce mutual exclusivity
+
+  /**
+   * Capture variable index for key-value lookup
+   *
+   * Specifies which capture group ($1, $2, etc.) contains the key
+   * for key-value file lookups. Must be >= 1.
+   *
+   * Corresponds to seqkit's -I/--key-capt-idx flag.
+   *
+   * @default 1
+   *
+   * @example
+   * ```typescript
+   * // Use first capture as key
+   * { pattern: '(\\w+)_(\\w+)', keyCaptIdx: 1 }
+   *
+   * // Use second capture as key
+   * { pattern: '(\\w+)_(\\w+)', keyCaptIdx: 2 }
+   * ```
+   */
+  readonly keyCaptIdx?: number;
+
+  /**
+   * Keep original key when value not found in key-value file
+   *
+   * When true, if key lookup fails, the original key is kept.
+   * When false (default), missing keys use keyMissRepl or empty string.
+   *
+   * Corresponds to seqkit's -K/--keep-key flag.
+   *
+   * @default false
+   *
+   * @example
+   * ```typescript
+   * // Missing key → keep original
+   * { kvFile: 'aliases.txt', keepKey: true }
+   * ```
+   */
+  readonly keepKey?: boolean;
+
+  /**
+   * Keep entire record untouched when key not found in key-value file
+   *
+   * When true, if key lookup fails, the entire sequence is unchanged.
+   * When false (default), replacement still happens with empty/custom value.
+   *
+   * Corresponds to seqkit's -U/--keep-untouch flag.
+   *
+   * @default false
+   *
+   * @example
+   * ```typescript
+   * // Missing key → don't modify sequence at all
+   * { kvFile: 'aliases.txt', keepUntouch: true }
+   * ```
+   */
+  readonly keepUntouch?: boolean;
+
+  /**
+   * Custom replacement string for missing keys in key-value file
+   *
+   * Used when key is not found in key-value file and keepKey/keepUntouch
+   * are false. If undefined, empty string is used.
+   *
+   * Corresponds to seqkit's -m/--key-miss-repl flag.
+   *
+   * @default undefined (empty string)
+   *
+   * @example
+   * ```typescript
+   * // Missing key → replace with "UNKNOWN"
+   * { kvFile: 'aliases.txt', keyMissRepl: 'UNKNOWN' }
+   * ```
+   */
+  readonly keyMissRepl?: string;
+
+  /**
+   * Filter patterns to select which records to edit
+   *
+   * Only sequences matching these patterns will be modified.
+   * Similar to seqkit grep functionality.
+   *
+   * Corresponds to seqkit's --f-pattern flag.
+   *
+   * @example
+   * ```typescript
+   * // Only edit sequences with IDs containing "mitochondrial"
+   * { filterPattern: ['mitochondrial'] }
+   *
+   * // Edit sequences matching multiple patterns
+   * { filterPattern: ['gene1', 'gene2'] }
+   * ```
+   */
+  readonly filterPattern?: string[];
+
+  /**
+   * Path to file containing filter patterns (one per line)
+   *
+   * Corresponds to seqkit's --f-pattern-file flag.
+   *
+   * @example
+   * ```typescript
+   * { filterPatternFile: 'patterns.txt' }
+   * ```
+   */
+  readonly filterPatternFile?: string;
+
+  /**
+   * Treat filter patterns as regular expressions
+   *
+   * When true, filter patterns are treated as regex.
+   * When false (default), patterns are literal strings.
+   *
+   * Corresponds to seqkit's --f-use-regexp flag.
+   *
+   * @default false
+   *
+   * @example
+   * ```typescript
+   * // Match IDs starting with "seq"
+   * { filterPattern: ['^seq'], filterUseRegexp: true }
+   * ```
+   */
+  readonly filterUseRegexp?: boolean;
+
+  /**
+   * Filter by full name (ID + description) instead of just ID
+   *
+   * When true, matches against full header line.
+   * When false (default), matches against ID only.
+   *
+   * Corresponds to seqkit's --f-by-name flag.
+   *
+   * @default false
+   *
+   * @example
+   * ```typescript
+   * // Match descriptions containing "mitochondrial"
+   * { filterPattern: ['mitochondrial'], filterByName: true }
+   * ```
+   */
+  readonly filterByName?: boolean;
+
+  /**
+   * Filter by sequence content instead of ID
+   *
+   * When true, matches against sequence content.
+   * When false (default), matches against ID.
+   *
+   * Corresponds to seqkit's --f-by-seq flag.
+   *
+   * @default false
+   *
+   * @example
+   * ```typescript
+   * // Edit only sequences containing "ATCG"
+   * { filterPattern: ['ATCG'], filterBySeq: true }
+   * ```
+   */
+  readonly filterBySeq?: boolean;
+
+  /**
+   * Case-insensitive filter pattern matching
+   *
+   * When true, filter patterns ignore case.
+   * When false (default), matching is case-sensitive.
+   *
+   * Corresponds to seqkit's --f-ignore-case flag.
+   *
+   * @default false
+   *
+   * @example
+   * ```typescript
+   * { filterPattern: ['gene'], filterIgnoreCase: true }
+   * ```
+   */
+  readonly filterIgnoreCase?: boolean;
+
+  /**
+   * Invert filter match - edit sequences that DON'T match filter
+   *
+   * When true, edits sequences that don't match filter patterns.
+   * When false (default), edits sequences that match.
+   *
+   * Corresponds to seqkit's --f-invert-match flag.
+   *
+   * @default false
+   *
+   * @example
+   * ```typescript
+   * // Edit all sequences EXCEPT those with "mitochondrial" in ID
+   * { filterPattern: ['mitochondrial'], filterInvertMatch: true }
+   * ```
+   */
+  readonly filterInvertMatch?: boolean;
+};
+
+/**
+ * Options for the replace operation with compile-time mutual exclusivity
+ *
+ * Replace performs regex-based pattern matching and substitution on sequence
+ * IDs/names or sequence content with support for capture variables, record
+ * numbering, key-value lookups, and selective filtering.
+ *
+ * ## Type-Safe Mutual Exclusivity
+ *
+ * The kvMap and kvFile options are mutually exclusive. This is enforced at
+ * **compile-time** via a discriminated union - TypeScript will show an error
+ * if you attempt to specify both options together.
+ *
+ * Three valid configurations:
+ * 1. With kvMap (in-memory Map or Record)
+ * 2. With kvFile (path to tab-delimited file)
+ * 3. Neither (no key-value substitution)
+ *
+ * @example
+ * ```typescript
+ * // ✅ Valid: kvMap only
+ * const opts1: ReplaceOptions = {
+ *   pattern: '^(\\w+)',
+ *   replacement: '{kv}',
+ *   kvMap: { gene1: 'GENE1', gene2: 'GENE2' }
+ * };
+ *
+ * // ✅ Valid: kvFile only
+ * const opts2: ReplaceOptions = {
+ *   pattern: '^(\\w+)',
+ *   replacement: '{kv}',
+ *   kvFile: 'aliases.txt'
+ * };
+ *
+ * // ✅ Valid: neither
+ * const opts3: ReplaceOptions = {
+ *   pattern: '\\s.+',
+ *   replacement: ''
+ * };
+ *
+ * // ❌ TypeScript Error: Cannot specify both kvMap and kvFile
+ * const invalid: ReplaceOptions = {
+ *   pattern: '^(\\w+)',
+ *   replacement: '{kv}',
+ *   kvMap: { gene1: 'GENE1' },
+ *   kvFile: 'aliases.txt'  // Error: Type 'string' is not assignable to type 'undefined'
+ * };
+ * ```
+ *
+ * @public
+ */
+export type ReplaceOptions =
+  | (BaseReplaceOptions & {
+      /**
+       * In-memory key-value mappings for {kv} placeholder
+       *
+       * Provides programmatic construction of key-value mappings without requiring
+       * external files. Accepts either a Map or plain object.
+       *
+       * This is a TypeScript library enhancement over seqkit's file-only approach,
+       * enabling dynamic mapping construction from databases, APIs, or computation.
+       *
+       * When specified, kvFile must not be present (enforced at compile-time).
+       *
+       * @example
+       * ```typescript
+       * // Plain object (simple cases)
+       * {
+       *   pattern: '^(\\w+)',
+       *   replacement: '{kv}',
+       *   kvMap: {
+       *     patient_001: 'ANON_A001',
+       *     patient_002: 'ANON_A002'
+       *   }
+       * }
+       *
+       * // Map (when building programmatically)
+       * const geneAliases = new Map<string, string>();
+       * for (const gene of databaseGenes) {
+       *   geneAliases.set(gene.ensemblId, gene.symbol);
+       * }
+       * {
+       *   pattern: '^(ENSG\\d+)',
+       *   replacement: '{kv}',
+       *   kvMap: geneAliases
+       * }
+       * ```
+       */
+      readonly kvMap: Map<string, string> | Record<string, string>;
+      readonly kvFile?: undefined;
+    })
+  | (BaseReplaceOptions & {
+      /**
+       * Path to tab-delimited key-value file for {kv} placeholder
+       *
+       * File format: each line has "key\tvalue" (tab-separated).
+       * Keys are extracted from capture groups (configurable with keyCaptIdx).
+       * Values replace the {kv} placeholder.
+       *
+       * When specified, kvMap must not be present (enforced at compile-time).
+       *
+       * Corresponds to seqkit's -k/--kv-file flag.
+       *
+       * @example
+       * ```typescript
+       * // File: aliases.txt
+       * // name1    Sample_A
+       * // name2    Sample_B
+       *
+       * {
+       *   pattern: ' (.+)$',
+       *   replacement: ' {kv}',
+       *   kvFile: 'aliases.txt'
+       * }
+       * ```
+       */
+      readonly kvFile: string;
+      readonly kvMap?: undefined;
+    })
+  | BaseReplaceOptions; // Neither kvMap nor kvFile;
+
+/**
  * Options for grouping sequences
  */
 export interface GroupOptions {

@@ -46,6 +46,7 @@ import { GrepProcessor } from "./grep";
 import { LocateProcessor } from "./locate";
 import { QualityProcessor } from "./quality";
 import { rename } from "./rename";
+import { replace } from "./replace";
 import { RmdupProcessor } from "./rmdup";
 import { SampleProcessor } from "./sample";
 import { SortProcessor } from "./sort";
@@ -64,6 +65,7 @@ import type {
   LocateOptions,
   QualityOptions,
   RenameOptions,
+  ReplaceOptions,
   RmdupOptions,
   SampleOptions,
   SortOptions,
@@ -1026,6 +1028,42 @@ export class SeqOps<T extends AbstractSequence> {
   }
 
   /**
+   * Replace sequence names/content by regular expression
+   *
+   * Performs pattern-based substitution on sequence IDs (default) or
+   * sequence content (FASTA only). Supports capture variables, special
+   * placeholders ({nr}, {kv}, {fn}), and grep-style filtering.
+   *
+   * @param options - Replace options with pattern and replacement string
+   * @returns New SeqOps instance for chaining
+   *
+   * @example
+   * ```typescript
+   * // Remove descriptions from sequence IDs
+   * seqops(sequences).replace({ pattern: '\\s.+', replacement: '' })
+   *
+   * // Add prefix to all sequence IDs
+   * seqops(sequences).replace({ pattern: '^', replacement: 'PREFIX_' })
+   *
+   * // Use capture variables to restructure IDs
+   * seqops(sequences).replace({
+   *   pattern: '^(\\w+)_(\\w+)',
+   *   replacement: '$2_$1'
+   * })
+   *
+   * // Key-value lookup from file
+   * seqops(sequences).replace({
+   *   pattern: '^(\\w+)',
+   *   replacement: '$1_{kv}',
+   *   kvFile: 'aliases.txt'
+   * })
+   * ```
+   */
+  replace(options: ReplaceOptions): SeqOps<T> {
+    return new SeqOps(replace(this.source, options));
+  }
+
+  /**
    * Translate DNA/RNA sequences to proteins
    *
    * High-performance protein translation supporting all 31 NCBI genetic codes
@@ -1972,6 +2010,7 @@ export {
   tab2fx,
 } from "./fx2tab";
 export { rename } from "./rename";
+export { replace } from "./replace";
 // Export split-specific types
 export { SplitProcessor, type SplitResult, type SplitSummary } from "./split";
 // Re-export types and classes for convenience
@@ -1995,6 +2034,7 @@ export type {
   LocateOptions,
   QualityOptions,
   RenameOptions,
+  ReplaceOptions,
   RmdupOptions,
   SampleOptions,
   SortOptions,

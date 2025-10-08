@@ -122,6 +122,7 @@ export {
   seqops,
   type TransformOptions,
   type ValidateOptions,
+  type WindowOptions,
 } from "./operations";
 // Quality score operations (shared functionality)
 export {
@@ -194,6 +195,7 @@ export type {
   isPrimerSequence,
   isRNASequence,
   iupac,
+  KmerSequence,
   LineProcessingResult,
   MAPQScore,
   MotifLocation,

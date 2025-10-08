@@ -9,7 +9,20 @@
  * @since v0.1.0
  */
 
-import type { AbstractSequence, PrimerSequence } from "../types";
+import type { AbstractSequence, KmerSequence, PrimerSequence } from "../types";
+import {
+  sequenceContainment,
+  sequenceDifference,
+  sequenceEquals,
+  sequenceIntersection,
+  sequenceIsDisjoint,
+  sequenceIsSubset,
+  sequenceJaccardSimilarity,
+  sequenceOverlap,
+  sequenceSymmetricDifference,
+  sequenceUnion,
+  sequenceUnique,
+} from "./core/sequence-sets";
 
 /**
  * Options for amplicon extraction via primer sequences
@@ -1097,6 +1110,239 @@ export interface SplitOptions {
   maxMemoryMB?: number;
   /** Buffer size for file operations (default: 64KB) */
   bufferSize?: number;
+}
+
+/**
+ * Options for sliding window extraction (k-mer generation)
+ *
+ * Generates overlapping or tiling subsequences from input sequences
+ * using a sliding window approach. Supports linear and circular sequences.
+ *
+ * The size parameter can be specified as a literal number to enable
+ * compile-time k-mer size inference in the output type.
+ *
+ * @template K - K-mer size as a literal number type
+ *
+ * @example
+ * ```typescript
+ * // Compile-time k-mer size tracking
+ * const opts = { size: 21 as const, step: 1 };
+ * // Type: WindowOptions<21>
+ *
+ * // Generate all 21-mers (overlapping)
+ * const kmers = await seqops(sequences).windows({ size: 21 as const }).toArray();
+ *
+ * // Tiling windows (non-overlapping)
+ * const tiles = await seqops(sequences).windows({ size: 100 as const, step: 100 }).toArray();
+ * ```
+ */
+export interface WindowOptions<K extends number = number> {
+  /**
+   * Window size in base pairs (required)
+   *
+   * When specified as a literal (e.g., 21 as const), TypeScript
+   * will track this size at compile-time in the output type.
+   */
+  readonly size: K;
+
+  /**
+   * Step size - distance to slide window (default: 1)
+   *
+   * Controls overlap between consecutive windows:
+   * - step < size: overlapping windows
+   * - step = size: adjacent (tiling) windows
+   * - step > size: gaps between windows
+   *
+   * @default 1
+   */
+  readonly step?: number;
+
+  /**
+   * Include final window even if shorter than size (default: false)
+   */
+  readonly greedy?: boolean;
+
+  /**
+   * Treat sequence as circular, wrapping around end (default: false)
+   */
+  readonly circular?: boolean;
+
+  /**
+   * Suffix to append to sequence IDs (default: "_window")
+   */
+  readonly suffix?: string;
+
+  /**
+   * Use 0-based coordinates in output IDs (default: false = 1-based)
+   */
+  readonly zeroBased?: boolean;
+}
+
+/**
+ * Generic set of sequences with type-safe operations
+ *
+ * Provides set algebra operations for any AbstractSequence type.
+ * All methods delegate to internal functions in core/sequence-sets.
+ * Deduplication is always by sequence content (no options).
+ *
+ * @template T - Sequence type extending AbstractSequence
+ *
+ * @example
+ * ```typescript
+ * const set = new SequenceSet([seq1, seq2, seq3]);
+ * const other = new SequenceSet([seq3, seq4]);
+ *
+ * const union = set.union(other);
+ * const shared = set.intersection(other);
+ * const similarity = set.jaccardSimilarity(other);
+ * ```
+ */
+export class SequenceSet<T extends AbstractSequence = AbstractSequence> {
+  private sequences: Map<string, T>;
+  public readonly size: number;
+
+  constructor(sequences: T[]) {
+    const unique = sequenceUnique(sequences);
+    this.sequences = new Map(unique.map((seq) => [seq.sequence, seq]));
+    this.size = this.sequences.size;
+  }
+
+  union<U extends T>(other: SequenceSet<U>): SequenceSet<T> {
+    const result = sequenceUnion(this.toArray(), other.toArray());
+    return new SequenceSet<T>(result);
+  }
+
+  intersection<U extends T>(other: SequenceSet<U>): SequenceSet<T> {
+    const result = sequenceIntersection(this.toArray(), other.toArray());
+    return new SequenceSet<T>(result);
+  }
+
+  difference<U extends T>(other: SequenceSet<U>): SequenceSet<T> {
+    const result = sequenceDifference(this.toArray(), other.toArray());
+    return new SequenceSet<T>(result);
+  }
+
+  symmetricDifference<U extends T>(other: SequenceSet<U>): SequenceSet<T> {
+    const result = sequenceSymmetricDifference(this.toArray(), other.toArray());
+    return new SequenceSet<T>(result);
+  }
+
+  equals<U extends T>(other: SequenceSet<U>): boolean {
+    return sequenceEquals(this.toArray(), other.toArray());
+  }
+
+  isSubsetOf<U extends T>(other: SequenceSet<U>): boolean {
+    return sequenceIsSubset(this.toArray(), other.toArray());
+  }
+
+  isSupersetOf<U extends T>(other: SequenceSet<U>): boolean {
+    return sequenceIsSubset(other.toArray(), this.toArray());
+  }
+
+  isDisjointFrom<U extends T>(other: SequenceSet<U>): boolean {
+    return sequenceIsDisjoint(this.toArray(), other.toArray());
+  }
+
+  jaccardSimilarity<U extends T>(other: SequenceSet<U>): number {
+    return sequenceJaccardSimilarity(this.toArray(), other.toArray());
+  }
+
+  containment<U extends T>(other: SequenceSet<U>): number {
+    return sequenceContainment(this.toArray(), other.toArray());
+  }
+
+  overlap<U extends T>(other: SequenceSet<U>): number {
+    return sequenceOverlap(this.toArray(), other.toArray());
+  }
+
+  has(sequence: T): boolean;
+  has(key: string): boolean;
+  has(sequenceOrKey: T | string): boolean {
+    if (typeof sequenceOrKey === "string") {
+      return this.sequences.has(sequenceOrKey);
+    }
+    return this.sequences.has(sequenceOrKey.sequence);
+  }
+
+  get(key: string): T | undefined {
+    return this.sequences.get(key);
+  }
+
+  toArray(): T[] {
+    return Array.from(this.sequences.values());
+  }
+
+  filter(predicate: (seq: T) => boolean): SequenceSet<T> {
+    return new SequenceSet<T>(this.toArray().filter(predicate));
+  }
+
+  map<U extends AbstractSequence>(fn: (seq: T) => U): SequenceSet<U> {
+    return new SequenceSet<U>(this.toArray().map(fn));
+  }
+
+  [Symbol.iterator](): Iterator<T> {
+    return this.sequences.values();
+  }
+
+  async *[Symbol.asyncIterator](): AsyncIterator<T> {
+    for (const seq of this.sequences.values()) {
+      yield seq;
+    }
+  }
+}
+
+/**
+ * Set of k-mers with specific size K
+ *
+ * Extends SequenceSet to provide compile-time enforcement that all
+ * set operations only work with k-mer sets of the SAME size K.
+ *
+ * Type parameter K is preserved through all operations to prevent
+ * mixing k-mer sets of different sizes at compile time.
+ *
+ * @template K - K-mer size as literal number type
+ *
+ * @example
+ * ```typescript
+ * const kmers21 = new KmerSet<21>([...]);
+ * const kmers31 = new KmerSet<31>([...]);
+ *
+ * // ✅ This works - same K
+ * const union = kmers21.union(kmers21);
+ *
+ * // ❌ Compile error - different K
+ * const invalid = kmers21.union(kmers31);
+ * ```
+ */
+export class KmerSet<K extends number> extends SequenceSet<KmerSequence<K>> {
+  constructor(sequences: KmerSequence<K>[]) {
+    super(sequences);
+  }
+
+  override union(other: KmerSet<K>): KmerSet<K> {
+    const baseResult = super.union(other);
+    return new KmerSet<K>(baseResult.toArray());
+  }
+
+  override intersection(other: KmerSet<K>): KmerSet<K> {
+    const baseResult = super.intersection(other);
+    return new KmerSet<K>(baseResult.toArray());
+  }
+
+  override difference(other: KmerSet<K>): KmerSet<K> {
+    const baseResult = super.difference(other);
+    return new KmerSet<K>(baseResult.toArray());
+  }
+
+  override symmetricDifference(other: KmerSet<K>): KmerSet<K> {
+    const baseResult = super.symmetricDifference(other);
+    return new KmerSet<K>(baseResult.toArray());
+  }
+
+  override filter(predicate: (seq: KmerSequence<K>) => boolean): KmerSet<K> {
+    const baseResult = super.filter(predicate);
+    return new KmerSet<K>(baseResult.toArray());
+  }
 }
 
 /**

@@ -105,6 +105,89 @@ export interface FastqSequence extends FASTXSequence {
   };
 }
 
+/**
+ * K-mer sequence with compile-time size tracking and parsed coordinate information
+ *
+ * Extends AbstractSequence with k-mer-specific metadata extracted from seqkit
+ * sliding window ID format: {original_id}{suffix}:{start}-{end}
+ *
+ * The generic parameter K tracks k-mer size at compile-time, enabling:
+ * - Type-safe k-mer operations (21-mers vs 31-mers are different types)
+ * - Compile-time validation of k-mer compatibility
+ * - Prevention of mixing k-mers of different sizes
+ * - K-mer set operations with guaranteed size matching
+ *
+ * @template K - K-mer size as a literal number type (e.g., 21, 31)
+ *
+ * @example
+ * ```typescript
+ * // These are DIFFERENT types at compile-time
+ * const kmer21: KmerSequence<21> = { ... };
+ * const kmer31: KmerSequence<31> = { ... };
+ *
+ * // Type error: cannot assign 31-mer to 21-mer variable
+ * const mixed: KmerSequence<21> = kmer31; // ❌ Compile error
+ * ```
+ */
+export interface KmerSequence<K extends number = number> extends AbstractSequence {
+  /**
+   * K-mer size (window size) tracked at compile-time
+   *
+   * This field's type is the literal K, not just `number`.
+   * TypeScript will infer K from the actual value.
+   */
+  readonly kmerSize: K;
+
+  /**
+   * Step size used to generate these k-mers
+   *
+   * Recorded for metadata/reproducibility but NOT tracked at compile-time.
+   */
+  readonly stepSize: number;
+
+  /**
+   * Original sequence ID before windowing
+   *
+   * Extracted from: {original_id}{suffix}:{start}-{end}
+   */
+  readonly originalId: string;
+
+  /**
+   * Start position in original sequence (0-based or 1-based)
+   *
+   * Coordinate system depends on WindowOptions.zeroBased setting.
+   */
+  readonly startPosition: number;
+
+  /**
+   * End position in original sequence (0-based or 1-based)
+   *
+   * For 0-based: exclusive end (standard programming convention)
+   * For 1-based: inclusive end (bioinformatics convention)
+   */
+  readonly endPosition: number;
+
+  /**
+   * Coordinate system used for startPosition and endPosition
+   */
+  readonly coordinateSystem: "0-based" | "1-based";
+
+  /**
+   * Suffix used when generating this window
+   */
+  readonly suffix: string;
+
+  /**
+   * Whether this k-mer was generated from circular sequence wrapping
+   */
+  readonly isWrapped: boolean;
+
+  /**
+   * Index of this k-mer within the original sequence's k-mer set
+   */
+  readonly windowIndex: number;
+}
+
 // SAM Format Branded Types for compile-time safety
 export type SAMFlag = number & {
   readonly __brand: "SAMFlag";

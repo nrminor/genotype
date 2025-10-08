@@ -23,6 +23,7 @@ import type {
   AbstractSequence,
   FastaSequence,
   FastqSequence,
+  KmerSequence,
   MotifLocation,
   ValidGenomicRegion,
 } from "../types";
@@ -55,13 +56,17 @@ import { type SequenceStats, SequenceStatsCalculator, type StatsOptions } from "
 import { SubseqExtractor, type SubseqOptions } from "./subseq";
 import { TransformProcessor } from "./transform";
 import { TranslateProcessor } from "./translate";
+import { WindowsProcessor } from "./windows";
+import { KmerSet, SequenceSet } from "./types";
 import type {
   AmpliconOptions,
+  AnnotateOptions,
   CleanOptions,
   ConcatOptions,
   ConvertOptions,
   FilterOptions,
   GrepOptions,
+  GroupOptions,
   LocateOptions,
   QualityOptions,
   RenameOptions,
@@ -73,6 +78,7 @@ import type {
   TransformOptions,
   TranslateOptions,
   ValidateOptions,
+  WindowOptions,
 } from "./types";
 import { ValidateProcessor } from "./validate";
 
@@ -821,6 +827,108 @@ export class SeqOps<T extends AbstractSequence> {
   subseq(options: SubseqOptions): SeqOps<T> {
     const extractor = new SubseqExtractor();
     return new SeqOps(extractor.extract(this.source, options));
+  }
+
+  /**
+   * Generate sliding windows (k-mers) from sequences
+   *
+   * Extracts overlapping or non-overlapping windows from sequences with
+   * compile-time k-mer size tracking. Essential for k-mer analysis,
+   * motif discovery, and sequence decomposition.
+   *
+   * @param size - Window size (k-mer size)
+   * @returns New SeqOps instance with KmerSequence<K> type
+   *
+   * @example
+   * ```typescript
+   * // Simple usage - just specify size
+   * const kmers = await seqops(sequences).windows(21).toArray();
+   *
+   * // With options - step, circular, greedy modes
+   * seqops(sequences).windows(21, { step: 3, circular: true })
+   *
+   * // Non-overlapping tiles
+   * seqops(sequences).windows(100, { step: 100 })
+   *
+   * // Greedy mode - include short final window
+   * seqops(sequences).windows(50, { greedy: true })
+   * ```
+   */
+  windows<K extends number>(size: K): SeqOps<KmerSequence<K>>;
+
+  /**
+   * Generate sliding windows (k-mers) from sequences with options
+   *
+   * @param size - Window size (k-mer size)
+   * @param options - Additional window options (step, circular, greedy, etc.)
+   * @returns New SeqOps instance with KmerSequence<K> type
+   */
+  windows<K extends number>(
+    size: K,
+    options: Omit<WindowOptions<K>, "size">
+  ): SeqOps<KmerSequence<K>>;
+
+  /**
+   * Generate sliding windows (k-mers) from sequences (legacy object form)
+   *
+   * @param options - Window generation options with k-mer size
+   * @returns New SeqOps instance with KmerSequence<K> type
+   */
+  windows<K extends number>(options: WindowOptions<K>): SeqOps<KmerSequence<K>>;
+
+  windows<K extends number>(
+    sizeOrOptions: K | WindowOptions<K>,
+    maybeOptions?: Omit<WindowOptions<K>, "size">
+  ): SeqOps<KmerSequence<K>> {
+    const processor = new WindowsProcessor<K>();
+
+    let fullOptions: WindowOptions<K>;
+    if (typeof sizeOrOptions === "number") {
+      fullOptions = { ...maybeOptions, size: sizeOrOptions } as WindowOptions<K>;
+    } else {
+      fullOptions = sizeOrOptions;
+    }
+
+    const result = processor.process(this.source, fullOptions);
+    return new SeqOps<KmerSequence<K>>(result);
+  }
+
+  /**
+   * Alias for `.windows()` - emphasizes sliding window concept
+   *
+   * @param size - Window size
+   * @returns SeqOps yielding KmerSequence objects
+   */
+  sliding<K extends number>(size: K): SeqOps<KmerSequence<K>>;
+  sliding<K extends number>(
+    size: K,
+    options: Omit<WindowOptions<K>, "size">
+  ): SeqOps<KmerSequence<K>>;
+  sliding<K extends number>(options: WindowOptions<K>): SeqOps<KmerSequence<K>>;
+  sliding<K extends number>(
+    sizeOrOptions: K | WindowOptions<K>,
+    maybeOptions?: Omit<WindowOptions<K>, "size">
+  ): SeqOps<KmerSequence<K>> {
+    return this.windows(sizeOrOptions as any, maybeOptions as any);
+  }
+
+  /**
+   * Alias for `.windows()` - emphasizes k-mer generation
+   *
+   * @param size - K-mer size
+   * @returns SeqOps yielding KmerSequence objects
+   */
+  kmers<K extends number>(size: K): SeqOps<KmerSequence<K>>;
+  kmers<K extends number>(
+    size: K,
+    options: Omit<WindowOptions<K>, "size">
+  ): SeqOps<KmerSequence<K>>;
+  kmers<K extends number>(options: WindowOptions<K>): SeqOps<KmerSequence<K>>;
+  kmers<K extends number>(
+    sizeOrOptions: K | WindowOptions<K>,
+    maybeOptions?: Omit<WindowOptions<K>, "size">
+  ): SeqOps<KmerSequence<K>> {
+    return this.windows(sizeOrOptions as any, maybeOptions as any);
   }
 
   /**
@@ -1843,6 +1951,66 @@ export class SeqOps<T extends AbstractSequence> {
   }
 
   /**
+   * Collect k-mer sequences into KmerSet with K preservation
+   *
+   * When the stream contains KmerSequence objects, returns KmerSet<K>
+   * which enforces compile-time k-mer size matching for set operations.
+   *
+   * @returns Promise<KmerSet<K>> for k-mer sequences
+   */
+  collectSet<K extends number>(this: SeqOps<KmerSequence<K>>): Promise<KmerSet<K>>;
+
+  /**
+   * Collect generic sequences into SequenceSet
+   *
+   * For non-k-mer sequences, returns generic SequenceSet<T>
+   * which allows flexible set operations across sequence types.
+   *
+   * @returns Promise<SequenceSet<T>> for generic sequences
+   */
+  collectSet(this: SeqOps<T>): Promise<SequenceSet<T>>;
+
+  /**
+   * Collect sequences into a set with automatic type discrimination
+   *
+   * Terminal operation that materializes the stream into a set for
+   * efficient set algebra operations. Automatically returns:
+   * - KmerSet<K> for k-mer sequences (K preserved)
+   * - SequenceSet<T> for other sequence types
+   *
+   * @returns Promise resolving to appropriate set type
+   *
+   * @example
+   * ```typescript
+   * // K-mer case - returns KmerSet<21>
+   * const kmerSet = await seqops(sequences)
+   *   .windows(21)
+   *   .collectSet();
+   * // Type: KmerSet<21> - only accepts union(other: KmerSet<21>)
+   *
+   * // FASTA case - returns SequenceSet<FastaSequence>
+   * const fastaSet = await seqops("genome.fasta")
+   *   .collectSet();
+   * // Type: SequenceSet<FastaSequence>
+   * ```
+   */
+  async collectSet(): Promise<SequenceSet<T> | KmerSet<any>> {
+    const sequences: T[] = [];
+    for await (const seq of this.source) {
+      sequences.push(seq);
+    }
+
+    // Runtime check: Is this a KmerSequence?
+    if (sequences.length > 0 && sequences[0] && "kmerSize" in sequences[0]) {
+      // Return KmerSet for k-mers (preserves K type)
+      return new KmerSet(sequences as any);
+    }
+
+    // Return generic SequenceSet for other types
+    return new SequenceSet<T>(sequences);
+  }
+
+  /**
    * Count sequences
    *
    * Terminal operation that counts sequences without loading them in memory.
@@ -2009,8 +2177,7 @@ export {
   TabularOps,
   tab2fx,
 } from "./fx2tab";
-export { rename } from "./rename";
-export { replace } from "./replace";
+export { KmerSet, SequenceSet } from "./types";
 // Export split-specific types
 export { SplitProcessor, type SplitResult, type SplitSummary } from "./split";
 // Re-export types and classes for convenience
@@ -2021,6 +2188,7 @@ export {
 } from "./stats";
 export { SubseqExtractor, type SubseqOptions } from "./subseq";
 export { TranslateProcessor } from "./translate";
+export { WindowsProcessor } from "./windows";
 // Export new semantic API types
 export type {
   AmpliconOptions,
@@ -2042,4 +2210,5 @@ export type {
   TransformOptions,
   TranslateOptions,
   ValidateOptions,
+  WindowOptions,
 } from "./types";

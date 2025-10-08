@@ -14,21 +14,22 @@ import type { AbstractSequence } from "../../types";
 /**
  * Union (A ∪ B): All sequences in either set A or set B
  *
- * Combines two arrays of sequences, deduplicating by sequence content.
+ * Combines two maps of sequences, deduplicating by sequence content.
  * Preserves first occurrence when duplicates are found.
  *
  * @param setA - First set of sequences
  * @param setB - Second set of sequences
- * @returns Array of unique sequences from both sets
+ * @returns Map of unique sequences from both sets
  */
-export function sequenceUnion<T extends AbstractSequence>(setA: T[], setB: T[]): T[] {
-  const seen = new Set<string>();
-  const result: T[] = [];
+export function sequenceUnion<T extends AbstractSequence>(
+  setA: Map<string, T>,
+  setB: Map<string, T>
+): Map<string, T> {
+  const result = new Map(setA);
 
-  for (const seq of [...setA, ...setB]) {
-    if (!seen.has(seq.sequence)) {
-      seen.add(seq.sequence);
-      result.push(seq);
+  for (const [key, value] of setB) {
+    if (!result.has(key)) {
+      result.set(key, value);
     }
   }
 
@@ -38,22 +39,22 @@ export function sequenceUnion<T extends AbstractSequence>(setA: T[], setB: T[]):
 /**
  * Intersection (A ∩ B): Sequences present in both set A and set B
  *
- * Returns sequences whose content appears in both input arrays.
+ * Returns sequences whose content appears in both input maps.
  * Preserves sequences from first set (setA).
  *
  * @param setA - First set of sequences
  * @param setB - Second set of sequences
- * @returns Array of sequences present in both sets
+ * @returns Map of sequences present in both sets
  */
-export function sequenceIntersection<T extends AbstractSequence>(setA: T[], setB: T[]): T[] {
-  const setBSequences = new Set(setB.map((s) => s.sequence));
-  const seen = new Set<string>();
-  const result: T[] = [];
+export function sequenceIntersection<T extends AbstractSequence>(
+  setA: Map<string, T>,
+  setB: Map<string, T>
+): Map<string, T> {
+  const result = new Map<string, T>();
 
-  for (const seq of setA) {
-    if (setBSequences.has(seq.sequence) && !seen.has(seq.sequence)) {
-      seen.add(seq.sequence);
-      result.push(seq);
+  for (const [key, value] of setA) {
+    if (setB.has(key)) {
+      result.set(key, value);
     }
   }
 
@@ -67,17 +68,17 @@ export function sequenceIntersection<T extends AbstractSequence>(setA: T[], setB
  *
  * @param setA - Set to subtract from
  * @param setB - Set to subtract
- * @returns Array of sequences unique to setA
+ * @returns Map of sequences unique to setA
  */
-export function sequenceDifference<T extends AbstractSequence>(setA: T[], setB: T[]): T[] {
-  const setBSequences = new Set(setB.map((s) => s.sequence));
-  const seen = new Set<string>();
-  const result: T[] = [];
+export function sequenceDifference<T extends AbstractSequence>(
+  setA: Map<string, T>,
+  setB: Map<string, T>
+): Map<string, T> {
+  const result = new Map<string, T>();
 
-  for (const seq of setA) {
-    if (!setBSequences.has(seq.sequence) && !seen.has(seq.sequence)) {
-      seen.add(seq.sequence);
-      result.push(seq);
+  for (const [key, value] of setA) {
+    if (!setB.has(key)) {
+      result.set(key, value);
     }
   }
 
@@ -92,12 +93,29 @@ export function sequenceDifference<T extends AbstractSequence>(setA: T[], setB: 
  *
  * @param setA - First set of sequences
  * @param setB - Second set of sequences
- * @returns Array of sequences unique to either set
+ * @returns Map of sequences unique to either set
  */
-export function sequenceSymmetricDifference<T extends AbstractSequence>(setA: T[], setB: T[]): T[] {
-  const onlyInA = sequenceDifference(setA, setB);
-  const onlyInB = sequenceDifference(setB, setA);
-  return sequenceUnion(onlyInA, onlyInB as T[]);
+export function sequenceSymmetricDifference<T extends AbstractSequence>(
+  setA: Map<string, T>,
+  setB: Map<string, T>
+): Map<string, T> {
+  const result = new Map<string, T>();
+
+  // Add from A if not in B
+  for (const [key, value] of setA) {
+    if (!setB.has(key)) {
+      result.set(key, value);
+    }
+  }
+
+  // Add from B if not in A
+  for (const [key, value] of setB) {
+    if (!setA.has(key)) {
+      result.set(key, value);
+    }
+  }
+
+  return result;
 }
 
 /**
@@ -123,6 +141,28 @@ export function sequenceUnique<T extends AbstractSequence>(sequences: T[]): T[] 
 }
 
 /**
+ * Convert array to deduplicated Map
+ *
+ * Used by SequenceSet constructor to convert input arrays to internal Map format.
+ * Deduplicates by sequence content (first occurrence wins).
+ *
+ * @param sequences - Array of sequences to deduplicate
+ * @returns Map with sequence strings as keys, sequence objects as values
+ * @internal
+ */
+export function sequenceArrayToMap<T extends AbstractSequence>(sequences: T[]): Map<string, T> {
+  const map = new Map<string, T>();
+
+  for (const seq of sequences) {
+    if (!map.has(seq.sequence)) {
+      map.set(seq.sequence, seq);
+    }
+  }
+
+  return map;
+}
+
+/**
  * Check if two sequence sets are equal
  *
  * Sets are equal if they contain the same sequences (by content),
@@ -132,14 +172,18 @@ export function sequenceUnique<T extends AbstractSequence>(sequences: T[]): T[] 
  * @param setB - Second set of sequences
  * @returns True if sets contain identical sequences
  */
-export function sequenceEquals<T extends AbstractSequence>(setA: T[], setB: T[]): boolean {
-  const uniqueA = new Set(setA.map((s) => s.sequence));
-  const uniqueB = new Set(setB.map((s) => s.sequence));
+export function sequenceEquals<T extends AbstractSequence>(
+  setA: Map<string, T>,
+  setB: Map<string, T>
+): boolean {
+  if (setA.size !== setB.size) {
+    return false;
+  }
 
-  if (uniqueA.size !== uniqueB.size) return false;
-
-  for (const seq of uniqueA) {
-    if (!uniqueB.has(seq)) return false;
+  for (const key of setA.keys()) {
+    if (!setB.has(key)) {
+      return false;
+    }
   }
 
   return true;
@@ -154,14 +198,18 @@ export function sequenceEquals<T extends AbstractSequence>(setA: T[], setB: T[])
  * @param setB - Potential superset
  * @returns True if setA is a subset of setB
  */
-export function sequenceIsSubset<T extends AbstractSequence>(setA: T[], setB: T[]): boolean {
-  const uniqueA = new Set(setA.map((s) => s.sequence));
-  const uniqueB = new Set(setB.map((s) => s.sequence));
+export function sequenceIsSubset<T extends AbstractSequence>(
+  setA: Map<string, T>,
+  setB: Map<string, T>
+): boolean {
+  if (setA.size > setB.size) {
+    return false;
+  }
 
-  if (uniqueA.size > uniqueB.size) return false;
-
-  for (const seq of uniqueA) {
-    if (!uniqueB.has(seq)) return false;
+  for (const key of setA.keys()) {
+    if (!setB.has(key)) {
+      return false;
+    }
   }
 
   return true;
@@ -176,11 +224,17 @@ export function sequenceIsSubset<T extends AbstractSequence>(setA: T[], setB: T[
  * @param setB - Second set of sequences
  * @returns True if sets have no shared sequences
  */
-export function sequenceIsDisjoint<T extends AbstractSequence>(setA: T[], setB: T[]): boolean {
-  const uniqueB = new Set(setB.map((s) => s.sequence));
+export function sequenceIsDisjoint<T extends AbstractSequence>(
+  setA: Map<string, T>,
+  setB: Map<string, T>
+): boolean {
+  // Optimization: iterate smaller set
+  const [smaller, larger] = setA.size <= setB.size ? [setA, setB] : [setB, setA];
 
-  for (const seq of setA) {
-    if (uniqueB.has(seq.sequence)) return false;
+  for (const key of smaller.keys()) {
+    if (larger.has(key)) {
+      return false;
+    }
   }
 
   return true;
@@ -197,22 +251,19 @@ export function sequenceIsDisjoint<T extends AbstractSequence>(setA: T[], setB: 
  * @returns Jaccard similarity coefficient
  */
 export function sequenceJaccardSimilarity<T extends AbstractSequence>(
-  setA: T[],
-  setB: T[]
+  setA: Map<string, T>,
+  setB: Map<string, T>
 ): number {
-  const uniqueA = new Set(setA.map((s) => s.sequence));
-  const uniqueB = new Set(setB.map((s) => s.sequence));
-
-  if (uniqueA.size === 0 && uniqueB.size === 0) return 1;
-  if (uniqueA.size === 0 || uniqueB.size === 0) return 0;
-
   let intersectionSize = 0;
-  for (const seq of uniqueA) {
-    if (uniqueB.has(seq)) intersectionSize++;
+
+  for (const key of setA.keys()) {
+    if (setB.has(key)) {
+      intersectionSize++;
+    }
   }
 
-  const unionSize = uniqueA.size + uniqueB.size - intersectionSize;
-  return intersectionSize / unionSize;
+  const unionSize = setA.size + setB.size - intersectionSize;
+  return unionSize === 0 ? 0 : intersectionSize / unionSize;
 }
 
 /**
@@ -226,18 +277,22 @@ export function sequenceJaccardSimilarity<T extends AbstractSequence>(
  * @param setB - Reference set
  * @returns Containment coefficient
  */
-export function sequenceContainment<T extends AbstractSequence>(setA: T[], setB: T[]): number {
-  const uniqueA = new Set(setA.map((s) => s.sequence));
-  if (uniqueA.size === 0) return 0;
-
-  const uniqueB = new Set(setB.map((s) => s.sequence));
-
-  let intersectionSize = 0;
-  for (const seq of uniqueA) {
-    if (uniqueB.has(seq)) intersectionSize++;
+export function sequenceContainment<T extends AbstractSequence>(
+  setA: Map<string, T>,
+  setB: Map<string, T>
+): number {
+  if (setA.size === 0) {
+    return 0;
   }
 
-  return intersectionSize / uniqueA.size;
+  let intersectionSize = 0;
+  for (const key of setA.keys()) {
+    if (setB.has(key)) {
+      intersectionSize++;
+    }
+  }
+
+  return intersectionSize / setA.size;
 }
 
 /**
@@ -251,19 +306,23 @@ export function sequenceContainment<T extends AbstractSequence>(setA: T[], setB:
  * @param setB - Second set of sequences
  * @returns Overlap coefficient
  */
-export function sequenceOverlap<T extends AbstractSequence>(setA: T[], setB: T[]): number {
-  const uniqueA = new Set(setA.map((s) => s.sequence));
-  const uniqueB = new Set(setB.map((s) => s.sequence));
-
-  const minSize = Math.min(uniqueA.size, uniqueB.size);
-  if (minSize === 0) return 0;
+export function sequenceOverlap<T extends AbstractSequence>(
+  setA: Map<string, T>,
+  setB: Map<string, T>
+): number {
+  const minSize = Math.min(setA.size, setB.size);
+  if (minSize === 0) {
+    return 0;
+  }
 
   let intersectionSize = 0;
-  const smaller = uniqueA.size <= uniqueB.size ? uniqueA : uniqueB;
-  const larger = uniqueA.size <= uniqueB.size ? uniqueB : uniqueA;
+  const smaller = setA.size <= setB.size ? setA : setB;
+  const larger = setA.size <= setB.size ? setB : setA;
 
-  for (const seq of smaller) {
-    if (larger.has(seq)) intersectionSize++;
+  for (const key of smaller.keys()) {
+    if (larger.has(key)) {
+      intersectionSize++;
+    }
   }
 
   return intersectionSize / minSize;

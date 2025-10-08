@@ -5,9 +5,9 @@
  */
 
 import { type } from "arktype";
+import { ValidationError } from "../errors";
 import type { AbstractSequence, KmerSequence } from "../types";
 import type { Processor, WindowOptions } from "./types";
-import { ValidationError } from "../errors";
 
 const WindowOptionsSchema = type({
   size: "0 < number < 1000000",
@@ -38,7 +38,68 @@ const WindowOptionsSchema = type({
   return true;
 });
 
+/**
+ * Sliding window processor for generating k-mers from sequences
+ *
+ * Extracts fixed-size windows (k-mers) from sequences with configurable
+ * step size, circular wrapping, and greedy mode. Preserves literal type
+ * parameter K for compile-time type safety.
+ *
+ * @template K - K-mer size as literal number type (e.g., 21, 31)
+ *
+ * @example
+ * ```typescript
+ * // Extract 21-mers with step=1 (overlapping)
+ * const processor = new WindowsProcessor<21>();
+ * for await (const kmer of processor.process(sequences, { size: 21 })) {
+ *   console.log(kmer.sequence); // K=21 preserved in type
+ * }
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // Tiling windows (non-overlapping)
+ * const processor = new WindowsProcessor<100>();
+ * const windows = processor.process(sequences, { size: 100, step: 100 });
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // Circular mode for plasmids
+ * const processor = new WindowsProcessor<31>();
+ * const circular = processor.process(plasmid, {
+ *   size: 31,
+ *   circular: true
+ * });
+ * ```
+ *
+ * @see WindowOptions for configuration options
+ * @see KmerSequence for output sequence type
+ */
 export class WindowsProcessor<K extends number = number> implements Processor<WindowOptions<K>> {
+  /**
+   * Generate sliding windows (k-mers) from input sequences
+   *
+   * Streams windows from each input sequence according to the provided options.
+   * Windows are generated lazily, so this method is memory-efficient even for
+   * large genomes.
+   *
+   * @param source - Input sequences to extract windows from
+   * @param options - Window extraction configuration
+   * @returns AsyncIterable of k-mer sequences with type K preserved
+   *
+   * @throws {ValidationError} If options fail ArkType validation (e.g., size=0)
+   *
+   * @example
+   * ```typescript
+   * const processor = new WindowsProcessor<21>();
+   * const sequences = await readFasta("genome.fasta");
+   *
+   * for await (const kmer of processor.process(sequences, { size: 21 })) {
+   *   console.log(`${kmer.id}: ${kmer.sequence}`);
+   * }
+   * ```
+   */
   async *process(
     source: AsyncIterable<AbstractSequence>,
     options: WindowOptions<K>

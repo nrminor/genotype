@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  sequenceArrayToMap,
   sequenceContainment,
   sequenceDifference,
   sequenceEquals,
@@ -51,10 +52,14 @@ describe("Internal sequence set functions", () => {
         },
       ];
 
-      const union = sequenceUnion(setA, setB);
+      const union = sequenceUnion(sequenceArrayToMap(setA), sequenceArrayToMap(setB));
 
-      expect(union.length).toBe(3);
-      expect(union.map((s) => s.sequence).sort()).toEqual(["ATCG", "GCTA", "TTTT"]);
+      expect(union.size).toBe(3);
+      expect(
+        Array.from(union.values())
+          .map((s) => s.sequence)
+          .sort()
+      ).toEqual(["ATCG", "GCTA", "TTTT"]);
     });
   });
 
@@ -100,10 +105,10 @@ describe("Internal sequence set functions", () => {
         },
       ];
 
-      const intersection = sequenceIntersection(setA, setB);
+      const intersection = sequenceIntersection(sequenceArrayToMap(setA), sequenceArrayToMap(setB));
 
-      expect(intersection.length).toBe(1);
-      expect(intersection[0].sequence).toBe("GCTA");
+      expect(intersection.size).toBe(1);
+      expect(Array.from(intersection.values())[0].sequence).toBe("GCTA");
     });
   });
 
@@ -135,10 +140,10 @@ describe("Internal sequence set functions", () => {
         },
       ];
 
-      const difference = sequenceDifference(setA, setB);
+      const difference = sequenceDifference(sequenceArrayToMap(setA), sequenceArrayToMap(setB));
 
-      expect(difference.length).toBe(1);
-      expect(difference[0].sequence).toBe("ATCG");
+      expect(difference.size).toBe(1);
+      expect(Array.from(difference.values())[0].sequence).toBe("ATCG");
     });
   });
 
@@ -177,10 +182,17 @@ describe("Internal sequence set functions", () => {
         },
       ];
 
-      const symDiff = sequenceSymmetricDifference(setA, setB);
+      const symDiff = sequenceSymmetricDifference(
+        sequenceArrayToMap(setA),
+        sequenceArrayToMap(setB)
+      );
 
-      expect(symDiff.length).toBe(2);
-      expect(symDiff.map((s) => s.sequence).sort()).toEqual(["ATCG", "TTTT"]);
+      expect(symDiff.size).toBe(2);
+      expect(
+        Array.from(symDiff.values())
+          .map((s) => s.sequence)
+          .sort()
+      ).toEqual(["ATCG", "TTTT"]);
     });
   });
 
@@ -269,8 +281,8 @@ describe("Internal sequence set functions", () => {
         },
       ];
 
-      expect(sequenceEquals(setA, setB)).toBe(true);
-      expect(sequenceEquals(setA, setC)).toBe(false);
+      expect(sequenceEquals(sequenceArrayToMap(setA), sequenceArrayToMap(setB))).toBe(true);
+      expect(sequenceEquals(sequenceArrayToMap(setA), sequenceArrayToMap(setC))).toBe(false);
     });
   });
 
@@ -302,8 +314,8 @@ describe("Internal sequence set functions", () => {
         },
       ];
 
-      expect(sequenceIsSubset(setA, setB)).toBe(true);
-      expect(sequenceIsSubset(setB, setA)).toBe(false);
+      expect(sequenceIsSubset(sequenceArrayToMap(setA), sequenceArrayToMap(setB))).toBe(true);
+      expect(sequenceIsSubset(sequenceArrayToMap(setB), sequenceArrayToMap(setA))).toBe(false);
     });
   });
 
@@ -337,8 +349,8 @@ describe("Internal sequence set functions", () => {
         },
       ];
 
-      expect(sequenceIsDisjoint(setA, setB)).toBe(true);
-      expect(sequenceIsDisjoint(setA, setC)).toBe(false);
+      expect(sequenceIsDisjoint(sequenceArrayToMap(setA), sequenceArrayToMap(setB))).toBe(true);
+      expect(sequenceIsDisjoint(sequenceArrayToMap(setA), sequenceArrayToMap(setC))).toBe(false);
     });
   });
 
@@ -377,7 +389,7 @@ describe("Internal sequence set functions", () => {
         },
       ];
 
-      const jaccard = sequenceJaccardSimilarity(setA, setB);
+      const jaccard = sequenceJaccardSimilarity(sequenceArrayToMap(setA), sequenceArrayToMap(setB));
 
       expect(jaccard).toBeCloseTo(0.333, 2);
     });
@@ -411,7 +423,7 @@ describe("Internal sequence set functions", () => {
         },
       ];
 
-      const containment = sequenceContainment(setA, setB);
+      const containment = sequenceContainment(sequenceArrayToMap(setA), sequenceArrayToMap(setB));
 
       expect(containment).toBe(1.0);
     });
@@ -459,7 +471,7 @@ describe("Internal sequence set functions", () => {
         },
       ];
 
-      const overlap = sequenceOverlap(setA, setB);
+      const overlap = sequenceOverlap(sequenceArrayToMap(setA), sequenceArrayToMap(setB));
 
       expect(overlap).toBe(0.5);
     });
@@ -703,13 +715,13 @@ describe("Internal sequence set functions", () => {
           },
         ]);
 
-        const syncItems = [];
+        const syncItems: AbstractSequence[] = [];
         for (const seq of set) {
           syncItems.push(seq);
         }
         expect(syncItems.length).toBe(2);
 
-        const asyncItems = [];
+        const asyncItems: AbstractSequence[] = [];
         for await (const seq of set) {
           asyncItems.push(seq);
         }
@@ -730,8 +742,8 @@ describe("Internal sequence set functions", () => {
       });
 
       test("set operations handle empty sets", () => {
-        const emptySet = new SequenceSet([]);
-        const nonEmptySet = new SequenceSet([
+        const emptySet = new SequenceSet<AbstractSequence>([]);
+        const nonEmptySet = new SequenceSet<AbstractSequence>([
           { id: "seq1", sequence: "ATCG", length: 4, lineNumber: 1, description: "" },
         ]);
 

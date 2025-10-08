@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { ValidationError } from "../../src/errors";
 import { WindowsProcessor } from "../../src/operations/windows";
 import type { KmerSequence } from "../../src/types";
-import { ValidationError } from "../../src/errors";
 
 describe("WindowsProcessor", () => {
   // Helper function to convert array to AsyncIterable

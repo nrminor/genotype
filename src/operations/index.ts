@@ -56,8 +56,6 @@ import { type SequenceStats, SequenceStatsCalculator, type StatsOptions } from "
 import { SubseqExtractor, type SubseqOptions } from "./subseq";
 import { TransformProcessor } from "./transform";
 import { TranslateProcessor } from "./translate";
-import { WindowsProcessor } from "./windows";
-import { KmerSet, SequenceSet } from "./types";
 import type {
   AmpliconOptions,
   AnnotateOptions,
@@ -80,7 +78,10 @@ import type {
   ValidateOptions,
   WindowOptions,
 } from "./types";
+import { KmerSet, SequenceSet } from "./types";
+import { type UniqueOptions, UniqueProcessor } from "./unique";
 import { ValidateProcessor } from "./validate";
+import { WindowsProcessor } from "./windows";
 
 /**
  * Main SeqOps class providing fluent interface for sequence operations
@@ -384,6 +385,64 @@ export class SeqOps<T extends AbstractSequence> {
 
     const processor = new FilterProcessor();
     return new SeqOps<T>(processor.process(this.source, options) as AsyncIterable<T>);
+  }
+
+  /**
+   * Filter sequences based on membership in a SequenceSet
+   *
+   * Efficiently filters the stream based on whether sequences are
+   * present in the provided set. Useful for contamination removal,
+   * whitelist/blacklist filtering, and set-based operations.
+   *
+   * @param set - SequenceSet to filter against
+   * @param options - Filtering options
+   * @returns Filtered SeqOps instance
+   *
+   * @example
+   * ```typescript
+   * // Remove contamination sequences
+   * const contaminants = await seqops("contaminants.fasta").collectSet();
+   * await seqops("reads.fastq")
+   *   .filterBySet(contaminants, { exclude: true })
+   *   .writeFastq("clean_reads.fastq");
+   * ```
+   *
+   * @example
+   * ```typescript
+   * // Keep only sequences in whitelist
+   * const whitelist = await seqops("approved.fasta").collectSet();
+   * await seqops("candidates.fasta")
+   *   .filterBySet(whitelist, { exclude: false })
+   *   .writeFasta("approved_candidates.fasta");
+   * ```
+   *
+   * @example
+   * ```typescript
+   * // Filter by sequence ID instead of sequence content
+   * const idSet = await seqops("targets.fasta").collectSet();
+   * seqops("all_sequences.fasta")
+   *   .filterBySet(idSet, { by: "id" });
+   * ```
+   */
+  filterBySet<U extends AbstractSequence>(
+    set: SequenceSet<U>,
+    options?: { exclude?: boolean; by?: "sequence" | "id" }
+  ): SeqOps<T> {
+    const { exclude = false, by = "sequence" } = options || {};
+
+    return this.filter({
+      custom: (seq) => {
+        let inSet: boolean;
+        if (by === "sequence") {
+          // Check by sequence content (SequenceSet's native key)
+          inSet = set.has(seq.sequence);
+        } else {
+          // Check by ID - need to iterate through set to find matching ID
+          inSet = set.toArray().some((s) => s.id === seq.id);
+        }
+        return exclude ? !inSet : inSet;
+      },
+    });
   }
 
   /**
@@ -1133,6 +1192,56 @@ export class SeqOps<T extends AbstractSequence> {
    */
   rename(options?: RenameOptions): SeqOps<T> {
     return new SeqOps(rename(this.source, options));
+  }
+
+  /**
+   * Remove duplicate sequences with configurable deduplication strategies
+   *
+   * Streaming deduplication with multiple key extraction methods and
+   * conflict resolution strategies. Memory-efficient for large datasets
+   * when using the default "first" strategy.
+   *
+   * @param options - Deduplication options
+   * @returns New SeqOps with deduplicated sequences
+   *
+   * @example
+   * ```typescript
+   * // Remove duplicate sequences (most common)
+   * seqops(sequences).unique();
+   *
+   * // Remove sequences with duplicate IDs
+   * seqops(sequences).unique({ by: "id" });
+   *
+   * // Case-insensitive sequence deduplication
+   * seqops(sequences).unique({ by: "sequence", caseSensitive: false });
+   * ```
+   *
+   * @example
+   * ```typescript
+   * // Keep longest when duplicates found
+   * seqops(sequences).unique({
+   *   by: "sequence",
+   *   conflictResolution: "longest"
+   * });
+   *
+   * // Keep highest quality reads (FASTQ only)
+   * seqops(reads).unique({
+   *   by: "sequence",
+   *   conflictResolution: "highest-quality"
+   * });
+   * ```
+   *
+   * @example
+   * ```typescript
+   * // Custom deduplication key
+   * seqops(sequences).unique({
+   *   by: (seq) => seq.id.split("_")[0]  // Group by ID prefix
+   * });
+   * ```
+   */
+  unique(options?: UniqueOptions): SeqOps<T> {
+    const processor = new UniqueProcessor<T>();
+    return new SeqOps<T>(processor.process(this.source, options || {}));
   }
 
   /**
@@ -2177,7 +2286,6 @@ export {
   TabularOps,
   tab2fx,
 } from "./fx2tab";
-export { KmerSet, SequenceSet } from "./types";
 // Export split-specific types
 export { SplitProcessor, type SplitResult, type SplitSummary } from "./split";
 // Re-export types and classes for convenience
@@ -2188,7 +2296,6 @@ export {
 } from "./stats";
 export { SubseqExtractor, type SubseqOptions } from "./subseq";
 export { TranslateProcessor } from "./translate";
-export { WindowsProcessor } from "./windows";
 // Export new semantic API types
 export type {
   AmpliconOptions,
@@ -2212,3 +2319,6 @@ export type {
   ValidateOptions,
   WindowOptions,
 } from "./types";
+export { KmerSet, SequenceSet } from "./types";
+export { type UniqueOptions, UniqueProcessor } from "./unique";
+export { WindowsProcessor } from "./windows";

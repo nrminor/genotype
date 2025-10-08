@@ -11,6 +11,7 @@
 
 import type { AbstractSequence, KmerSequence, PrimerSequence } from "../types";
 import {
+  sequenceArrayToMap,
   sequenceContainment,
   sequenceDifference,
   sequenceEquals,
@@ -1198,61 +1199,71 @@ export interface WindowOptions<K extends number = number> {
  * ```
  */
 export class SequenceSet<T extends AbstractSequence = AbstractSequence> {
-  private sequences: Map<string, T>;
+  protected sequences: Map<string, T>;
   public readonly size: number;
 
   constructor(sequences: T[]) {
-    const unique = sequenceUnique(sequences);
-    this.sequences = new Map(unique.map((seq) => [seq.sequence, seq]));
+    this.sequences = sequenceArrayToMap(sequences);
     this.size = this.sequences.size;
   }
 
+  protected static fromMap<T extends AbstractSequence>(map: Map<string, T>): SequenceSet<T> {
+    const instance = Object.create(SequenceSet.prototype);
+    instance.sequences = map;
+    instance.size = map.size;
+    return instance;
+  }
+
+  toMap(): Map<string, T> {
+    return this.sequences;
+  }
+
   union<U extends T>(other: SequenceSet<U>): SequenceSet<T> {
-    const result = sequenceUnion(this.toArray(), other.toArray());
-    return new SequenceSet<T>(result);
+    const result = sequenceUnion(this.sequences, other.sequences);
+    return SequenceSet.fromMap<T>(result);
   }
 
   intersection<U extends T>(other: SequenceSet<U>): SequenceSet<T> {
-    const result = sequenceIntersection(this.toArray(), other.toArray());
-    return new SequenceSet<T>(result);
+    const result = sequenceIntersection(this.sequences, other.sequences);
+    return SequenceSet.fromMap<T>(result);
   }
 
   difference<U extends T>(other: SequenceSet<U>): SequenceSet<T> {
-    const result = sequenceDifference(this.toArray(), other.toArray());
-    return new SequenceSet<T>(result);
+    const result = sequenceDifference(this.sequences, other.sequences);
+    return SequenceSet.fromMap<T>(result);
   }
 
   symmetricDifference<U extends T>(other: SequenceSet<U>): SequenceSet<T> {
-    const result = sequenceSymmetricDifference(this.toArray(), other.toArray());
-    return new SequenceSet<T>(result);
+    const result = sequenceSymmetricDifference(this.sequences, other.sequences);
+    return SequenceSet.fromMap<T>(result);
   }
 
   equals<U extends T>(other: SequenceSet<U>): boolean {
-    return sequenceEquals(this.toArray(), other.toArray());
+    return sequenceEquals(this.sequences, other.sequences);
   }
 
   isSubsetOf<U extends T>(other: SequenceSet<U>): boolean {
-    return sequenceIsSubset(this.toArray(), other.toArray());
+    return sequenceIsSubset(this.sequences, other.sequences);
   }
 
   isSupersetOf<U extends T>(other: SequenceSet<U>): boolean {
-    return sequenceIsSubset(other.toArray(), this.toArray());
+    return sequenceIsSubset(other.sequences, this.sequences);
   }
 
   isDisjointFrom<U extends T>(other: SequenceSet<U>): boolean {
-    return sequenceIsDisjoint(this.toArray(), other.toArray());
+    return sequenceIsDisjoint(this.sequences, other.sequences);
   }
 
   jaccardSimilarity<U extends T>(other: SequenceSet<U>): number {
-    return sequenceJaccardSimilarity(this.toArray(), other.toArray());
+    return sequenceJaccardSimilarity(this.sequences, other.sequences);
   }
 
   containment<U extends T>(other: SequenceSet<U>): number {
-    return sequenceContainment(this.toArray(), other.toArray());
+    return sequenceContainment(this.sequences, other.sequences);
   }
 
   overlap<U extends T>(other: SequenceSet<U>): number {
-    return sequenceOverlap(this.toArray(), other.toArray());
+    return sequenceOverlap(this.sequences, other.sequences);
   }
 
   has(sequence: T): boolean;
@@ -1320,28 +1331,23 @@ export class KmerSet<K extends number> extends SequenceSet<KmerSequence<K>> {
   }
 
   override union(other: KmerSet<K>): KmerSet<K> {
-    const baseResult = super.union(other);
-    return new KmerSet<K>(baseResult.toArray());
+    return new KmerSet<K>(super.union(other).toArray());
   }
 
   override intersection(other: KmerSet<K>): KmerSet<K> {
-    const baseResult = super.intersection(other);
-    return new KmerSet<K>(baseResult.toArray());
+    return new KmerSet<K>(super.intersection(other).toArray());
   }
 
   override difference(other: KmerSet<K>): KmerSet<K> {
-    const baseResult = super.difference(other);
-    return new KmerSet<K>(baseResult.toArray());
+    return new KmerSet<K>(super.difference(other).toArray());
   }
 
   override symmetricDifference(other: KmerSet<K>): KmerSet<K> {
-    const baseResult = super.symmetricDifference(other);
-    return new KmerSet<K>(baseResult.toArray());
+    return new KmerSet<K>(super.symmetricDifference(other).toArray());
   }
 
   override filter(predicate: (seq: KmerSequence<K>) => boolean): KmerSet<K> {
-    const baseResult = super.filter(predicate);
-    return new KmerSet<K>(baseResult.toArray());
+    return new KmerSet<K>(super.filter(predicate).toArray());
   }
 }
 

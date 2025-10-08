@@ -207,4 +207,63 @@ describe("SeqOps integration with windows and collectSet", () => {
       expect(size).toBe(5);
     });
   });
+
+  describe(".filterBySet() method", () => {
+    test("excludes contamination sequences", async () => {
+      const contaminants = new SequenceSet([
+        { id: "bad1", sequence: "AAAA", length: 4, lineNumber: 1, description: "" },
+      ]);
+
+      const reads: AbstractSequence[] = [
+        { id: "read1", sequence: "ATCG", length: 4, lineNumber: 1, description: "" },
+        { id: "read2", sequence: "AAAA", length: 4, lineNumber: 2, description: "" },
+        { id: "read3", sequence: "GCTA", length: 4, lineNumber: 3, description: "" },
+      ];
+
+      const clean = await seqops(makeAsync(reads))
+        .filterBySet(contaminants, { exclude: true })
+        .collect();
+
+      expect(clean.length).toBe(2);
+      expect(clean.find((s) => s.sequence === "AAAA")).toBeUndefined();
+      expect(clean[0].sequence).toBe("ATCG");
+      expect(clean[1].sequence).toBe("GCTA");
+    });
+
+    test("includes only whitelisted sequences", async () => {
+      const whitelist = new SequenceSet([
+        { id: "seq1", sequence: "ATCG", length: 4, lineNumber: 1, description: "" },
+      ]);
+
+      const candidates: AbstractSequence[] = [
+        { id: "seq1", sequence: "ATCG", length: 4, lineNumber: 1, description: "" },
+        { id: "seq2", sequence: "GCTA", length: 4, lineNumber: 2, description: "" },
+      ];
+
+      const approved = await seqops(makeAsync(candidates))
+        .filterBySet(whitelist, { exclude: false })
+        .collect();
+
+      expect(approved.length).toBe(1);
+      expect(approved[0].sequence).toBe("ATCG");
+    });
+
+    test("filters by ID instead of sequence content", async () => {
+      // Create a set with a specific ID - sequence content doesn't matter for ID filtering
+      const idSet = new SequenceSet([
+        { id: "target_id", sequence: "NNNN", length: 4, lineNumber: 1, description: "" },
+      ]);
+
+      const reads: AbstractSequence[] = [
+        { id: "target_id", sequence: "ATCG", length: 4, lineNumber: 1, description: "" },
+        { id: "other_id", sequence: "GCTA", length: 4, lineNumber: 2, description: "" },
+      ];
+
+      const filtered = await seqops(makeAsync(reads)).filterBySet(idSet, { by: "id" }).collect();
+
+      expect(filtered.length).toBe(1);
+      expect(filtered[0].id).toBe("target_id");
+      expect(filtered[0].sequence).toBe("ATCG");
+    });
+  });
 });

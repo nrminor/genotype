@@ -1016,6 +1016,26 @@ export class SeqOps<T extends AbstractSequence> {
   }
 
   /**
+   * Take first N sequences (alias for head)
+   *
+   * Returns the first N sequences from the stream. This is an alias for
+   * `head()` provided for developers familiar with this naming convention.
+   *
+   * Mirrors `seqkit head` functionality.
+   *
+   * @param n - Number of sequences to take
+   * @returns New SeqOps instance for chaining
+   *
+   * @example
+   * ```typescript
+   * seqops(sequences).take(1000)
+   * ```
+   */
+  take(n: number): SeqOps<T> {
+    return this.head(n);
+  }
+
+  /**
    * Sample sequences statistically
    *
    * Apply statistical sampling to select a subset of sequences.

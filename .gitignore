@@ -101,6 +101,7 @@
 !/test/fixtures/*.bed
 !/test/fixtures/*.json
 !/test/fixtures/*.jsonl
+!/test/fixtures/*.tsv
 
 # === BUILD & DEPLOYMENT SCRIPTS ===
 # Automation scripts

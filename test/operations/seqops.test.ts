@@ -147,6 +147,35 @@ describe("SeqOps", () => {
     });
   });
 
+  describe("take method (alias for head)", () => {
+    test("takes first n sequences", async () => {
+      const sequences = [
+        createSequence("seq1", "ATCG"),
+        createSequence("seq2", "GGGG"),
+        createSequence("seq3", "CCCC"),
+      ];
+
+      const results = await seqops(arrayToAsync(sequences)).take(2).collect();
+
+      expect(results).toHaveLength(2);
+      expect(results[0]?.id).toBe("seq1");
+      expect(results[1]?.id).toBe("seq2");
+    });
+
+    test("produces same results as head", async () => {
+      const sequences = [
+        createSequence("seq1", "ATCG"),
+        createSequence("seq2", "GGGG"),
+        createSequence("seq3", "CCCC"),
+      ];
+
+      const headResults = await seqops(arrayToAsync(sequences)).head(2).collect();
+      const takeResults = await seqops(arrayToAsync(sequences)).take(2).collect();
+
+      expect(takeResults).toEqual(headResults);
+    });
+  });
+
   describe("stats method", () => {
     test("calculates basic statistics", async () => {
       const sequences = [

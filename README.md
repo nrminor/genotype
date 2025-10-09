@@ -20,14 +20,15 @@
 > internal tests. That said, _breaking changes should be expected_--this is
 > pre-alpha software.
 
-## GenoType's Goal?
+## GenoType's Goal
 
 GenoType's goal is to fill a gap in the TypeScript ecosystem by providing a
 fully type-safe, performant, idiomatic library for parsing and processing
 genomic data in any of the major bioinformatic data formats. It's built with an
 obsession with developer experience and is meant to enable users to compose
-their own pipelines of sequence transformations. For example, the following
-"pipeline", mirroring a Unix pipeline of operations from the excellent
+their own pipelines of sequence transformations in a fluent
+[DSL](https://en.wikipedia.org/wiki/Domain-specific_language). For example, the
+following "pipeline", mirroring a Unix pipeline of operations from the excellent
 [Seqkit command line interface](https://bioinf.shenwei.me/seqkit/), can be
 composed in TypeScript like so:
 
@@ -43,19 +44,43 @@ const results = await seqops(genomeSequences)
   .writeFasta("analyzed_genome.fasta");
 ```
 
-Eventually, GenoType will ship with complete feature parity with Seqkit.
-Together with Bun or Deno, this will mean users can write sequence
-transformation pipelines with the DX and type safety of TypeScript instead of
-writing Bash. Bun/Deno scripts performing these pipelines can then be
-[compiled
-into portable standalone executables](https://bun.com/docs/bundler/executables)--unlike
-Bash scripts using `seqkit` or whatever else, where users can still only use the
-scripts if `seqkit` and other dependencies installed,
-[`Bun`](https://bun.com/docs/bundler/executables) or
-[`Deno`](https://docs.deno.com/runtime/reference/cli/compile/) executables using
-GenoType are fully self-contained and portable.
+A majority of features provided in SeqKit will also be provided by GenoType,
+plus some extra goodies that make sense in the context of a TypeScript library
+(e.g., K-mer set algebra or higher-order function combinators).
 
-This combination of a composable, type-safe API for building dependency-free
+### Fast internals
+
+Also on the GenoType roadmap are Rust implementations that bring SIMD
+acceleration and multi-core parallelism to particular operations. These
+optimizations, together with the overall speed of modern JavaScript runtimes,
+will make GenoType's performance competitive with if not better than SeqKit,
+which is implemented in Go. Additionally, Rust implementations can be compiled
+to native extensions or WebAssembly modules, which opens the possibility for
+GenoType to be run on the server, in the browser, or anywhere in between.
+
+### Portable Scripting
+
+However, GenoType was also designed with scripting in mind. As of 2025, the
+story for scripting in JavaScript and TypeScript is exceptionally good, a fact
+that is underappreciated in data science and bioinformatics. Runtimes like
+[Bun](https://bun.com/) and [Deno](https://deno.com/) can run standalone
+scripts, handling inline dependencies by default like how the Python manager
+[`uv` can handle Python dependencies](https://docs.astral.sh/uv/guides/scripts/#declaring-script-dependencies)--no
+need for virtual environments and dependency hell. They also benefit from years
+of JavaScript runtime optimization (and indeed, one of its goals is to be
+runtime-agnostic; no Node lock-in). Most remarkably, Bun and Deno don't even
+require that the runtimes themselves are installed. Both runtimes can compile
+scripts
+[into portable standalone executables](https://bun.com/docs/bundler/executables)
+for most popular OS/CPU architecture targets, with ease of cross-compilation to
+rival Go or Zig.
+
+### Overall
+
+Be it for the bioinformatics in the browser, portable scripting, or backend data
+crunching, GenoType's goal is to enable users to write intricate,
+high-throughput pipelines of genomic data transformations and run them anywhere.
+Providing a composable, type-safe DSL for building portable, dependency-free
 bioinformatic processing programs is what GenoType is all about.
 
 ## Installation

@@ -67,10 +67,10 @@ that is underappreciated in data science and bioinformatics. Runtimes like
 scripts, handling inline dependencies by default like how the Python manager
 [`uv` can handle Python dependencies](https://docs.astral.sh/uv/guides/scripts/#declaring-script-dependencies)--no
 need for virtual environments and dependency hell. They also benefit from years
-of JavaScript runtime optimization (and indeed, one of its goals is to be
-runtime-agnostic; no Node lock-in). Most remarkably, Bun and Deno don't even
-require that the runtimes themselves are installed. Both runtimes can compile
-scripts
+of JavaScript runtime optimization (and indeed, one of GenoType's goals is to be
+runtime-agnostic so you can use the latest and fastest runtime you want to).
+Most remarkably, Bun and Deno don't even require that the runtimes themselves
+are installed. Both runtimes can compile scripts
 [into portable standalone executables](https://bun.com/docs/bundler/executables)
 for most popular OS/CPU architecture targets, with ease of cross-compilation to
 rival Go or Zig.

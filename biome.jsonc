@@ -11,7 +11,9 @@
     "expand": "auto",
     "includes": [
       "**",
-      "!/docs/",
+      "!docs/",
+      "!dist/",
+      "!dist/*.js",
       "!**/dist/",
       "!**/*.d.ts",
       "!**/node_modules/",
@@ -109,6 +111,10 @@
       "!*.js",
       "!*.d.ts"
     ]
+  },
+
+  "files": {
+    "includes": ["!dist/*.js"]
   },
   "javascript": {
     "formatter": {

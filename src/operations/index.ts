@@ -44,6 +44,7 @@ import {
   tab2fx,
 } from "./fx2tab";
 import { GrepProcessor } from "./grep";
+import { type InterleaveOptions, InterleaveProcessor } from "./interleave";
 import { LocateProcessor } from "./locate";
 import { QualityProcessor } from "./quality";
 import { rename } from "./rename";
@@ -362,7 +363,10 @@ export class SeqOps<T extends AbstractSequence> {
    * Remove sequences that don't meet specified criteria. All criteria
    * within a single filter call are combined with AND logic.
    *
-   * @param options - Filter criteria or custom predicate
+   * After calling `.enumerate()`, the index parameter becomes available in
+   * predicate functions, enabling position-based filtering.
+   *
+   * @param options - Filter criteria or custom predicate (with index after enumerate)
    * @returns New SeqOps instance for chaining
    *
    * @example
@@ -370,15 +374,40 @@ export class SeqOps<T extends AbstractSequence> {
    * // Filter by length and GC content
    * seqops(sequences)
    *   .filter({ minLength: 100, maxGC: 60 })
-   *   .filter({ hasAmbiguous: false })
+   *   .filter({ hasAmbiguous: false });
    *
    * // Custom filter function
    * seqops(sequences)
-   *   .filter({ custom: seq => seq.id.startsWith('chr') })
+   *   .filter((seq) => seq.id.startsWith('chr'));
+   *
+   * // With index (after enumerate) - keep even positions
+   * seqops(sequences)
+   *   .enumerate()
+   *   .filter((seq, idx) => idx % 2 === 0);
+   *
+   * // Async predicate with index
+   * seqops(sequences)
+   *   .enumerate()
+   *   .filter(async (seq, idx) => {
+   *     const valid = await validateSequence(seq);
+   *     return valid && idx < 1000;
+   *   });
+   *
+   * // Type preservation with FastqSequence
+   * seqops<FastqSequence>(reads)
+   *   .filter((seq) => seq.quality !== undefined);
+   * // Type: SeqOps<FastqSequence> ✅
    * ```
    */
-  filter(options: FilterOptions | ((seq: T) => boolean)): SeqOps<T> {
-    // Handle legacy predicate function for backwards compatibility
+  filter(
+    this: SeqOps<T & { index: number }>,
+    options: FilterOptions | ((seq: T, index: number) => boolean | Promise<boolean>)
+  ): SeqOps<T>;
+  filter(options: FilterOptions | ((seq: T) => boolean | Promise<boolean>)): SeqOps<T>;
+  filter(
+    options: FilterOptions | ((seq: T, index?: number) => boolean | Promise<boolean>)
+  ): SeqOps<T> {
+    // Handle predicate function
     if (typeof options === "function") {
       return new SeqOps<T>(this.filterWithPredicate(options) as AsyncIterable<T>);
     }
@@ -857,9 +886,18 @@ export class SeqOps<T extends AbstractSequence> {
    * Helper for legacy predicate filter
    * @private
    */
-  private async *filterWithPredicate(predicate: (seq: T) => boolean): AsyncIterable<T> {
+  private async *filterWithPredicate(
+    predicate: (seq: T, index?: number) => boolean | Promise<boolean>
+  ): AsyncIterable<T> {
     for await (const seq of this.source) {
-      if (predicate(seq)) {
+      let keep: boolean;
+      if ("index" in seq && typeof seq.index === "number") {
+        keep = await predicate(seq, seq.index);
+      } else {
+        keep = await predicate(seq);
+      }
+
+      if (keep) {
         yield seq;
       }
     }
@@ -1981,7 +2019,7 @@ export class SeqOps<T extends AbstractSequence> {
 
     try {
       for await (const row of fx2tab(this.source, { ...options, delimiter: "\t" })) {
-        await stream.write(row.__raw + "\n");
+        stream.write(row.__raw + "\n");
       }
     } finally {
       stream.end();
@@ -2010,7 +2048,7 @@ export class SeqOps<T extends AbstractSequence> {
 
     try {
       for await (const row of fx2tab(this.source, { ...options, delimiter: "," })) {
-        await stream.write(row.__raw + "\n");
+        stream.write(row.__raw + "\n");
       }
     } finally {
       stream.end();
@@ -2048,7 +2086,7 @@ export class SeqOps<T extends AbstractSequence> {
 
     try {
       for await (const row of fx2tab(this.source, { ...options, delimiter })) {
-        await stream.write(row.__raw + "\n");
+        stream.write(row.__raw + "\n");
       }
     } finally {
       stream.end();
@@ -2071,8 +2109,8 @@ export class SeqOps<T extends AbstractSequence> {
    * console.log(`Collected ${sequences.length} sequences`);
    * ```
    */
-  async collect(): Promise<AbstractSequence[]> {
-    const results: AbstractSequence[] = [];
+  async collect(): Promise<T[]> {
+    const results: T[] = [];
     for await (const seq of this.source) {
       results.push(seq);
     }
@@ -2162,23 +2200,686 @@ export class SeqOps<T extends AbstractSequence> {
   }
 
   /**
-   * Process each sequence with a callback
+   * Transform sequences with a mapping function
    *
-   * Terminal operation that applies a function to each sequence.
+   * Transforms each sequence in the stream using the provided function.
+   * Type parameter U is inferred from the return type of the mapping function,
+   * allowing type transformations while preserving specific sequence types
+   * when the mapping function returns the same type.
    *
-   * @param fn - Callback function
-   * @returns Promise resolving when processing is complete
+   * After calling `.enumerate()`, the index parameter becomes available in
+   * the mapping function signature.
+   *
+   * @template U - Output sequence type (defaults to T for type preservation)
+   * @param fn - Mapping function (with index after enumerate)
+   * @returns New SeqOps with transformed sequences
    *
    * @example
    * ```typescript
-   * await seqops(sequences)
-   *   .forEach(seq => console.log(seq.id, seq.length));
+   * // Transform without index
+   * seqops<FastqSequence>(reads)
+   *   .map((seq) => ({ ...seq, id: `sample1_${seq.id}` }));
+   * // Type preserved: SeqOps<FastqSequence>
+   *
+   * // Transform with index (after enumerate)
+   * seqops(sequences)
+   *   .enumerate()
+   *   .map((seq, idx) => ({
+   *     ...seq,
+   *     description: `position=${idx} ${seq.description || ""}`,
+   *   }));
+   *
+   * // Async transformation
+   * seqops(sequences)
+   *   .map(async (seq) => {
+   *     const annotation = await fetchAnnotation(seq.id);
+   *     return { ...seq, description: annotation };
+   *   });
    * ```
    */
-  async forEach(fn: (seq: AbstractSequence) => void | Promise<void>): Promise<void> {
-    for await (const seq of this.source) {
-      await fn(seq);
+  map<U extends AbstractSequence = T>(
+    this: SeqOps<T & { index: number }>,
+    fn: (seq: T, index: number) => U | Promise<U>
+  ): SeqOps<U>;
+  map<U extends AbstractSequence = T>(fn: (seq: T) => U | Promise<U>): SeqOps<U>;
+  map<U extends AbstractSequence = T>(
+    fn: ((seq: T) => U | Promise<U>) | ((seq: T, index: number) => U | Promise<U>)
+  ): SeqOps<U> {
+    async function* mapGenerator(source: AsyncIterable<T>) {
+      for await (const seq of source) {
+        if ("index" in seq && typeof seq.index === "number") {
+          yield await (fn as (seq: T, index: number) => U | Promise<U>)(seq, seq.index);
+        } else {
+          yield await (fn as (seq: T) => U | Promise<U>)(seq);
+        }
+      }
     }
+    return new SeqOps<U>(mapGenerator(this.source));
+  }
+
+  /**
+   * Attach index to each sequence
+   *
+   * Adds a zero-based index property to each sequence in the stream.
+   * After calling this method, downstream operations like `.map()` and `.filter()`
+   * can access the index parameter in their callback functions.
+   *
+   * The index represents the position of the sequence in the stream (0-based).
+   *
+   * @returns New SeqOps with sequences that have an index property
+   *
+   * @example
+   * ```typescript
+   * // Enable index parameter in downstream operations
+   * const results = await seqops<FastqSequence>(reads)
+   *   .enumerate()
+   *   .filter((seq, idx) => idx < 10000) // Index available
+   *   .map((seq, idx) => ({
+   *     ...seq,
+   *     description: `${seq.description} pos=${idx}`,
+   *   }))
+   *   .collect();
+   *
+   * // Type: Array<FastqSequence & { index: number }> ✅
+   * results[0].quality; // ✅ Exists (FastqSequence preserved)
+   * results[0].index;   // ✅ Exists (from enumerate)
+   * ```
+   *
+   * @example
+   * ```typescript
+   * // Position-based filtering
+   * seqops(sequences)
+   *   .enumerate()
+   *   .filter((seq, idx) => idx % 2 === 0) // Keep even positions
+   *   .writeFasta('even_positions.fasta');
+   * ```
+   *
+   * @example
+   * ```typescript
+   * // Progress tracking
+   * seqops(sequences)
+   *   .enumerate()
+   *   .tap((seq, idx) => {
+   *     if (idx % 1000 === 0) console.log(`Processed ${idx}`);
+   *   })
+   *   .filter({ minLength: 100 });
+   * ```
+   */
+  enumerate(): SeqOps<T & { index: number }> {
+    async function* enumerateGenerator(source: AsyncIterable<T>) {
+      let index = 0;
+      for await (const seq of source) {
+        yield { ...seq, index: index++ } as T & { index: number };
+      }
+    }
+    return new SeqOps<T & { index: number }>(enumerateGenerator(this.source));
+  }
+
+  /**
+   * Apply side effects without consuming the stream
+   *
+   * Executes a function for each sequence but yields the original sequence unchanged.
+   * Useful for logging, progress tracking, or other side effects that shouldn't
+   * modify the sequence data.
+   *
+   * After calling `.enumerate()`, the index parameter becomes available.
+   *
+   * @param fn - Side effect function (with index after enumerate)
+   * @returns Same SeqOps for continued chaining
+   *
+   * @example
+   * ```typescript
+   * // Progress logging without index
+   * let count = 0;
+   * seqops(sequences)
+   *   .tap((seq) => {
+   *     count++;
+   *     if (count % 1000 === 0) console.log(`Processed ${count}`);
+   *   })
+   *   .filter({ minLength: 100 })
+   *   .writeFasta('output.fasta');
+   * ```
+   *
+   * @example
+   * ```typescript
+   * // Progress tracking with index
+   * seqops(sequences)
+   *   .enumerate()
+   *   .tap((seq, idx) => {
+   *     if (idx % 1000 === 0) console.log(`Processed ${idx}`);
+   *   })
+   *   .filter({ minLength: 100 });
+   * ```
+   *
+   * @example
+   * ```typescript
+   * // Collect statistics without modifying stream
+   * const stats = { totalLength: 0, count: 0 };
+   * seqops(sequences)
+   *   .tap((seq) => {
+   *     stats.totalLength += seq.length;
+   *     stats.count++;
+   *   })
+   *   .filter({ minLength: 100 })
+   *   .writeFasta('filtered.fasta');
+   * console.log(`Average length: ${stats.totalLength / stats.count}`);
+   * ```
+   *
+   * @example
+   * ```typescript
+   * // Async side effects (e.g., logging to database)
+   * seqops(sequences)
+   *   .enumerate()
+   *   .tap(async (seq, idx) => {
+   *     await logToDatabase({ id: seq.id, position: idx });
+   *   })
+   *   .filter({ minLength: 100 });
+   * ```
+   */
+  tap(
+    this: SeqOps<T & { index: number }>,
+    fn: (seq: T, index: number) => void | Promise<void>
+  ): SeqOps<T>;
+  tap(fn: (seq: T) => void | Promise<void>): SeqOps<T>;
+  tap(
+    fn: ((seq: T) => void | Promise<void>) | ((seq: T, index: number) => void | Promise<void>)
+  ): SeqOps<T> {
+    async function* tapGenerator(source: AsyncIterable<T>) {
+      for await (const seq of source) {
+        if ("index" in seq && typeof seq.index === "number") {
+          await (fn as (seq: T, index: number) => void | Promise<void>)(seq, seq.index);
+        } else {
+          await (fn as (seq: T) => void | Promise<void>)(seq);
+        }
+        yield seq;
+      }
+    }
+    return new SeqOps<T>(tapGenerator(this.source));
+  }
+
+  /**
+   * Map each sequence to multiple sequences and flatten the result
+   *
+   * Transforms each sequence into zero or more sequences, then flattens all results
+   * into a single stream. The mapping function can return an array or an async iterable.
+   *
+   * After calling `.enumerate()`, the index parameter becomes available.
+   *
+   * @template U - Output sequence type (defaults to T for type preservation)
+   * @param fn - Mapping function that returns array or async iterable (with index after enumerate)
+   * @returns New SeqOps with flattened results
+   *
+   * @example
+   * ```typescript
+   * // Expand each sequence to multiple variants
+   * seqops(sequences)
+   *   .flatMap((seq) => [
+   *     { ...seq, id: `${seq.id}_variant1`, sequence: variant1(seq.sequence) },
+   *     { ...seq, id: `${seq.id}_variant2`, sequence: variant2(seq.sequence) },
+   *   ])
+   *   .writeFasta('variants.fasta');
+   * ```
+   *
+   * @example
+   * ```typescript
+   * // Generate k-mers from each sequence
+   * seqops(sequences)
+   *   .flatMap((seq) => generateKmers(seq, 21))
+   *   .unique({ by: 'sequence' })
+   *   .writeFasta('unique_kmers.fasta');
+   * ```
+   *
+   * @example
+   * ```typescript
+   * // With index - expand based on position
+   * seqops(sequences)
+   *   .enumerate()
+   *   .flatMap((seq, idx) => {
+   *     const count = idx < 10 ? 3 : 1; // More variants for first 10
+   *     return Array.from({ length: count }, (_, i) => ({
+   *       ...seq,
+   *       id: `${seq.id}_copy${i}`,
+   *     }));
+   *   });
+   * ```
+   *
+   * @example
+   * ```typescript
+   * // Async iterable result
+   * seqops(sequences)
+   *   .flatMap(async function* (seq) {
+   *     for (const frame of [1, 2, 3, -1, -2, -3]) {
+   *       yield translateFrame(seq, frame);
+   *     }
+   *   });
+   * ```
+   */
+  flatMap<U extends AbstractSequence = T>(
+    this: SeqOps<T & { index: number }>,
+    fn: (seq: T, index: number) => U[] | AsyncIterable<U> | Promise<U[]>
+  ): SeqOps<U>;
+  flatMap<U extends AbstractSequence = T>(
+    fn: (seq: T) => U[] | AsyncIterable<U> | Promise<U[]>
+  ): SeqOps<U>;
+  flatMap<U extends AbstractSequence = T>(
+    fn:
+      | ((seq: T) => U[] | AsyncIterable<U> | Promise<U[]>)
+      | ((seq: T, index: number) => U[] | AsyncIterable<U> | Promise<U[]>)
+  ): SeqOps<U> {
+    async function* flatMapGenerator(source: AsyncIterable<T>) {
+      for await (const seq of source) {
+        let result: U[] | AsyncIterable<U>;
+
+        if ("index" in seq && typeof seq.index === "number") {
+          result = await (fn as (seq: T, index: number) => U[] | AsyncIterable<U> | Promise<U[]>)(
+            seq,
+            seq.index
+          );
+        } else {
+          result = await (fn as (seq: T) => U[] | AsyncIterable<U> | Promise<U[]>)(seq);
+        }
+
+        // Handle both arrays and async iterables
+        if (Symbol.asyncIterator in result) {
+          for await (const item of result) {
+            yield item;
+          }
+        } else {
+          for (const item of result as U[]) {
+            yield item;
+          }
+        }
+      }
+    }
+    return new SeqOps<U>(flatMapGenerator(this.source));
+  }
+
+  /**
+   * Process each sequence with a callback (terminal operation)
+   *
+   * Applies a function to each sequence in the stream. This is a terminal operation
+   * that consumes the stream and returns when all sequences have been processed.
+   *
+   * After calling `.enumerate()`, the index parameter becomes available in the callback.
+   *
+   * @param fn - Callback function to execute for each sequence
+   * @returns Promise that resolves when all sequences have been processed
+   *
+   * @example
+   * ```typescript
+   * // Type-safe with FastqSequence
+   * await seqops<FastqSequence>(reads)
+   *   .forEach((seq) => {
+   *     console.log(seq.quality); // ✅ TypeScript knows quality exists
+   *   });
+   * ```
+   *
+   * @example
+   * ```typescript
+   * // With progress tracking after enumerate
+   * await seqops(sequences)
+   *   .enumerate()
+   *   .forEach((seq, idx) => {
+   *     if (idx % 1000 === 0) console.log(`Progress: ${idx}`);
+   *   });
+   * ```
+   *
+   * @example
+   * ```typescript
+   * // Async callback support
+   * await seqops(sequences)
+   *   .forEach(async (seq) => {
+   *     await writeToDatabase(seq);
+   *   });
+   * ```
+   */
+  async forEach(
+    this: SeqOps<T & { index: number }>,
+    fn: (seq: T, index: number) => void | Promise<void>
+  ): Promise<void>;
+  async forEach(fn: (seq: T) => void | Promise<void>): Promise<void>;
+  async forEach(
+    fn: ((seq: T) => void | Promise<void>) | ((seq: T, index: number) => void | Promise<void>)
+  ): Promise<void> {
+    for await (const seq of this.source) {
+      if ("index" in seq && typeof seq.index === "number") {
+        await (fn as (seq: T, index: number) => void | Promise<void>)(seq, seq.index);
+      } else {
+        await (fn as (seq: T) => void | Promise<void>)(seq);
+      }
+    }
+  }
+
+  /**
+   * Reduce sequences to a single value using first element as accumulator
+   *
+   * Terminal operation that reduces the stream to a single value by applying
+   * a function that combines the accumulator with each sequence. The first
+   * sequence in the stream becomes the initial accumulator value.
+   *
+   * Returns `undefined` if the stream is empty.
+   *
+   * After calling `.enumerate()`, the index parameter becomes available.
+   *
+   * @param fn - Reducer function that combines accumulator with each sequence
+   * @returns Promise resolving to the final accumulated value, or undefined if empty
+   *
+   * @example
+   * ```typescript
+   * // Find longest sequence
+   * const longest = await seqops<FastqSequence>(reads)
+   *   .reduce((acc, seq) => seq.length > acc.length ? seq : acc);
+   * // Type: FastqSequence | undefined ✅
+   * ```
+   *
+   * @example
+   * ```typescript
+   * // With index tracking
+   * const result = await seqops(sequences)
+   *   .enumerate()
+   *   .reduce((acc, seq, idx) => {
+   *     console.log(`Comparing at index ${idx}`);
+   *     return acc.length > seq.length ? acc : seq;
+   *   });
+   * ```
+   *
+   * @example
+   * ```typescript
+   * // Find sequence with highest GC content
+   * const highestGC = await seqops(sequences)
+   *   .reduce((acc, seq) => {
+   *     const accGC = calculateGC(acc.sequence);
+   *     const seqGC = calculateGC(seq.sequence);
+   *     return seqGC > accGC ? seq : acc;
+   *   });
+   * ```
+   */
+  async reduce(
+    this: SeqOps<T & { index: number }>,
+    fn: (accumulator: T, seq: T, index: number) => T | Promise<T>
+  ): Promise<T | undefined>;
+  async reduce(fn: (accumulator: T, seq: T) => T | Promise<T>): Promise<T | undefined>;
+  async reduce(
+    fn: ((acc: T, seq: T) => T | Promise<T>) | ((acc: T, seq: T, index: number) => T | Promise<T>)
+  ): Promise<T | undefined> {
+    const iter = this.source[Symbol.asyncIterator]();
+    const first = await iter.next();
+
+    if (first.done) return undefined;
+
+    let accumulator = first.value;
+    let currentIndex = 1;
+
+    for await (const seq of { [Symbol.asyncIterator]: () => iter }) {
+      const indexToPass =
+        "index" in seq && typeof seq.index === "number" ? seq.index : currentIndex++;
+
+      accumulator = await (fn as (acc: T, seq: T, index: number) => T | Promise<T>)(
+        accumulator,
+        seq,
+        indexToPass
+      );
+    }
+
+    return accumulator;
+  }
+
+  /**
+   * Fold sequences to a single value with explicit initial value
+   *
+   * Terminal operation that reduces the stream to a single value by applying
+   * a function that combines the accumulator with each sequence. Unlike reduce(),
+   * fold() requires an explicit initial value and can transform to any type.
+   *
+   * Never returns undefined - always returns at least the initial value.
+   *
+   * After calling `.enumerate()`, the index parameter becomes available.
+   *
+   * @param fn - Folder function that combines accumulator with each sequence
+   * @param initialValue - The initial accumulator value
+   * @returns Promise resolving to the final accumulated value
+   *
+   * @example
+   * ```typescript
+   * // Calculate total length
+   * const totalLength = await seqops(sequences)
+   *   .fold((sum, seq) => sum + seq.length, 0);
+   * // Type: number ✅
+   * ```
+   *
+   * @example
+   * ```typescript
+   * // Build index mapping
+   * const index = await seqops<FastqSequence>(reads)
+   *   .fold(
+   *     (map, seq) => map.set(seq.id, seq),
+   *     new Map<string, FastqSequence>(),
+   *   );
+   * // Type: Map<string, FastqSequence> ✅
+   * ```
+   *
+   * @example
+   * ```typescript
+   * // Collect statistics with position tracking
+   * const stats = await seqops(sequences)
+   *   .enumerate()
+   *   .fold(
+   *     (acc, seq, idx) => {
+   *       const gc = calculateGC(seq.sequence);
+   *       return {
+   *         min: Math.min(acc.min, gc),
+   *         max: Math.max(acc.max, gc),
+   *         sum: acc.sum + gc,
+   *         count: acc.count + 1,
+   *         positions: [...acc.positions, { idx, gc }],
+   *       };
+   *     },
+   *     { min: Infinity, max: -Infinity, sum: 0, count: 0, positions: [] },
+   *   );
+   * ```
+   */
+  async fold<U>(
+    this: SeqOps<T & { index: number }>,
+    fn: (accumulator: U, seq: T, index: number) => U | Promise<U>,
+    initialValue: U
+  ): Promise<U>;
+  async fold<U>(fn: (accumulator: U, seq: T) => U | Promise<U>, initialValue: U): Promise<U>;
+  async fold<U>(
+    fn:
+      | ((accumulator: U, seq: T) => U | Promise<U>)
+      | ((accumulator: U, seq: T, index: number) => U | Promise<U>),
+    initialValue: U
+  ): Promise<U> {
+    let accumulator = initialValue;
+    let currentIndex = 0;
+
+    for await (const seq of this.source) {
+      const indexToPass =
+        "index" in seq && typeof seq.index === "number" ? seq.index : currentIndex++;
+
+      accumulator = await (fn as (accumulator: U, seq: T, index: number) => U | Promise<U>)(
+        accumulator,
+        seq,
+        indexToPass
+      );
+    }
+
+    return accumulator;
+  }
+
+  /**
+   * Combine two streams element-by-element with a combining function
+   *
+   * Zips two streams together, applying a function to each pair of elements.
+   * Index parameters appear in the signature only when the corresponding stream
+   * has been enumerated. Stops when either stream ends (shortest-wins behavior).
+   *
+   * @param other - The second stream to zip with (SeqOps or AsyncIterable)
+   * @param fn - Combining function that merges elements from both streams
+   * @returns New SeqOps with combined elements
+   *
+   * @example
+   * ```typescript
+   * // Neither enumerated
+   * const forward = seqops<FastqSequence>("reads_R1.fastq");
+   * const reverse = seqops<FastqSequence>("reads_R2.fastq");
+   * forward.zipWith(reverse, (fwd, rev) => ({
+   *   id: `${fwd.id}_merged`,
+   *   sequence: fwd.sequence + "NNNN" + reverseComplement(rev.sequence),
+   * }));
+   * ```
+   *
+   * @example
+   * ```typescript
+   * // Left enumerated only
+   * forward.enumerate().zipWith(reverse, (fwd, rev, idxFwd) => {
+   *   if (idxFwd % 1000 === 0) console.log(`Processed ${idxFwd} pairs`);
+   *   return mergePair(fwd, rev);
+   * });
+   * ```
+   *
+   * @example
+   * ```typescript
+   * // Both enumerated - verify alignment
+   * forward.enumerate().zipWith(reverse.enumerate(), (fwd, rev, idxFwd, idxRev) => {
+   *   if (idxFwd !== idxRev) throw new Error(`Alignment mismatch`);
+   *   return mergePair(fwd, rev);
+   * });
+   * ```
+   */
+  zipWith<U extends AbstractSequence, V extends AbstractSequence = T>(
+    this: SeqOps<T & { index: number }>,
+    other: SeqOps<U & { index: number }>,
+    fn: (a: T, b: U, indexA: number, indexB: number) => V | Promise<V>
+  ): SeqOps<V>;
+  zipWith<U extends AbstractSequence, V extends AbstractSequence = T>(
+    this: SeqOps<T & { index: number }>,
+    other: SeqOps<U>,
+    fn: (a: T, b: U, indexA: number) => V | Promise<V>
+  ): SeqOps<V>;
+  zipWith<U extends AbstractSequence, V extends AbstractSequence = T>(
+    other: SeqOps<U & { index: number }>,
+    fn: (a: T, b: U, indexB: number) => V | Promise<V>
+  ): SeqOps<V>;
+  zipWith<U extends AbstractSequence, V extends AbstractSequence = T>(
+    other: SeqOps<U>,
+    fn: (a: T, b: U) => V | Promise<V>
+  ): SeqOps<V>;
+  zipWith<U extends AbstractSequence, V extends AbstractSequence = T>(
+    this: SeqOps<T & { index: number }>,
+    other: AsyncIterable<U>,
+    fn: (a: T, b: U, indexA: number) => V | Promise<V>
+  ): SeqOps<V>;
+  zipWith<U extends AbstractSequence, V extends AbstractSequence = T>(
+    other: AsyncIterable<U>,
+    fn: (a: T, b: U) => V | Promise<V>
+  ): SeqOps<V>;
+  zipWith<U extends AbstractSequence, V extends AbstractSequence = T>(
+    other: SeqOps<U> | AsyncIterable<U>,
+    fn:
+      | ((a: T, b: U) => V | Promise<V>)
+      | ((a: T, b: U, indexA: number) => V | Promise<V>)
+      | ((a: T, b: U, indexB: number) => V | Promise<V>)
+      | ((a: T, b: U, indexA: number, indexB: number) => V | Promise<V>)
+  ): SeqOps<V> {
+    const otherSource = other instanceof SeqOps ? other.source : other;
+
+    async function* zipGenerator(source1: AsyncIterable<T>, source2: AsyncIterable<U>) {
+      const iter1 = source1[Symbol.asyncIterator]();
+      const iter2 = source2[Symbol.asyncIterator]();
+
+      while (true) {
+        const [result1, result2] = await Promise.all([iter1.next(), iter2.next()]);
+
+        if (result1.done || result2.done) break;
+
+        const seq1 = result1.value;
+        const seq2 = result2.value;
+
+        const hasIndexA = "index" in seq1 && typeof seq1.index === "number";
+        const hasIndexB = "index" in seq2 && typeof seq2.index === "number";
+
+        if (hasIndexA && hasIndexB) {
+          yield await (fn as (a: T, b: U, indexA: number, indexB: number) => V | Promise<V>)(
+            seq1,
+            seq2,
+            (seq1 as T & { index: number }).index,
+            (seq2 as U & { index: number }).index
+          );
+        } else if (hasIndexA) {
+          yield await (fn as (a: T, b: U, indexA: number) => V | Promise<V>)(
+            seq1,
+            seq2,
+            (seq1 as T & { index: number }).index
+          );
+        } else if (hasIndexB) {
+          yield await (fn as (a: T, b: U, indexB: number) => V | Promise<V>)(
+            seq1,
+            seq2,
+            (seq2 as U & { index: number }).index
+          );
+        } else {
+          yield await (fn as (a: T, b: U) => V | Promise<V>)(seq1, seq2);
+        }
+      }
+    }
+    return new SeqOps<V>(zipGenerator(this.source, otherSource));
+  }
+
+  /**
+   * Interleave with another stream in alternating order
+   *
+   * Combines two streams by alternating elements: left, right, left, right, etc.
+   * Both streams must contain sequences of the same type for type safety.
+   * Commonly used for Illumina paired-end reads.
+   *
+   * Stops when either stream ends (shortest-wins behavior).
+   *
+   * @param other - Stream to interleave with (SeqOps or AsyncIterable)
+   * @param options - Interleaving options
+   * @returns Interleaved SeqOps stream
+   *
+   * @example
+   * // Basic interleaving
+   * const forward = seqops<FastqSequence>('reads_R1.fastq');
+   * const reverse = seqops<FastqSequence>('reads_R2.fastq');
+   *
+   * forward
+   *   .interleave(reverse)
+   *   .writeFastq('interleaved.fastq');
+   * // Output: F1, R1, F2, R2, F3, R3, ...
+   *
+   * @example
+   * // With ID validation for paired-end reads
+   * forward
+   *   .interleave(reverse, { validateIds: true })
+   *   .writeFastq('interleaved.fastq');
+   * // Throws error if IDs don't match
+   *
+   * @example
+   * // Custom ID comparison (ignore /1 /2 suffix)
+   * forward
+   *   .interleave(reverse, {
+   *     validateIds: true,
+   *     idComparator: (a, b) => {
+   *       const stripSuffix = (id: string) => id.replace(/\/[12]$/, '');
+   *       return stripSuffix(a) === stripSuffix(b);
+   *     }
+   *   })
+   *   .writeFastq('interleaved.fastq');
+   *
+   * @example
+   * // Type safety - only same types can be interleaved
+   * const fasta = seqops<FastaSequence>('seqs.fasta');
+   * const fastq = seqops<FastqSequence>('seqs.fastq');
+   *
+   * fasta.interleave(fasta);  // ✅ Both FastaSequence
+   * fasta.interleave(fastq);  // ❌ Type error - FastaSequence vs FastqSequence
+   */
+  interleave(other: SeqOps<T> | AsyncIterable<T>, options?: InterleaveOptions): SeqOps<T> {
+    const processor = new InterleaveProcessor<T>();
+    const otherSource = other instanceof SeqOps ? other.source : other;
+    return new SeqOps<T>(processor.process(this.source, otherSource, options));
   }
 
   /**

@@ -862,6 +862,102 @@ export class BAIIndexError extends ValidationError {
 }
 
 /**
+ * Paired-end FASTQ synchronization errors
+ *
+ * Thrown when read IDs don't match between R1 and R2 files, or when
+ * files have different lengths. Provides detailed context for debugging
+ * paired-end data issues.
+ */
+export class PairSyncError extends ParseError {
+  /**
+   * Create a new paired-end synchronization error
+   *
+   * @param message - Detailed error message
+   * @param pairIndex - Index of the pair where sync failed (0-based)
+   * @param failedFile - Which file(s) failed: 'r1', 'r2', or 'both'
+   *
+   * @example
+   * ```typescript
+   * try {
+   *   for await (const pair of parser.parseFiles('R1.fq', 'R2.fq')) {
+   *     // Process pairs
+   *   }
+   * } catch (error) {
+   *   if (error instanceof PairSyncError) {
+   *     console.error(`Sync error at pair ${error.pairIndex}`);
+   *     console.error(`Failed file: ${error.failedFile}`);
+   *     console.error(error.message);
+   *   }
+   * }
+   * ```
+   */
+  constructor(
+    message: string,
+    public readonly pairIndex: number,
+    public readonly failedFile: "r1" | "r2" | "both",
+  ) {
+    super(message, "FASTQ-Paired", pairIndex);
+    this.name = "PairSyncError";
+  }
+
+  /**
+   * Create error for read ID mismatch
+   */
+  static forIdMismatch(
+    r1Id: string,
+    r2Id: string,
+    pairIndex: number,
+    baseR1?: string,
+    baseR2?: string,
+  ): PairSyncError {
+    const baseIds = baseR1 && baseR2 
+      ? ` (base IDs: "${baseR1}" vs "${baseR2}")`
+      : '';
+    
+    return new PairSyncError(
+      `Read ID mismatch at pair ${pairIndex}: R1="${r1Id}" vs R2="${r2Id}"${baseIds}`,
+      pairIndex,
+      "both",
+    );
+  }
+
+  /**
+   * Create error for file length mismatch
+   */
+  static forLengthMismatch(
+    pairIndex: number,
+    exhaustedFile: "r1" | "r2",
+  ): PairSyncError {
+    const otherFile = exhaustedFile === "r1" ? "R2" : "R1";
+    
+    return new PairSyncError(
+      `Paired FASTQ files have different lengths: ${exhaustedFile === "r1" ? "R1" : "R2"} exhausted first at pair ${pairIndex}. ${otherFile} file has more reads.`,
+      pairIndex,
+      exhaustedFile,
+    );
+  }
+
+  /**
+   * Create error for unpaired read in strict mode
+   */
+  static forUnpairedRead(readId: string): PairSyncError {
+    return new PairSyncError(
+      `Unpaired read found: "${readId}". No matching pair in opposite stream.`,
+      -1, // No pair index for unpaired reads
+      "both",
+    );
+  }
+
+  override toString(): string {
+    let msg = super.toString();
+    msg += `\nPair Index: ${this.pairIndex}`;
+    msg += `\nFailed File(s): ${this.failedFile === "both" ? "R1 and R2" : this.failedFile.toUpperCase()}`;
+    msg += `\nSuggestion: Check that R1 and R2 files are from the same sequencing run and properly synchronized`;
+    return msg;
+  }
+}
+
+/**
  * Get helpful suggestion for common error patterns
  */
 export function getErrorSuggestion(error: GenotypeError): string | undefined {

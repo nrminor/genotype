@@ -46,6 +46,7 @@ import {
 import { GrepProcessor } from "./grep";
 import { type InterleaveOptions, InterleaveProcessor } from "./interleave";
 import { LocateProcessor } from "./locate";
+import { PairProcessor, type PairOptions } from "./pair";
 import { QualityProcessor } from "./quality";
 import { rename } from "./rename";
 import { replace } from "./replace";
@@ -1074,26 +1075,31 @@ export class SeqOps<T extends AbstractSequence> {
   }
 
   /**
-   * Sample sequences statistically
+   * Sample sequences from the stream
    *
-   * Apply statistical sampling to select a subset of sequences.
-   * Supports both simple count-based sampling and advanced options.
+   * Supports two modes: exact count sampling with strategy selection, or
+   * fraction-based streaming sampling for large datasets.
    *
-   * @example
+   * @example Quick sampling (default reservoir strategy)
    * ```typescript
-   * // Simple sampling (most common case)
-   * seqops(sequences)
-   *   .sample(1000)                    // Sample 1000 sequences
-   *   .sample(500, 'systematic')       // Systematic sampling
-   *
-   * // Advanced options for complex scenarios
-   * seqops(sequences)
-   *   .sample({
-   *     n: 1000,
-   *     seed: 42,
-   *     strategy: 'reservoir'
-   *   })
+   * seqops('input.fastq').sample(1000)  // Exactly 1000 sequences
    * ```
+   *
+   * @example Fraction-based streaming
+   * ```typescript
+   * seqops('huge.fastq').sample({ fraction: 0.1 })  // ~10% of sequences
+   * ```
+   *
+   * @example Reproducible paired-end sampling
+   * ```typescript
+   * const seed = 42;
+   * seqops('R1.fastq').sample({ fraction: 0.05, seed })
+   * seqops('R2.fastq').sample({ fraction: 0.05, seed })
+   * ```
+   *
+   * @param count - Number of sequences to sample
+   * @param strategy - Sampling strategy ('reservoir', 'systematic', or 'random')
+   * @param options - Detailed sampling options
    */
 
   // Method overloads for clean IntelliSense
@@ -2883,6 +2889,105 @@ export class SeqOps<T extends AbstractSequence> {
   }
 
   /**
+   * Repair paired-end read ordering through buffered ID matching
+   *
+   * Matches paired-end reads (R1 and R2) from shuffled or out-of-order streams,
+   * then outputs them in correctly interleaved order. Supports two modes:
+   * - **Dual-stream**: Match reads from two separate files (R1.fastq + R2.fastq)
+   * - **Single-stream**: Repair pairing within one mixed stream
+   *
+   * Uses hash-based buffering to handle out-of-order data, making it suitable
+   * for sequences that have been sorted, filtered, or otherwise reordered after
+   * initial sequencing.
+   *
+   * **Output Order:** Always yields R1, R2, R1, R2, R1, R2... (interleaved)
+   *
+   * **Memory Management:**
+   * - Buffers reads until match found
+   * - Default limit: 100,000 reads (configurable)
+   * - Warns at 80% capacity
+   * - Throws MemoryError if limit exceeded
+   *
+   * @param other - Second stream for dual-stream mode (R2 reads)
+   * @param options - Pairing options (ID extraction, buffer limits, unpaired handling)
+   * @returns Paired SeqOps stream in interleaved order
+   *
+   * @throws {MemoryError} When buffer size exceeds maxBufferSize
+   * @throws {PairSyncError} When onUnpaired='error' and unpaired reads found
+   *
+   * @example
+   * // Dual-stream mode: Match reads from separate R1 and R2 files
+   * const r1 = seqops<FastqSequence>('sample_R1.fastq.gz');
+   * const r2 = seqops<FastqSequence>('sample_R2.fastq.gz');
+   *
+   * r1.pair(r2).writeFastq('paired.fastq');
+   * // Output: R1_001, R2_001, R1_002, R2_002, ...
+   *
+   * @example
+   * // Single-stream mode: Repair pairing within mixed stream
+   * seqops<FastqSequence>('shuffled.fastq')
+   *   .pair()
+   *   .writeFastq('repaired.fastq');
+   * // Reads with /1 suffix → R1, /2 suffix → R2
+   *
+   * @example
+   * // Custom ID extraction for non-standard naming
+   * r1.pair(r2, {
+   *   extractPairId: (id) => id.split('_')[0]  // Custom base ID
+   * }).writeFastq('paired.fastq');
+   *
+   * @example
+   * // Strict mode: error on unpaired reads
+   * r1.pair(r2, {
+   *   onUnpaired: 'error',     // Throw on unpaired (default: 'warn')
+   *   maxBufferSize: 50000     // Smaller buffer limit
+   * }).writeFastq('paired.fastq');
+   *
+   * @example
+   * // Skip unpaired reads silently
+   * seqops<FastqSequence>('mixed.fastq')
+   *   .pair({ onUnpaired: 'skip' })
+   *   .writeFastq('paired_only.fastq');
+   *
+   * @performance
+   * - Best case (synchronized): O(1) memory - minimal buffering
+   * - Average case (partially shuffled): O(k) where k = shuffle distance
+   * - Worst case (fully shuffled): O(n) - all reads buffered
+   *
+   * @since 0.1.0
+   */
+  pair(other: SeqOps<T> | AsyncIterable<T>, options?: PairOptions): SeqOps<T>;
+  pair(options?: PairOptions): SeqOps<T>;
+  pair(
+    otherOrOptions?: SeqOps<T> | AsyncIterable<T> | PairOptions,
+    optionsArg?: PairOptions,
+  ): SeqOps<T> {
+    const processor = new PairProcessor();
+
+    if (
+      otherOrOptions === undefined ||
+      (typeof otherOrOptions === "object" &&
+        ("extractPairId" in otherOrOptions ||
+          "maxBufferSize" in otherOrOptions ||
+          "onUnpaired" in otherOrOptions))
+    ) {
+      const options = otherOrOptions as PairOptions | undefined;
+      return new SeqOps<T>(
+        processor.process({ mode: "single", source: this.source }, options),
+      );
+    }
+
+    const other = otherOrOptions as SeqOps<T> | AsyncIterable<T>;
+    const otherSource = other instanceof SeqOps ? other.source : other;
+    return new SeqOps<T>(
+      processor.process(
+        { mode: "dual", source1: this.source, source2: otherSource },
+        optionsArg,
+      ),
+    );
+  }
+
+  /**
    * Find pattern locations in sequences
    *
    * Terminal operation that finds all occurrences of patterns within sequences
@@ -3040,6 +3145,7 @@ export type {
   ValidateOptions,
   WindowOptions,
 } from "./types";
+export type { PairOptions } from "./pair";
 export { KmerSet, SequenceSet } from "./types";
 export { type UniqueOptions, UniqueProcessor } from "./unique";
 export { WindowsProcessor } from "./windows";

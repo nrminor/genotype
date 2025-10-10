@@ -361,22 +361,76 @@ export interface AnnotateOptions {
 export type { SortBy, SortOptions } from "./core/sequence-sorter";
 
 /**
- * Options for random sampling
+ * Options for sequence sampling operations
+ *
+ * Supports two modes:
+ * 1. **Number-based** (`n`): Sample exact count using strategy
+ * 2. **Fraction-based** (`fraction`): Stream with probabilistic sampling
+ *
+ * @example Number-based sampling (exact count)
+ * ```typescript
+ * // Default reservoir strategy (O(k) memory, optimal)
+ * seqops(sequences).sample({ n: 1000 })
+ *
+ * // Systematic strategy (even distribution)
+ * seqops(sequences).sample({ n: 1000, strategy: 'systematic' })
+ *
+ * // Random strategy with seed (perfect randomness)
+ * seqops(sequences).sample({ n: 1000, strategy: 'random', seed: 42 })
+ * ```
+ *
+ * @example Fraction-based sampling (streaming, approximate count)
+ * ```typescript
+ * // Sample ~10% of sequences (fast, low memory)
+ * seqops('huge.fastq').sample({ fraction: 0.1 })
+ *
+ * // Reproducible fraction sampling (critical for paired-end reads)
+ * seqops('reads_R1.fastq').sample({ fraction: 0.05, seed: 42 })
+ * seqops('reads_R2.fastq').sample({ fraction: 0.05, seed: 42 })
+ * ```
  */
 export interface SampleOptions {
-  /** Number of sequences to sample */
+  /**
+   * Number of sequences to sample (mutually exclusive with `fraction`)
+   *
+   * Requires strategy selection. Default: 'reservoir'
+   */
   n?: number;
 
-  /** Fraction of sequences to sample (0-1) */
+  /**
+   * Fraction of sequences to sample: 0 < fraction <= 1 (mutually exclusive with `n`)
+   *
+   * Uses streaming single-pass algorithm. Result count is **probabilistic**, not exact.
+   * For example, `fraction: 0.1` from 10000 sequences yields ~1000 ± small variance.
+   *
+   * Memory: O(1) - processes sequences one at a time
+   * Time: O(n) - single pass through data
+   */
   fraction?: number;
 
-  /** Random seed for reproducibility */
+  /**
+   * Random seed for reproducibility
+   *
+   * **CRITICAL for paired-end reads**: Use same seed for R1 and R2 files to ensure
+   * matching read pairs in sampled output.
+   */
   seed?: number;
 
-  /** Allow sampling with replacement */
+  /**
+   * Sample with replacement (future feature, not yet implemented)
+   * @internal
+   */
   withReplacement?: boolean;
 
-  /** Sampling strategy */
+  /**
+   * Sampling strategy (only applies when using `n`, not `fraction`)
+   *
+   * - **'reservoir'** (default): O(k) memory, single-pass, mathematically proven uniform distribution
+   * - **'systematic'**: O(n) memory, even distribution across file (samples at regular intervals)
+   * - **'random'**: O(n) memory, perfect randomness via Fisher-Yates shuffle (loads all into memory)
+   *
+   * @default 'reservoir'
+   */
   strategy?: "random" | "systematic" | "reservoir";
 }
 

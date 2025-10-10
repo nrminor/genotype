@@ -109,9 +109,9 @@ export {
 export {
   type CleanOptions,
   type ConcatOptions,
-  ConcatProcessor,
   // New semantic API types
   type FilterOptions,
+  type PairOptions,
   type QualityOptions,
   SeqOps,
   type SequenceStats,

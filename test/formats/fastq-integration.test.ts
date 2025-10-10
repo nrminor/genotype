@@ -109,4 +109,86 @@ IIII`;
     expect(sequences[0].sequence).toBe("ATCGATCG");
     expect(sequences[0].quality).toBe("IIIIIIII");
   });
+
+  describe("Paired-End Integration", () => {
+    test("PairedFastqParser imports correctly from main module", () => {
+      const { PairedFastqParser } = require("../../src/formats/fastq");
+      expect(PairedFastqParser).toBeDefined();
+      
+      const parser = new PairedFastqParser();
+      expect(parser).toBeDefined();
+    });
+
+    test("PairSyncError imports correctly from main module", () => {
+      const { PairSyncError } = require("../../src/formats/fastq");
+      expect(PairSyncError).toBeDefined();
+      expect(PairSyncError.name).toBe("PairSyncError");
+    });
+
+    test("paired parsing works alongside single-file parsing", async () => {
+      const { FastqParser, PairedFastqParser } = require("../../src/formats/fastq");
+      
+      const singleParser = new FastqParser();
+      const pairedParser = new PairedFastqParser();
+      
+      const r1Data = "@read1/1\nATCG\n+\nIIII";
+      const r2Data = "@read1/2\nCGAT\n+\nIIII";
+      
+      const singleReads: FastqSequence[] = [];
+      for await (const read of singleParser.parseString(r1Data)) {
+        singleReads.push(read);
+      }
+      
+      const pairs = [];
+      for await (const pair of pairedParser.parseStrings(r1Data, r2Data)) {
+        pairs.push(pair);
+      }
+      
+      expect(singleReads).toHaveLength(1);
+      expect(pairs).toHaveLength(1);
+      expect(pairs[0].r1.id).toBe(singleReads[0].id);
+    });
+
+    test("quality score parsing works in paired mode", async () => {
+      const { PairedFastqParser } = require("../../src/formats/fastq");
+      
+      const parser = new PairedFastqParser({
+        qualityEncoding: "phred33",
+        parseQualityScores: true,
+      });
+      
+      const r1 = "@read1/1\nATCG\n+\nIIII";
+      const r2 = "@read1/2\nCGAT\n+\nIIII";
+      
+      const pairs = [];
+      for await (const pair of parser.parseStrings(r1, r2)) {
+        pairs.push(pair);
+      }
+      
+      expect(pairs).toHaveLength(1);
+      expect(pairs[0].r1.quality).toBe("IIII");
+      expect(pairs[0].r2.quality).toBe("IIII");
+    });
+
+    test("parser metrics collection works for paired parsing", async () => {
+      const { PairedFastqParser } = require("../../src/formats/fastq");
+      
+      const parser = new PairedFastqParser();
+      const r1 = "@read1/1\nATCG\n+\nIIII\n@read2/1\nGGGG\n+\nIIII";
+      const r2 = "@read1/2\nCGAT\n+\nIIII\n@read2/2\nCCCC\n+\nIIII";
+      
+      const pairs = [];
+      for await (const pair of parser.parseStrings(r1, r2)) {
+        pairs.push(pair);
+      }
+      
+      const metrics = parser.getMetrics();
+      
+      expect(metrics).toBeDefined();
+      expect(metrics.r1).toBeDefined();
+      expect(metrics.r2).toBeDefined();
+      expect(metrics.r1.totalSequences).toBe(2);
+      expect(metrics.r2.totalSequences).toBe(2);
+    });
+  });
 });

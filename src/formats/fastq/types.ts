@@ -5,7 +5,7 @@
  * Separated for better organization and to prevent circular dependencies.
  */
 
-import type { ParserOptions, QualityEncoding } from "../../types";
+import type { FastqSequence, ParserOptions, QualityEncoding } from "../../types";
 
 /**
  * Parsing strategy for FASTQ format selection
@@ -101,4 +101,85 @@ export interface FastqWriterOptions {
   outputStrategy?: OutputStrategy;
   /** Enable debug logging for strategy selection and format decisions */
   debug?: boolean;
+}
+
+/**
+ * Options for paired-end FASTQ parsing
+ *
+ * Extends FastqParserOptions to inherit all single-file parsing configuration,
+ * adding paired-end specific synchronization checks.
+ */
+export interface PairedFastqParserOptions extends FastqParserOptions {
+  /**
+   * Whether to validate that read IDs are synchronized between R1 and R2
+   *
+   * When enabled, ensures:
+   * - Read IDs match (ignoring /1, /2, .1, .2 suffixes)
+   * - Reads appear in same order
+   * - Both files have same number of reads
+   *
+   * @default false (for performance on known-good data)
+   */
+  checkPairSync?: boolean;
+
+  /**
+   * How to handle read ID mismatches when checkPairSync is true
+   *
+   * - 'throw': Throw error immediately (default)
+   * - 'warn': Log warning and continue
+   * - 'skip': Skip mismatched pairs silently
+   *
+   * @default 'throw'
+   */
+  onMismatch?: "throw" | "warn" | "skip";
+
+  /**
+   * Custom pair ID extractor for non-standard read naming
+   *
+   * By default, strips common suffixes (/1, /2, .1, .2, _1, _2)
+   * Provide custom function for unusual naming schemes.
+   *
+   * @param id - The read ID from FASTQ header
+   * @returns Base ID without pair suffix
+   *
+   * @example
+   * ```typescript
+   * // Default behavior
+   * extractPairId('read1/1') => 'read1'
+   * extractPairId('read1_R1') => 'read1'
+   *
+   * // Custom extractor
+   * extractPairId: (id) => id.split(':')[0]
+   * ```
+   */
+  extractPairId?: (id: string) => string;
+}
+
+/**
+ * Paired-end FASTQ read representation
+ *
+ * Contains synchronized R1 and R2 reads from paired-end sequencing.
+ * Guaranteed to have matching IDs when checkPairSync is enabled.
+ */
+export interface PairedFastqRead {
+  /**
+   * Forward read (R1) - typically the first mate
+   */
+  readonly r1: FastqSequence;
+
+  /**
+   * Reverse read (R2) - typically the second mate
+   */
+  readonly r2: FastqSequence;
+
+  /**
+   * Common pair ID (without /1, /2 suffixes)
+   * Only present when checkPairSync is enabled
+   */
+  readonly pairId?: string;
+
+  /**
+   * Combined length of both reads
+   */
+  readonly totalLength: number;
 }

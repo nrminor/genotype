@@ -7,6 +7,7 @@
  * - Multi-line sequences and quality strings (Sanger specification)
  * - Platform-specific variations (Illumina, PacBio, Nanopore)
  * - Robust parsing with '@' and '+' contamination in quality data
+ * - Paired-end FASTQ parsing with optional read synchronization
  *
  * @module fastq
  * @since v0.1.0
@@ -18,6 +19,30 @@
  * const parser = new FastqParser();
  * for await (const read of parser.parseString(fastqData)) {
  *   console.log(`${read.id}: ${read.sequence.length} bp, Q${read.qualityEncoding}`);
+ * }
+ * ```
+ *
+ * @example Paired-end FASTQ parsing
+ * ```typescript
+ * import { PairedFastqParser } from '@/formats/fastq';
+ *
+ * const parser = new PairedFastqParser();
+ * for await (const pair of parser.parseFiles('R1.fastq', 'R2.fastq')) {
+ *   console.log(`${pair.r1.id}: ${pair.totalLength} bp total`);
+ * }
+ * ```
+ *
+ * @example Paired-end with synchronization checking
+ * ```typescript
+ * import { PairedFastqParser } from '@/formats/fastq';
+ *
+ * const parser = new PairedFastqParser({
+ *   checkPairSync: true,
+ *   onMismatch: 'throw',
+ * });
+ *
+ * for await (const pair of parser.parseFiles('R1.fastq', 'R2.fastq')) {
+ *   console.log(`Pair ${pair.pairId}: R1=${pair.r1.length}bp, R2=${pair.r2.length}bp`);
  * }
  * ```
  *
@@ -158,3 +183,26 @@ export {
  * @group Core
  */
 export { FastqWriter } from "./writer";
+
+// Paired-End Support
+/**
+ * Paired-end FASTQ parser with read synchronization
+ *
+ * Provides ergonomic parsing of paired-end sequencing data (R1/R2 files)
+ * with optional read ID synchronization validation.
+ *
+ * @group Paired-End
+ */
+export { PairedFastqParser } from "./paired";
+
+/**
+ * Error thrown when paired reads are out of sync
+ * @group Paired-End
+ */
+export { PairSyncError } from "../../errors";
+
+/**
+ * Paired-end parser configuration options
+ * @group Paired-End
+ */
+export type { PairedFastqParserOptions, PairedFastqRead } from "./types";

@@ -82,7 +82,7 @@ const ExtractOptionsSchema = type({
  * }
  * ```
  *
- * @since 1.0.0
+ * @since v0.1.0
  * @category Types
  */
 type ParseResult<T, E = Error> =
@@ -116,7 +116,7 @@ type ParseResult<T, E = Error> =
  * }
  * ```
  *
- * @since 1.0.0
+ * @since v0.1.0
  * @category Types
  */
 type CoordinateRange =
@@ -139,7 +139,7 @@ type CoordinateRange =
  * );
  * ```
  *
- * @since 1.0.0
+ * @since v0.1.0
  * @category Errors
  */
 class CoordinateParseError extends Error {
@@ -186,7 +186,7 @@ class CoordinateParseError extends Error {
  * }
  * ```
  *
- * @since 1.0.0
+ * @since v0.1.0
  * @category Parsing
  */
 function parseCoordinateRange(input: string): ParseResult<CoordinateRange, CoordinateParseError> {

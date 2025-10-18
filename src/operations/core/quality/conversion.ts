@@ -40,7 +40,7 @@ import { isValidQualityScore, isValidSolexaScore } from "./types";
  * ```
  *
  * @performance O(1) - Single character lookup with constant time validation
- * @since 0.1.0
+ * @since v0.1.0
  */
 export function charToScore(char: string, encoding: QualityEncoding): QualityScore | SolexaScore {
   const info = getEncodingInfo(encoding);
@@ -101,7 +101,7 @@ export function charToScore(char: string, encoding: QualityEncoding): QualitySco
  * ```
  *
  * @performance O(1) - Direct calculation with constant time validation
- * @since 0.1.0
+ * @since v0.1.0
  */
 export function scoreToChar(
   score: QualityScore | SolexaScore | number,

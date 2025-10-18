@@ -13,7 +13,7 @@
  */
 
 import { type } from "arktype";
-import { Gunzip, gunzip, gunzipSync } from "fflate";
+import { Gunzip, Gzip, gunzip, gunzipSync, gzipSync } from "fflate";
 import { CompressionError } from "../errors";
 import type { DecompressorOptions } from "../types";
 
@@ -133,6 +133,111 @@ export function wrapStream(
       "stream"
     );
   }
+}
+
+// =============================================================================
+// COMPRESSION FUNCTIONS
+// =============================================================================
+
+/**
+ * Compress data using gzip
+ *
+ * @param data - Uncompressed data
+ * @param options - Compression options
+ * @returns Promise<Uint8Array> Gzipped data
+ * @throws {CompressionError} If compression fails
+ *
+ * @example
+ * ```typescript
+ * const data = new TextEncoder().encode("ATCGATCG");
+ * const compressed = await compress(data, { level: 6 });
+ * ```
+ *
+ * @since v0.1.0
+ */
+export async function compress(
+  data: Uint8Array,
+  options: { level?: number } = {}
+): Promise<Uint8Array> {
+  if (!(data instanceof Uint8Array)) {
+    throw new CompressionError("Data must be Uint8Array", "gzip", "compress");
+  }
+
+  // Clamp and cast level to fflate's expected type
+  const rawLevel = options.level ?? 6;
+  const level = Math.min(9, Math.max(0, Math.floor(rawLevel))) as
+    | 0
+    | 1
+    | 2
+    | 3
+    | 4
+    | 5
+    | 6
+    | 7
+    | 8
+    | 9;
+
+  // Use gzipSync to avoid worker thread issues in Bun
+  try {
+    const compressed = gzipSync(data, { level });
+    return compressed;
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    throw new CompressionError(`Gzip compression failed: ${errorMessage}`, "gzip", "compress");
+  }
+}
+
+/**
+ * Create gzip compression transform stream
+ *
+ * Returns TransformStream for streaming compression
+ *
+ * @param options - Compression options
+ * @returns TransformStream for gzip compression
+ *
+ * @example
+ * ```typescript
+ * const compressor = createCompressionStream({ level: 9 });
+ * const compressed = uncompressedStream.pipeThrough(compressor);
+ * ```
+ *
+ * @since v0.1.0
+ */
+export function createCompressionStream(
+  options: { level?: number } = {}
+): TransformStream<Uint8Array, Uint8Array> {
+  const rawLevel = options.level ?? 6;
+  const level = Math.min(9, Math.max(0, Math.floor(rawLevel))) as
+    | 0
+    | 1
+    | 2
+    | 3
+    | 4
+    | 5
+    | 6
+    | 7
+    | 8
+    | 9;
+  const compressor = new Gzip({ level });
+
+  return new TransformStream({
+    start(controller) {
+      compressor.ondata = (chunk, final) => {
+        controller.enqueue(chunk);
+        if (final) {
+          controller.terminate();
+        }
+      };
+    },
+
+    transform(chunk) {
+      compressor.push(chunk, false);
+    },
+
+    flush() {
+      compressor.push(new Uint8Array(0), true);
+    },
+  });
 }
 
 /**

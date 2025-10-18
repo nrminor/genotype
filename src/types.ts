@@ -1225,6 +1225,23 @@ export interface FileReaderOptions {
 }
 
 /**
+ * File writing configuration options
+ *
+ * Provides control over compression behavior for file writing operations.
+ * Mirrors FileReaderOptions for symmetric read/write API design.
+ *
+ * @since v0.1.0
+ */
+export interface WriteOptions {
+  /** Automatically compress based on file extension (default: true) */
+  readonly autoCompress?: boolean;
+  /** Override compression format detection (default: auto-detect from extension) */
+  readonly compressionFormat?: CompressionFormat;
+  /** Compression level 1-9 for gzip (default: 6, higher = better compression but slower) */
+  readonly compressionLevel?: number;
+}
+
+/**
  * Stream chunk data with metadata for processing
  * Provides context about the chunk's position in the stream
  */
@@ -1456,6 +1473,31 @@ export const FileReaderOptionsSchema = type({
         `Invalid decompression options: ${error instanceof Error ? error.message : String(error)}. Using defaults.`
       );
     }
+  }
+
+  return options;
+});
+
+/**
+ * Write options validation schema
+ *
+ * Validates compression options for file writing operations.
+ * Ensures compression level is within valid range (1-9).
+ *
+ * @since v0.1.0
+ */
+export const WriteOptionsSchema = type({
+  "autoCompress?": "boolean",
+  "compressionFormat?": '"gzip"|"zstd"|"none"',
+  "compressionLevel?": "number>=1",
+}).pipe((options) => {
+  // Validate compression level bounds (gzip levels: 1-9)
+  if (
+    options.compressionLevel !== null &&
+    options.compressionLevel !== undefined &&
+    options.compressionLevel > 9
+  ) {
+    throw new ValidationError(`Compression level ${options.compressionLevel} exceeds maximum of 9`);
   }
 
   return options;

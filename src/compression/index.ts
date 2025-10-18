@@ -37,7 +37,13 @@ import { ZstdDecompressor } from "./zstd";
 
 // Core compression components
 export { CompressionDetector } from "./detector";
-export { GzipDecompressor } from "./gzip";
+export { compress, createCompressionStream, GzipDecompressor } from "./gzip";
+// Effect-based service layer
+export {
+  CompressionService,
+  GzipCompressionService,
+  MultiFormatCompressionService,
+} from "./service";
 export { ZstdDecompressor } from "./zstd";
 
 // Constants for file size thresholds

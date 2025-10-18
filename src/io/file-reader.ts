@@ -9,7 +9,12 @@
 import { FileSystem } from "@effect/platform";
 import { type } from "arktype";
 import { Effect, Stream } from "effect";
-import { CompressionDetector, createDecompressor } from "../compression";
+import {
+  CompressionDetector,
+  CompressionService,
+  createDecompressor,
+  MultiFormatCompressionService,
+} from "../compression";
 import { CompatibilityError, FileError } from "../errors";
 import type {
   FileIOContext,
@@ -280,37 +285,115 @@ export async function createStream(
 /**
  * Read entire file to string (with size limits for safety)
  *
+ * Automatically decompresses gzip files when `.gz` extension is detected.
+ * Uses Effect dependency injection for compression, enabling transparent
+ * layer swapping for testing or custom implementations.
+ *
+ * **Implementation Note (Internal):**
+ * - Uses dual-path optimization: fast path for uncompressed files, slow path with
+ *   CompressionService dependency injection for compressed files
+ * - Compression format auto-detected from file extension
+ * - For testing with mock compression, see `test/utils/compression-layers.ts`
+ *
  * @param path File path to read
- * @param options Reading options
+ * @param options Reading options (bufferSize, encoding, maxFileSize, autoDecompress, etc.)
  * @returns Promise resolving to file content as string
- * @throws {FileError} If file cannot be read or is too large
+ * @throws {FileError} If file cannot be read, is too large, or path is invalid
+ *
+ * @example Plain text file
+ * ```typescript
+ * const content = await readToString("data.txt");
+ * ```
+ *
+ * @example Auto-decompressed gzip file
+ * ```typescript
+ * // Automatically detects .gz and decompresses
+ * const content = await readToString("data.txt.gz");
+ * ```
+ *
+ * @example Disable auto-decompression
+ * ```typescript
+ * const compressed = await readToString("data.txt.gz", { autoDecompress: false });
+ * ```
+ *
+ * @internal Uses CompressionService via Effect DI for decompression operations
  */
 export async function readToString(path: string, options: FileReaderOptions = {}): Promise<string> {
   const validatedPath = validatePath(path);
   const mergedOptions = mergeOptions(options);
   await validateFileSize(validatedPath, mergedOptions);
 
-  return readFileToString(validatedPath);
+  // Auto-detect compression format from file extension
+  let compressionFormat = mergedOptions.compressionFormat;
+  if (compressionFormat === "none") {
+    compressionFormat = CompressionDetector.fromExtension(validatedPath);
+  }
+
+  // Build the Effect program that describes the computation
+  const program = Effect.gen(function* () {
+    // Fast path: no decompression needed
+    if (!mergedOptions.autoDecompress || compressionFormat === "none") {
+      return yield* Effect.promise(() => readFileToString(validatedPath));
+    }
+
+    // Slow path: read and decompress
+    // Declare dependency: "I need a CompressionService"
+    const compressionService = yield* CompressionService;
+
+    // Read file as binary (imperative wrapper in Effect)
+    const compressedBytes = yield* Effect.promise(() => readFileToBinary(validatedPath));
+
+    // Decompress using injected service (no coupling to implementation!)
+    const decompressedBytes = yield* compressionService.decompress(
+      compressedBytes,
+      compressionFormat
+    );
+
+    // Decode back to string
+    return new TextDecoder().decode(decompressedBytes);
+  });
+
+  // Run the Effect with the compression service layer provided
+  // This is the ONLY place we need to decide which implementation to use
+  return Effect.runPromise(program.pipe(Effect.provide(MultiFormatCompressionService)));
 }
 
 /**
  * Read a specific byte range from a file
  *
- * Useful for random access patterns like FASTA indexing (faidx) where only
+ * Optimized for random access patterns like FASTA indexing (faidx) where only
  * specific portions of large genomic files need to be read.
  *
- * @param path File path to read from
- * @param start Starting byte offset (inclusive)
- * @param end Ending byte offset (exclusive)
- * @returns Promise resolving to byte array of requested range
- * @throws {FileError} If file cannot be read or range is invalid
+ * **Optimization Details:**
+ * - **Uncompressed files:** Direct byte-range read using platform filesystem APIs (fast)
+ * - **Compressed files:** Full decompression via Effect DI, then slice to requested range (necessary)
+ * - Format auto-detected from file extension
  *
- * @example
+ * **Implementation Note (Internal):**
+ * Uses CompressionService dependency injection for compressed files, enabling
+ * transparent layer swapping for testing or custom compression implementations.
+ * See `test/utils/compression-layers.ts` for mock service patterns.
+ *
+ * @param path File path to read from
+ * @param start Starting byte offset (inclusive, must be >= 0)
+ * @param end Ending byte offset (exclusive, must be > start)
+ * @returns Promise resolving to byte array of requested range
+ * @throws {FileError} If file cannot be read, range is invalid, or range exceeds file size
+ *
+ * @example FASTA file random access
  * ```typescript
  * // Read bytes 1000-2000 from indexed FASTA file
  * const bytes = await readByteRange('genome.fasta', 1000, 2000);
  * const sequence = new TextDecoder().decode(bytes);
  * ```
+ *
+ * @example Compressed file access
+ * ```typescript
+ * // For compressed files (.gz), decompresses entire file then returns slice
+ * const bytes = await readByteRange('genome.fasta.gz', 500, 1500);
+ * ```
+ *
+ * @internal Uses CompressionService via Effect DI for decompression of compressed files
  */
 export async function readByteRange(path: string, start: number, end: number): Promise<Uint8Array> {
   const validatedPath = validatePath(path);
@@ -322,21 +405,65 @@ export async function readByteRange(path: string, start: number, end: number): P
     throw new FileError("Start byte must be less than end byte", validatedPath, "read");
   }
 
-  const program = Effect.promise(async () => {
-    const fs = await import("node:fs/promises");
-    const fileHandle = await fs.open(validatedPath, "r");
+  // Check if file is compressed
+  const compressionFormat = CompressionDetector.fromExtension(validatedPath);
+
+  // Fast path: uncompressed file - direct byte-range read (no decompression overhead)
+  if (compressionFormat === "none") {
+    const program = Effect.promise(async () => {
+      const fs = await import("node:fs/promises");
+      const fileHandle = await fs.open(validatedPath, "r");
+      try {
+        const buffer = Buffer.alloc(end - start);
+        await fileHandle.read(buffer, 0, buffer.length, start);
+        return new Uint8Array(buffer);
+      } finally {
+        await fileHandle.close();
+      }
+    });
+
     try {
-      const buffer = Buffer.alloc(end - start);
-      await fileHandle.read(buffer, 0, buffer.length, start);
-      return new Uint8Array(buffer);
-    } finally {
-      await fileHandle.close();
+      return await Effect.runPromise(program.pipe(Effect.provide(getPlatform())));
+    } catch (error) {
+      throw FileError.fromSystemError("read", validatedPath, error);
     }
+  }
+
+  // Slow path: compressed file - must decompress entire content using Effect DI
+  // (can't random-access compressed data without full decompression)
+  const program = Effect.gen(function* () {
+    // Declare dependency: "I need a CompressionService"
+    const compressionService = yield* CompressionService;
+
+    // Read full file as binary
+    const compressedBytes = yield* Effect.promise(() => readFileToBinary(validatedPath));
+
+    // Decompress using injected service
+    const decompressedBytes = yield* compressionService.decompress(
+      compressedBytes,
+      compressionFormat
+    );
+
+    // Validate byte range is within decompressed content
+    if (start >= decompressedBytes.length || end > decompressedBytes.length) {
+      return yield* Effect.fail(
+        new FileError(
+          `Byte range [${start}, ${end}) exceeds decompressed file size ${decompressedBytes.length}`,
+          validatedPath,
+          "read"
+        )
+      );
+    }
+
+    return decompressedBytes.slice(start, end);
   });
 
   try {
-    return await Effect.runPromise(program.pipe(Effect.provide(getPlatform())));
+    return await Effect.runPromise(program.pipe(Effect.provide(MultiFormatCompressionService)));
   } catch (error) {
+    if (error instanceof FileError) {
+      throw error;
+    }
     throw FileError.fromSystemError("read", validatedPath, error);
   }
 }
@@ -360,6 +487,15 @@ async function readFileToString(validatedPath: FilePath): Promise<string> {
   const program = Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     return yield* fs.readFileString(validatedPath);
+  });
+
+  return Effect.runPromise(program.pipe(Effect.provide(getPlatform())));
+}
+
+async function readFileToBinary(validatedPath: FilePath): Promise<Uint8Array> {
+  const program = Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    return yield* fs.readFile(validatedPath);
   });
 
   return Effect.runPromise(program.pipe(Effect.provide(getPlatform())));

@@ -57,7 +57,7 @@ import type { JSONParseOptions } from "./types";
  * @performance O(n) memory usage - loads entire JSON file into memory.
  * For large datasets (>100K sequences), use JSONLParser instead.
  *
- * @since 0.1.0
+ * @since v0.1.0
  */
 export class JSONParser {
   /**
@@ -241,7 +241,7 @@ export class JSONParser {
  * @performance O(1) memory usage - streams line-by-line.
  * Suitable for datasets with millions of sequences.
  *
- * @since 0.1.0
+ * @since v0.1.0
  */
 export class JSONLParser {
   /**

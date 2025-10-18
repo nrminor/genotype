@@ -9,7 +9,7 @@
  * - Single-stream: Repair pairing within one mixed stream
  *
  * @module operations/pair
- * @since 0.1.0
+ * @since v0.1.0
  */
 
 import { MemoryError, PairSyncError } from "../errors";
@@ -267,7 +267,7 @@ export interface PairOptions {
  * });
  * ```
  *
- * @since 0.1.0
+ * @since v0.1.0
  */
 export class PairProcessor {
   private hasWarned80Percent = false;

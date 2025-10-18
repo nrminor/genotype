@@ -187,7 +187,7 @@ const FastqParserOptionsSchema = type({
  * console.log(`Used state machine: ${metrics.stateMachineCount} times`);
  * ```
  *
- * @since 0.1.0
+ * @since v0.1.0
  */
 export class FastqParser extends AbstractParser<FastqSequence, FastqParserOptions> {
   /**

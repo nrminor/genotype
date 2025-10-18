@@ -139,7 +139,7 @@ export class SeqOps<T extends AbstractSequence> {
    * }).filter({ minLength: 100 });
    * ```
    *
-   * @since 2.1.0
+   * @since v0.1.0
    */
   static fromDSV(path: string, options?: Tab2FxOptions): SeqOps<AbstractSequence> {
     return new SeqOps(tab2fx(path, options));
@@ -161,7 +161,7 @@ export class SeqOps<T extends AbstractSequence> {
    *   .writeFasta('filtered.fa');
    * ```
    *
-   * @since 2.1.0
+   * @since v0.1.0
    */
   static fromTSV(
     path: string,
@@ -188,7 +188,7 @@ export class SeqOps<T extends AbstractSequence> {
    *   .writeFastq('processed.fq');
    * ```
    *
-   * @since 2.1.0
+   * @since v0.1.0
    */
   static fromCSV(
     path: string,
@@ -223,7 +223,7 @@ export class SeqOps<T extends AbstractSequence> {
    * ```
    *
    * @performance O(n) memory - loads entire file. Use fromJSONL() for large datasets.
-   * @since 0.1.0
+   * @since v0.1.0
    */
   static fromJSON(path: string, options?: JSONParseOptions): SeqOps<AbstractSequence> {
     const parser = new JSONParser();
@@ -257,7 +257,7 @@ export class SeqOps<T extends AbstractSequence> {
    * ```
    *
    * @performance O(1) memory - streams line-by-line. Ideal for large files.
-   * @since 0.1.0
+   * @since v0.1.0
    */
   static fromJSONL(path: string, options?: JSONParseOptions): SeqOps<AbstractSequence> {
     const parser = new JSONLParser();
@@ -285,7 +285,7 @@ export class SeqOps<T extends AbstractSequence> {
    *   .writeFasta('proteins.fasta');
    * ```
    *
-   * @since 2.0.0
+   * @since v0.1.0
    */
   static from<T extends AbstractSequence>(sequences: T[]): SeqOps<T> {
     async function* arrayToAsyncIterable(): AsyncIterable<T> {
@@ -808,7 +808,7 @@ export class SeqOps<T extends AbstractSequence> {
    *   .writeFasta('combined.fa');
    * ```
    *
-   * @since 2.0.0
+   * @since v0.1.0
    */
   static concat(
     filePaths: string[],
@@ -1832,7 +1832,7 @@ export class SeqOps<T extends AbstractSequence> {
    * ```
    *
    * @performance O(n) memory - loads all sequences. Use writeJSONL() for large datasets.
-   * @since 0.1.0
+   * @since v0.1.0
    */
   async writeJSON(
     path: string,
@@ -1885,7 +1885,7 @@ export class SeqOps<T extends AbstractSequence> {
    * ```
    *
    * @performance O(1) memory - streams line-by-line. Use for large datasets.
-   * @since 0.1.0
+   * @since v0.1.0
    */
   async writeJSONL(path: string, options?: Fx2TabOptions<readonly ColumnId[]>): Promise<void> {
     // JSONL doesn't support pretty-printing or metadata (line-oriented format)
@@ -1984,7 +1984,7 @@ export class SeqOps<T extends AbstractSequence> {
    *   .writeTSV('output.tsv');
    * ```
    *
-   * @since 0.1.0
+   * @since v0.1.0
    */
   asRows<Columns extends readonly ColumnId[] = readonly ["id", "seq", "length"]>(
     options?: Fx2TabOptions<Columns>
@@ -2933,7 +2933,7 @@ export class SeqOps<T extends AbstractSequence> {
    * - Average case (partially shuffled): O(k) where k = shuffle distance
    * - Worst case (fully shuffled): O(n) - all reads buffered
    *
-   * @since 0.1.0
+   * @since v0.1.0
    */
   pair(other: SeqOps<T> | AsyncIterable<T>, options?: PairOptions): SeqOps<T>;
   pair(options?: PairOptions): SeqOps<T>;

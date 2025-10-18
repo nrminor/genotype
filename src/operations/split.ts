@@ -11,6 +11,7 @@
 import { type } from "arktype";
 import { SplitError, ValidationError } from "../errors";
 import { FastaWriter, FastqWriter } from "../formats";
+import { appendString, openForWriting } from "../io/file-writer";
 import type { AbstractSequence, FastaSequence, FastqSequence } from "../types";
 import type { SplitOptions } from "./types";
 
@@ -117,8 +118,6 @@ const SplitOptionsSchema = type({
  * Split sequences into files by size
  */
 export class SplitProcessor {
-  private readonly activeWriters = new Map<string | number, Bun.FileSink>();
-
   /**
    * Process sequences with complete splitting logic that creates real files
    */
@@ -132,26 +131,22 @@ export class SplitProcessor {
       throw new ValidationError(`Invalid split options: ${validationResult.summary}`);
     }
 
-    try {
-      switch (options.mode) {
-        case "by-size":
-          yield* this.processBySize(source, options);
-          break;
-        case "by-parts":
-          yield* this.processByParts(source, options);
-          break;
-        case "by-length":
-          yield* this.processByLength(source, options);
-          break;
-        case "by-id":
-          yield* this.processById(source, options);
-          break;
-        case "by-region":
-          yield* this.processByRegion(source, options);
-          break;
-      }
-    } finally {
-      await this.closeAllWriters();
+    switch (options.mode) {
+      case "by-size":
+        yield* this.processBySize(source, options);
+        break;
+      case "by-parts":
+        yield* this.processByParts(source, options);
+        break;
+      case "by-length":
+        yield* this.processByLength(source, options);
+        break;
+      case "by-id":
+        yield* this.processById(source, options);
+        break;
+      case "by-region":
+        yield* this.processByRegion(source, options);
+        break;
     }
   }
 
@@ -189,10 +184,34 @@ export class SplitProcessor {
     const extension = options.fileExtension ?? ".fasta";
 
     let currentPart = 1;
-    let currentCount = 0;
-    let currentWriter: Bun.FileSink | null = null;
+    let currentBatch: AbstractSequence[] = [];
     let isFirstSequence = true;
     let outputFormat: "fasta" | "fastq" = "fasta";
+
+    const writeFile = async (
+      filePath: string,
+      sequences: AbstractSequence[],
+      format: "fasta" | "fastq"
+    ) => {
+      await openForWriting(filePath, async (handle) => {
+        for (const seq of sequences) {
+          if (format === "fastq" && "quality" in seq) {
+            const writer = new FastqWriter();
+            await handle.writeString(writer.formatSequence(seq as FastqSequence));
+          } else {
+            const writer = new FastaWriter();
+            const fastaSeq: FastaSequence = {
+              format: "fasta",
+              id: seq.id,
+              sequence: seq.sequence,
+              length: seq.length,
+              ...(seq.description && { description: seq.description }),
+            };
+            await handle.writeString(writer.formatSequence(fastaSeq));
+          }
+        }
+      });
+    };
 
     for await (const sequence of source) {
       // Detect format from first sequence for writing
@@ -201,44 +220,41 @@ export class SplitProcessor {
         isFirstSequence = false;
       }
 
-      // Create new file when needed
-      if (!currentWriter || currentCount >= sequencesPerFile) {
-        if (currentWriter) {
-          await currentWriter.end();
+      currentBatch.push(sequence);
+
+      // Write batch when full
+      if (currentBatch.length >= sequencesPerFile) {
+        const filePath = `${outputDir}/${prefix}_${currentPart}${extension}`;
+        await writeFile(filePath, currentBatch, outputFormat);
+
+        // Yield results for this batch
+        for (const [index, seq] of currentBatch.entries()) {
+          yield {
+            ...seq,
+            outputFile: filePath,
+            partId: currentPart,
+            sequenceCount: index + 1,
+          };
         }
 
-        const filePath = `${outputDir}/${prefix}_${currentPart}${extension}`;
-        currentWriter = Bun.file(filePath).writer();
-        this.activeWriters.set(currentPart, currentWriter);
-
-        currentCount = 0;
+        currentBatch = [];
         currentPart++;
       }
+    }
 
-      currentCount++;
+    // Write final batch if any remain
+    if (currentBatch.length > 0) {
+      const filePath = `${outputDir}/${prefix}_${currentPart}${extension}`;
+      await writeFile(filePath, currentBatch, outputFormat);
 
-      // Write sequence in detected format (content) regardless of extension (user choice)
-      if (outputFormat === "fastq" && "quality" in sequence) {
-        const writer = new FastqWriter();
-        currentWriter.write(writer.formatSequence(sequence as FastqSequence));
-      } else {
-        const writer = new FastaWriter();
-        const fastaSeq: FastaSequence = {
-          format: "fasta",
-          id: sequence.id,
-          sequence: sequence.sequence,
-          length: sequence.length,
-          ...(sequence.description && { description: sequence.description }),
+      for (const [index, seq] of currentBatch.entries()) {
+        yield {
+          ...seq,
+          outputFile: filePath,
+          partId: currentPart,
+          sequenceCount: index + 1,
         };
-        currentWriter.write(writer.formatSequence(fastaSeq));
       }
-
-      yield {
-        ...sequence,
-        outputFile: `${outputDir}/${prefix}_${currentPart - 1}${extension}`,
-        partId: currentPart - 1,
-        sequenceCount: currentCount,
-      };
     }
   }
 
@@ -262,61 +278,44 @@ export class SplitProcessor {
     const [first] = sequences;
     const outputFormat = first && "quality" in first ? "fastq" : "fasta";
     const extension = options.fileExtension ?? ".fasta";
-    const writers = new Map<number, Bun.FileSink>();
 
-    try {
-      // Create files for each part
-      for (let partId = 1; partId <= numParts; partId++) {
-        const filePath = `${outputDir}/${prefix}_${partId}${extension}`;
-        const writer = Bun.file(filePath).writer();
-        writers.set(partId, writer);
-        this.activeWriters.set(partId, writer);
+    // Distribute sequences across parts using round-robin
+    for (let i = 0; i < sequences.length; i++) {
+      const sequence = sequences[i];
+      if (!sequence) {
+        throw new Error(`Invalid sequence at index ${i}`);
       }
 
-      // Distribute sequences across parts using round-robin
-      for (let i = 0; i < sequences.length; i++) {
-        const sequence = sequences[i];
-        if (!sequence) {
-          throw new Error(`Invalid sequence at index ${i}`);
-        }
+      const partId = Math.floor(i / sequencesPerPart) + 1;
+      const countInPart = (i % sequencesPerPart) + 1;
+      const filePath = `${outputDir}/${prefix}_${partId}${extension}`;
 
-        const partId = Math.floor(i / sequencesPerPart) + 1;
-        const countInPart = (i % sequencesPerPart) + 1;
-
-        const writer = writers.get(partId);
-        if (writer) {
-          // Write in appropriate format
-          if (outputFormat === "fastq" && "quality" in sequence) {
-            const fastqWriter = new FastqWriter();
-            writer.write(fastqWriter.formatSequence(sequence as FastqSequence));
-          } else {
-            const fastaWriter = new FastaWriter();
-            const fastaSeq: FastaSequence = {
-              format: "fasta",
-              id: sequence.id,
-              sequence: sequence.sequence,
-              length: sequence.length,
-              ...(sequence.description !== undefined &&
-                sequence.description !== null &&
-                sequence.description !== "" && {
-                  description: sequence.description,
-                }),
-            };
-            writer.write(fastaWriter.formatSequence(fastaSeq));
-          }
-        }
-
-        yield {
-          ...sequence,
-          outputFile: `${outputDir}/${prefix}_${partId}${extension}`,
-          partId,
-          sequenceCount: countInPart,
+      // Write in appropriate format
+      if (outputFormat === "fastq" && "quality" in sequence) {
+        const fastqWriter = new FastqWriter();
+        await appendString(filePath, fastqWriter.formatSequence(sequence as FastqSequence));
+      } else {
+        const fastaWriter = new FastaWriter();
+        const fastaSeq: FastaSequence = {
+          format: "fasta",
+          id: sequence.id,
+          sequence: sequence.sequence,
+          length: sequence.length,
+          ...(sequence.description !== undefined &&
+            sequence.description !== null &&
+            sequence.description.trim() !== "" && {
+              description: sequence.description,
+            }),
         };
+        await appendString(filePath, fastaWriter.formatSequence(fastaSeq));
       }
-    } finally {
-      for (const writer of writers.values()) {
-        await writer.end();
-      }
+
+      yield {
+        ...sequence,
+        outputFile: `${outputDir}/${prefix}_${partId}${extension}`,
+        partId,
+        sequenceCount: countInPart,
+      };
     }
   }
 
@@ -335,7 +334,7 @@ export class SplitProcessor {
     let currentBases = 0;
     let currentPart = 1;
     let currentCount = 0;
-    let currentWriter: Bun.FileSink | null = null;
+    let currentFilePath = "";
     let isFirstSequence = true;
     let outputFormat: "fasta" | "fastq" = "fasta";
 
@@ -347,15 +346,8 @@ export class SplitProcessor {
       }
 
       // Create new file when base limit would be exceeded
-      if (!currentWriter || currentBases + sequence.length > basesPerFile) {
-        if (currentWriter) {
-          await currentWriter.end();
-        }
-
-        const filePath = `${outputDir}/${prefix}_${currentPart}${extension}`;
-        currentWriter = Bun.file(filePath).writer();
-        this.activeWriters.set(currentPart, currentWriter);
-
+      if (!currentFilePath || currentBases + sequence.length > basesPerFile) {
+        currentFilePath = `${outputDir}/${prefix}_${currentPart}${extension}`;
         currentBases = 0;
         currentCount = 0;
         currentPart++;
@@ -364,7 +356,7 @@ export class SplitProcessor {
       // Write sequence in detected format regardless of file extension
       if (outputFormat === "fastq" && "quality" in sequence) {
         const writer = new FastqWriter();
-        currentWriter.write(writer.formatSequence(sequence as FastqSequence));
+        await appendString(currentFilePath, writer.formatSequence(sequence as FastqSequence));
       } else {
         const writer = new FastaWriter();
         const fastaSeq: FastaSequence = {
@@ -374,7 +366,7 @@ export class SplitProcessor {
           length: sequence.length,
           ...(sequence.description && { description: sequence.description }),
         };
-        currentWriter.write(writer.formatSequence(fastaSeq));
+        await appendString(currentFilePath, writer.formatSequence(fastaSeq));
       }
 
       currentBases += sequence.length;
@@ -399,77 +391,57 @@ export class SplitProcessor {
     const regex = new RegExp(options.idRegex);
     const outputDir = options.outputDir ?? "./split";
     const prefix = options.filePrefix ?? "group";
+    const extension = options.fileExtension ?? ".fasta";
 
-    const writers = new Map<string, Bun.FileSink>();
     const counts = new Map<string, number>();
     let isFirstSequence = true;
     let outputFormat: "fasta" | "fastq" = "fasta";
 
-    try {
-      for await (const sequence of source) {
-        // Detect format from first sequence
-        if (isFirstSequence) {
-          outputFormat = "quality" in sequence ? "fastq" : "fasta";
-          isFirstSequence = false;
-        }
+    for await (const sequence of source) {
+      // Detect format from first sequence
+      if (isFirstSequence) {
+        outputFormat = "quality" in sequence ? "fastq" : "fasta";
+        isFirstSequence = false;
+      }
 
-        const match = sequence.id.match(regex);
-        const groupId = match?.[1] ?? match?.[0] ?? "ungrouped";
+      const match = sequence.id.match(regex);
+      const groupId = match?.[1] ?? match?.[0] ?? "ungrouped";
 
-        // Get or create writer for this group
-        if (!writers.has(groupId)) {
-          const extension = options.fileExtension ?? ".fasta";
-          const filePath = `${outputDir}/${prefix}_${groupId}${extension}`;
-          const writer = Bun.file(filePath).writer();
-          writers.set(groupId, writer);
-          this.activeWriters.set(groupId, writer);
-          counts.set(groupId, 0);
-        }
+      if (!counts.has(groupId)) {
+        counts.set(groupId, 0);
+      }
 
-        const count = (counts.get(groupId) ?? 0) + 1;
-        counts.set(groupId, count);
+      const count = (counts.get(groupId) ?? 0) + 1;
+      counts.set(groupId, count);
 
-        // Write sequence in appropriate format
-        const writer = writers.get(groupId);
-        if (writer === undefined) {
-          throw new SplitError(
-            `Internal error: writer not found for group ${groupId}`,
-            "by-id",
-            "by-id",
-            `groupId="${groupId}", writers.has()=${writers.has(groupId)}`
-          );
-        }
-        if (outputFormat === "fastq" && "quality" in sequence) {
-          const fastqWriter = new FastqWriter();
-          writer.write(fastqWriter.formatSequence(sequence as FastqSequence));
-        } else {
-          const fastaWriter = new FastaWriter();
-          const fastaSeq: FastaSequence = {
-            format: "fasta",
-            id: sequence.id,
-            sequence: sequence.sequence,
-            length: sequence.length,
-            ...(sequence.description !== undefined &&
-              sequence.description !== null &&
-              sequence.description !== "" && {
-                description: sequence.description,
-              }),
-          };
-          writer.write(fastaWriter.formatSequence(fastaSeq));
-        }
+      const filePath = `${outputDir}/${prefix}_${groupId}${extension}`;
 
-        const extension = options.fileExtension ?? ".fasta";
-        yield {
-          ...sequence,
-          outputFile: `${outputDir}/${prefix}_${groupId}${extension}`,
-          partId: groupId,
-          sequenceCount: count,
+      // Write sequence in appropriate format
+      if (outputFormat === "fastq" && "quality" in sequence) {
+        const fastqWriter = new FastqWriter();
+        await appendString(filePath, fastqWriter.formatSequence(sequence as FastqSequence));
+      } else {
+        const fastaWriter = new FastaWriter();
+        const fastaSeq: FastaSequence = {
+          format: "fasta",
+          id: sequence.id,
+          sequence: sequence.sequence,
+          length: sequence.length,
+          ...(sequence.description !== undefined &&
+            sequence.description !== null &&
+            sequence.description !== "" && {
+              description: sequence.description,
+            }),
         };
+        await appendString(filePath, fastaWriter.formatSequence(fastaSeq));
       }
-    } finally {
-      for (const writer of writers.values()) {
-        await writer.end();
-      }
+
+      yield {
+        ...sequence,
+        outputFile: `${outputDir}/${prefix}_${groupId}${extension}`,
+        partId: groupId,
+        sequenceCount: count,
+      };
     }
   }
 
@@ -487,50 +459,34 @@ export class SplitProcessor {
     const extension = options.fileExtension ?? ".fasta";
     const fileNameSafe = regionId.replace(/[^a-zA-Z0-9]/g, "_");
     const filePath = `${outputDir}/${prefix}_${fileNameSafe}${extension}`;
-
-    const writer = Bun.file(filePath).writer();
-    this.activeWriters.set(regionId, writer);
     let count = 0;
 
-    try {
-      for await (const sequence of source) {
-        count++;
+    for await (const sequence of source) {
+      count++;
 
-        // Write to file
-        const fastaWriter = new FastaWriter();
-        const formatted = fastaWriter.formatSequence({
-          format: "fasta",
-          id: sequence.id,
-          sequence: sequence.sequence,
-          length: sequence.length,
-          ...(sequence.description !== null &&
-            sequence.description !== undefined &&
-            sequence.description !== "" && {
-              description: sequence.description,
-            }),
-        } as FastaSequence);
+      // Write to file
+      const fastaWriter = new FastaWriter();
+      const formatted = fastaWriter.formatSequence({
+        format: "fasta",
+        id: sequence.id,
+        sequence: sequence.sequence,
+        length: sequence.length,
+        ...(sequence.description !== null &&
+          sequence.description !== undefined &&
+          sequence.description !== "" && {
+            description: sequence.description,
+          }),
+      } as FastaSequence);
 
-        writer.write(formatted);
+      await appendString(filePath, formatted);
 
-        yield {
-          ...sequence,
-          outputFile: filePath,
-          partId: regionId,
-          sequenceCount: count,
-        };
-      }
-    } finally {
-      await writer.end();
+      yield {
+        ...sequence,
+        outputFile: filePath,
+        partId: regionId,
+        sequenceCount: count,
+      };
     }
-  }
-
-  /**
-   * Close all active file writers
-   */
-  private async closeAllWriters(): Promise<void> {
-    const closePromises = Array.from(this.activeWriters.values()).map((writer) => writer.end());
-    await Promise.all(closePromises);
-    this.activeWriters.clear();
   }
 
   /**
@@ -562,20 +518,18 @@ export async function splitBySize(
 
   let currentPart = 1;
   let currentCount = 0;
-  let currentWriter: Bun.FileSink | null = null;
+  let currentFilePath = "";
 
   try {
     for await (const sequence of sequences) {
       // Create new file when needed
-      if (!currentWriter || currentCount >= sequencesPerFile) {
-        if (currentWriter) {
-          await currentWriter.end();
+      if (!currentFilePath || currentCount >= sequencesPerFile) {
+        if (currentFilePath) {
           sequencesPerFileActual.push(currentCount);
         }
 
-        const filePath = `${outputDir}/${prefix}_${String(currentPart)}.fasta`;
-        currentWriter = Bun.file(filePath).writer();
-        filesCreated.push(filePath);
+        currentFilePath = `${outputDir}/${prefix}_${String(currentPart)}.fasta`;
+        filesCreated.push(currentFilePath);
         currentCount = 0;
         currentPart++;
       }
@@ -590,32 +544,27 @@ export async function splitBySize(
         ...(sequence.description && { description: sequence.description }),
       } as FastaSequence);
 
-      currentWriter.write(formatted);
+      await appendString(currentFilePath, formatted);
       currentCount++;
     }
 
-    // Close final writer
-    if (currentWriter) {
-      await currentWriter.end();
+    // Record final file count
+    if (currentFilePath) {
       sequencesPerFileActual.push(currentCount);
     }
-
-    return {
-      filesCreated,
-      totalSequences: sequencesPerFileActual.reduce((sum, count) => sum + count, 0),
-      sequencesPerFile: sequencesPerFileActual,
-    };
   } catch (error) {
-    if (currentWriter) {
-      await currentWriter.end();
-    }
-
     throw new SplitError(
       `Failed to split sequences: ${error instanceof Error ? error.message : String(error)}`,
       "splitBySize",
       "by-size"
     );
   }
+
+  return {
+    filesCreated,
+    totalSequences: sequencesPerFileActual.reduce((sum, count) => sum + count, 0),
+    sequencesPerFile: sequencesPerFileActual,
+  };
 }
 
 /**
@@ -662,9 +611,9 @@ export async function splitById(
   outputDir: string = "./split",
   prefix: string = "group"
 ): Promise<SplitSummary> {
-  const writers = new Map<string, Bun.FileSink>();
   const filesCreated: string[] = [];
   const groupCounts = new Map<string, number>();
+  const groupFiles = new Map<string, string>();
 
   try {
     for await (const sequence of sequences) {
@@ -672,24 +621,24 @@ export async function splitById(
       const match = idPattern.exec(sequence.id);
       const groupId = match?.[1] ?? match?.[0] ?? "ungrouped";
 
-      // Get or create writer
-      if (!writers.has(groupId)) {
+      // Track file for this group
+      if (!groupFiles.has(groupId)) {
         const filePath = `${outputDir}/${prefix}_${groupId}.fasta`;
-        const writer = Bun.file(filePath).writer();
-        writers.set(groupId, writer);
+        groupFiles.set(groupId, filePath);
         filesCreated.push(filePath);
         groupCounts.set(groupId, 0);
       }
 
-      const writer = writers.get(groupId);
-      if (writer === undefined) {
+      const filePath = groupFiles.get(groupId);
+      if (!filePath) {
         throw new SplitError(
-          `Internal error: writer not found for group ${groupId}`,
+          `Internal error: file path not found for group ${groupId}`,
           "splitById",
           undefined,
-          `groupId="${groupId}", writers.has()=${writers.has(groupId)}`
+          `groupId="${groupId}", groupFiles.has()=${groupFiles.has(groupId)}`
         );
       }
+
       const count = groupCounts.get(groupId) ?? 0;
 
       // Write sequence
@@ -702,31 +651,21 @@ export async function splitById(
         ...(sequence.description && { description: sequence.description }),
       } as FastaSequence);
 
-      writer.write(formatted);
+      await appendString(filePath, formatted);
       groupCounts.set(groupId, count + 1);
     }
-
-    // Close all writers
-    for (const writer of writers.values()) {
-      await writer.end();
-    }
-
-    return {
-      filesCreated,
-      totalSequences: Array.from(groupCounts.values()).reduce((sum, count) => sum + count, 0),
-      sequencesPerFile: Array.from(groupCounts.values()),
-    };
   } catch (error) {
-    // Clean up on error
-    for (const writer of writers.values()) {
-      await writer.end();
-    }
-
     throw new SplitError(
       `Failed to split by ID: ${error instanceof Error ? error.message : String(error)}`,
       "splitById"
     );
   }
+
+  return {
+    filesCreated,
+    totalSequences: Array.from(groupCounts.values()).reduce((sum, count) => sum + count, 0),
+    sequencesPerFile: Array.from(groupCounts.values()),
+  };
 }
 
 /**

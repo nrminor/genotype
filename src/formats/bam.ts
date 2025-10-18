@@ -17,6 +17,7 @@
  */
 
 import { BamError, CompressionError, ValidationError } from "../errors";
+import { createStream as createFileStream } from "../io/file-reader";
 // BAIWriter imported but not used in current implementation
 import type {
   BAIChunk,
@@ -155,18 +156,8 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
       // Validate file path first
       const validatedPath = await this.validateFilePath(filePath);
 
-      // Use Bun.file() for optimal performance when available
-      if (
-        typeof globalThis !== "undefined" &&
-        "Bun" in globalThis &&
-        globalThis.Bun !== undefined &&
-        typeof globalThis.Bun.file === "function"
-      ) {
-        yield* this.parseFileWithBun(validatedPath, options);
-      } else {
-        // Fallback to generic file reading
-        yield* this.parseFileGeneric(validatedPath, options);
-      }
+      // Use Effect-based file reading (runtime-agnostic)
+      yield* this.parseFileGeneric(validatedPath, options);
     } catch (error) {
       // Re-throw with enhanced context
       if (error instanceof Error) {
@@ -1068,53 +1059,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
   }
 
   /**
-   * Parse BAM file using Bun's optimized file API
-   * @param filePath Validated file path
-   * @param options File reading options
-   * @yields BAMAlignment or SAMHeader objects
-   */
-  private async *parseFileWithBun(
-    filePath: string,
-    options?: import("../types").FileReaderOptions
-  ): AsyncIterable<BAMAlignment | SAMHeader> {
-    // Tiger Style: Assert function arguments
-    if (typeof filePath !== "string") {
-      throw new ValidationError("filePath must be a string");
-    }
-
-    // Use Bun.file() for optimal file access
-    const file = Bun.file(filePath);
-
-    // Check BAM magic bytes first
-    const headerChunk = await file.slice(0, 4).arrayBuffer();
-    const magic = new Uint8Array(headerChunk);
-    if (!isValidBAMMagic(magic)) {
-      throw new BamError(
-        "Invalid BAM magic bytes - file may be corrupted or not a BAM file",
-        undefined,
-        "header"
-      );
-    }
-
-    // Create optimized stream with proper buffer size for Bun
-    const bufferSize =
-      options?.bufferSize !== undefined && options?.bufferSize !== null && options?.bufferSize !== 0
-        ? options.bufferSize
-        : 256 * 1024; // 256KB default for Bun
-    const stream = file.stream();
-    // Note: Requested buffer size ${bufferSize} bytes, but Bun file.stream() uses internal buffering
-    if (options?.bufferSize !== undefined && options.bufferSize !== 256 * 1024) {
-      console.warn(
-        `BAM: Custom buffer size ${bufferSize} requested but Bun uses internal buffering`
-      );
-    }
-
-    // Parse BAM from stream
-    yield* this.parse(stream);
-  }
-
-  /**
-   * Parse BAM file using generic file reading
+   * Parse BAM file using Effect-based file reading (runtime-agnostic)
    * @param filePath Validated file path
    * @param options File reading options
    * @yields BAMAlignment or SAMHeader objects
@@ -1128,11 +1073,8 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
       throw new ValidationError("filePath must be a string");
     }
 
-    // Import I/O modules dynamically to avoid circular dependencies
-    const { createStream } = await import("../io/file-reader");
-
     // Create stream with appropriate settings
-    const stream = await createStream(filePath, {
+    const stream = await createFileStream(filePath, {
       ...options,
       autoDecompress: false, // We handle BGZF ourselves
       bufferSize:

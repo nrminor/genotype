@@ -136,6 +136,17 @@ and BED formats with comprehensive validation using Arktype.
 **Built by bioinformaticians, for bioinformaticians** - with all the messiness
 of real-world data in mind.
 
+### Runtime-Agnostic Architecture
+
+Genotype uses Effect Platform as its internal standard library for all file I/O
+and platform-specific operations. This architectural choice makes Genotype
+runtime-agnostic, running seamlessly on Node.js, Bun, and Deno without any
+runtime-specific code paths. Effect Platform provides a unified abstraction layer
+that handles platform differences internally, eliminating the need for manual
+runtime detection and conditional logic throughout the codebase. This approach
+also positions Genotype for potential browser compatibility in the future, as
+Effect Platform can target browser APIs through the same unified interface.
+
 ### Developer Experience Philosophy
 
 This library has a **relentless obsession with developer experience**:

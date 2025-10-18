@@ -7,12 +7,7 @@
  */
 
 import { CompressionError } from "../errors";
-import {
-  detectRuntime,
-  getOptimalBufferSize,
-  getRuntimeGlobals,
-  type Runtime,
-} from "../io/runtime";
+import { detectRuntime, type Runtime } from "../io/runtime";
 import type { DecompressorOptions } from "../types";
 import { DecompressorOptionsSchema } from "../types";
 
@@ -50,7 +45,7 @@ export async function decompress(
   validateCompressedData(compressed);
 
   const runtime = detectRuntime();
-  const mergedOptions = mergeOptions(options, runtime);
+  const mergedOptions = mergeOptions(options);
 
   try {
     validateZstdFormat(compressed);
@@ -211,7 +206,7 @@ export function createStream(
   }
 
   const runtime = detectRuntime();
-  const mergedOptions = mergeOptions(options, runtime);
+  const mergedOptions = mergeOptions(options);
   const state = {
     bytesProcessed: 0,
     decompressor: null as unknown,
@@ -343,14 +338,6 @@ async function performDecompression(
   options: Required<DecompressorOptions>,
   runtime: Runtime
 ): Promise<Uint8Array> {
-  // Bun optimization: Check for native Zstd support
-  if (runtime === "bun") {
-    const bunResult = await decompressWithBun(compressed);
-    if (bunResult) {
-      return bunResult;
-    }
-  }
-
   // Node.js optimization: Use built-in zlib
   if (runtime === "node") {
     const nodeResult = await decompressWithNode(compressed);
@@ -361,22 +348,6 @@ async function performDecompression(
 
   // Fallback to streaming decompression for other runtimes
   return await decompressViaStream(compressed, options);
-}
-
-async function decompressWithBun(_compressed: Uint8Array): Promise<Uint8Array | null> {
-  const { Bun } = getRuntimeGlobals("bun") as { Bun: any };
-  const bunHasMethod = Boolean(Bun) && "inflateSync" in Bun;
-  if (!bunHasMethod) {
-    return null;
-  }
-
-  try {
-    // Note: Bun currently doesn't have direct zstd support
-    // This is a placeholder for future compatibility
-    return null;
-  } catch {
-    return null;
-  }
 }
 
 async function decompressWithNode(compressed: Uint8Array): Promise<Uint8Array | null> {
@@ -421,12 +392,11 @@ async function decompressWithNode(compressed: Uint8Array): Promise<Uint8Array | 
 }
 
 function mergeOptions(
-  options: DecompressorOptions,
-  runtime: Runtime
+  options: DecompressorOptions
 ): DecompressorOptions & typeof DEFAULT_ZSTD_OPTIONS {
   const defaults = {
     ...DEFAULT_ZSTD_OPTIONS,
-    bufferSize: getOptimalBufferSize(runtime) * 2, // Zstd works better with larger buffers
+    bufferSize: 131072, // 128KB - Zstd works better with larger buffers
   };
 
   const merged = { ...defaults, ...options };

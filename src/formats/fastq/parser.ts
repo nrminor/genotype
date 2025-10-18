@@ -45,7 +45,7 @@ import {
   SequenceError,
   ValidationError,
 } from "../../errors";
-import { createStream, exists, getMetadata } from "../../io/file-reader";
+import { createStream, exists, getMetadata, getSize, readByteRange } from "../../io/file-reader";
 import { StreamUtils } from "../../io/stream-utils";
 import { detectEncoding, qualityToScores } from "../../operations/core/quality";
 import type { FastqSequence, FileReaderOptions, QualityEncoding } from "../../types";
@@ -563,12 +563,11 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
         // Auto-detect by sampling the file
         // Read first ~10KB for format detection (enough for ~50 FASTQ records)
         const sampleSize = 10240;
-        const file = Bun.file(validatedPath);
-        const fileSize = file.size;
+        const fileSize = await getSize(validatedPath);
         const bytesToRead = Math.min(sampleSize, fileSize);
 
         // Read sample from beginning of file
-        const sampleBuffer = await file.slice(0, bytesToRead).arrayBuffer();
+        const sampleBuffer = await readByteRange(validatedPath, 0, bytesToRead);
         const sampleText = new TextDecoder().decode(sampleBuffer);
 
         // Detect format from sample

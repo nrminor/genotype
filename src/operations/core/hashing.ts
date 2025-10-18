@@ -5,6 +5,8 @@
  * for checksums, deduplication, and data integrity verification.
  */
 
+import { createHash } from "node:crypto";
+
 /**
  * Compute MD5 hash of a string
  *
@@ -25,7 +27,7 @@
  */
 export function hashMD5(input: string, caseSensitive = false): string {
   const data = caseSensitive ? input : input.toUpperCase();
-  const hasher = new Bun.CryptoHasher("md5");
+  const hasher = createHash("md5");
   hasher.update(data);
   return hasher.digest("hex");
 }
@@ -47,7 +49,7 @@ export function hashMD5(input: string, caseSensitive = false): string {
  */
 export function hashSHA256(input: string, caseSensitive = false): string {
   const data = caseSensitive ? input : input.toUpperCase();
-  const hasher = new Bun.CryptoHasher("sha256");
+  const hasher = createHash("sha256");
   hasher.update(data);
   return hasher.digest("hex");
 }
@@ -69,7 +71,7 @@ export function hashSHA256(input: string, caseSensitive = false): string {
  */
 export function hashSHA1(input: string, caseSensitive = false): string {
   const data = caseSensitive ? input : input.toUpperCase();
-  const hasher = new Bun.CryptoHasher("sha1");
+  const hasher = createHash("sha1");
   hasher.update(data);
   return hasher.digest("hex");
 }

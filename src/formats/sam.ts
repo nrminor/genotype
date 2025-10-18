@@ -13,6 +13,7 @@
 
 import { type } from "arktype";
 import { SamError, ValidationError } from "../errors";
+import { writeString } from "../io/file-writer";
 import type {
   CIGARString,
   MAPQScore,
@@ -1362,8 +1363,7 @@ class SAMWriter {
     try {
       const samData = this.writeString(records);
 
-      // Use Bun's native file writing
-      await Bun.write(filePath, samData);
+      await writeString(filePath, samData);
     } catch (error) {
       throw new SamError(
         `Failed to write SAM file '${filePath}': ${error instanceof Error ? error.message : String(error)}`,

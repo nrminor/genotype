@@ -414,6 +414,7 @@ function checkMemoryUsage(bufferSize: number, totalProcessed: number): void {
   const memoryLimits = {
     node: 1_073_741_824, // 1GB for Node.js - conservative due to V8 limits
     bun: 8_589_934_592, // 8GB for Bun - higher limit due to superior memory management and performance
+    deno: 1_073_741_824, // 1GB for Deno - conservative like Node.js (V8-based)
   };
 
   const limit = memoryLimits[runtime];
@@ -449,6 +450,12 @@ function estimateMemoryUsage(): number {
         return memoryUsage !== null && memoryUsage !== undefined
           ? memoryUsage.heapUsed + (memoryUsage.rss ?? 0) * 0.1
           : 0;
+      }
+
+      case "deno": {
+        // Deno also has process.memoryUsage() via Node.js compatibility
+        const process = globalThis.process;
+        return process?.memoryUsage?.()?.heapUsed || 0;
       }
 
       default:

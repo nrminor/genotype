@@ -58,17 +58,29 @@ which is implemented in Go. Additionally, Rust implementations can be compiled
 to native extensions or WebAssembly modules, which opens the possibility for
 GenoType to be run on the server, in the browser, or anywhere in between.
 
+### Runtime-Agnostic Architecture
+
+GenoType uses [Effect](https://effect.website/) and specifically
+[Effect Platform](https://effect.website/docs/platform/introduction/) as its
+internal standard library for all file I/O and platform-specific operations.
+This architectural choice makes GenoType runtime-agnostic, running seamlessly on
+Node.js, Bun, and Deno without any runtime-specific code paths. Effect Platform
+provides a unified abstraction layer that handles platform differences
+internally, eliminating the need for manual runtime detection and conditional
+logic throughout the codebase. This approach also positions GenoType for
+potential browser compatibility in the future, as Effect Platform can target
+browser APIs through the same unified interface.
+
 ### Portable Scripting
 
-However, GenoType was also designed with scripting in mind. As of 2025, the
-story for scripting in JavaScript and TypeScript is exceptionally good, a fact
-that is underappreciated in data science and bioinformatics. Runtimes like
+GenoType was designed with scripting in mind. As of 2025, the story for
+scripting in JavaScript and TypeScript is exceptionally good, a fact that is
+underappreciated in data science and bioinformatics. Runtimes like
 [Bun](https://bun.com/) and [Deno](https://deno.com/) can run standalone
 scripts, handling inline dependencies by default like how the Python manager
 [`uv` can handle Python dependencies](https://docs.astral.sh/uv/guides/scripts/#declaring-script-dependencies)--no
-need for virtual environments and dependency hell. They also benefit from years
-of JavaScript runtime optimization (and indeed, one of GenoType's goals is to be
-runtime-agnostic so you can use the latest and fastest runtime you want to).
+need for virtual environments and dependency hell. Unlike Python scripts, Bun
+and Deno scripts also benefit from years of JavaScript runtime optimization.
 Most remarkably, Bun and Deno don't even require that the runtimes themselves
 are installed. Both runtimes can compile scripts
 [into portable standalone executables](https://bun.com/docs/bundler/executables)

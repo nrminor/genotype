@@ -33,6 +33,9 @@ import {
   serializeJSONWithMetadata,
   serializeJSONWithMetadataPretty,
 } from "../formats/json";
+import { createStream, exists, getSize } from "../io/file-reader";
+import { openForWriting } from "../io/file-writer";
+import { readLines } from "../io/stream-utils";
 import type { AbstractSequence, FastaSequence, FastqSequence } from "../types";
 import {
   atContent,
@@ -303,14 +306,14 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
     writer: DSVWriter | CSVWriter | TSVWriter,
     formatName: "TSV" | "CSV" | "DSV"
   ): Promise<void> {
-    let stream: Bun.FileSink | undefined;
     try {
-      stream = Bun.file(path).writer();
-      for await (const row of this.source) {
-        // Convert readonly array to mutable for formatRow
-        const formattedRow = writer.formatRow([...row.__values]);
-        await stream.write(`${formattedRow}\n`);
-      }
+      await openForWriting(path, async (handle) => {
+        for await (const row of this.source) {
+          // Convert readonly array to mutable for formatRow
+          const formattedRow = writer.formatRow([...row.__values]);
+          await handle.writeString(`${formattedRow}\n`);
+        }
+      });
     } catch (error) {
       throw new FileError(
         `Failed to write ${formatName} to ${path}: ${error instanceof Error ? error.message : String(error)}`,
@@ -318,10 +321,6 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
         "write",
         error
       );
-    } finally {
-      if (stream) {
-        await stream.end();
-      }
     }
   }
 
@@ -412,7 +411,6 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
    * @since 2.0.0
    */
   async writeJSON(path: string, options?: JSONWriteOptions): Promise<void> {
-    let stream: Bun.FileSink | undefined;
     try {
       const rows = await this.toArray();
 
@@ -451,8 +449,9 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
         output = result;
       }
 
-      stream = Bun.file(path).writer();
-      await stream.write(output);
+      await openForWriting(path, async (handle) => {
+        await handle.writeString(output);
+      });
     } catch (error) {
       if (error instanceof FileError) {
         throw error;
@@ -463,10 +462,6 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
         "write",
         error
       );
-    } finally {
-      if (stream) {
-        await stream.end();
-      }
     }
   }
 
@@ -492,15 +487,14 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
    * @since 2.0.0
    */
   async writeJSONL(path: string): Promise<void> {
-    let stream: Bun.FileSink | undefined;
     try {
-      stream = Bun.file(path).writer();
-
-      for await (const row of this.source) {
-        const line = JSON.stringify(row);
-        await stream.write(line);
-        await stream.write("\n");
-      }
+      await openForWriting(path, async (handle) => {
+        for await (const row of this.source) {
+          const line = JSON.stringify(row);
+          await handle.writeString(line);
+          await handle.writeString("\n");
+        }
+      });
     } catch (error) {
       if (error instanceof FileError) {
         throw error;
@@ -511,10 +505,6 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
         "write",
         error
       );
-    } finally {
-      if (stream) {
-        await stream.end();
-      }
     }
   }
 
@@ -865,13 +855,13 @@ export async function* tab2fx(
 
   try {
     // Check if file exists and is empty
-    const file = Bun.file(path);
-    const exists = await file.exists();
-    if (!exists) {
+    const fileExists = await exists(path);
+    if (!fileExists) {
       throw new ParseError(`File not found: ${path}`, "tab2fx");
     }
 
-    if (file.size === 0) {
+    const fileSize = await getSize(path);
+    if (fileSize === 0) {
       // Empty file - return early with no sequences
       return;
     }
@@ -881,7 +871,8 @@ export async function* tab2fx(
       // Read first few lines for detection
       const sampleLines: string[] = [];
       let lineCount = 0;
-      for await (const line of _readLines(path)) {
+      const stream = await createStream(path);
+      for await (const line of readLines(stream)) {
         sampleLines.push(line);
         if (++lineCount >= DELIMITER_DETECTION_SAMPLE_LINES) break;
       }
@@ -1276,50 +1267,5 @@ function computeColumn(
       }
 
       return options.nullValue;
-  }
-}
-
-/**
- * Streaming line reader for large files
- *
- * @param path - File path to read
- * @returns AsyncIterable of lines
- * @throws {FileError} If file cannot be read
- * @internal
- */
-async function* _readLines(path: string): AsyncIterable<string> {
-  const file = Bun.file(path);
-  if (!(await file.exists())) {
-    throw new FileError(`File not found: ${path}`, path, "read");
-  }
-
-  const stream = file.stream();
-  const reader = stream.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-      for (const line of lines) {
-        yield line;
-      }
-    }
-    // Yield any remaining buffer content
-    if (buffer) yield buffer;
-  } catch (error) {
-    throw new FileError(
-      `Failed to read ${path}: ${error instanceof Error ? error.message : String(error)}`,
-      path,
-      "read",
-      error
-    );
-  } finally {
-    reader.releaseLock();
   }
 }

@@ -80,15 +80,7 @@ export {
 export { SAMParser, SAMUtils, SAMWriter } from "./formats/sam";
 // File I/O infrastructure
 export { FileReader } from "./io/file-reader";
-export {
-  detectRuntime,
-  getOptimalBufferSize,
-  getRuntimeCapabilities,
-  getRuntimeGlobals,
-  getRuntimeInfo,
-  type Runtime,
-  type RuntimeCapabilities,
-} from "./io/runtime";
+export { detectRuntime, type Runtime } from "./io/runtime";
 export {
   batchLines,
   pipe,

@@ -19,6 +19,7 @@ import {
   JSONParser,
   type JSONWriteOptions,
 } from "../formats/json";
+import { openForWriting } from "../io/file-writer";
 import type {
   AbstractSequence,
   FastaSequence,
@@ -1731,9 +1732,8 @@ export class SeqOps<T extends AbstractSequence> {
       ...(options.wrapWidth !== undefined && { lineWidth: options.wrapWidth }),
       lineEnding,
     });
-    const stream = Bun.file(path).writer();
 
-    try {
+    await openForWriting(path, async (handle) => {
       for await (const seq of this.source) {
         const fastaSeq: FastaSequence = {
           format: "fasta",
@@ -1746,11 +1746,9 @@ export class SeqOps<T extends AbstractSequence> {
         };
         const formatted = writer.formatSequence(fastaSeq);
         // Add line ending after each sequence to separate them
-        stream.write(formatted + lineEnding);
+        await handle.writeString(formatted + lineEnding);
       }
-    } finally {
-      stream.end();
-    }
+    });
   }
 
   /**
@@ -1772,9 +1770,8 @@ export class SeqOps<T extends AbstractSequence> {
    */
   async writeFastq(path: string, defaultQuality: string = "I"): Promise<void> {
     const writer = new FastqWriter();
-    const stream = Bun.file(path).writer();
 
-    try {
+    await openForWriting(path, async (handle) => {
       for await (const seq of this.source) {
         let fastqSeq: FastqSequence;
 
@@ -1797,11 +1794,9 @@ export class SeqOps<T extends AbstractSequence> {
         }
 
         const formatted = writer.formatSequence(fastqSeq);
-        stream.write(formatted);
+        await handle.writeString(formatted);
       }
-    } finally {
-      stream.end();
-    }
+    });
   }
 
   /**
@@ -2017,15 +2012,11 @@ export class SeqOps<T extends AbstractSequence> {
    * ```
    */
   async writeTSV(path: string, options: Omit<Fx2TabOptions, "delimiter"> = {}): Promise<void> {
-    const stream = Bun.file(path).writer();
-
-    try {
+    await openForWriting(path, async (handle) => {
       for await (const row of fx2tab(this.source, { ...options, delimiter: "\t" })) {
-        stream.write(`${row.__raw}\n`);
+        await handle.writeString(`${row.__raw}\n`);
       }
-    } finally {
-      stream.end();
-    }
+    });
   }
 
   /**
@@ -2046,15 +2037,11 @@ export class SeqOps<T extends AbstractSequence> {
    * ```
    */
   async writeCSV(path: string, options: Omit<Fx2TabOptions, "delimiter"> = {}): Promise<void> {
-    const stream = Bun.file(path).writer();
-
-    try {
+    await openForWriting(path, async (handle) => {
       for await (const row of fx2tab(this.source, { ...options, delimiter: "," })) {
-        stream.write(`${row.__raw}\n`);
+        await handle.writeString(`${row.__raw}\n`);
       }
-    } finally {
-      stream.end();
-    }
+    });
   }
 
   /**
@@ -2084,15 +2071,11 @@ export class SeqOps<T extends AbstractSequence> {
     delimiter: string,
     options: Omit<Fx2TabOptions, "delimiter"> = {}
   ): Promise<void> {
-    const stream = Bun.file(path).writer();
-
-    try {
+    await openForWriting(path, async (handle) => {
       for await (const row of fx2tab(this.source, { ...options, delimiter })) {
-        stream.write(`${row.__raw}\n`);
+        await handle.writeString(`${row.__raw}\n`);
       }
-    } finally {
-      stream.end();
-    }
+    });
   }
 
   /**

@@ -7,11 +7,13 @@
  * @module operations/faidx
  */
 
+import { FileSystem } from "@effect/platform";
 import { type } from "arktype";
+import { Effect } from "effect";
 import { CompressionDetector } from "../compression/detector";
 import { ParseError, ValidationError } from "../errors";
-import { exists, readToString } from "../io/file-reader";
-import { detectRuntime, getRuntimeGlobals } from "../io/runtime";
+import { exists, readByteRange, readToString } from "../io/file-reader";
+import { getPlatform } from "../io/runtime";
 import type { FastaSequence } from "../types";
 import { reverseComplement } from "./core/sequence-manipulation";
 
@@ -477,14 +479,12 @@ export class FaiBuilder {
 
     const content = `${lines.join("\n")}\n`;
 
-    const runtime = detectRuntime();
-    if (runtime === "bun") {
-      const { Bun } = getRuntimeGlobals("bun") as { Bun: any };
-      await Bun.write(faiPath, content);
-    } else {
-      const fs = await import("node:fs/promises");
-      await fs.writeFile(faiPath, content, "utf-8");
-    }
+    const program = Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      yield* fs.writeFileString(faiPath, content);
+    });
+
+    await Effect.runPromise(program.pipe(Effect.provide(getPlatform())));
   }
 
   /**
@@ -877,25 +877,7 @@ export class Faidx {
   ): Promise<string> {
     const { startByte, endByte } = calculateByteRange(start, end, record);
 
-    const runtime = detectRuntime();
-
-    let rawBytes: Uint8Array;
-
-    if (runtime === "bun") {
-      const { Bun } = getRuntimeGlobals("bun") as { Bun: any };
-      const file = Bun.file(this.fastaPath);
-      const slice = file.slice(startByte, endByte);
-      const buffer = await slice.arrayBuffer();
-      rawBytes = new Uint8Array(buffer);
-    } else {
-      const fs = await import("node:fs/promises");
-      const fileHandle = await fs.open(this.fastaPath, "r");
-      const buffer = Buffer.alloc(endByte - startByte);
-      await fileHandle.read(buffer, 0, buffer.length, startByte);
-      await fileHandle.close();
-      rawBytes = buffer;
-    }
-
+    const rawBytes = await readByteRange(this.fastaPath, startByte, endByte);
     const text = new TextDecoder().decode(rawBytes);
     const sequence = text.replace(/\r?\n/g, "");
 

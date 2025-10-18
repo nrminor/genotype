@@ -6,7 +6,9 @@
  * efficiency for genomic data processing.
  */
 
+import { FileSystem } from "@effect/platform";
 import { type } from "arktype";
+import { Effect, Stream } from "effect";
 import { CompressionDetector, createDecompressor } from "../compression";
 import { CompatibilityError, FileError } from "../errors";
 import type {
@@ -17,7 +19,7 @@ import type {
   FileValidationResult,
 } from "../types";
 import { FilePathSchema, FileReaderOptionsSchema } from "../types";
-import { detectRuntime, getOptimalBufferSize, getRuntimeGlobals, type Runtime } from "./runtime";
+import { detectRuntime, getPlatform } from "./runtime";
 
 // Module-level constants for default options
 const DEFAULT_OPTIONS: Required<FileReaderOptions> = {
@@ -84,121 +86,22 @@ async function validateFile(
 }
 
 /**
- * Create base file stream without decompression
+ * Create base file stream using Effect Platform
+ * Works across Node.js, Bun, and Deno automatically via platform layers
  */
 async function createBaseStream(
   validatedPath: FilePath,
-  mergedOptions: Required<FileReaderOptions>,
-  runtime: Runtime
+  mergedOptions: Required<FileReaderOptions>
 ): Promise<ReadableStream<Uint8Array>> {
-  switch (runtime) {
-    case "node":
-      return createNodeStream(validatedPath, mergedOptions);
-    case "bun":
-      return createBunStream(validatedPath, mergedOptions);
-    default:
-      throw new CompatibilityError(`Unsupported runtime: ${runtime}`, runtime, "filesystem");
-  }
-}
-
-// import { Effect } from "effect";
-// import { NodeContext, NodeRuntime } from "@effect/platform-node";
-// import { BunContext } from "@effect/platform-bun";
-// import { FileSystem } from "@effect/platform";
-
-// function createEffectStream(
-//   validatedPath: string,
-//   mergedOptions: Required<FileReaderOptions>,
-//   runtime: Runtime
-// ) {
-//   const dataSource = Effect.gen(function* () {
-//     const fs = yield* FileSystem.FileSystem;
-
-//     return fs.stream(validatedPath);
-//   });
-
-//   switch (runtime) {
-//     case "node":
-//       return Effect.runSync(dataSource.pipe(Effect.provide(NodeContext.layer)));
-//     case "bun":
-//       return Effect.runSync(dataSource.pipe(Effect.provide(BunContext.layer)));
-//     default:
-//       throw new CompatibilityError(`Unsupported runtime: ${runtime}`, runtime, "filesystem");
-//   }
-// }
-
-function createNodeStream(
-  validatedPath: FilePath,
-  mergedOptions: Required<FileReaderOptions>
-): ReadableStream<Uint8Array> {
-  const { fs } = getRuntimeGlobals("node") as { fs: any };
-  if (fs === undefined || fs === null)
-    throw new CompatibilityError("Node.js fs module not available", "node", "filesystem");
-
-  const nodeStream = fs.createReadStream(validatedPath, {
-    highWaterMark: mergedOptions.bufferSize,
+  const program = Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const effectStream = fs.stream(validatedPath, {
+      bufferSize: mergedOptions.bufferSize,
+    });
+    return Stream.toReadableStream(effectStream);
   });
 
-  return new ReadableStream({
-    start(controller): void {
-      nodeStream.on("data", (chunk: Buffer) => {
-        controller.enqueue(new Uint8Array(chunk));
-      });
-
-      nodeStream.on("end", () => {
-        controller.close();
-      });
-
-      nodeStream.on("error", (error: Error) => {
-        controller.error(FileError.fromSystemError("read", validatedPath, error));
-      });
-
-      // Handle abort signal with optional chaining
-      mergedOptions.signal?.addEventListener("abort", () => {
-        nodeStream.destroy();
-        controller.error(new Error("Read operation aborted"));
-      });
-    },
-  });
-}
-
-function createBunStream(
-  validatedPath: FilePath,
-  mergedOptions: Required<FileReaderOptions>
-): ReadableStream<Uint8Array> {
-  const { Bun } = getRuntimeGlobals("bun") as { Bun: any };
-  if (Bun === undefined || Bun === null || Bun.file === undefined || Bun.file === null)
-    throw new CompatibilityError("Bun.file not available", "bun", "filesystem");
-
-  const file = Bun.file(validatedPath);
-  const stream = file.stream();
-
-  return new ReadableStream({
-    async start(controller): Promise<void> {
-      try {
-        const reader = stream.getReader();
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done === true) break;
-
-          controller.enqueue(value);
-
-          // Progress tracking removed - users can implement their own by wrapping streams
-
-          // Check for abort signal with optional chaining
-          if (mergedOptions.signal?.aborted) {
-            reader.releaseLock();
-            throw new Error("Read operation aborted");
-          }
-        }
-
-        controller.close();
-      } catch (error) {
-        controller.error(FileError.fromSystemError("read", validatedPath, error));
-      }
-    },
-  });
+  return Effect.runPromise(program.pipe(Effect.provide(getPlatform())));
 }
 
 /**
@@ -249,43 +152,20 @@ async function applyDecompression(
  * @throws {FileError} If path validation fails
  */
 export async function exists(path: string): Promise<boolean> {
-  // TypeScript guarantees path is string - delegate to ArkType for domain validation
   const validatedPath = validatePath(path);
-  const runtime = detectRuntime();
+
+  const program = Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const pathExists = yield* fs.exists(validatedPath);
+    if (!pathExists) return false;
+
+    const info = yield* fs.stat(validatedPath);
+    return info.type === "File";
+  });
 
   try {
-    switch (runtime) {
-      case "node": {
-        const { fs } = getRuntimeGlobals("node") as { fs: any };
-        if (fs === undefined || fs === null)
-          throw new CompatibilityError("Node.js fs module not available", "node", "filesystem");
-
-        try {
-          await fs.promises.access(validatedPath, fs.constants.F_OK | fs.constants.R_OK);
-          return true;
-        } catch {
-          return false;
-        }
-      }
-
-      case "bun": {
-        const { Bun } = getRuntimeGlobals("bun") as { Bun: any };
-        if (Bun === undefined || Bun === null || Bun.file === undefined || Bun.file === null)
-          throw new CompatibilityError("Bun.file not available", "bun", "filesystem");
-
-        try {
-          const file = Bun.file(validatedPath);
-          return await file.exists();
-        } catch {
-          return false;
-        }
-      }
-
-      default:
-        throw new CompatibilityError(`Unsupported runtime: ${runtime}`, runtime, "filesystem");
-    }
+    return await Effect.runPromise(program.pipe(Effect.provide(getPlatform())));
   } catch (error) {
-    if (error instanceof CompatibilityError) throw error;
     throw FileError.fromSystemError("stat", validatedPath, error);
   }
 }
@@ -298,39 +178,17 @@ export async function exists(path: string): Promise<boolean> {
  * @throws {FileError} If file cannot be accessed or doesn't exist
  */
 export async function getSize(path: string): Promise<number> {
-  // TypeScript guarantees path is string - delegate to ArkType for domain validation
   const validatedPath = validatePath(path);
-  const runtime = detectRuntime();
+
+  const program = Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const info = yield* fs.stat(validatedPath);
+    return Number(info.size);
+  });
 
   try {
-    switch (runtime) {
-      case "node": {
-        const { fs } = getRuntimeGlobals("node") as { fs: any };
-        if (fs === undefined || fs === null)
-          throw new CompatibilityError("Node.js fs module not available", "node", "filesystem");
-
-        const stats = await fs.promises.stat(validatedPath);
-        return stats.size;
-      }
-
-      case "bun": {
-        const { Bun } = getRuntimeGlobals("bun") as { Bun: any };
-        if (Bun === undefined || Bun === null || Bun.file === undefined || Bun.file === null)
-          throw new CompatibilityError("Bun.file not available", "bun", "filesystem");
-
-        const file = Bun.file(validatedPath);
-        // Check if file exists first
-        if ((await file.exists()) === false) {
-          throw new Error(`ENOENT: no such file or directory, stat '${validatedPath}'`);
-        }
-        return file.size;
-      }
-
-      default:
-        throw new CompatibilityError(`Unsupported runtime: ${runtime}`, runtime, "filesystem");
-    }
+    return await Effect.runPromise(program.pipe(Effect.provide(getPlatform())));
   } catch (error) {
-    if (error instanceof CompatibilityError) throw error;
     throw FileError.fromSystemError("stat", validatedPath, error);
   }
 }
@@ -343,72 +201,25 @@ export async function getSize(path: string): Promise<number> {
  * @throws {FileError} If file cannot be accessed
  */
 export async function getMetadata(path: string): Promise<FileMetadata> {
-  // TypeScript guarantees path is string - delegate to ArkType for domain validation
   const validatedPath = validatePath(path);
-  const runtime = detectRuntime();
+
+  const program = Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const info = yield* fs.stat(validatedPath);
+
+    return {
+      path: validatedPath,
+      size: Number(info.size),
+      lastModified: new Date(Number(info.mtime)),
+      readable: true,
+      writable: false,
+      extension: validatedPath.substring(validatedPath.lastIndexOf(".")),
+    };
+  });
 
   try {
-    switch (runtime) {
-      case "node": {
-        const { fs, path: pathModule } = getRuntimeGlobals("node") as {
-          fs: any;
-          path: any;
-        };
-        if (fs === undefined || fs === null || pathModule === undefined || pathModule === null)
-          throw new CompatibilityError("Node.js modules not available", "node", "filesystem");
-
-        const stats = await fs.promises.stat(validatedPath);
-
-        // Check permissions
-        let readable = false,
-          writable = false;
-        try {
-          await fs.promises.access(validatedPath, fs.constants.R_OK);
-          readable = true;
-        } catch {
-          /* ignore */
-        }
-
-        try {
-          await fs.promises.access(validatedPath, fs.constants.W_OK);
-          writable = true;
-        } catch {
-          /* ignore */
-        }
-
-        return {
-          path: validatedPath,
-          size: stats.size,
-          lastModified: stats.mtime,
-          readable,
-          writable,
-          extension: pathModule.extname(validatedPath),
-        };
-      }
-
-      case "bun": {
-        const { Bun } = getRuntimeGlobals("bun") as { Bun: any };
-        if (Bun === undefined || Bun === null || Bun.file === undefined || Bun.file === null)
-          throw new CompatibilityError("Bun.file not available", "bun", "filesystem");
-
-        const file = Bun.file(validatedPath);
-        const lastModified = new Date(file.lastModified);
-
-        return {
-          path: validatedPath,
-          size: file.size,
-          lastModified,
-          readable: await file.exists(),
-          writable: false, // Bun doesn't expose write permissions easily
-          extension: validatedPath.substring(validatedPath.lastIndexOf(".")),
-        };
-      }
-
-      default:
-        throw new CompatibilityError(`Unsupported runtime: ${runtime}`, runtime, "filesystem");
-    }
+    return await Effect.runPromise(program.pipe(Effect.provide(getPlatform())));
   } catch (error) {
-    if (error instanceof CompatibilityError) throw error;
     throw FileError.fromSystemError("stat", validatedPath, error);
   }
 }
@@ -429,7 +240,7 @@ export async function createStream(
 
   const validatedPath = validatePath(path);
   const runtime = detectRuntime();
-  const mergedOptions = mergeOptions(options, runtime);
+  const mergedOptions = mergeOptions(options);
 
   // Validate file before creating stream
   const validation = await validateFile(validatedPath, mergedOptions);
@@ -447,7 +258,7 @@ export async function createStream(
 
   try {
     // Create base stream first
-    let stream = await createBaseStream(validatedPath, mergedOptions, runtime);
+    let stream = await createBaseStream(validatedPath, mergedOptions);
 
     // Apply decompression if enabled and needed
     if (mergedOptions.autoDecompress) {
@@ -475,22 +286,59 @@ export async function createStream(
  * @throws {FileError} If file cannot be read or is too large
  */
 export async function readToString(path: string, options: FileReaderOptions = {}): Promise<string> {
-  // TypeScript guarantees types - delegate to ArkType for domain validation
   const validatedPath = validatePath(path);
-  const runtime = detectRuntime();
-  const mergedOptions = mergeOptions(options, runtime);
-  const fileSize = await validateFileSize(validatedPath, mergedOptions);
+  const mergedOptions = mergeOptions(options);
+  await validateFileSize(validatedPath, mergedOptions);
 
-  // Try Bun optimization first
-  const bunResult = await tryBunOptimizedRead(runtime, validatedPath, mergedOptions);
-  if (bunResult !== null) {
-    return bunResult;
+  return readFileToString(validatedPath);
+}
+
+/**
+ * Read a specific byte range from a file
+ *
+ * Useful for random access patterns like FASTA indexing (faidx) where only
+ * specific portions of large genomic files need to be read.
+ *
+ * @param path File path to read from
+ * @param start Starting byte offset (inclusive)
+ * @param end Ending byte offset (exclusive)
+ * @returns Promise resolving to byte array of requested range
+ * @throws {FileError} If file cannot be read or range is invalid
+ *
+ * @example
+ * ```typescript
+ * // Read bytes 1000-2000 from indexed FASTA file
+ * const bytes = await readByteRange('genome.fasta', 1000, 2000);
+ * const sequence = new TextDecoder().decode(bytes);
+ * ```
+ */
+export async function readByteRange(path: string, start: number, end: number): Promise<Uint8Array> {
+  const validatedPath = validatePath(path);
+
+  if (start < 0 || end < 0) {
+    throw new FileError("Byte range must be non-negative", validatedPath, "read");
+  }
+  if (start >= end) {
+    throw new FileError("Start byte must be less than end byte", validatedPath, "read");
   }
 
-  // Fallback to streaming approach
-  const result = await readViaStream(validatedPath, options, fileSize);
-  validateReadResult(result, validatedPath, fileSize);
-  return result;
+  const program = Effect.promise(async () => {
+    const fs = await import("node:fs/promises");
+    const fileHandle = await fs.open(validatedPath, "r");
+    try {
+      const buffer = Buffer.alloc(end - start);
+      await fileHandle.read(buffer, 0, buffer.length, start);
+      return new Uint8Array(buffer);
+    } finally {
+      await fileHandle.close();
+    }
+  });
+
+  try {
+    return await Effect.runPromise(program.pipe(Effect.provide(getPlatform())));
+  } catch (error) {
+    throw FileError.fromSystemError("read", validatedPath, error);
+  }
 }
 
 async function validateFileSize(
@@ -508,155 +356,13 @@ async function validateFileSize(
   return fileSize;
 }
 
-async function tryBunOptimizedRead(
-  runtime: Runtime,
-  validatedPath: FilePath,
-  mergedOptions: Required<FileReaderOptions>
-): Promise<string | null> {
-  // Use Bun's optimized file.text() when conditions are right
-  const canUseBunOptimization =
-    runtime === "bun" && mergedOptions.encoding === "utf8" && !mergedOptions.signal;
+async function readFileToString(validatedPath: FilePath): Promise<string> {
+  const program = Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    return yield* fs.readFileString(validatedPath);
+  });
 
-  if (!canUseBunOptimization) {
-    return null;
-  }
-
-  try {
-    const { Bun } = getRuntimeGlobals("bun") as { Bun: any };
-    if (Bun?.file) {
-      const file = Bun.file(validatedPath);
-      // Bun.file.text() always returns string - no defensive checking needed
-      return await file.text();
-    }
-  } catch (error) {
-    throw FileError.fromSystemError("read", validatedPath, error);
-  }
-
-  return null;
-}
-
-async function readViaStream(
-  validatedPath: FilePath,
-  options: FileReaderOptions,
-  fileSize: number
-): Promise<string> {
-  const stream = await createStream(validatedPath, options);
-  const reader = stream.getReader();
-  const runtime = detectRuntime();
-  const mergedOptions = mergeOptions(options, runtime);
-
-  if (mergedOptions.encoding === "binary") {
-    return readBinaryStream(reader, mergedOptions, fileSize);
-  }
-
-  return readTextStream(reader, mergedOptions, fileSize);
-}
-
-async function readBinaryStream(
-  reader: any,
-  mergedOptions: Required<FileReaderOptions>,
-  fileSize: number
-): Promise<string> {
-  const chunks: Uint8Array[] = [];
-  let totalLength = 0;
-
-  try {
-    while (true) {
-      // Check for abort signal before reading next chunk
-      if (mergedOptions.signal?.aborted) {
-        throw new Error("Read operation aborted");
-      }
-
-      const { done, value } = await reader.read();
-      if (done === true) break;
-
-      chunks.push(value);
-      totalLength += value.length;
-
-      // Enforce size limit during streaming to prevent runaway memory usage
-      if (totalLength > mergedOptions.maxFileSize) {
-        throw new FileError(
-          `Stream exceeded maximum file size: ${totalLength} > ${mergedOptions.maxFileSize}`,
-          "<stream>",
-          "read"
-        );
-      }
-    }
-
-    // Validate final size matches expected (detect concurrent modifications or streaming issues)
-    if (fileSize > 0 && totalLength !== fileSize) {
-      console.warn(`Size mismatch: expected ${fileSize} bytes, read ${totalLength} bytes`);
-    }
-
-    const combined = new Uint8Array(totalLength);
-    let offset = 0;
-    for (const chunk of chunks) {
-      combined.set(chunk, offset);
-      offset += chunk.length;
-    }
-
-    return Array.from(combined, (byte) => String.fromCharCode(byte)).join("");
-  } finally {
-    reader.releaseLock();
-  }
-}
-
-async function readTextStream(
-  reader: any,
-  mergedOptions: Required<FileReaderOptions>,
-  fileSize: number
-): Promise<string> {
-  const decoder = new TextDecoder("utf-8");
-  let result = "";
-  let bytesRead = 0;
-
-  try {
-    while (true) {
-      // Check for abort signal before reading next chunk
-      if (mergedOptions.signal?.aborted) {
-        throw new Error("Read operation aborted");
-      }
-
-      const { done, value } = await reader.read();
-      if (done === true) break;
-
-      bytesRead += value.length;
-
-      // Enforce size limit during streaming to prevent runaway memory usage
-      if (bytesRead > mergedOptions.maxFileSize) {
-        throw new FileError(
-          `Stream exceeded maximum file size: ${bytesRead} > ${mergedOptions.maxFileSize}`,
-          "<stream>",
-          "read"
-        );
-      }
-
-      result += decoder.decode(value, { stream: true });
-    }
-
-    result += decoder.decode();
-
-    // Validate final size matches expected (detect concurrent modifications or streaming issues)
-    if (fileSize > 0 && bytesRead !== fileSize) {
-      console.warn(`Size mismatch: expected ${fileSize} bytes, read ${bytesRead} bytes`);
-    }
-
-    return result;
-  } finally {
-    reader.releaseLock();
-  }
-}
-
-function validateReadResult(result: string, validatedPath: FilePath, fileSize: number): void {
-  // TypeScript guarantees result is string - check meaningful invariants only
-  // Tiger Style: Assert meaningful file size constraint (detect encoding issues)
-  if (result.length > fileSize * 4) {
-    throw new FileError(
-      "decoded string should not be excessively larger than file size",
-      validatedPath,
-      "read"
-    );
-  }
+  return Effect.runPromise(program.pipe(Effect.provide(getPlatform())));
 }
 
 // Backward compatibility namespace export
@@ -695,14 +401,14 @@ function validatePath(path: string): FilePath {
 }
 
 /**
- * Merge user options with runtime-optimized defaults
+ * Merge user options with defaults
  */
-function mergeOptions(options: FileReaderOptions, runtime: Runtime): Required<FileReaderOptions> {
+function mergeOptions(options: FileReaderOptions): Required<FileReaderOptions> {
   // TypeScript guarantees types - no defensive checking needed
 
   const defaults = {
     ...DEFAULT_OPTIONS,
-    bufferSize: getOptimalBufferSize(runtime),
+    bufferSize: 65536, // 64KB standard buffer size
   };
 
   const merged = { ...defaults, ...options };

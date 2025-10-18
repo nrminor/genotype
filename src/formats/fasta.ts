@@ -18,6 +18,7 @@ import {
   SequenceError,
   ValidationError,
 } from "../errors";
+import { exists } from "../io/file-reader";
 import type { FastaSequence, ParserOptions } from "../types";
 import { FastaSequenceSchema, SequenceIdSchema, SequenceSchema } from "../types";
 import { AbstractParser } from "./abstract-parser";
@@ -1097,23 +1098,16 @@ async function validateFastaFilePath(filePath: string): Promise<string> {
     );
   }
 
-  // Check file existence using Bun's file API
+  // Check file existence
   try {
-    const file = Bun.file(filePath);
-    const exists = await file.exists();
+    const fileExists = await exists(filePath);
 
-    if (!exists) {
+    if (!fileExists) {
       throw new FileError(
         `File not found: ${filePath}. Please check the file path and try again.`,
         filePath,
         "read"
       );
-    }
-
-    // Check if it's actually a file (not directory)
-    const stat = await file.stat();
-    if (!stat || stat.size === undefined) {
-      throw new FileError(`Cannot read file metadata: ${filePath}`, filePath, "stat");
     }
 
     return filePath;

@@ -133,7 +133,6 @@
     "globals": [
       "DecompressionStream",
       "console",
-      "Bun",
       "Uint16Array",
       "ArrayBuffer",
       "TextEncoder",

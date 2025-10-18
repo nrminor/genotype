@@ -68,16 +68,6 @@ describe("Runtime Detection", () => {
     const runtime = detectRuntime();
     expect(["node", "deno", "bun"]).toContain(runtime);
   });
-
-  test("should provide runtime capabilities", async () => {
-    const { getRuntimeCapabilities } = await import("../../src/io/runtime");
-    const runtime = detectRuntime();
-    const capabilities = getRuntimeCapabilities(runtime);
-
-    expect(capabilities.hasFileSystem).toBe(true);
-    expect(capabilities.hasStreams).toBe(true);
-    expect(capabilities.maxFileSize).toBeGreaterThan(0);
-  });
 });
 
 describe("FileReader", () => {

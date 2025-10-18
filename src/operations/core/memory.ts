@@ -5,6 +5,10 @@
  * Includes external sorting, memory monitoring, and disk-based processing strategies
  */
 
+import { createStream } from "../../io/file-reader";
+import { deleteFile, writeString } from "../../io/file-writer";
+import { readLines } from "../../io/stream-utils";
+
 /**
  * Memory management strategy for operations
  */
@@ -124,8 +128,7 @@ export class ExternalSorter<T> {
   private async writeChunk(chunk: T[]): Promise<void> {
     const fileName = `${this.tempDir}/sort_${Date.now()}_${this.chunkIndex++}.tmp`;
     const lines = chunk.map((item) => this.serialize(item)).join("\n");
-    const file = Bun.file(fileName);
-    await Bun.write(file, lines);
+    await writeString(fileName, lines);
     this.chunkFiles.push(fileName);
   }
 
@@ -177,18 +180,18 @@ export class ExternalSorter<T> {
    * Create async iterator for reading sorted chunk file
    */
   private async createFileIterator(fileName: string): Promise<AsyncIterator<T>> {
-    const file = Bun.file(fileName);
-    const text = await file.text();
-    const lines = text.split("\n").filter((line) => line.length > 0);
-    let index = 0;
+    const stream = await createStream(fileName);
+    const linesIterable = readLines(stream);
+    const iterator = linesIterable[Symbol.asyncIterator]();
     const deserialize = this.deserialize;
 
     return {
       async next(): Promise<IteratorResult<T>> {
-        if (index >= lines.length) {
+        const result = await iterator.next();
+        if (result.done) {
           return { done: true, value: undefined };
         }
-        const line = lines[index++];
+        const line = result.value;
         const value =
           line !== undefined && line !== null && line !== "" ? deserialize(line) : undefined;
         return { done: false, value: value as T };
@@ -202,7 +205,7 @@ export class ExternalSorter<T> {
   private async cleanup(): Promise<void> {
     for (const fileName of this.chunkFiles) {
       try {
-        await Bun.file(fileName).unlink();
+        await deleteFile(fileName);
       } catch {
         // Ignore cleanup errors
       }
@@ -296,7 +299,7 @@ export class DiskCache<T> {
   async put(key: string, value: T): Promise<void> {
     const fileName = `${this.tempDir}/cache_${key}_${Date.now()}.tmp`;
     const data = this.serialize(value);
-    await Bun.write(fileName, data);
+    await writeString(fileName, data);
     this.cacheFiles.set(key, fileName);
   }
 
@@ -308,8 +311,11 @@ export class DiskCache<T> {
     if (fileName === undefined || fileName === null || fileName === "") return undefined;
 
     try {
-      const file = Bun.file(fileName);
-      const data = await file.text();
+      const stream = await createStream(fileName);
+      let data = "";
+      for await (const line of readLines(stream)) {
+        data += line;
+      }
       return this.deserialize(data);
     } catch {
       return undefined;
@@ -331,7 +337,7 @@ export class DiskCache<T> {
     if (fileName === undefined || fileName === null || fileName === "") return false;
 
     try {
-      await Bun.file(fileName).unlink();
+      await deleteFile(fileName);
       this.cacheFiles.delete(key);
       return true;
     } catch {
@@ -345,7 +351,7 @@ export class DiskCache<T> {
   async clear(): Promise<void> {
     for (const [key, fileName] of this.cacheFiles) {
       try {
-        await Bun.file(fileName).unlink();
+        await deleteFile(fileName);
       } catch (error) {
         // Log cleanup errors for debugging cache issues
         console.warn(

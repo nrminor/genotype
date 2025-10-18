@@ -73,6 +73,11 @@
 // EXPORTS
 // ============================================================================
 
+/**
+ * Error thrown when paired reads are out of sync
+ * @group Paired-End
+ */
+export { PairSyncError } from "../../errors";
 // Re-exports from parent module
 /**
  * FASTQ sequence record type
@@ -96,6 +101,16 @@ export {
   detectQualityEncoding,
   detectSequencingPlatform,
 } from "./detection";
+// Paired-End Support
+/**
+ * Paired-end FASTQ parser with read synchronization
+ *
+ * Provides ergonomic parsing of paired-end sequencing data (R1/R2 files)
+ * with optional read ID synchronization validation.
+ *
+ * @group Paired-End
+ */
+export { PairedFastqParser } from "./paired";
 // Core Classes
 /**
  * Primary FASTQ parser with streaming support and multi-line handling
@@ -133,7 +148,6 @@ export {
  * @group Advanced
  */
 export { parseMultiLineFastq } from "./state-machine";
-
 // Type Exports
 /**
  * FASTQ type definitions for parser and writer configuration
@@ -144,8 +158,17 @@ export { parseMultiLineFastq } from "./state-machine";
  *
  * @group Types
  */
-export type { FastqParserContext, FastqParserOptions, FastqWriterOptions } from "./types";
-
+/**
+ * Paired-end parser configuration options
+ * @group Paired-End
+ */
+export type {
+  FastqParserContext,
+  FastqParserOptions,
+  FastqWriterOptions,
+  PairedFastqParserOptions,
+  PairedFastqRead,
+} from "./types";
 /**
  * State machine states for multi-line parsing
  * @group Types
@@ -183,26 +206,3 @@ export {
  * @group Core
  */
 export { FastqWriter } from "./writer";
-
-// Paired-End Support
-/**
- * Paired-end FASTQ parser with read synchronization
- *
- * Provides ergonomic parsing of paired-end sequencing data (R1/R2 files)
- * with optional read ID synchronization validation.
- *
- * @group Paired-End
- */
-export { PairedFastqParser } from "./paired";
-
-/**
- * Error thrown when paired reads are out of sync
- * @group Paired-End
- */
-export { PairSyncError } from "../../errors";
-
-/**
- * Paired-end parser configuration options
- * @group Paired-End
- */
-export type { PairedFastqParserOptions, PairedFastqRead } from "./types";

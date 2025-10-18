@@ -26,7 +26,6 @@ import {
   parseEndPosition,
   parseStartPosition,
   validateFinalCoordinates,
-  validateRegionParts,
   validateRegionString,
 } from "./core/coordinates";
 import { reverseComplement } from "./core/sequence-manipulation";
@@ -434,15 +433,13 @@ export class SubseqExtractor {
     }
 
     const [startStr, endStr] = parts;
-    validateRegionParts(startStr, endStr, region);
-
-    // After validation, we know these are defined
-    const validStartStr = startStr!;
-    const validEndStr = endStr!;
+    if (startStr === undefined || endStr === undefined) {
+      throw new Error(`Invalid region format: ${region} (missing start or end)`);
+    }
 
     let hasNegativeIndices = false;
-    const start = parseStartPosition(validStartStr, sequenceLength, oneBased, hasNegativeIndices);
-    const end = parseEndPosition(validEndStr, sequenceLength, oneBased, hasNegativeIndices);
+    const start = parseStartPosition(startStr, sequenceLength, oneBased, hasNegativeIndices);
+    const end = parseEndPosition(endStr, sequenceLength, oneBased, hasNegativeIndices);
 
     hasNegativeIndices = start.hasNegative || end.hasNegative;
 
@@ -1024,9 +1021,15 @@ export class SubseqExtractor {
     // Concatenate all sequences
     const concatenatedSeq = sequences.map((s) => s.sequence).join("");
 
+    // Use the first sequence as the template
+    const [first] = sequences;
+    if (!first) {
+      throw new Error("Cannot determine format from empty sequence array");
+    }
+
     // For quality scores (FASTQ), concatenate them too
     let concatenatedQuality: string | undefined;
-    if (this.isFastqSequence(sequences[0]!)) {
+    if (this.isFastqSequence(first)) {
       const qualities = sequences.map((s) => {
         if (this.isFastqSequence(s)) {
           return s.quality;
@@ -1035,9 +1038,6 @@ export class SubseqExtractor {
       });
       concatenatedQuality = qualities.join("");
     }
-
-    // Use the first sequence as the template
-    const first = sequences[0]!;
     const result = {
       ...first,
       sequence: concatenatedSeq,

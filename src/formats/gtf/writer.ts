@@ -101,7 +101,7 @@ class GtfWriter {
 
     try {
       for await (const feature of features) {
-        const formatted = this.formatFeature(feature) + "\n";
+        const formatted = `${this.formatFeature(feature)}\n`;
         await writer.write(encoder.encode(formatted));
       }
     } finally {

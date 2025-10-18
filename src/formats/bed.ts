@@ -13,7 +13,7 @@
  */
 
 import { type } from "arktype";
-import { BedError, ParseError, ValidationError } from "../errors";
+import { BedError, ValidationError } from "../errors";
 import {
   parseEndPosition,
   parseStartPosition,
@@ -61,24 +61,15 @@ const BedParserOptionsSchema = type({
  */
 function detectVariant(fieldCount: number): "BED3" | "BED4" | "BED5" | "BED6" | "BED9" | "BED12" {
   if (fieldCount < 3) {
-    throw new BedError(
-      `Invalid BED format: requires at least 3 fields, got ${fieldCount}`,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      "BED format requires chromosome, start, and end coordinates"
-    );
+    throw new BedError(`Invalid BED format: requires at least 3 fields, got ${fieldCount}`, {
+      context: "BED format requires chromosome, start, and end coordinates",
+    });
   }
 
   if (fieldCount > 12) {
     throw new BedError(
       `Unsupported BED format: ${fieldCount} fields exceeds BED12 specification (max 12 fields)`,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      "Consider using bigBed format for extended field sets"
+      { context: "Consider using bigBed format for extended field sets" }
     );
   }
 
@@ -98,11 +89,7 @@ function detectVariant(fieldCount: number): "BED3" | "BED4" | "BED5" | "BED6" | 
     default:
       throw new BedError(
         `Unsupported BED variant: BED${fieldCount} (valid: BED3, BED4, BED5, BED6, BED9, BED12)`,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        "Use supported BED format variants with proper field counts"
+        { context: "Use supported BED format variants with proper field counts" }
       );
   }
 }
@@ -120,7 +107,12 @@ function validateStrand(strand: string): strand is Strand {
  * Function provides comprehensive block structure validation
  */
 function validateBedBlockStructure(
-  bed: Pick<BedInterval, "blockCount" | "blockStarts" | "blockSizes" | "start" | "end">
+  bed: Pick<
+    BedInterval,
+    "blockCount" | "blockStarts" | "blockSizes" | "start" | "end" | "chromosome"
+  >,
+  lineNumber?: number,
+  line?: string
 ): void {
   // Early return for features without blocks
   if (!bed.blockCount || !bed.blockStarts?.length || !bed.blockSizes?.length) return;
@@ -129,32 +121,78 @@ function validateBedBlockStructure(
 
   // UCSC BED12 specification: First blockStart must be 0 (relative to chromStart)
   if (blockStarts[0] !== 0) {
-    throw new Error(
-      `Invalid BED12 block structure: first blockStart must be 0 (relative to chromStart), got ${blockStarts[0]}`
+    throw new BedError(
+      `Invalid BED12 block structure: first blockStart must be 0 (relative to chromStart), got ${blockStarts[0]}`,
+      {
+        chromosome: bed.chromosome,
+        start: bed.start,
+        end: bed.end,
+        lineNumber,
+        context: line,
+      }
     );
   }
 
   // UCSC BED12 specification: Final block must end at feature boundary
-  const lastIndex = blockStarts.length - 1;
-  const finalBlockEnd = blockStarts[lastIndex]! + blockSizes[lastIndex]!;
+  const lastStart = blockStarts[blockStarts.length - 1];
+  const lastSize = blockSizes[blockSizes.length - 1];
+
+  if (lastStart === undefined || lastSize === undefined) {
+    throw new BedError("Block arrays cannot be empty for BED12 validation", {
+      chromosome: bed.chromosome,
+      start: bed.start,
+      end: bed.end,
+      lineNumber,
+      context: line,
+    });
+  }
+
+  const finalBlockEnd = lastStart + lastSize;
   const featureLength = bed.end - bed.start;
 
   if (finalBlockEnd !== featureLength) {
-    throw new Error(
+    throw new BedError(
       `Invalid BED12 block structure: final block must end at feature boundary. ` +
-        `Expected ${featureLength}, got ${finalBlockEnd}`
+        `Expected ${featureLength}, got ${finalBlockEnd}`,
+      {
+        chromosome: bed.chromosome,
+        start: bed.start,
+        end: bed.end,
+        lineNumber,
+        context: line,
+      }
     );
   }
 
   // UCSC BED12 specification: Blocks cannot overlap within same feature
   for (let i = 1; i < blockStarts.length; i++) {
-    const prevEnd = blockStarts[i - 1]! + blockSizes[i - 1]!;
-    const currentStart = blockStarts[i]!;
+    const prevStart = blockStarts[i - 1];
+    const prevSize = blockSizes[i - 1];
+    const currentStart = blockStarts[i];
+
+    if (prevStart === undefined || prevSize === undefined || currentStart === undefined) {
+      throw new BedError(`Invalid block structure at index ${i}`, {
+        chromosome: bed.chromosome,
+        start: bed.start,
+        end: bed.end,
+        lineNumber,
+        context: line,
+      });
+    }
+
+    const prevEnd = prevStart + prevSize;
 
     if (currentStart < prevEnd) {
-      throw new Error(
+      throw new BedError(
         `Invalid BED12 block structure: blocks cannot overlap within same feature. ` +
-          `Block ${i - 1} ends at ${prevEnd}, block ${i} starts at ${currentStart}`
+          `Block ${i - 1} ends at ${prevEnd}, block ${i} starts at ${currentStart}`,
+        {
+          chromosome: bed.chromosome,
+          start: bed.start,
+          end: bed.end,
+          lineNumber,
+          context: line,
+        }
       );
     }
   }
@@ -168,13 +206,11 @@ function parseRgb(rgbString: string): { r: number; g: number; b: number } | null
   // Handle comma-separated RGB values
   if (/^\d+,\d+,\d+$/.test(rgbString)) {
     const parts = rgbString.split(",").map(Number);
-    if (parts.length === 3) {
-      const r = parts[0]!;
-      const g = parts[1]!;
-      const b = parts[2]!;
-      if (r <= 255 && g <= 255 && b <= 255) {
-        return { r, g, b };
-      }
+    const [r, g, b] = parts;
+
+    // Regex guarantees 3 values, but TypeScript needs assertion
+    if (r !== undefined && g !== undefined && b !== undefined && r <= 255 && g <= 255 && b <= 255) {
+      return { r, g, b };
     }
   }
 
@@ -202,14 +238,10 @@ function parseBedCoordinate(
 ): ZeroBasedCoordinate {
   // Early check for negative coordinate strings (biological impossibility)
   if (coordStr.trim().startsWith("-")) {
-    throw new BedError(
-      `Invalid ${fieldName}: negative coordinates are biologically impossible`,
-      undefined,
-      undefined,
-      undefined,
+    throw new BedError(`Invalid ${fieldName}: negative coordinates are biologically impossible`, {
       lineNumber,
-      `BED coordinates must be non-negative (0-based system), got: ${coordStr}`
-    );
+      context: `BED coordinates must be non-negative (0-based system), got: ${coordStr}`,
+    });
   }
 
   try {
@@ -224,14 +256,10 @@ function parseBedCoordinate(
     // Parse-don't-validate: Transform to branded coordinate type
     const validationResult = ZeroBasedCoordinateValidator(coordinate);
     if (validationResult instanceof type.errors) {
-      throw new BedError(
-        `Invalid BED coordinate: ${validationResult.summary}`,
-        undefined,
-        undefined,
-        undefined,
+      throw new BedError(`Invalid BED coordinate: ${validationResult.summary}`, {
         lineNumber,
-        `Expected valid 0-based coordinate, got: ${coordStr}`
-      );
+        context: `Expected valid 0-based coordinate, got: ${coordStr}`,
+      });
     }
 
     // BED-specific large coordinate protection (bedtools compatibility)
@@ -246,11 +274,10 @@ function parseBedCoordinate(
   } catch (error) {
     throw new BedError(
       `Invalid ${fieldName}: '${coordStr}' - ${error instanceof Error ? error.message : String(error)}`,
-      undefined,
-      undefined,
-      undefined,
-      lineNumber,
-      `Expected valid genomic coordinate, got: ${coordStr}`
+      {
+        lineNumber,
+        context: `Line content: ${line.substring(0, 100)}${line.length > 100 ? "..." : ""}`,
+      }
     );
   }
 }
@@ -264,27 +291,28 @@ function validateBedInterval(interval: BedInterval, lineNumber: number, line: st
     // First validate with ArkType schema
     const validation = BedIntervalSchema(interval);
     if (validation instanceof type.errors) {
-      throw new BedError(
-        `Invalid BED interval: ${validation.summary}`,
-        interval.chromosome,
-        interval.start,
-        interval.end,
+      throw new BedError(`Invalid BED interval: ${validation.summary}`, {
+        chromosome: interval.chromosome,
+        start: interval.start,
+        end: interval.end,
         lineNumber,
-        line
-      );
+        context: line,
+      });
     }
 
     // Then validate BED12 block structure (UCSC specification)
-    validateBedBlockStructure(interval);
+    validateBedBlockStructure(interval, lineNumber, line);
   } catch (error) {
     if (error instanceof BedError) throw error;
     throw new BedError(
       `Validation failed: ${error instanceof Error ? error.message : String(error)}`,
-      interval.chromosome,
-      interval.start,
-      interval.end,
-      lineNumber,
-      line
+      {
+        chromosome: interval.chromosome,
+        start: interval.start,
+        end: interval.end,
+        lineNumber,
+        context: line,
+      }
     );
   }
 }
@@ -307,7 +335,7 @@ function buildBedInterval(
     optionalFields.length >= 2 && optionalFields[1]
       ? (() => {
           const parsed = parseInt(optionalFields[1], 10);
-          return !isNaN(parsed) ? parsed : undefined;
+          return !Number.isNaN(parsed) ? parsed : undefined;
         })()
       : undefined;
   const strand =
@@ -399,7 +427,7 @@ function parseBed12BlockFields(
     const blockCountStr = optionalFields[6];
     if (blockCountStr) {
       const blockCount = parseInt(blockCountStr, 10);
-      if (!isNaN(blockCount)) {
+      if (!Number.isNaN(blockCount)) {
         interval.blockCount = blockCount;
 
         // Parse blockSizes (comma-separated)
@@ -407,7 +435,7 @@ function parseBed12BlockFields(
           interval.blockSizes = optionalFields[7]
             .split(",")
             .map(Number)
-            .filter((n) => !isNaN(n));
+            .filter((n) => !Number.isNaN(n));
         }
 
         // Parse blockStarts (comma-separated, relative to chromStart)
@@ -415,7 +443,21 @@ function parseBed12BlockFields(
           interval.blockStarts = optionalFields[8]
             .split(",")
             .map(Number)
-            .filter((n) => !isNaN(n));
+            .filter((n) => !Number.isNaN(n));
+        }
+
+        // Validate block count consistency
+        if (interval.blockSizes && interval.blockSizes.length !== blockCount) {
+          throw new BedError(
+            `Block sizes count mismatch: blockCount=${blockCount} but found ${interval.blockSizes.length} block sizes`,
+            { lineNumber }
+          );
+        }
+        if (interval.blockStarts && interval.blockStarts.length !== blockCount) {
+          throw new BedError(
+            `Block starts count mismatch: blockCount=${blockCount} but found ${interval.blockStarts.length} block starts`,
+            { lineNumber }
+          );
         }
       }
     }
@@ -434,28 +476,21 @@ function parseBedLine(
   const fields = line.split(/\s+/);
 
   if (fields.length < 3) {
-    throw new BedError(
-      `BED format requires at least 3 fields, got ${fields.length}`,
-      undefined,
-      undefined,
-      undefined,
+    throw new BedError(`BED format requires at least 3 fields, got ${fields.length}`, {
       lineNumber,
-      line
-    );
+      context: line,
+    });
   }
 
   const [chromosome, startStr, endStr, ...optionalFields] = fields;
 
   // Validate required fields
   if (!chromosome || !startStr || !endStr) {
-    throw new BedError(
-      "Missing required fields (chromosome, start, end)",
+    throw new BedError("Missing required fields (chromosome, start, end)", {
       chromosome,
-      undefined,
-      undefined,
       lineNumber,
-      line
-    );
+      context: line,
+    });
   }
 
   // Parse coordinates using extracted function
@@ -469,7 +504,8 @@ function parseBedLine(
   // Validate coordinates with BED biological semantics
   const coordValidation = validateCoordinates(start, end, options.allowZeroLength);
   if (!coordValidation.valid) {
-    throw new BedError(coordValidation.error!, chromosome, start, end, lineNumber, line);
+    const errorMsg = coordValidation.error ?? "Unknown coordinate validation error";
+    throw new BedError(errorMsg, { chromosome, start, end, lineNumber, context: line });
   }
 
   // Build interval using extracted function
@@ -545,7 +581,7 @@ class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
       trackLineNumbers: true,
       allowZeroLength: true, // BED-specific default for insertion sites
       onError: (error: string, lineNumber?: number): void => {
-        throw new BedError(error, undefined, undefined, undefined, lineNumber);
+        throw new BedError(error, { lineNumber });
       },
       onWarning: (warning: string, lineNumber?: number): void => {
         console.warn(`BED Warning (line ${lineNumber}): ${warning}`);
@@ -624,11 +660,7 @@ class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
     } catch (error) {
       throw new BedError(
         `Failed to read BED file '${filePath}': ${error instanceof Error ? error.message : String(error)}`,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        `File path: ${filePath}`
+        { context: `File path: ${filePath}` }
       );
     }
   }
@@ -670,11 +702,7 @@ class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
       }
     } catch (error) {
       throw new BedError(
-        `Stream parsing failed: ${error instanceof Error ? error.message : String(error)}`,
-        undefined,
-        undefined,
-        undefined,
-        undefined
+        `Stream parsing failed: ${error instanceof Error ? error.message : String(error)}`
       );
     }
   }
@@ -690,9 +718,9 @@ class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
       lineNumber++;
       this.checkAborted(); // Inherited interrupt checking in parsing loop
 
-      if (line.length > this.options.maxLineLength!!) {
-        this.options.onError!(
-          `Line too long (${line.length} > ${this.options.maxLineLength!})`,
+      if (line.length > this.options.maxLineLength) {
+        this.options.onError(
+          `Line too long (${line.length} > ${this.options.maxLineLength})`,
           lineNumber
         );
         continue;
@@ -714,7 +742,7 @@ class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
         if (!this.options.skipValidation) {
           throw error;
         }
-        this.options.onError!(error instanceof Error ? error.message : String(error), lineNumber);
+        this.options.onError(error instanceof Error ? error.message : String(error), lineNumber);
       }
     }
   }
@@ -732,9 +760,9 @@ class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
       for await (const line of lines) {
         lineNumber++;
 
-        if (line.length > this.options.maxLineLength!!) {
-          this.options.onError!(
-            `Line too long (${line.length} > ${this.options.maxLineLength!})`,
+        if (line.length > this.options.maxLineLength) {
+          this.options.onError(
+            `Line too long (${line.length} > ${this.options.maxLineLength})`,
             lineNumber
           );
           continue;
@@ -755,16 +783,13 @@ class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
           if (!this.options.skipValidation) {
             throw error;
           }
-          this.options.onError!(error instanceof Error ? error.message : String(error), lineNumber);
+          this.options.onError(error instanceof Error ? error.message : String(error), lineNumber);
         }
       }
     } catch (error) {
       throw new BedError(
         `BED parsing failed at line ${lineNumber}: ${error instanceof Error ? error.message : String(error)}`,
-        undefined,
-        undefined,
-        undefined,
-        lineNumber
+        { lineNumber }
       );
     }
   }
@@ -951,7 +976,12 @@ function mergeOverlapping(intervals: BedInterval[]): BedInterval[] {
   }
 
   const sorted = sortIntervals(intervals);
-  const merged: BedInterval[] = [sorted[0]!]; // Non-null assertion: we checked length > 0
+  const [first] = sorted;
+  // Early return check guarantees sorted has at least one element
+  if (!first) {
+    return [];
+  }
+  const merged: BedInterval[] = [first];
 
   for (const current of sorted.slice(1)) {
     const last = merged[merged.length - 1];

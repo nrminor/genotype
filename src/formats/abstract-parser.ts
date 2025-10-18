@@ -25,25 +25,33 @@ export abstract class AbstractParser<T, TOptions extends ParserOptions = ParserO
   protected readonly options: Required<TOptions>;
   private readonly interruptHandler: InterruptHandler;
 
-  constructor(options: TOptions) {
-    // Merge base defaults, format-specific defaults, and user options
-    const baseDefaults = {
-      skipValidation: false,
-      maxLineLength: 1_000_000,
-      trackLineNumbers: true,
-      onError: (error: string, lineNumber?: number): void => {
-        throw new ParseError(error, this.getFormatName(), lineNumber);
-      },
-      onWarning: (warning: string, lineNumber?: number): void => {
-        console.warn(`${this.getFormatName()} Warning (line ${lineNumber}): ${warning}`);
-      },
-    };
-
+  constructor(options: TOptions = {} as TOptions) {
     // Get format-specific defaults from subclass
     const formatDefaults = this.getDefaultOptions();
 
-    // Merge in order: base -> format-specific -> user options
-    this.options = { ...baseDefaults, ...formatDefaults, ...options } as Required<TOptions>;
+    // Explicitly construct each base field with ?? chaining to provide defaults
+    // This allows TypeScript to know that callbacks are always defined
+    this.options = {
+      skipValidation: options.skipValidation ?? formatDefaults.skipValidation ?? false,
+      maxLineLength: options.maxLineLength ?? formatDefaults.maxLineLength ?? 1_000_000,
+      trackLineNumbers: options.trackLineNumbers ?? formatDefaults.trackLineNumbers ?? true,
+      signal: options.signal ?? formatDefaults.signal,
+      onError:
+        options.onError ??
+        formatDefaults.onError ??
+        ((error: string, lineNumber?: number): void => {
+          throw new ParseError(error, this.getFormatName(), lineNumber);
+        }),
+      onWarning:
+        options.onWarning ??
+        formatDefaults.onWarning ??
+        ((warning: string, lineNumber?: number): void => {
+          console.warn(`${this.getFormatName()} Warning (line ${lineNumber}): ${warning}`);
+        }),
+      // Spread remaining format-specific options
+      ...formatDefaults,
+      ...options,
+    } as Required<TOptions>;
     this.interruptHandler = new InterruptHandler(this.options.signal);
   }
 

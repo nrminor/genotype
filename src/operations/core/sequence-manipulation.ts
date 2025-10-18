@@ -258,7 +258,7 @@ export function removeGaps(sequence: string, gapChars: string = ".-*"): string {
       // Escape special regex characters
       // Note: hyphen needs special handling in character classes
       if ("\\^$*+?.()|[]{}/-".includes(char)) {
-        return "\\" + char;
+        return `\\${char}`;
       }
       return char;
     })

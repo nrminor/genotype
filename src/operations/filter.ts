@@ -89,7 +89,7 @@ export class FilterProcessor implements Processor<FilterOptions> {
     }
 
     // ID blacklist
-    if (options.excludeIds && options.excludeIds.includes(seq.id)) {
+    if (options.excludeIds?.includes(seq.id)) {
       return false;
     }
 

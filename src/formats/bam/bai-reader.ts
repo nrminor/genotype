@@ -270,7 +270,7 @@ export class BAIReader {
         `Loaded BAI index: ${headerData.referenceCount} references, ${loadTime}ms, ${(totalBytes / 1024).toFixed(1)}KB`
       );
 
-      return this.cachedIndex!;
+      return this.cachedIndex;
     } catch (error) {
       if (error instanceof BamError) {
         throw error;

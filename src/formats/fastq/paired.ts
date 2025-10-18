@@ -135,7 +135,7 @@ export function defaultExtractPairId(id: string): string {
   // Strip common paired-end suffixes using regex
   // Matches: /1, /2, _1, _2, .1, .2, _R1, _R2, .R1, .R2 (case insensitive)
   // Anchored to end of string to avoid matching middle of ID
-  return id.replace(/[\/\._][12]$|[\/\._][Rr][12]$/i, "");
+  return id.replace(/[/._][12]$|[/._][Rr][12]$/i, "");
 }
 
 // =============================================================================
@@ -263,7 +263,7 @@ export class PairedFastqParser {
   async *parseFiles(
     r1Path: string,
     r2Path: string,
-    fileOptions?: FileReaderOptions,
+    fileOptions?: FileReaderOptions
   ): AsyncIterable<PairedFastqRead> {
     const r1Stream = this.r1Parser.parseFile(r1Path, fileOptions);
     const r2Stream = this.r2Parser.parseFile(r2Path, fileOptions);
@@ -275,10 +275,7 @@ export class PairedFastqParser {
 
     while (true) {
       // Fetch next read from both files in parallel
-      const [r1Result, r2Result] = await Promise.all([
-        r1Iterator.next(),
-        r2Iterator.next(),
-      ]);
+      const [r1Result, r2Result] = await Promise.all([r1Iterator.next(), r2Iterator.next()]);
 
       // Both exhausted - success, end iteration
       if (r1Result.done && r2Result.done) {
@@ -313,7 +310,7 @@ export class PairedFastqParser {
 
       // Yield the paired read
       yield pairedRead;
-      
+
       pairIndex++;
     }
   }
@@ -338,10 +335,7 @@ export class PairedFastqParser {
    * }
    * ```
    */
-  async *parseStrings(
-    r1Data: string,
-    r2Data: string,
-  ): AsyncIterable<PairedFastqRead> {
+  async *parseStrings(r1Data: string, r2Data: string): AsyncIterable<PairedFastqRead> {
     // Start both parsers with parseString()
     const r1Stream = this.r1Parser.parseString(r1Data);
     const r2Stream = this.r2Parser.parseString(r2Data);
@@ -356,10 +350,7 @@ export class PairedFastqParser {
     // Iterate both streams simultaneously
     while (true) {
       // Fetch next read from both files in parallel
-      const [r1Result, r2Result] = await Promise.all([
-        r1Iterator.next(),
-        r2Iterator.next(),
-      ]);
+      const [r1Result, r2Result] = await Promise.all([r1Iterator.next(), r2Iterator.next()]);
 
       // Both exhausted - success, end iteration
       if (r1Result.done && r2Result.done) {
@@ -394,7 +385,7 @@ export class PairedFastqParser {
 
       // Yield the paired read
       yield pairedRead;
-      
+
       pairIndex++;
     }
   }
@@ -414,11 +405,7 @@ export class PairedFastqParser {
    * @throws {PairSyncError} When IDs don't match
    * @private
    */
-  private validatePairSync(
-    r1: FastqSequence,
-    r2: FastqSequence,
-    pairIndex: number,
-  ): void {
+  private validatePairSync(r1: FastqSequence, r2: FastqSequence, pairIndex: number): void {
     // Extract base IDs using the configured extractor
     const r1Base = this.options.extractPairId(r1.id);
     const r2Base = this.options.extractPairId(r2.id);

@@ -1,16 +1,20 @@
 {
+  // JSON Schema to provide LSP support for this particular JSON format
   "$schema": "https://biomejs.dev/schemas/2.2.2/schema.json",
-  "formatter": {
+
+  // Version control integrations, which in this case is Git
+  "vcs": {
     "enabled": true,
-    "formatWithErrors": false,
-    "indentStyle": "space",
-    "indentWidth": 2,
-    "lineEnding": "lf",
-    "lineWidth": 100,
-    "attributePosition": "auto",
-    "expand": "auto",
+    "clientKind": "git",
+    "useIgnoreFile": false
+  },
+
+  // How biome is and isn't allowed to interact with files
+  "files": {
+    "ignoreUnknown": true,
     "includes": [
       "**",
+      "src/**/*.ts",
       "!docs/",
       "!dist/",
       "!dist/*.js",
@@ -18,34 +22,39 @@
       "!**/*.d.ts",
       "!**/node_modules/",
       "!test/fixtures/",
-      "!**/*.fasta",
-      "!**/*.fastq",
-      "!**/*.fa",
-      "!**/*.fq",
-      "!**/*.sam",
-      "!**/*.bed",
-      "!**/*.bam",
       "!src/native/",
-      "!**/*.rs",
-      "!**/bun.lockb",
-      "!**/CHANGELOG.md",
       "!reports/**/*",
       "!**/*.backup*",
       "!**/backup*/**/*"
     ]
   },
+
+  // formatter settings
+  "formatter": {
+    "enabled": true,
+    "useEditorconfig": true,
+    "formatWithErrors": true, // format even if errors are encountered
+    "indentStyle": "space", // tabs who?
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "expand": "auto"
+  },
+
+  // linter settings and specific rule toggles
   "linter": {
     "enabled": true,
+    "includes": ["src/**/*.ts", "!docs/", "!scripts/*.mjs", "!dist/*.js", "!src/formats/bam/*.ts"],
     "rules": {
-      "recommended": false,
+      "recommended": true,
       "complexity": {
         "noAdjacentSpacesInRegex": "error",
         "noExtraBooleanCast": "error",
         "noUselessCatch": "error",
-        "noUselessEscapeInRegex": "error"
+        "noUselessEscapeInRegex": "error",
+        "noStaticOnlyClass": "warn"
       },
       "correctness": {
-        // "noUnusedImports": "error",
+        "noUnusedImports": "error",
         "noConstAssign": "error",
         "noConstantCondition": "error",
         "noEmptyCharacterClassInRegex": "error",
@@ -66,6 +75,7 @@
         "noUnusedLabels": "error",
         "noUnusedPrivateClassMembers": "error",
         "noUnusedVariables": "error",
+        "noUnusedFunctionParameters": "error",
         "useIsNan": "error",
         "useValidForDirection": "error",
         "useValidTypeof": "error",
@@ -77,6 +87,8 @@
         "noClassAssign": "error",
         "noCompareNegZero": "error",
         "noControlCharactersInRegex": "error",
+        "noImplicitAnyLet": "error",
+        "noExplicitAny": "off",
         "noDebugger": "error",
         "noDuplicateCase": "error",
         "noDuplicateClassMembers": "error",
@@ -98,28 +110,14 @@
         "noWith": "error",
         "useGetterReturn": "error"
       }
-    },
-    "includes": [
-      "**",
-      "!dist/**/*",
-      "!node_modules/**/*",
-      "!src/native/**/*",
-      "!docs/**/*",
-      "!reports/**/*",
-      "!**/*.backup*",
-      "!**/backup*/**/*",
-      "!*.js",
-      "!*.d.ts"
-    ]
+    }
   },
 
-  "files": {
-    "includes": ["!dist/*.js"]
-  },
+  // Biome lumps Typescript into JavaScript, so these rules apply to both
   "javascript": {
     "formatter": {
       "jsxQuoteStyle": "double",
-      "quoteProperties": "asNeeded",
+      "quoteProperties": "preserve",
       "trailingCommas": "es5",
       "semicolons": "always",
       "arrowParentheses": "always",
@@ -127,74 +125,45 @@
       "quoteStyle": "double",
       "attributePosition": "auto",
       "bracketSpacing": true
-    }
+    },
+
+    // Depending on the runtime, the code may expect certain globals to be implicitly
+    // imported and available in the namespaces as if via a prelude. Those globals
+    // are explicitly added to the default minimum set understood by Biome.
+    "globals": [
+      "DecompressionStream",
+      "console",
+      "Bun",
+      "Uint16Array",
+      "ArrayBuffer",
+      "TextEncoder",
+      "AbortSignal",
+      "Uint8Array",
+      "AbortController",
+      "ReadableStream",
+      "TransformStream",
+      "__dirname",
+      "BufferEncoding",
+      "TransformStreamDefaultController",
+      "WritableStream",
+      "Buffer",
+      "TextDecoder",
+      "crypto",
+      "CompressionStream",
+      "Uint32Array"
+    ]
   },
+
+  // do JSON too
   "json": { "formatter": { "enabled": true } },
-  "html": { "formatter": { "selfCloseVoidElements": "always" } },
+
+  // Overrides are for applying different formatting and linting rules to different
+  // subdirectories.
+  //
+  // Here, we currently just apply different looser rules to test files, though these
+  // rules will eventually be tighted to the same level of strictness as the main library
+  // source code files.
   "overrides": [
-    {
-      "includes": ["src/**/*.ts", "**/*.js"],
-      "javascript": {
-        "globals": [
-          "DecompressionStream",
-          "console",
-          "Uint16Array",
-          "ArrayBuffer",
-          "TextEncoder",
-          "AbortSignal",
-          "Uint8Array",
-          "AbortController",
-          "ReadableStream",
-          "TransformStream",
-          "__dirname",
-          "BufferEncoding",
-          "TransformStreamDefaultController",
-          "WritableStream",
-          "Buffer",
-          "TextDecoder",
-          "crypto",
-          "CompressionStream",
-          "Uint32Array"
-        ]
-      },
-      "linter": {
-        "rules": {
-          "complexity": { "noStaticOnlyClass": "warn" },
-          "correctness": {
-            "noUndeclaredVariables": "off",
-            "noUnreachable": "off",
-            "noUnusedVariables": "warn",
-            "useYield": "off"
-          },
-          "style": {
-            "useConsistentBuiltinInstantiation": "error",
-            "useConst": "error"
-          },
-          "suspicious": {
-            "noConsole": "off",
-            "noExplicitAny": "off",
-            "noRedeclare": "off",
-            "noVar": "error"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["examples/**/*.ts"],
-      "javascript": {
-        "globals": ["Bun", "console", "process", "Buffer", "TextEncoder", "TextDecoder"]
-      },
-      "linter": {
-        "rules": {
-          "correctness": {
-            "noUndeclaredVariables": "off"
-          },
-          "suspicious": {
-            "noExplicitAny": "off"
-          }
-        }
-      }
-    },
     {
       "includes": ["test/**/*.ts"],
       "javascript": {
@@ -239,11 +208,16 @@
       }
     }
   ],
+
+  // which code actions should be available
   "assist": {
     "enabled": true,
     "actions": {
       "source": {
-        "organizeImports": "on"
+        "organizeImports": "on",
+        // "recommended": true,
+        "useSortedKeys": "off",
+        "useSortedAttributes": "off"
       }
     }
   }

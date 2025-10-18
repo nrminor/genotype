@@ -67,9 +67,7 @@ export interface SingleStreamMode<T extends AbstractSequence> {
  * };
  * ```
  */
-export type PairMode<T extends AbstractSequence> =
-  | DualStreamMode<T>
-  | SingleStreamMode<T>;
+export type PairMode<T extends AbstractSequence> = DualStreamMode<T> | SingleStreamMode<T>;
 
 /**
  * Read type classification for paired-end data
@@ -290,7 +288,7 @@ export class PairProcessor {
   private checkBufferSize<T>(
     buffer1: Stream1Buffer<T> | Map<BaseId, T>,
     buffer2: Stream2Buffer<T> | Map<BaseId, T>,
-    maxSize: number,
+    maxSize: number
   ): void {
     const total = buffer1.size + buffer2.size;
 
@@ -298,14 +296,14 @@ export class PairProcessor {
     if (total > maxSize) {
       throw new MemoryError(
         `Pair buffer exceeded limit: ${total} reads buffered (max: ${maxSize}). ` +
-          `Files may be too shuffled or contain many unpaired reads.`,
+          `Files may be too shuffled or contain many unpaired reads.`
       );
     }
 
     // Warn at 80% threshold (once)
     if (total > maxSize * 0.8 && !this.hasWarned80Percent) {
       console.warn(
-        `⚠️  Pair buffer at ${total}/${maxSize} reads (${Math.round((total / maxSize) * 100)}%)`,
+        `⚠️  Pair buffer at ${total}/${maxSize} reads (${Math.round((total / maxSize) * 100)}%)`
       );
       this.hasWarned80Percent = true;
     }
@@ -321,7 +319,7 @@ export class PairProcessor {
    */
   private *handleUnpaired<T extends AbstractSequence>(
     read: T,
-    onUnpaired: "warn" | "skip" | "error",
+    onUnpaired: "warn" | "skip" | "error"
   ): Generator<T, void, undefined> {
     switch (onUnpaired) {
       case "warn":
@@ -356,7 +354,7 @@ export class PairProcessor {
     id: string,
     baseId: BaseId,
     r1Buffer: Stream1Buffer<T>,
-    r2Buffer: Stream2Buffer<T>,
+    r2Buffer: Stream2Buffer<T>
   ): ReadType {
     if (id.endsWith("/1")) return "r1";
     if (id.endsWith("/2")) return "r2";
@@ -386,7 +384,7 @@ export class PairProcessor {
     source: AsyncIterable<T>,
     extractPairId: (id: string) => string,
     maxBufferSize: number,
-    onUnpaired: "warn" | "skip" | "error",
+    onUnpaired: "warn" | "skip" | "error"
   ): AsyncIterable<T> {
     const r1Buffer = createStream1Buffer<T>();
     const r2Buffer = createStream2Buffer<T>();
@@ -397,8 +395,16 @@ export class PairProcessor {
 
       if (readType === "r1") {
         if (r2Buffer.has(baseId)) {
+          const r2Read = r2Buffer.get(baseId);
+          if (r2Read === undefined) {
+            throw new PairSyncError(
+              `Internal error: R2 read not found in buffer for base ID ${baseId}`,
+              -1,
+              "r2"
+            );
+          }
           yield read;
-          yield r2Buffer.get(baseId)!;
+          yield r2Read;
           r2Buffer.delete(baseId);
         } else {
           r1Buffer.set(baseId, read);
@@ -406,7 +412,15 @@ export class PairProcessor {
         }
       } else {
         if (r1Buffer.has(baseId)) {
-          yield r1Buffer.get(baseId)!;
+          const r1Read = r1Buffer.get(baseId);
+          if (r1Read === undefined) {
+            throw new PairSyncError(
+              `Internal error: R1 read not found in buffer for base ID ${baseId}`,
+              -1,
+              "r1"
+            );
+          }
+          yield r1Read;
           yield read;
           r1Buffer.delete(baseId);
         } else {
@@ -418,8 +432,16 @@ export class PairProcessor {
 
     for (const [baseId, read1] of r1Buffer) {
       if (r2Buffer.has(baseId)) {
+        const r2Read = r2Buffer.get(baseId);
+        if (r2Read === undefined) {
+          throw new PairSyncError(
+            `Internal error: R2 read not found in buffer for base ID ${baseId}`,
+            -1,
+            "r2"
+          );
+        }
         yield read1;
-        yield r2Buffer.get(baseId)!;
+        yield r2Read;
         r2Buffer.delete(baseId);
       } else {
         yield* this.handleUnpaired(read1, onUnpaired);
@@ -485,7 +507,7 @@ export class PairProcessor {
    */
   async *process<T extends AbstractSequence>(
     config: PairMode<T>,
-    options: PairOptions = {},
+    options: PairOptions = {}
   ): AsyncIterable<T> {
     // Destructure options with defaults
     const {
@@ -496,9 +518,7 @@ export class PairProcessor {
 
     // Validate maxBufferSize
     if (maxBufferSize <= 0) {
-      throw new MemoryError(
-        `Invalid maxBufferSize: ${maxBufferSize}. Must be greater than 0.`,
-      );
+      throw new MemoryError(`Invalid maxBufferSize: ${maxBufferSize}. Must be greater than 0.`);
     }
 
     // Dispatch based on mode using discriminated union
@@ -509,17 +529,12 @@ export class PairProcessor {
           config.source2,
           extractPairId,
           maxBufferSize,
-          onUnpaired,
+          onUnpaired
         );
         break;
 
       case "single":
-        yield* this.processSingleStream(
-          config.source,
-          extractPairId,
-          maxBufferSize,
-          onUnpaired,
-        );
+        yield* this.processSingleStream(config.source, extractPairId, maxBufferSize, onUnpaired);
         break;
     }
   }
@@ -534,7 +549,7 @@ export class PairProcessor {
     source2: AsyncIterable<T>,
     extractPairId: (id: string) => string,
     maxBufferSize: number,
-    onUnpaired: "warn" | "skip" | "error",
+    onUnpaired: "warn" | "skip" | "error"
   ): AsyncIterable<T> {
     // Initialize branded buffers
     const buffer1 = createStream1Buffer<T>();
@@ -546,67 +561,88 @@ export class PairProcessor {
 
     // Main processing loop - parallel iteration
     while (true) {
-        // Fetch from both streams in parallel
-        const [result1, result2] = await Promise.all([
-          iter1.next(),
-          iter2.next(),
-        ]);
+      // Fetch from both streams in parallel
+      const [result1, result2] = await Promise.all([iter1.next(), iter2.next()]);
 
-        // Stop when both streams exhausted
-        if (result1.done && result2.done) {
-          break;
-        }
-
-        // Process stream 1 reads
-        if (!result1.done) {
-          const seq1 = result1.value;
-          const baseId1 = createBaseId(seq1.id, extractPairId);
-
-          // Check if match exists in buffer2
-          if (buffer2.has(baseId1)) {
-            // Found match! Yield pair in interleaved order
-            yield seq1; // R1
-            yield buffer2.get(baseId1)!; // R2
-            buffer2.delete(baseId1);
-          } else {
-            // No match yet, buffer this read
-            buffer1.set(baseId1, seq1);
-            this.checkBufferSize(buffer1, buffer2, maxBufferSize);
-          }
-        }
-
-        // Process stream 2 reads
-        if (!result2.done) {
-          const seq2 = result2.value;
-          const baseId2 = createBaseId(seq2.id, extractPairId);
-
-          // Check if match exists in buffer1
-          if (buffer1.has(baseId2)) {
-            // Found match! Yield pair in interleaved order
-            yield buffer1.get(baseId2)!; // R1
-            yield seq2; // R2
-            buffer1.delete(baseId2);
-          } else {
-            // No match yet, buffer this read
-            buffer2.set(baseId2, seq2);
-            this.checkBufferSize(buffer1, buffer2, maxBufferSize);
-          }
-        }
+      // Stop when both streams exhausted
+      if (result1.done && result2.done) {
+        break;
       }
 
-      // Handle remaining buffered reads
-      // First check if any reads in buffer1 have matches in buffer2
-      for (const [baseId, read1] of buffer1) {
-        if (buffer2.has(baseId)) {
-          // Found late match
-          yield read1; // R1
-          yield buffer2.get(baseId)!; // R2
-          buffer2.delete(baseId);
+      // Process stream 1 reads
+      if (!result1.done) {
+        const seq1 = result1.value;
+        const baseId1 = createBaseId(seq1.id, extractPairId);
+
+        // Check if match exists in buffer2
+        if (buffer2.has(baseId1)) {
+          const r2Read = buffer2.get(baseId1);
+          if (r2Read === undefined) {
+            throw new PairSyncError(
+              `Internal error: R2 read not found in buffer for base ID ${baseId1}`,
+              -1,
+              "r2"
+            );
+          }
+          // Found match! Yield pair in interleaved order
+          yield seq1; // R1
+          yield r2Read; // R2
+          buffer2.delete(baseId1);
         } else {
-          // Unpaired read from stream 1
-          yield* this.handleUnpaired(read1, onUnpaired);
+          // No match yet, buffer this read
+          buffer1.set(baseId1, seq1);
+          this.checkBufferSize(buffer1, buffer2, maxBufferSize);
         }
       }
+
+      // Process stream 2 reads
+      if (!result2.done) {
+        const seq2 = result2.value;
+        const baseId2 = createBaseId(seq2.id, extractPairId);
+
+        // Check if match exists in buffer1
+        if (buffer1.has(baseId2)) {
+          const r1Read = buffer1.get(baseId2);
+          if (r1Read === undefined) {
+            throw new PairSyncError(
+              `Internal error: R1 read not found in buffer for base ID ${baseId2}`,
+              -1,
+              "r1"
+            );
+          }
+          // Found match! Yield pair in interleaved order
+          yield r1Read; // R1
+          yield seq2; // R2
+          buffer1.delete(baseId2);
+        } else {
+          // No match yet, buffer this read
+          buffer2.set(baseId2, seq2);
+          this.checkBufferSize(buffer1, buffer2, maxBufferSize);
+        }
+      }
+    }
+
+    // Handle remaining buffered reads
+    // First check if any reads in buffer1 have matches in buffer2
+    for (const [baseId, read1] of buffer1) {
+      if (buffer2.has(baseId)) {
+        const r2Read = buffer2.get(baseId);
+        if (r2Read === undefined) {
+          throw new PairSyncError(
+            `Internal error: R2 read not found in buffer for base ID ${baseId}`,
+            -1,
+            "r2"
+          );
+        }
+        // Found late match
+        yield read1; // R1
+        yield r2Read; // R2
+        buffer2.delete(baseId);
+      } else {
+        // Unpaired read from stream 1
+        yield* this.handleUnpaired(read1, onUnpaired);
+      }
+    }
 
     // Handle remaining unpaired reads from buffer2
     for (const [, read2] of buffer2) {

@@ -66,11 +66,11 @@
     "typescript": ">=5.0.0"
   },
   "dependencies": {
-    "@effect/platform": "^0.92.1",
-    "@effect/platform-bun": "^0.81.1",
-    "@effect/platform-node": "^0.98.3",
+    "@std/fs": "npm:@jsr/std__fs",
+    "@std/json": "npm:@jsr/std__json",
+    "@std/path": "npm:@jsr/std__path",
+    "@std/streams": "npm:@jsr/std__streams",
     "arktype": "^2.1.21",
-    "effect": "^3.18.2",
     "fflate": "^0.8.2"
   },
   "optionalDependencies": {

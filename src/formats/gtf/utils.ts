@@ -56,7 +56,7 @@ function detectGtfFormat(data: string): boolean {
 
     const start = parseInt(startStr, 10);
     const end = parseInt(endStr, 10);
-    if (isNaN(start) || isNaN(end) || start < 1 || end < start) {
+    if (Number.isNaN(start) || Number.isNaN(end) || start < 1 || end < start) {
       return false;
     }
 

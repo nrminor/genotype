@@ -290,19 +290,30 @@ export class QualityError extends ValidationError {
 }
 
 /**
+ * Options for BedError constructor
+ */
+export interface BedErrorOptions {
+  chromosome?: string | undefined;
+  start?: number | undefined;
+  end?: number | undefined;
+  lineNumber?: number | undefined;
+  context?: string | undefined;
+}
+
+/**
  * BED format-specific errors
  */
 export class BedError extends ParseError {
-  constructor(
-    message: string,
-    public readonly chromosome?: string,
-    public readonly start?: number,
-    public readonly end?: number,
-    lineNumber?: number,
-    context?: string
-  ) {
-    super(message, "BED", lineNumber, context);
+  public readonly chromosome?: string;
+  public readonly start?: number;
+  public readonly end?: number;
+
+  constructor(message: string, options: BedErrorOptions = {}) {
+    super(message, "BED", options.lineNumber, options.context);
     this.name = "BedError";
+    if (options.chromosome !== undefined) this.chromosome = options.chromosome;
+    if (options.start !== undefined) this.start = options.start;
+    if (options.end !== undefined) this.end = options.end;
   }
 }
 
@@ -894,7 +905,7 @@ export class PairSyncError extends ParseError {
   constructor(
     message: string,
     public readonly pairIndex: number,
-    public readonly failedFile: "r1" | "r2" | "both",
+    public readonly failedFile: "r1" | "r2" | "both"
   ) {
     super(message, "FASTQ-Paired", pairIndex);
     this.name = "PairSyncError";
@@ -908,32 +919,27 @@ export class PairSyncError extends ParseError {
     r2Id: string,
     pairIndex: number,
     baseR1?: string,
-    baseR2?: string,
+    baseR2?: string
   ): PairSyncError {
-    const baseIds = baseR1 && baseR2 
-      ? ` (base IDs: "${baseR1}" vs "${baseR2}")`
-      : '';
-    
+    const baseIds = baseR1 && baseR2 ? ` (base IDs: "${baseR1}" vs "${baseR2}")` : "";
+
     return new PairSyncError(
       `Read ID mismatch at pair ${pairIndex}: R1="${r1Id}" vs R2="${r2Id}"${baseIds}`,
       pairIndex,
-      "both",
+      "both"
     );
   }
 
   /**
    * Create error for file length mismatch
    */
-  static forLengthMismatch(
-    pairIndex: number,
-    exhaustedFile: "r1" | "r2",
-  ): PairSyncError {
+  static forLengthMismatch(pairIndex: number, exhaustedFile: "r1" | "r2"): PairSyncError {
     const otherFile = exhaustedFile === "r1" ? "R2" : "R1";
-    
+
     return new PairSyncError(
       `Paired FASTQ files have different lengths: ${exhaustedFile === "r1" ? "R1" : "R2"} exhausted first at pair ${pairIndex}. ${otherFile} file has more reads.`,
       pairIndex,
-      exhaustedFile,
+      exhaustedFile
     );
   }
 
@@ -944,7 +950,7 @@ export class PairSyncError extends ParseError {
     return new PairSyncError(
       `Unpaired read found: "${readId}". No matching pair in opposite stream.`,
       -1, // No pair index for unpaired reads
-      "both",
+      "both"
     );
   }
 

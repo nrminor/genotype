@@ -179,7 +179,7 @@ export class GrepProcessor {
   private regexMatches(target: string, pattern: RegExp, ignoreCase: boolean): boolean {
     if (ignoreCase === true && !pattern.flags.includes("i")) {
       // Create case-insensitive version if needed
-      const flags = pattern.flags + "i";
+      const flags = `${pattern.flags}i`;
       const caseInsensitivePattern = new RegExp(pattern.source, flags);
       return caseInsensitivePattern.test(target);
     }

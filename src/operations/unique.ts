@@ -127,9 +127,11 @@ export class UniqueProcessor<T extends AbstractSequence = AbstractSequence>
         }
       } else if (conflictResolution !== "first") {
         // Duplicate found - apply conflict resolution
-        const existing = seen.get(key)!;
-        const winner = this.resolveConflict(existing, seq, conflictResolution);
-        seen.set(key, winner);
+        const existing = seen.get(key);
+        if (existing !== undefined) {
+          const winner = this.resolveConflict(existing, seq, conflictResolution);
+          seen.set(key, winner);
+        }
       }
     }
 

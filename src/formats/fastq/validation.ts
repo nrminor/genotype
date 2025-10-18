@@ -124,8 +124,10 @@ function detectIlluminaPlatform(record: { id: string; quality?: string }): Platf
       const qualities = record.quality.split("").map((c) => c.charCodeAt(0) - 33);
       const avgQual = qualities.reduce((a, b) => a + b, 0) / qualities.length;
       if (avgQual > 37 && Math.max(...qualities) - Math.min(...qualities) < 5) {
-        info.characteristics!.subplatform = "novaseq";
-        info.characteristics!.high_quality = true;
+        if (info.characteristics) {
+          info.characteristics.subplatform = "novaseq";
+          info.characteristics.high_quality = true;
+        }
       }
     }
 
@@ -152,7 +154,9 @@ function detectPacBioPlatform(record: { id: string; sequence?: string }): Platfo
 
     // Check read length for CCS HiFi detection
     if (record.sequence && record.sequence.length > 10000) {
-      info.characteristics!.read_type = "ccs_hifi";
+      if (info.characteristics) {
+        info.characteristics.read_type = "ccs_hifi";
+      }
       info.confidence = 0.95;
     }
 
@@ -185,10 +189,7 @@ function detectNanoporePlatform(record: {
   // Check for UUID-based ID (Nanopore characteristic)
   const uuidPattern = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/;
 
-  if (
-    uuidPattern.test(record.id) ||
-    (record.description && record.description.includes("runid="))
-  ) {
+  if (uuidPattern.test(record.id) || record.description?.includes("runid=")) {
     const info: PlatformInfo = {
       platform: "nanopore",
       confidence: 0.9,
@@ -200,16 +201,18 @@ function detectNanoporePlatform(record: {
     // Extract run info from description if available
     if (record.description) {
       const runidMatch = record.description.match(/runid=([a-f0-9]+)/);
-      if (runidMatch) {
-        info.characteristics!.run_id = runidMatch[1];
+      if (runidMatch && info.characteristics) {
+        info.characteristics.run_id = runidMatch[1];
         info.confidence = 0.95;
       }
     }
 
     // Check for ultra-long reads (>100kb)
     if (record.sequence && record.sequence.length > 100000) {
-      info.characteristics!.read_type = "ultra_long";
-      info.characteristics!.length_category = "exceptional";
+      if (info.characteristics) {
+        info.characteristics.read_type = "ultra_long";
+        info.characteristics.length_category = "exceptional";
+      }
     }
 
     return info;

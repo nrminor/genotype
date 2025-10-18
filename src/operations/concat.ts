@@ -86,7 +86,11 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
 
     // Process additional sources in order
     for (let i = 0; i < validatedSources.length; i++) {
-      const validation = validatedSources[i]!;
+      const validation = validatedSources[i];
+      if (!validation) {
+        throw new Error(`Missing validation result at index ${i}`);
+      }
+
       context = {
         ...context,
         sourceIndex: i,
@@ -136,7 +140,11 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
     const validations: SourceValidation[] = [];
 
     for (let i = 0; i < options.sources.length; i++) {
-      const source = options.sources[i]!;
+      const source = options.sources[i];
+      if (!source) {
+        throw new Error(`Missing source at index ${i}`);
+      }
+
       const validation = await this.validateSource(source, i, options);
       validations.push(validation);
     }

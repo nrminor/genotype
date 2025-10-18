@@ -124,7 +124,7 @@ export function calculateAverageQuality(
  * ```
  */
 export function scoreToErrorProbability(score: number): number {
-  return Math.pow(10, -score / 10);
+  return 10 ** (-score / 10);
 }
 
 /**

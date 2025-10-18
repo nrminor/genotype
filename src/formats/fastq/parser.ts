@@ -444,8 +444,8 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
     if (useStateMachine) {
       // Use state machine for complex formats
       const sequences = parseMultiLineFastq(lines, 1, {
-        maxLineLength: this.options.maxLineLength!,
-        onError: this.options.onError!,
+        maxLineLength: this.options.maxLineLength,
+        onError: this.options.onError,
         ...(this.options.qualityEncoding && {
           qualityEncoding: this.options.qualityEncoding,
         }),
@@ -492,8 +492,8 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
     const fastqOptions = this.options;
 
     return parseMultiLineFastq(lines, 1, {
-      maxLineLength: this.options.maxLineLength!,
-      onError: this.options.onError!,
+      maxLineLength: this.options.maxLineLength,
+      onError: this.options.onError,
       ...(fastqOptions.qualityEncoding && { qualityEncoding: fastqOptions.qualityEncoding }),
       ...(this.options.trackLineNumbers !== undefined && {
         trackLineNumbers: this.options.trackLineNumbers,
@@ -616,8 +616,8 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
           // Process batch when buffer is full
           if (lineBuffer.length >= batchSize) {
             const sequences = parseMultiLineFastq(lineBuffer, lineNumber - lineBuffer.length + 1, {
-              maxLineLength: this.options.maxLineLength!,
-              onError: this.options.onError!,
+              maxLineLength: this.options.maxLineLength,
+              onError: this.options.onError,
               ...(this.options.qualityEncoding && {
                 qualityEncoding: this.options.qualityEncoding,
               }),
@@ -652,8 +652,8 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
         // Process remaining lines
         if (lineBuffer.length > 0) {
           const sequences = parseMultiLineFastq(lineBuffer, lineNumber - lineBuffer.length + 1, {
-            maxLineLength: this.options.maxLineLength!,
-            onError: this.options.onError!,
+            maxLineLength: this.options.maxLineLength,
+            onError: this.options.onError,
             ...(this.options.qualityEncoding && {
               qualityEncoding: this.options.qualityEncoding,
             }),
@@ -748,9 +748,9 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
     for (const line of lines) {
       lineNumber++;
 
-      if (line.length > this.options.maxLineLength!) {
-        this.options.onError!(
-          `Line too long (${line.length} > ${this.options.maxLineLength!})`,
+      if (line.length > this.options.maxLineLength) {
+        this.options.onError(
+          `Line too long (${line.length} > ${this.options.maxLineLength})`,
           lineNumber
         );
         continue;
@@ -774,7 +774,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
           if (!this.options.skipValidation) {
             throw error;
           }
-          this.options.onError!(
+          this.options.onError(
             error instanceof Error ? error.message : String(error),
             lineNumber - 3
           );
@@ -785,7 +785,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
 
     // Handle incomplete record at end
     if (lineBuffer.length > 0) {
-      this.options.onError!(
+      this.options.onError(
         `Incomplete FASTQ record: expected 4 lines, got ${lineBuffer.length}`,
         lineNumber
       );
@@ -941,7 +941,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
     try {
       return detectEncoding(quality);
     } catch (error) {
-      this.options.onWarning!(
+      this.options.onWarning(
         `Could not detect quality encoding for sequence '${sequenceId}': ${error instanceof Error ? error.message : String(error)}. Using phred33 as fallback`,
         undefined
       );
@@ -987,7 +987,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
       // Warn about very large files
       if (metadata.size > 5_368_709_120) {
         // 5GB
-        this.options.onWarning!(
+        this.options.onWarning(
           `Very large FASTQ file detected: ${Math.round(metadata.size / 1_073_741_824)}GB. Processing may take significant time and memory.`,
           1
         );
@@ -1022,9 +1022,9 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
       for await (const rawLine of lines) {
         lineNumber++;
 
-        if (rawLine.length > this.options.maxLineLength!) {
-          this.options.onError!(
-            `Line too long (${rawLine.length} > ${this.options.maxLineLength!})`,
+        if (rawLine.length > this.options.maxLineLength) {
+          this.options.onError(
+            `Line too long (${rawLine.length} > ${this.options.maxLineLength})`,
             lineNumber
           );
           continue;
@@ -1048,7 +1048,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
             if (!this.options.skipValidation) {
               throw error;
             }
-            this.options.onError!(
+            this.options.onError(
               error instanceof Error ? error.message : String(error),
               lineNumber - 3
             );
@@ -1070,7 +1070,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
           throw error;
         }
 
-        this.options.onError!(error.message, lineNumber);
+        this.options.onError(error.message, lineNumber);
       }
     } catch (error) {
       // Enhance error with line number context
@@ -1420,9 +1420,19 @@ export async function* parseFastPath(
       case 3: {
         // Quality
         record.quality = line.trim();
-        if (!lengthsMatch(record.sequence!, record.quality)) {
+
+        // Validate state machine invariant: by case 3, id and sequence must be set
+        if (record.id === undefined || record.sequence === undefined) {
+          throw new ParseError(
+            `Invalid state: reached quality line without id/sequence at line ${lineNumber + 1}`,
+            "FASTQ",
+            lineNumber + 1
+          );
+        }
+
+        if (!lengthsMatch(record.sequence, record.quality)) {
           throw new ValidationError(
-            `Quality length (${record.quality.length}) doesn't match sequence length (${record.sequence!.length}) at line ${lineNumber + 1}`,
+            `Quality length (${record.quality.length}) doesn't match sequence length (${record.sequence.length}) at line ${lineNumber + 1}`,
             undefined,
             "FASTQ quality validation"
           );
@@ -1433,21 +1443,21 @@ export async function* parseFastPath(
           record.description !== undefined
             ? {
                 format: "fastq" as const,
-                id: record.id!,
+                id: record.id,
                 description: record.description,
-                sequence: record.sequence!,
-                quality: record.quality!,
+                sequence: record.sequence,
+                quality: record.quality,
                 qualityEncoding,
-                length: record.sequence!.length,
+                length: record.sequence.length,
                 lineNumber: lineNumber - 3,
               }
             : {
                 format: "fastq" as const,
-                id: record.id!,
-                sequence: record.sequence!,
-                quality: record.quality!,
+                id: record.id,
+                sequence: record.sequence,
+                quality: record.quality,
                 qualityEncoding,
-                length: record.sequence!.length,
+                length: record.sequence.length,
                 lineNumber: lineNumber - 3,
               };
 

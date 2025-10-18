@@ -19,6 +19,7 @@
 import { BamError, CompressionError, ValidationError } from "../errors";
 // BAIWriter imported but not used in current implementation
 import type {
+  BAIChunk,
   BAIIndex,
   BAMAlignment,
   CIGARString,
@@ -260,7 +261,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
           // Memory management: prevent buffer from growing too large
           if (buffer.length > 10 * 1024 * 1024) {
             // 10MB limit
-            this.options.onWarning!(
+            this.options.onWarning(
               `Large buffer detected (${(buffer.length / 1024 / 1024).toFixed(1)}MB) at ${totalBytesProcessed} bytes processed, consider increasing processing speed`
             );
           }
@@ -912,7 +913,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
       // Warn about very large files
       if (metadata.size > 10_737_418_240) {
         // 10GB
-        this.options.onWarning!(
+        this.options.onWarning(
           `Very large BAM file detected: ${Math.round(metadata.size / 1_073_741_824)}GB. Processing may take significant time.`
         );
       }
@@ -1013,7 +1014,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
         bytesConsumed += 4 + blockSize;
       } catch (error) {
         if (error instanceof BamError) {
-          this.options.onError!(error.message);
+          this.options.onError(error.message);
           // Skip corrupted record
           bytesConsumed += 4;
           continue;
@@ -1062,7 +1063,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
     // Warn about unparsed data
     const remaining = buffer.length - parseResult.bytesConsumed;
     if (remaining > 0) {
-      this.options.onWarning!(`${remaining} bytes of data could not be parsed at end of stream`);
+      this.options.onWarning(`${remaining} bytes of data could not be parsed at end of stream`);
     }
   }
 
@@ -1436,13 +1437,9 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
 
     // Try common chromosome name variations
     const normalizedName = this.normalizeReferenceName(referenceName);
-    for (let i = 0; i < this.referenceNames.length; i++) {
-      if (this.normalizeReferenceName(this.referenceNames[i]!) === normalizedName) {
-        return i;
-      }
-    }
-
-    return -1; // Not found
+    return this.referenceNames.findIndex(
+      (refName) => refName && this.normalizeReferenceName(refName) === normalizedName
+    );
   }
 
   /**
@@ -1455,41 +1452,40 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
 
   /**
    * Process a single chunk for region query
+   *
+   * NOTE: This is a stub implementation. Full BAM parsing will be implemented
+   * using HTSLib in Rust for production use. When complete, this will:
+   * 1. Seek to chunk's begin offset in the BAM file
+   * 2. Read and decompress BGZF blocks up to end offset
+   * 3. Parse BAM alignments from binary data
+   * 4. Filter alignments by coordinate overlap with query region
+   * 5. Yield each overlapping alignment
+   *
+   * @throws {BamError} Always throws - not yet implemented
    */
   private async *processChunkForRegion(
-    chunk: import("../types").BAIChunk,
-    referenceId: number,
+    chunk: BAIChunk,
+    _referenceId: number,
     referenceName: string,
     queryStart: number,
     queryEnd: number
   ): AsyncIterable<BAMAlignment> {
-    // This is a simplified implementation
-    // In a real implementation, this would:
-    // 1. Seek to the chunk's begin offset in the BAM file
-    // 2. Read and decompress BGZF blocks up to the end offset
-    // 3. Parse alignments and filter by coordinates
-    // 4. Yield only alignments that overlap the query region
+    // Always throws, but structured to keep yield reachable for TypeScript
+    const shouldImplement = true;
+    if (shouldImplement) {
+      throw new BamError(
+        "BAM region query not yet implemented. " +
+          "Full BAM parsing will use HTSLib (Rust) for production. " +
+          "Required: BGZF decompression, binary alignment parsing, coordinate filtering.",
+        undefined,
+        "not_implemented",
+        undefined,
+        `Region: ${referenceName}:${queryStart}-${queryEnd}, Chunk: ${chunk.beginOffset}-${chunk.endOffset}`
+      );
+    }
 
-    console.log(
-      `Processing chunk: ${chunk.beginOffset} - ${chunk.endOffset} for region ${referenceName}:${queryStart}-${queryEnd}`
-    );
-
-    // For now, return empty since we'd need actual BAM file access
-    // In a complete implementation, this would interface with the BAM file reader
-
-    // Placeholder - would yield actual filtered alignments
-    return;
-
-    // Example of what the implementation would look like:
-    // const bamFile = await this.openBAMFile();
-    // await bamFile.seek(chunk.beginOffset);
-    //
-    // while (currentOffset < chunk.endOffset) {
-    //   const alignment = await this.readNextAlignment(bamFile);
-    //   if (this.alignmentOverlapsRegion(alignment, queryStart, queryEnd)) {
-    //     yield alignment;
-    //   }
-    // }
+    // Generator type satisfaction - reachable for TypeScript
+    yield {} as BAMAlignment;
   }
 }
 

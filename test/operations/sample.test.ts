@@ -6,8 +6,8 @@
  */
 
 import { beforeEach, describe, expect, test } from "bun:test";
-import { SampleProcessor } from "../../src/operations/sample";
 import { seqops } from "../../src/operations/index";
+import { SampleProcessor } from "../../src/operations/sample";
 import type { AbstractSequence, SampleOptions } from "../../src/types";
 
 describe("SampleProcessor", () => {
@@ -463,12 +463,12 @@ describe("SampleProcessor", () => {
 
     test("simple count-based sampling", async () => {
       const sequences = toAsyncIterable(testSequences);
-      
+
       const sampled = [];
       for await (const seq of seqops(sequences).sample(10)) {
         sampled.push(seq);
       }
-      
+
       expect(sampled).toHaveLength(10);
     });
 
@@ -478,14 +478,14 @@ describe("SampleProcessor", () => {
         sequence: "ATCG".repeat(i + 1),
         length: (i + 1) * 4,
       }));
-      
+
       const sequences = toAsyncIterable(largeTestSet);
-      
+
       const sampled = [];
       for await (const seq of seqops(sequences).sample({ fraction: 0.1 })) {
         sampled.push(seq);
       }
-      
+
       expect(sampled.length).toBeGreaterThanOrEqual(900);
       expect(sampled.length).toBeLessThanOrEqual(1100);
     });
@@ -494,22 +494,22 @@ describe("SampleProcessor", () => {
       const sequences1 = toAsyncIterable(testSequences);
       const sequences2 = toAsyncIterable(testSequences);
       const sequences3 = toAsyncIterable(testSequences);
-      
+
       const reservoir = [];
-      for await (const seq of seqops(sequences1).sample(10, 'reservoir')) {
+      for await (const seq of seqops(sequences1).sample(10, "reservoir")) {
         reservoir.push(seq);
       }
-      
+
       const systematic = [];
-      for await (const seq of seqops(sequences2).sample(10, 'systematic')) {
+      for await (const seq of seqops(sequences2).sample(10, "systematic")) {
         systematic.push(seq);
       }
-      
+
       const random = [];
-      for await (const seq of seqops(sequences3).sample(10, 'random')) {
+      for await (const seq of seqops(sequences3).sample(10, "random")) {
         random.push(seq);
       }
-      
+
       expect(reservoir).toHaveLength(10);
       expect(systematic).toHaveLength(10);
       expect(random).toHaveLength(10);
@@ -518,30 +518,30 @@ describe("SampleProcessor", () => {
     test("reproducible sampling with seed", async () => {
       const sequences1 = toAsyncIterable(testSequences);
       const sequences2 = toAsyncIterable(testSequences);
-      
+
       const sample1 = [];
       for await (const seq of seqops(sequences1).sample({ n: 10, seed: 42 })) {
         sample1.push(seq);
       }
-      
+
       const sample2 = [];
       for await (const seq of seqops(sequences2).sample({ n: 10, seed: 42 })) {
         sample2.push(seq);
       }
-      
-      expect(sample1.map(s => s.id)).toEqual(sample2.map(s => s.id));
+
+      expect(sample1.map((s) => s.id)).toEqual(sample2.map((s) => s.id));
     });
 
     test("chaining after sample", async () => {
       const sequences = toAsyncIterable(testSequences);
-      
+
       const result = [];
       for await (const seq of seqops(sequences)
         .sample(20)
-        .filter(seq => seq.length >= 20)) {
+        .filter((seq) => seq.length >= 20)) {
         result.push(seq);
       }
-      
+
       expect(result.length).toBeLessThanOrEqual(20);
       for (const seq of result) {
         expect(seq.length).toBeGreaterThanOrEqual(20);
@@ -552,23 +552,23 @@ describe("SampleProcessor", () => {
   describe("edge cases", () => {
     test("fraction sampling with empty input", async () => {
       const emptySequences: AbstractSequence[] = [];
-      
+
       const results = [];
       for await (const seq of processor.process(emptySequences, { fraction: 0.5 })) {
         results.push(seq);
       }
-      
+
       expect(results).toHaveLength(0);
     });
 
     test("fraction sampling with single sequence", async () => {
       const singleSequence = [testSequences[0]];
-      
+
       const results = [];
       for await (const seq of processor.process(singleSequence, { fraction: 0.9, seed: 42 })) {
         results.push(seq);
       }
-      
+
       expect(results.length).toBeLessThanOrEqual(1);
     });
 
@@ -578,12 +578,12 @@ describe("SampleProcessor", () => {
         sequence: "ATCG".repeat(i + 1),
         length: (i + 1) * 4,
       }));
-      
+
       const results = [];
       for await (const seq of processor.process(largeTestSet, { fraction: 1.0 })) {
         results.push(seq);
       }
-      
+
       expect(results).toHaveLength(10000);
     });
 
@@ -593,12 +593,12 @@ describe("SampleProcessor", () => {
         sequence: "ATCG".repeat(i + 1),
         length: (i + 1) * 4,
       }));
-      
+
       const results = [];
       for await (const seq of processor.process(largeTestSet, { fraction: 0.0001 })) {
         results.push(seq);
       }
-      
+
       expect(results.length).toBeGreaterThanOrEqual(0);
       expect(results.length).toBeLessThanOrEqual(50);
     });
@@ -608,7 +608,7 @@ describe("SampleProcessor", () => {
       for await (const seq of processor.process(testSequences, { fraction: 0.1, seed: 0 })) {
         results.push(seq);
       }
-      
+
       expect(results.length).toBeGreaterThan(0);
     });
 
@@ -617,7 +617,7 @@ describe("SampleProcessor", () => {
       for await (const seq of processor.process(testSequences, { fraction: 0.1, seed: -42 })) {
         results.push(seq);
       }
-      
+
       expect(results.length).toBeGreaterThan(0);
     });
   });

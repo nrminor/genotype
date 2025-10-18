@@ -133,7 +133,7 @@ export function parseStartPosition(
   const isNegative = startStr.startsWith("-");
   const numericValue = parseInt(startStr, 10);
 
-  if (isNaN(numericValue)) {
+  if (Number.isNaN(numericValue)) {
     throw new Error(`Invalid start position: ${startStr} (not a number)`);
   }
 
@@ -186,7 +186,7 @@ export function parseEndPosition(
   const isNegative = endStr.startsWith("-");
   const numericValue = parseInt(endStr, 10);
 
-  if (isNaN(numericValue)) {
+  if (Number.isNaN(numericValue)) {
     throw new Error(`Invalid end position: ${endStr} (not a number)`);
   }
 

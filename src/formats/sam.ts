@@ -45,6 +45,97 @@ interface SamParserOptions extends ParserOptions {
 }
 
 /**
+ * Result type for parsing operations that may fail
+ *
+ * Discriminated union encoding success or failure states.
+ * Success state carries parsed value, failure state carries error.
+ *
+ * @example Success case
+ * ```ts
+ * const result: ParseResult<number, Error> = { success: true, value: 42 };
+ * if (result.success) {
+ *   console.log(result.value); // TypeScript knows value exists
+ * }
+ * ```
+ *
+ * @example Failure case
+ * ```ts
+ * const result: ParseResult<number, Error> = {
+ *   success: false,
+ *   error: new Error("Parse failed")
+ * };
+ * if (!result.success) {
+ *   console.error(result.error); // TypeScript knows error exists
+ * }
+ * ```
+ *
+ * @since 1.0.0
+ * @category Types
+ */
+type ParseResult<T, E = Error> =
+  | { readonly success: true; readonly value: T }
+  | { readonly success: false; readonly error: E };
+
+/**
+ * SAM format mandatory fields - exactly 11 fields required by specification
+ *
+ * The SAM format specification requires exactly 11 tab-separated mandatory fields
+ * per alignment line. This interface encodes that invariant in the type system,
+ * making it impossible to construct without all required fields present.
+ *
+ * By parsing into this structured type, we eliminate the need for non-null assertions
+ * when accessing fields - TypeScript proves all fields exist because they are
+ * properties of the interface.
+ *
+ * @example Parsing into structured type
+ * ```ts
+ * const result = parseMandatoryFields(line, lineNumber);
+ * if (result.success) {
+ *   const { qname, flag, rname, pos } = result.value;
+ *   // All fields are typed, no assertions needed
+ *   console.log(`${qname} mapped to ${rname}:${pos}`);
+ * }
+ * ```
+ *
+ * @since 1.0.0
+ * @category Types
+ */
+interface SamMandatoryFields {
+  /** Query template NAME - read/query name from sequencer */
+  readonly qname: string;
+
+  /** Bitwise FLAG - encodes paired-end, mapping quality, strand info */
+  readonly flag: SAMFlag;
+
+  /** Reference sequence NAME - chromosome or contig name */
+  readonly rname: string;
+
+  /** 1-based leftmost mapping POSition on reference */
+  readonly pos: number;
+
+  /** MAPping Quality - Phred-scaled probability mapping is wrong */
+  readonly mapq: MAPQScore;
+
+  /** CIGAR string - alignment operations (M/I/D/N/S/H/P/=/X) */
+  readonly cigar: CIGARString;
+
+  /** Reference name of the mate/NEXT read in pair */
+  readonly rnext: string;
+
+  /** Position of the mate/NEXT read (1-based) */
+  readonly pnext: number;
+
+  /** Observed Template LENgth (insert size) */
+  readonly tlen: number;
+
+  /** Segment SEQuence - bases called from sequencer */
+  readonly sequence: string;
+
+  /** ASCII of Phred-scaled base QUALity+33 */
+  readonly quality: string;
+}
+
+/**
  * Streaming SAM parser with comprehensive validation
  *
  * Designed for memory efficiency - processes records one at a time
@@ -212,31 +303,35 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
 
     for (let i = 0; i < lines.length; i++) {
       const currentLineNumber = startLineNumber + i;
-      const line = lines[i]!.trim();
+      const line = lines[i];
 
-      // Skip empty lines
-      if (!line) continue;
+      if (!line) {
+        continue; // Skip undefined/empty lines
+      }
+
+      const trimmedLine = line.trim();
+      if (!trimmedLine) continue;
 
       // Check line length bounds
-      if (line.length > this.options.maxLineLength!) {
-        this.options.onError!(
-          `Line too long (${line.length} > ${this.options.maxLineLength!})`,
+      if (trimmedLine.length > this.options.maxLineLength) {
+        this.options.onError(
+          `Line too long (${trimmedLine.length} > ${this.options.maxLineLength})`,
           currentLineNumber
         );
         continue;
       }
 
       try {
-        if (line.startsWith("@")) {
+        if (trimmedLine.startsWith("@")) {
           // Header line
-          yield this.parseHeader(line, currentLineNumber);
+          yield this.parseHeader(trimmedLine, currentLineNumber);
         } else {
           // Alignment line
-          yield this.parseAlignment(line, currentLineNumber);
+          yield this.parseAlignment(trimmedLine, currentLineNumber);
         }
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        this.options.onError!(errorMsg, currentLineNumber);
+        this.options.onError(errorMsg, currentLineNumber);
       }
     }
   }
@@ -309,7 +404,17 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
     }
 
     for (let i = 1; i < parts.length; i++) {
-      const field = parts[i]!;
+      const field = parts[i];
+      if (!field) {
+        throw new SamError(
+          `Missing header field at position ${i}`,
+          undefined,
+          "header",
+          lineNumber,
+          headerLine
+        );
+      }
+
       const colonIndex = field.indexOf(":");
       if (colonIndex === -1) {
         throw new SamError(
@@ -399,8 +504,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
    */
   private parseAlignment(alignmentLine: string, lineNumber: number): SAMAlignment {
     this.validateAlignmentInputs(alignmentLine, lineNumber);
-    const fields = this.parseAlignmentFields(alignmentLine, lineNumber);
-    const alignment = this.buildAlignmentFromFields(fields, lineNumber);
+    const alignment = this.buildAlignmentFromFields(alignmentLine, lineNumber);
     this.validateAlignment(alignment, alignmentLine, lineNumber);
     this.assertAlignmentPostconditions(alignment, alignmentLine, lineNumber);
     return alignment;
@@ -418,54 +522,227 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
     }
   }
 
-  private parseAlignmentFields(alignmentLine: string, lineNumber: number): string[] {
-    const fields = alignmentLine.split("\t");
+  /**
+   * Parse SAM mandatory fields from tab-separated line into structured type
+   *
+   * Parses the 11 mandatory SAM fields into a structured SamMandatoryFields object.
+   * This eliminates the need for array index access with non-null assertions by
+   * using destructuring and returning a typed interface.
+   *
+   * The SAM specification requires exactly 11 mandatory fields:
+   * 1. QNAME - Query template name
+   * 2. FLAG - Bitwise flags
+   * 3. RNAME - Reference sequence name
+   * 4. POS - 1-based leftmost position
+   * 5. MAPQ - Mapping quality
+   * 6. CIGAR - CIGAR string
+   * 7. RNEXT - Reference name of mate/next read
+   * 8. PNEXT - Position of mate/next read
+   * 9. TLEN - Template length
+   * 10. SEQ - Segment sequence
+   * 11. QUAL - ASCII base quality
+   *
+   * @param line - Raw SAM alignment line
+   * @param lineNumber - Line number for error reporting
+   * @returns ParseResult containing either SamMandatoryFields or SamError
+   *
+   * @example
+   * ```ts
+   * const result = this.parseMandatoryFields(line, 42);
+   * if (result.success) {
+   *   const { qname, flag, rname, pos } = result.value;
+   *   // All fields typed, no assertions needed
+   * } else {
+   *   throw result.error;
+   * }
+   * ```
+   *
+   * @since 1.0.0
+   * @category Parsing
+   */
+  /**
+   * Parse SAM mandatory fields from tab-separated line into structured type
+   *
+   * Parses the 11 mandatory SAM fields into a structured SamMandatoryFields object.
+   * This eliminates the need for array index access with non-null assertions by
+   * using explicit validation and returning a typed interface.
+   *
+   * The SAM specification requires exactly 11 mandatory fields:
+   * 1. QNAME - Query template name
+   * 2. FLAG - Bitwise flags
+   * 3. RNAME - Reference sequence name
+   * 4. POS - 1-based leftmost position
+   * 5. MAPQ - Mapping quality
+   * 6. CIGAR - CIGAR string
+   * 7. RNEXT - Reference name of mate/next read
+   * 8. PNEXT - Position of mate/next read
+   * 9. TLEN - Template length
+   * 10. SEQ - Segment sequence
+   * 11. QUAL - ASCII base quality
+   *
+   * @param line - Raw SAM alignment line
+   * @param lineNumber - Line number for error reporting
+   * @returns ParseResult containing either SamMandatoryFields or SamError
+   *
+   * @example
+   * ```ts
+   * const result = this.parseMandatoryFields(line, 42);
+   * if (result.success) {
+   *   const { qname, flag, rname, pos } = result.value;
+   *   // All fields typed, no assertions needed
+   * } else {
+   *   throw result.error;
+   * }
+   * ```
+   *
+   * @since 1.0.0
+   * @category Parsing
+   */
+  private parseMandatoryFields(
+    line: string,
+    lineNumber: number
+  ): ParseResult<SamMandatoryFields, SamError> {
+    const fields = line.split("\t");
+
+    // Validate field count
     if (fields.length < 11) {
-      throw new SamError(
-        `Insufficient fields: expected 11, got ${fields.length}`,
-        fields[0] !== undefined && fields[0] !== null && fields[0] !== "" ? fields[0] : "unknown",
-        "alignment",
-        lineNumber,
-        alignmentLine
-      );
+      return {
+        success: false,
+        error: new SamError(
+          `Insufficient fields: expected 11, got ${fields.length}`,
+          fields[0] ?? "unknown",
+          "alignment",
+          lineNumber,
+          line
+        ),
+      };
     }
-    return fields;
+
+    // Destructure fields array
+    // TypeScript limitation: array indexing returns T | undefined even after length check
+    const [
+      qname,
+      flagStr,
+      rname,
+      posStr,
+      mapqStr,
+      cigarStr,
+      rnext,
+      pnextStr,
+      tlenStr,
+      sequence,
+      quality,
+    ] = fields;
+
+    // Explicit validation to narrow types from string | undefined to string
+    // This is required because TypeScript cannot correlate length checks with array indices
+    // Following pattern from production parsers (csv-parser): explicit checks, not assertions
+    if (
+      !qname ||
+      !flagStr ||
+      !rname ||
+      !posStr ||
+      !mapqStr ||
+      !cigarStr ||
+      !rnext ||
+      !pnextStr ||
+      !tlenStr ||
+      !sequence ||
+      !quality
+    ) {
+      // This should theoretically never happen after length check, but TypeScript requires it
+      return {
+        success: false,
+        error: new SamError(
+          "Field extraction failed after length validation",
+          qname ?? "unknown",
+          "alignment",
+          lineNumber,
+          line
+        ),
+      };
+    }
+
+    // Parse and validate each field
+    // TypeScript now knows all variables above are strings (not string | undefined)
+    try {
+      const flag = this.parseFlag(flagStr, lineNumber);
+      const pos = parseInt(posStr, 10);
+      const mapq = this.parseMAPQ(mapqStr, lineNumber);
+      const cigar = this.parseCIGAR(cigarStr, lineNumber);
+      const pnext = parseInt(pnextStr, 10);
+      const tlen = parseInt(tlenStr, 10);
+
+      return {
+        success: true,
+        value: {
+          qname,
+          flag,
+          rname,
+          pos,
+          mapq,
+          cigar,
+          rnext,
+          pnext,
+          tlen,
+          sequence,
+          quality,
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error:
+          error instanceof SamError
+            ? error
+            : new SamError(
+                `Failed to parse mandatory fields: ${error instanceof Error ? error.message : String(error)}`,
+                qname,
+                "alignment",
+                lineNumber,
+                line
+              ),
+      };
+    }
   }
 
-  private buildAlignmentFromFields(fields: string[], lineNumber: number): SAMAlignment {
-    const qname = fields[0]!;
-    const alignmentLine = fields.join("\t");
+  private buildAlignmentFromFields(alignmentLine: string, lineNumber: number): SAMAlignment {
+    // Parse mandatory fields using structured type - no assertions
+    const result = this.parseMandatoryFields(alignmentLine, lineNumber);
 
-    // Parse mandatory fields
-    const flag = this.parseFlag(fields[1]!, lineNumber);
-    const rname = fields[2]!;
-    const pos = parseInt(fields[3]!);
-    const mapq = this.parseMAPQ(fields[4]!, lineNumber);
-    const cigar = this.parseCIGAR(fields[5]!, lineNumber);
-    const rnext = fields[6]!;
-    const pnext = parseInt(fields[7]!);
-    const tlen = parseInt(fields[8]!);
-    const seq = fields[9]!;
-    const qual = fields[10]!;
+    if (!result.success) {
+      throw result.error;
+    }
 
-    this.validateNumericFields(pos, pnext, tlen, qname, fields, lineNumber, alignmentLine);
+    const mandatory = result.value;
 
     // Parse optional tags
+    const fields = alignmentLine.split("\t");
     const tags = fields.length > 11 ? this.parseTags(fields.slice(11), lineNumber) : undefined;
+
+    this.validateNumericFields(
+      mandatory.pos,
+      mandatory.pnext,
+      mandatory.tlen,
+      mandatory.qname,
+      fields,
+      lineNumber,
+      alignmentLine
+    );
 
     return {
       format: "sam",
-      qname,
-      flag,
-      rname,
-      pos,
-      mapq,
-      cigar,
-      rnext,
-      pnext,
-      tlen,
-      seq,
-      qual,
+      qname: mandatory.qname,
+      flag: mandatory.flag,
+      rname: mandatory.rname,
+      pos: mandatory.pos,
+      mapq: mandatory.mapq,
+      cigar: mandatory.cigar,
+      rnext: mandatory.rnext,
+      pnext: mandatory.pnext,
+      tlen: mandatory.tlen,
+      seq: mandatory.sequence,
+      qual: mandatory.quality,
       ...(tags && { tags }),
       ...(this.options.trackLineNumbers && { lineNumber }),
     };
@@ -480,10 +757,10 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
     lineNumber: number,
     alignmentLine: string
   ): void {
-    if (isNaN(pos) || pos < 0) {
+    if (Number.isNaN(pos) || pos < 0) {
       throw new SamError(`Invalid position: ${fields[3]}`, qname, "pos", lineNumber, alignmentLine);
     }
-    if (isNaN(pnext) || pnext < 0) {
+    if (Number.isNaN(pnext) || pnext < 0) {
       throw new SamError(
         `Invalid mate position: ${fields[7]}`,
         qname,
@@ -492,7 +769,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
         alignmentLine
       );
     }
-    if (isNaN(tlen)) {
+    if (Number.isNaN(tlen)) {
       throw new SamError(
         `Invalid template length: ${fields[8]}`,
         qname,
@@ -582,8 +859,8 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
       throw new ValidationError("lineNumber must be positive integer");
     }
 
-    const flag = parseInt(flagStr);
-    if (isNaN(flag)) {
+    const flag = parseInt(flagStr, 10);
+    if (Number.isNaN(flag)) {
       throw new SamError(`Invalid FLAG: not a number: ${flagStr}`, undefined, "flag", lineNumber);
     }
 
@@ -613,8 +890,8 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
       throw new ValidationError("lineNumber must be positive integer");
     }
 
-    const mapq = parseInt(mapqStr);
-    if (isNaN(mapq)) {
+    const mapq = parseInt(mapqStr, 10);
+    if (Number.isNaN(mapq)) {
       throw new SamError(`Invalid MAPQ: not a number: ${mapqStr}`, undefined, "mapq", lineNumber);
     }
 
@@ -729,15 +1006,15 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
         case "B":
           return valueStr;
         case "i": {
-          const value = parseInt(valueStr);
-          if (isNaN(value)) {
+          const value = parseInt(valueStr, 10);
+          if (Number.isNaN(value)) {
             throw new Error(`Invalid integer value: ${valueStr}`);
           }
           return value;
         }
         case "f": {
           const value = parseFloat(valueStr);
-          if (isNaN(value)) {
+          if (Number.isNaN(value)) {
             throw new Error(`Invalid float value: ${valueStr}`);
           }
           return value;
@@ -830,7 +1107,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
       // Warn about very large files
       if (metadata.size > 2_147_483_648) {
         // 2GB
-        this.options.onWarning!(
+        this.options.onWarning(
           `Large SAM file detected: ${Math.round(metadata.size / 1_048_576)}MB. Consider using BAM format for better performance.`,
           1
         );
@@ -873,9 +1150,9 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
         if (!line) continue;
 
         // Check line length bounds
-        if (line.length > this.options.maxLineLength!) {
-          this.options.onError!(
-            `Line too long (${line.length} > ${this.options.maxLineLength!})`,
+        if (line.length > this.options.maxLineLength) {
+          this.options.onError(
+            `Line too long (${line.length} > ${this.options.maxLineLength})`,
             lineNumber
           );
           continue;
@@ -891,7 +1168,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
           }
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
-          this.options.onError!(errorMsg, lineNumber);
+          this.options.onError(errorMsg, lineNumber);
         }
       }
     } catch (error) {
@@ -1034,11 +1311,11 @@ class SAMWriter {
         } else if (record && record.format === "sam") {
           lines.push(this.formatAlignment(record as SAMAlignment));
         } else {
-          this.options.onError!(`Invalid record format: ${(record as any).format}`, record);
+          this.options.onError(`Invalid record format: ${(record as any).format}`, record);
         }
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        this.options.onError!(`Failed to format record ${i}: ${errorMsg}`, record);
+        this.options.onError(`Failed to format record ${i}: ${errorMsg}`, record);
       }
     }
 
@@ -1141,14 +1418,14 @@ class SAMWriter {
           } else if (record.format === "sam") {
             formattedLine = this.formatAlignment(record);
           } else {
-            this.options.onError!(`Invalid record format: ${(record as any).format}`, record);
+            this.options.onError(`Invalid record format: ${(record as any).format}`, record);
             continue;
           }
 
-          await writer.write(encoder.encode(formattedLine + "\n"));
+          await writer.write(encoder.encode(`${formattedLine}\n`));
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
-          this.options.onError!(`Failed to format record: ${errorMsg}`, record);
+          this.options.onError(`Failed to format record: ${errorMsg}`, record);
         }
       }
     } finally {
@@ -1475,7 +1752,7 @@ const SAMUtils = {
     const operations = cigar.match(/\d+[MIDNSHPX=]/g) || [];
     return operations.map((op) => ({
       operation: op.slice(-1),
-      length: parseInt(op.slice(0, -1)),
+      length: parseInt(op.slice(0, -1), 10),
     }));
   },
 

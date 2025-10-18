@@ -125,7 +125,10 @@ export class SampleProcessor {
     }
 
     // Number mode: use strategy-based sampling
-    const sampleSize = options.n!;
+    if (options.n === undefined) {
+      throw new ValidationError("Sample size (n) must be specified when fraction is not provided");
+    }
+    const sampleSize = options.n;
     const strategy = options.strategy ?? "reservoir";
 
     switch (strategy) {

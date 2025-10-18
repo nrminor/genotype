@@ -332,7 +332,7 @@ export class BAMWriter {
         line += `\t${key}:${value}`;
       }
 
-      samHeaderText += line + "\n";
+      samHeaderText += `${line}\n`;
     }
 
     headerTextSize = new TextEncoder().encode(samHeaderText).length;
@@ -855,7 +855,7 @@ export class BAMWriter {
     // Implement streaming file writer for Node.js runtime
     if (typeof process !== "undefined" && process.versions?.node) {
       // Node.js implementation
-      const fs = await import("fs");
+      const fs = await import("node:fs");
       const stream = fs.createWriteStream(filePath);
 
       // Write header first and extract references

@@ -962,7 +962,7 @@ export const CIGAROperationSchema = type("string").pipe((cigar: string) => {
   // Validate individual CIGAR operations
   const operations = cigar.match(/\d+[MIDNSHPX=]/g) || [];
   for (const op of operations) {
-    const length = parseInt(op.slice(0, -1));
+    const length = parseInt(op.slice(0, -1), 10);
     const operation = op.slice(-1);
 
     if (length <= 0) {
@@ -1082,8 +1082,8 @@ export const SAMHeaderSchema = type({
       ) {
         throw new Error("SQ header must have SN (sequence name) and LN (length) fields");
       }
-      const length = parseInt(header.fields.LN);
-      if (isNaN(length) || length <= 0) {
+      const length = parseInt(header.fields.LN, 10);
+      if (Number.isNaN(length) || length <= 0) {
         throw new Error(`Invalid SQ length: ${header.fields.LN}`);
       }
       break;
@@ -1912,7 +1912,7 @@ export const BAIBinSchema = type({
     // Validate each chunk
     const validatedChunks = chunks.map((chunk) => {
       const result = BAIChunkSchema(chunk);
-      if (result instanceof Array && "arkKind" in result && result.arkKind === "errors") {
+      if (Array.isArray(result) && "arkKind" in result && result.arkKind === "errors") {
         throw new Error(`Invalid BAI chunk: ${result.map((e) => e.message).join(", ")}`);
       }
       return result;
@@ -1973,8 +1973,12 @@ export const BAILinearIndexSchema = type({
 
   // Validate interval ordering (should be non-decreasing)
   for (let i = 1; i < linearIndex.intervals.length; i++) {
-    const prev = linearIndex.intervals[i - 1]!;
-    const curr = linearIndex.intervals[i]!;
+    const prev = linearIndex.intervals[i - 1];
+    const curr = linearIndex.intervals[i];
+
+    if (prev === undefined || curr === undefined) {
+      throw new BAIIndexError(`Invalid linear index structure at position ${i}`, "linear-index", i);
+    }
 
     if (prev !== 0n && curr !== 0n && curr < prev) {
       // Linear index intervals not ordered at this position
@@ -2009,7 +2013,7 @@ export const BAIReferenceSchema = type({
     }
 
     const result = BAIBinSchema(bin);
-    if (result instanceof Array && "arkKind" in result && result.arkKind === "errors") {
+    if (Array.isArray(result) && "arkKind" in result && result.arkKind === "errors") {
       throw new Error(`Invalid BAI bin: ${result.map((e) => e.message).join(", ")}`);
     }
     const validatedBin = result;
@@ -2053,7 +2057,7 @@ export const BAIIndexSchema = type({
   references: type("unknown[]").pipe((references: unknown[]) => {
     return references.map((ref) => {
       const result = BAIReferenceSchema(ref);
-      if (result instanceof Array && "arkKind" in result && result.arkKind === "errors") {
+      if (Array.isArray(result) && "arkKind" in result && result.arkKind === "errors") {
         throw new Error(`Invalid BAI reference: ${result.map((e) => e.message).join(", ")}`);
       }
       return result;
@@ -2124,7 +2128,7 @@ export const BAIQueryResultSchema = type({
   chunks: type("unknown[]").pipe((chunks: unknown[]) => {
     return chunks.map((chunk) => {
       const result = BAIChunkSchema(chunk);
-      if (result instanceof Array && "arkKind" in result && result.arkKind === "errors") {
+      if (Array.isArray(result) && "arkKind" in result && result.arkKind === "errors") {
         throw new Error(`Invalid BAI chunk: ${result.map((e) => e.message).join(", ")}`);
       }
       return result;
@@ -2279,7 +2283,7 @@ function validateCigarSequenceConsistency(cigar: string, sequence: string): void
   let consumesQuery = 0;
 
   for (const op of operations) {
-    const length = parseInt(op.slice(0, -1));
+    const length = parseInt(op.slice(0, -1), 10);
     const operation = op.slice(-1);
 
     // Operations that consume query sequence

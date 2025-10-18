@@ -14,12 +14,9 @@ import { findQualityTrimEnd, findQualityTrimStart } from "./core/calculations";
 import * as qualityUtils from "./core/encoding";
 import {
   type BinningStrategy,
-  calculateBinDistribution,
-  calculateCompressionRatio,
   calculateRepresentatives,
   binQualityString as coreBinQualityString,
   PRESETS,
-  validateBoundaries,
 } from "./core/quality/binning";
 import { detectEncoding } from "./core/quality/detection";
 import type { Processor, QualityOptions } from "./types";
@@ -212,7 +209,8 @@ export class QualityProcessor implements Processor<QualityOptions> {
     }
 
     // Resolve binning options to complete strategy (DRY - reuse existing function)
-    const strategy = resolveBinningStrategy(options, quality);
+    // TypeScript can't narrow Partial<QualityBinningOptions> automatically, so we assert
+    const strategy = resolveBinningStrategy(options as BinQualityOptions, quality);
 
     return coreBinQualityString(quality, strategy);
   }

@@ -51,7 +51,7 @@ describe("PairProcessor", () => {
       ]);
 
       const results = await Array.fromAsync(
-        processor.process({ mode: "dual", source1: r1, source2: r2 }),
+        processor.process({ mode: "dual", source1: r1, source2: r2 })
       );
 
       expect(results).toHaveLength(4);
@@ -66,7 +66,7 @@ describe("PairProcessor", () => {
       const r2 = toAsyncIterable([createFastq("A/2", "TTTT", "IIII")]);
 
       const results = await Array.fromAsync(
-        processor.process({ mode: "dual", source1: r1, source2: r2 }),
+        processor.process({ mode: "dual", source1: r1, source2: r2 })
       );
 
       expect(results[0].sequence).toBe("AAAA");
@@ -86,7 +86,7 @@ describe("PairProcessor", () => {
       ]);
 
       const results = await Array.fromAsync(
-        processor.process({ mode: "dual", source1: r1, source2: r2 }),
+        processor.process({ mode: "dual", source1: r1, source2: r2 })
       );
 
       expect(results).toHaveLength(6);
@@ -111,7 +111,7 @@ describe("PairProcessor", () => {
       ]);
 
       const results = await Array.fromAsync(
-        processor.process({ mode: "dual", source1: r1, source2: r2 }),
+        processor.process({ mode: "dual", source1: r1, source2: r2 })
       );
 
       expect(results).toHaveLength(6);
@@ -136,10 +136,7 @@ describe("PairProcessor", () => {
       ]);
 
       const results = await Array.fromAsync(
-        processor.process(
-          { mode: "dual", source1: r1, source2: r2 },
-          { onUnpaired: "skip" },
-        ),
+        processor.process({ mode: "dual", source1: r1, source2: r2 }, { onUnpaired: "skip" })
       );
 
       expect(results).toHaveLength(4);
@@ -157,9 +154,7 @@ describe("PairProcessor", () => {
         createFastq("read1/1", "ATCG", "IIII"),
       ]);
 
-      const results = await Array.fromAsync(
-        processor.process({ mode: "single", source: mixed }),
-      );
+      const results = await Array.fromAsync(processor.process({ mode: "single", source: mixed }));
 
       expect(results).toHaveLength(2);
       expect(results[0].id).toBe("read1/1");
@@ -174,9 +169,7 @@ describe("PairProcessor", () => {
         createFastq("B/2", "GGGG", "IIII"),
       ]);
 
-      const results = await Array.fromAsync(
-        processor.process({ mode: "single", source: mixed }),
-      );
+      const results = await Array.fromAsync(processor.process({ mode: "single", source: mixed }));
 
       expect(results[0].sequence).toBe("AAAA");
       expect(results[1].sequence).toBe("TTTT");
@@ -192,9 +185,7 @@ describe("PairProcessor", () => {
         createFastq("read2/2", "GGGG", "IIII"),
       ]);
 
-      const results = await Array.fromAsync(
-        processor.process({ mode: "single", source: ordered }),
-      );
+      const results = await Array.fromAsync(processor.process({ mode: "single", source: ordered }));
 
       expect(results).toHaveLength(4);
       expect(results[0].id).toBe("read1/1");
@@ -213,10 +204,7 @@ describe("PairProcessor", () => {
       ]);
 
       const results = await Array.fromAsync(
-        processor.process(
-          { mode: "single", source: mixed },
-          { extractPairId: extractNoSuffix },
-        ),
+        processor.process({ mode: "single", source: mixed }, { extractPairId: extractNoSuffix })
       );
 
       expect(results).toHaveLength(4);
@@ -241,10 +229,7 @@ describe("PairProcessor", () => {
       ]);
 
       const results = await Array.fromAsync(
-        processor.process(
-          { mode: "dual", source1: r1, source2: r2 },
-          { maxBufferSize: 10 },
-        ),
+        processor.process({ mode: "dual", source1: r1, source2: r2 }, { maxBufferSize: 10 })
       );
 
       expect(results).toHaveLength(6);
@@ -255,16 +240,11 @@ describe("PairProcessor", () => {
         createFastq("read1/1", "AAAA", "IIII"),
         createFastq("read2/1", "TTTT", "IIII"),
       ]);
-      const r2 = toAsyncIterable([
-        createFastq("read3/2", "CCCC", "IIII"),
-      ]);
+      const r2 = toAsyncIterable([createFastq("read3/2", "CCCC", "IIII")]);
 
       await expect(async () => {
         await Array.fromAsync(
-          processor.process(
-            { mode: "dual", source1: r1, source2: r2 },
-            { maxBufferSize: 1 },
-          ),
+          processor.process({ mode: "dual", source1: r1, source2: r2 }, { maxBufferSize: 1 })
         );
       }).toThrow(MemoryError);
     });
@@ -284,10 +264,7 @@ describe("PairProcessor", () => {
       ]);
 
       const results = await Array.fromAsync(
-        processor.process(
-          { mode: "dual", source1: r1, source2: r2 },
-          { maxBufferSize: 5 },
-        ),
+        processor.process({ mode: "dual", source1: r1, source2: r2 }, { maxBufferSize: 5 })
       );
 
       expect(results).toHaveLength(8);
@@ -300,12 +277,10 @@ describe("PairProcessor", () => {
         createFastq("read1/1", "AAAA", "IIII"),
         createFastq("orphan/1", "TTTT", "IIII"),
       ]);
-      const r2 = toAsyncIterable([
-        createFastq("read1/2", "CCCC", "IIII"),
-      ]);
+      const r2 = toAsyncIterable([createFastq("read1/2", "CCCC", "IIII")]);
 
       const results = await Array.fromAsync(
-        processor.process({ mode: "dual", source1: r1, source2: r2 }),
+        processor.process({ mode: "dual", source1: r1, source2: r2 })
       );
 
       expect(results).toHaveLength(3);
@@ -316,34 +291,22 @@ describe("PairProcessor", () => {
         createFastq("read1/1", "AAAA", "IIII"),
         createFastq("orphan/1", "TTTT", "IIII"),
       ]);
-      const r2 = toAsyncIterable([
-        createFastq("read1/2", "CCCC", "IIII"),
-      ]);
+      const r2 = toAsyncIterable([createFastq("read1/2", "CCCC", "IIII")]);
 
       const results = await Array.fromAsync(
-        processor.process(
-          { mode: "dual", source1: r1, source2: r2 },
-          { onUnpaired: "skip" },
-        ),
+        processor.process({ mode: "dual", source1: r1, source2: r2 }, { onUnpaired: "skip" })
       );
 
       expect(results).toHaveLength(2);
     });
 
     test("throws PairSyncError when onUnpaired is error", async () => {
-      const r1 = toAsyncIterable([
-        createFastq("orphan/1", "AAAA", "IIII"),
-      ]);
-      const r2 = toAsyncIterable([
-        createFastq("other/2", "TTTT", "IIII"),
-      ]);
+      const r1 = toAsyncIterable([createFastq("orphan/1", "AAAA", "IIII")]);
+      const r2 = toAsyncIterable([createFastq("other/2", "TTTT", "IIII")]);
 
       await expect(async () => {
         await Array.fromAsync(
-          processor.process(
-            { mode: "dual", source1: r1, source2: r2 },
-            { onUnpaired: "error" },
-          ),
+          processor.process({ mode: "dual", source1: r1, source2: r2 }, { onUnpaired: "error" })
         );
       }).toThrow(PairSyncError);
     });
@@ -392,12 +355,8 @@ describe("SeqOps.pair() integration", () => {
     });
 
     test("pairs SeqOps with AsyncIterable", async () => {
-      const r1Data = [
-        createFastq("read1/1", "AAAA", "IIII"),
-      ];
-      const r2Iterable = toAsyncIterable([
-        createFastq("read1/2", "TTTT", "IIII"),
-      ]);
+      const r1Data = [createFastq("read1/1", "AAAA", "IIII")];
+      const r2Iterable = toAsyncIterable([createFastq("read1/2", "TTTT", "IIII")]);
 
       const r1 = new SeqOps(toAsyncIterable(r1Data));
       const results = await Array.fromAsync(r1.pair(r2Iterable));
@@ -439,7 +398,7 @@ describe("SeqOps.pair() integration", () => {
       const r2 = new SeqOps(toAsyncIterable(r2Data));
 
       const results = await Array.fromAsync(
-        r1.pair(r2).filter((seq) => seq.sequence.includes("A")),
+        r1.pair(r2).filter((seq) => seq.sequence.includes("A"))
       );
 
       expect(results).toHaveLength(1);
@@ -449,12 +408,8 @@ describe("SeqOps.pair() integration", () => {
 
   describe("type preservation", () => {
     test("preserves FastqSequence type", async () => {
-      const r1Data: FastqSequence[] = [
-        createFastq("read1/1", "AAAA", "IIII"),
-      ];
-      const r2Data: FastqSequence[] = [
-        createFastq("read1/2", "TTTT", "IIII"),
-      ];
+      const r1Data: FastqSequence[] = [createFastq("read1/1", "AAAA", "IIII")];
+      const r2Data: FastqSequence[] = [createFastq("read1/2", "TTTT", "IIII")];
 
       const r1 = new SeqOps<FastqSequence>(toAsyncIterable(r1Data));
       const r2 = new SeqOps<FastqSequence>(toAsyncIterable(r2Data));
@@ -477,12 +432,8 @@ describe("SeqOps.pair() integration", () => {
         };
       }
 
-      const r1Data: FastaSequence[] = [
-        createFasta("read1/1", "AAAA"),
-      ];
-      const r2Data: FastaSequence[] = [
-        createFasta("read1/2", "TTTT"),
-      ];
+      const r1Data: FastaSequence[] = [createFasta("read1/1", "AAAA")];
+      const r2Data: FastaSequence[] = [createFasta("read1/2", "TTTT")];
 
       const r1 = new SeqOps<FastaSequence>(toAsyncIterable(r1Data));
       const r2 = new SeqOps<FastaSequence>(toAsyncIterable(r2Data));
@@ -496,9 +447,7 @@ describe("SeqOps.pair() integration", () => {
     });
 
     test("enforces generic type constraint", async () => {
-      const fastqData = [
-        createFastq("read1/1", "AAAA", "IIII"),
-      ];
+      const fastqData = [createFastq("read1/1", "AAAA", "IIII")];
 
       const seqOps = new SeqOps<FastqSequence>(toAsyncIterable(fastqData));
       const results = await Array.fromAsync(seqOps.pair());
@@ -522,15 +471,11 @@ describe("SeqOps.pair() integration", () => {
       ];
 
       const paired = await Array.fromAsync(
-        new SeqOps(toAsyncIterable(r1Data)).pair(
-          new SeqOps(toAsyncIterable(r2Data)),
-        ),
+        new SeqOps(toAsyncIterable(r1Data)).pair(new SeqOps(toAsyncIterable(r2Data)))
       );
 
       const interleaved = await Array.fromAsync(
-        new SeqOps(toAsyncIterable(r1Data)).interleave(
-          new SeqOps(toAsyncIterable(r2Data)),
-        ),
+        new SeqOps(toAsyncIterable(r1Data)).interleave(new SeqOps(toAsyncIterable(r2Data)))
       );
 
       expect(paired).toHaveLength(4);
@@ -554,7 +499,7 @@ describe("SeqOps.pair() integration", () => {
       const results = await Array.fromAsync(
         new SeqOps(toAsyncIterable(r1Data))
           .pair(new SeqOps(toAsyncIterable(r2Data)))
-          .filter((seq) => !seq.quality.includes("#")),
+          .filter((seq) => !seq.quality.includes("#"))
       );
 
       expect(results).toHaveLength(2);
@@ -634,9 +579,7 @@ describe("SeqOps.pair() integration", () => {
       const r1 = new SeqOps(toAsyncIterable(r1Data));
       const r2 = new SeqOps(toAsyncIterable(r2Data));
 
-      const results = await Array.fromAsync(
-        r1.pair(r2, { extractPairId: extractNoSuffix }),
-      );
+      const results = await Array.fromAsync(r1.pair(r2, { extractPairId: extractNoSuffix }));
 
       expect(results).toHaveLength(2);
       expect(results[0].sequence).toBe("AAAA");
@@ -691,9 +634,7 @@ describe("SeqOps.pair() integration", () => {
       const r1 = new SeqOps(toAsyncIterable(r1Data));
       const r2 = new SeqOps(toAsyncIterable(r2Data));
 
-      const results = await Array.fromAsync(
-        r1.pair(r2, { onUnpaired: "warn" as const }),
-      );
+      const results = await Array.fromAsync(r1.pair(r2, { onUnpaired: "warn" as const }));
 
       expect(results).toHaveLength(2);
     });

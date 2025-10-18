@@ -3,9 +3,9 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import { PairSyncError } from "../../src/errors";
 import { defaultExtractPairId, PairedFastqParser } from "../../src/formats/fastq/paired";
 import type { PairedFastqRead } from "../../src/formats/fastq/types";
-import { PairSyncError } from "../../src/errors";
 
 describe("defaultExtractPairId", () => {
   describe("Illumina naming convention (/1, /2)", () => {
@@ -19,7 +19,7 @@ describe("defaultExtractPairId", () => {
 
     test("handles complex IDs with /1", () => {
       expect(defaultExtractPairId("NS500:123:ABC:1:1101:1234:5678/1")).toBe(
-        "NS500:123:ABC:1:1101:1234:5678",
+        "NS500:123:ABC:1:1101:1234:5678"
       );
     });
 
@@ -259,7 +259,7 @@ describe("PairedFastqParser", () => {
 
       const generator = parser.parseStrings(r1, r2);
       const iterator = generator[Symbol.asyncIterator]();
-      
+
       expect(iterator).toBeDefined();
       expect(typeof iterator.next).toBe("function");
     });
@@ -734,7 +734,7 @@ describe("PairedFastqParser", () => {
 
       for await (const pair of parser.parseFiles(
         "test/fixtures/paired-r1.fastq",
-        "test/fixtures/paired-r2.fastq",
+        "test/fixtures/paired-r2.fastq"
       )) {
         pairs.push(pair);
       }
@@ -757,7 +757,7 @@ describe("PairedFastqParser", () => {
 
       for await (const pair of parser.parseFiles(
         "test/fixtures/paired-r1.fastq",
-        "test/fixtures/paired-r2.fastq",
+        "test/fixtures/paired-r2.fastq"
       )) {
         pairs.push(pair);
       }
@@ -775,7 +775,7 @@ describe("PairedFastqParser", () => {
         const pairs: PairedFastqRead[] = [];
         for await (const pair of parser.parseFiles(
           "test/fixtures/paired-r1-mismatch.fastq",
-          "test/fixtures/paired-r2-mismatch.fastq",
+          "test/fixtures/paired-r2-mismatch.fastq"
         )) {
           pairs.push(pair);
         }
@@ -788,7 +788,7 @@ describe("PairedFastqParser", () => {
 
       for await (const pair of parser.parseFiles(
         "test/fixtures/paired-r1.fastq",
-        "test/fixtures/paired-r2.fastq",
+        "test/fixtures/paired-r2.fastq"
       )) {
         pairs.push(pair);
       }
@@ -805,7 +805,7 @@ describe("PairedFastqParser", () => {
 
       for await (const pair of parser.parseFiles(
         "test/fixtures/paired-r1.fastq",
-        "test/fixtures/paired-r2.fastq",
+        "test/fixtures/paired-r2.fastq"
       )) {
         pairs.push(pair);
       }
@@ -822,7 +822,7 @@ describe("PairedFastqParser", () => {
       for await (const pair of parser.parseFiles(
         "test/fixtures/paired-r1.fastq",
         "test/fixtures/paired-r2.fastq",
-        { encoding: "utf8" },
+        { encoding: "utf8" }
       )) {
         pairs.push(pair);
       }
@@ -836,12 +836,12 @@ describe("PairedFastqParser", () => {
       const parser = new PairedFastqParser();
       const r1 = "@read1/1\nATCG\n+\nIIII\n@read2/1\nGGGG\n+\nIIII";
       const r2 = "@read1/2\nTAGC\n+\nIIII\n@read2/2\nCCCC\n+\nIIII";
-      
+
       const pairs: PairedFastqRead[] = [];
       for await (const pair of parser.parseStrings(r1, r2)) {
         pairs.push(pair);
       }
-      
+
       expect(pairs).toHaveLength(2);
       expect(pairs[0].r1.sequence).toBe("ATCG");
       expect(pairs[0].r2.sequence).toBe("TAGC");
@@ -854,15 +854,15 @@ describe("PairedFastqParser", () => {
       const parser = new PairedFastqParser();
       let pairCount = 0;
       let totalLength = 0;
-      
+
       for await (const pair of parser.parseFiles(
         "test/fixtures/paired-r1.fastq",
-        "test/fixtures/paired-r2.fastq",
+        "test/fixtures/paired-r2.fastq"
       )) {
         pairCount++;
         totalLength += pair.totalLength;
       }
-      
+
       expect(pairCount).toBe(3);
       expect(totalLength).toBe(72);
     });
@@ -871,12 +871,12 @@ describe("PairedFastqParser", () => {
       const parser = new PairedFastqParser();
       const r1 = "@read1/1\nATCG\n+\nIIII\n@read2/1\nGGGGGG\n+\nIIIIII";
       const r2 = "@read1/2\nTAGC\n+\nIIII\n@read2/2\nCC\n+\nII";
-      
+
       const pairs: PairedFastqRead[] = [];
       for await (const pair of parser.parseStrings(r1, r2)) {
         pairs.push(pair);
       }
-      
+
       expect(pairs[0].totalLength).toBe(8);
       expect(pairs[1].totalLength).toBe(8);
     });
@@ -885,12 +885,12 @@ describe("PairedFastqParser", () => {
       const parser = new PairedFastqParser();
       const r1 = "";
       const r2 = "";
-      
+
       const pairs: PairedFastqRead[] = [];
       for await (const pair of parser.parseStrings(r1, r2)) {
         pairs.push(pair);
       }
-      
+
       expect(pairs).toHaveLength(0);
     });
   });
@@ -901,15 +901,15 @@ describe("PairedFastqParser", () => {
         checkPairSync: true,
         onMismatch: "throw",
       });
-      
+
       const r1 = "@read1/1\nATCG\n+\nIIII\n@read2_1\nGGGG\n+\nIIII\n@read3.1\nTTTT\n+\nIIII";
       const r2 = "@read1/2\nCGAT\n+\nIIII\n@read2_2\nCCCC\n+\nIIII\n@read3.2\nAAAA\n+\nIIII";
-      
+
       const pairs: PairedFastqRead[] = [];
       for await (const pair of parser.parseStrings(r1, r2)) {
         pairs.push(pair);
       }
-      
+
       expect(pairs).toHaveLength(3);
       expect(pairs[0].pairId).toBe("read1");
       expect(pairs[1].pairId).toBe("read2");
@@ -921,15 +921,15 @@ describe("PairedFastqParser", () => {
         checkPairSync: true,
         onMismatch: "throw",
       });
-      
+
       const r1 = "@M00123:456:000000000-ABCDE:1:1101:15678:1234 1:N:0:1\nATCG\n+\nIIII";
       const r2 = "@M00123:456:000000000-ABCDE:1:1101:15678:1234 2:N:0:1\nCGAT\n+\nIIII";
-      
+
       const pairs: PairedFastqRead[] = [];
       for await (const pair of parser.parseStrings(r1, r2)) {
         pairs.push(pair);
       }
-      
+
       expect(pairs).toHaveLength(1);
       expect(pairs[0].pairId).toBe("M00123:456:000000000-ABCDE:1:1101:15678:1234");
     });
@@ -939,10 +939,10 @@ describe("PairedFastqParser", () => {
         checkPairSync: true,
         onMismatch: "throw",
       });
-      
+
       const r1 = "@read1/1\nATCG\n+\nIIII";
       const r2 = "@read2/2\nCGAT\n+\nIIII";
-      
+
       let errorMessage = "";
       try {
         for await (const pair of parser.parseStrings(r1, r2)) {
@@ -953,7 +953,7 @@ describe("PairedFastqParser", () => {
           errorMessage = error.message;
         }
       }
-      
+
       expect(errorMessage).toContain("read1");
       expect(errorMessage).toContain("read2");
       expect(errorMessage).toContain("pair 0");
@@ -964,13 +964,13 @@ describe("PairedFastqParser", () => {
         checkPairSync: true,
         onMismatch: "throw",
       });
-      
+
       const r1 = "@read1/1\nATCG\n+\nIIII\n@read2/1\nGGGG\n+\nIIII\n@read3/1\nTTTT\n+\nIIII";
       const r2 = "@read1/2\nCGAT\n+\nIIII\n@readX/2\nCCCC\n+\nIIII\n@read3/2\nAAAA\n+\nIIII";
-      
+
       const pairs: PairedFastqRead[] = [];
       let threwError = false;
-      
+
       try {
         for await (const pair of parser.parseStrings(r1, r2)) {
           pairs.push(pair);
@@ -980,7 +980,7 @@ describe("PairedFastqParser", () => {
           threwError = true;
         }
       }
-      
+
       expect(threwError).toBe(true);
       expect(pairs).toHaveLength(1);
     });
@@ -990,15 +990,15 @@ describe("PairedFastqParser", () => {
         checkPairSync: true,
         onMismatch: "warn",
       });
-      
+
       const r1 = "@read1/1\nATCG\n+\nIIII\n@read2/1\nGGGG\n+\nIIII";
       const r2 = "@read1/2\nCGAT\n+\nIIII\n@readX/2\nCCCC\n+\nIIII";
-      
+
       const pairs: PairedFastqRead[] = [];
       for await (const pair of parser.parseStrings(r1, r2)) {
         pairs.push(pair);
       }
-      
+
       expect(pairs).toHaveLength(2);
       expect(pairs[0].pairId).toBe("read1");
       expect(pairs[1].pairId).toBe("read2");
@@ -1009,15 +1009,15 @@ describe("PairedFastqParser", () => {
         checkPairSync: true,
         onMismatch: "skip",
       });
-      
+
       const r1 = "@read1/1\nATCG\n+\nIIII\n@read2/1\nGGGG\n+\nIIII";
       const r2 = "@read1/2\nCGAT\n+\nIIII\n@readX/2\nCCCC\n+\nIIII";
-      
+
       const pairs: PairedFastqRead[] = [];
       for await (const pair of parser.parseStrings(r1, r2)) {
         pairs.push(pair);
       }
-      
+
       expect(pairs).toHaveLength(2);
       expect(pairs[0].pairId).toBe("read1");
       expect(pairs[1].pairId).toBe("read2");
@@ -1030,36 +1030,36 @@ describe("PairedFastqParser", () => {
         const parts = id.split(":");
         return parts.length > 0 ? parts[0] : id;
       };
-      
+
       const parser = new PairedFastqParser({
         checkPairSync: true,
         onMismatch: "throw",
         extractPairId: customExtractor,
       });
-      
+
       const r1 = "@instrument:run:flowcell:lane:tile:x:y:UMI_FORWARD\nATCG\n+\nIIII";
       const r2 = "@instrument:run:flowcell:lane:tile:x:y:UMI_REVERSE\nCGAT\n+\nIIII";
-      
+
       const pairs: PairedFastqRead[] = [];
       for await (const pair of parser.parseStrings(r1, r2)) {
         pairs.push(pair);
       }
-      
+
       expect(pairs).toHaveLength(1);
       expect(pairs[0].pairId).toBe("instrument");
     });
 
     test("multi-line FASTQ sequences handled correctly in pairs", async () => {
       const parser = new PairedFastqParser();
-      
+
       const r1 = "@read1/1\nATCG\nATCG\nATCG\n+\nIIII\nIIII\nIIII";
       const r2 = "@read1/2\nCGAT\nCGAT\nCGAT\n+\nIIII\nIIII\nIIII";
-      
+
       const pairs: PairedFastqRead[] = [];
       for await (const pair of parser.parseStrings(r1, r2)) {
         pairs.push(pair);
       }
-      
+
       expect(pairs).toHaveLength(1);
       expect(pairs[0].r1.sequence).toBe("ATCGATCGATCG");
       expect(pairs[0].r2.sequence).toBe("CGATCGATCGAT");
@@ -1073,15 +1073,15 @@ describe("PairedFastqParser", () => {
         qualityEncoding: "phred33",
         parseQualityScores: true,
       });
-      
+
       const r1 = "@read1/1\nATCG\n+\n!@#$";
       const r2 = "@read1/2\nCGAT\n+\n%^&*";
-      
+
       const pairs: PairedFastqRead[] = [];
       for await (const pair of parser.parseStrings(r1, r2)) {
         pairs.push(pair);
       }
-      
+
       expect(pairs).toHaveLength(1);
       expect(pairs[0].r1.quality).toBe("!@#$");
       expect(pairs[0].r2.quality).toBe("%^&*");
@@ -1089,10 +1089,10 @@ describe("PairedFastqParser", () => {
 
     test("error propagation from internal parsers for malformed FASTQ", async () => {
       const parser = new PairedFastqParser();
-      
+
       const r1 = "@read1/1\nATCG\n+\nIIII";
       const r2 = "@read1/2\nCGAT\nNO_PLUS_LINE\nIIII";
-      
+
       let threwError = false;
       try {
         for await (const pair of parser.parseStrings(r1, r2)) {
@@ -1101,21 +1101,21 @@ describe("PairedFastqParser", () => {
       } catch (error) {
         threwError = true;
       }
-      
+
       expect(threwError).toBe(true);
     });
 
     test("asymmetric read lengths handled correctly", async () => {
       const parser = new PairedFastqParser();
-      
+
       const r1 = "@read1/1\nATCGATCGATCG\n+\nIIIIIIIIIIII";
       const r2 = "@read1/2\nCG\n+\nII";
-      
+
       const pairs: PairedFastqRead[] = [];
       for await (const pair of parser.parseStrings(r1, r2)) {
         pairs.push(pair);
       }
-      
+
       expect(pairs).toHaveLength(1);
       expect(pairs[0].r1.length).toBe(12);
       expect(pairs[0].r2.length).toBe(2);
@@ -1124,10 +1124,10 @@ describe("PairedFastqParser", () => {
 
     test("R1 longer than R2 file detected as length mismatch", async () => {
       const parser = new PairedFastqParser();
-      
+
       const r1 = "@read1/1\nATCG\n+\nIIII\n@read2/1\nGGGG\n+\nIIII";
       const r2 = "@read1/2\nCGAT\n+\nIIII";
-      
+
       let threwError = false;
       let errorMessage = "";
       try {
@@ -1140,17 +1140,17 @@ describe("PairedFastqParser", () => {
           errorMessage = error.message;
         }
       }
-      
+
       expect(threwError).toBe(true);
       expect(errorMessage).toContain("R2");
     });
 
     test("R2 longer than R1 file detected as length mismatch", async () => {
       const parser = new PairedFastqParser();
-      
+
       const r1 = "@read1/1\nATCG\n+\nIIII";
       const r2 = "@read1/2\nCGAT\n+\nIIII\n@read2/2\nCCCC\n+\nIIII";
-      
+
       let threwError = false;
       let errorMessage = "";
       try {
@@ -1163,7 +1163,7 @@ describe("PairedFastqParser", () => {
           errorMessage = error.message;
         }
       }
-      
+
       expect(threwError).toBe(true);
       expect(errorMessage).toContain("R1");
     });

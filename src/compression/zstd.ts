@@ -98,7 +98,7 @@ function initializeZstdDecompressor(
     // Initialize runtime-specific decompressor
     if (runtime === "node") {
       // Try Node.js native Zstd support
-      import("zlib")
+      import("node:zlib")
         .then((zlib) => {
           if (zlib.createZstdDecompress !== undefined) {
             state.decompressor = zlib.createZstdDecompress({
@@ -381,17 +381,17 @@ async function decompressWithBun(_compressed: Uint8Array): Promise<Uint8Array | 
 
 async function decompressWithNode(compressed: Uint8Array): Promise<Uint8Array | null> {
   try {
-    const { createZstdDecompress } = await import("zlib");
+    const { createZstdDecompress } = await import("node:zlib");
     if (createZstdDecompress === undefined) {
       return null;
     }
 
-    const { promisify } = await import("util");
-    const { pipeline } = await import("stream");
+    const { promisify } = await import("node:util");
+    const { pipeline } = await import("node:stream");
     const pipelineAsync = promisify(pipeline);
 
     // Create streams for decompression
-    const readable = new (await import("stream")).Readable({
+    const readable = new (await import("node:stream")).Readable({
       read(): void {
         this.push(compressed);
         this.push(null);
@@ -399,7 +399,7 @@ async function decompressWithNode(compressed: Uint8Array): Promise<Uint8Array | 
     });
 
     const chunks: Buffer[] = [];
-    const writable = new (await import("stream")).Writable({
+    const writable = new (await import("node:stream")).Writable({
       write(
         chunk: Buffer,
         _encoding: BufferEncoding,

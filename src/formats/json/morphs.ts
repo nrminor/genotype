@@ -7,12 +7,7 @@
 
 import { type } from "arktype";
 import type { SequenceRow } from "./types";
-import {
-  MetadataSchema,
-  SequenceArraySchema,
-  SequenceRowSchema,
-  WrappedSequenceSchema,
-} from "./types";
+import { SequenceArraySchema, SequenceRowSchema, WrappedSequenceSchema } from "./types";
 
 export const serializeJSON = SequenceArraySchema.pipe((data) => JSON.stringify(data));
 

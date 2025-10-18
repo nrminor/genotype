@@ -5,7 +5,7 @@
  * encoding schemes used in sequencing data formats.
  */
 
-import { QualityEncoding } from "../../../types";
+import type { QualityEncoding } from "../../../types";
 import type { AsciiOffset, QualityEncodingInfo, QualityScore } from "./types";
 
 /**

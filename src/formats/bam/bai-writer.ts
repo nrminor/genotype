@@ -284,7 +284,7 @@ export class BAIWriter {
       this.totalAlignments++;
 
       // Check for memory limits
-      if (binAccumulator.chunks.length > this.options.maxChunksPerBin!) {
+      if (binAccumulator.chunks.length > this.options.maxChunksPerBin) {
         console.warn(
           `Bin ${binNumber} in reference ${refId} has ${binAccumulator.chunks.length} chunks - consider merging`
         );
@@ -551,7 +551,7 @@ export class BAIWriter {
     let refLength = 0;
 
     for (const op of cigarOps) {
-      const length = parseInt(op.slice(0, -1));
+      const length = parseInt(op.slice(0, -1), 10);
       const operation = op.slice(-1);
 
       // Operations that consume reference: M, D, N, =, X

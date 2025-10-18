@@ -12,7 +12,7 @@ import { type } from "arktype";
 import { ValidationError } from "../../errors";
 import { qualityToScores, scoresToQuality } from "../../operations/core/quality";
 import type { FastqSequence, QualityEncoding } from "../../types";
-import { ASCII_BOUNDARIES, PARSING_DEFAULTS } from "./constants";
+import { PARSING_DEFAULTS } from "./constants";
 import {
   assembleFastqRecord,
   chunkQuality,
@@ -21,16 +21,9 @@ import {
   formatHeader,
   formatSeparator,
   isValidHeader,
-  isValidSeparator,
-  lengthsMatch,
 } from "./primitives";
 import type { FastqWriterOptions, OutputStrategy } from "./types";
-import {
-  type PlatformInfo,
-  type ValidationLevel,
-  type ValidationResult,
-  validateFastqRecord,
-} from "./validation";
+import { type PlatformInfo, type ValidationLevel, validateFastqRecord } from "./validation";
 
 // ============================================================================
 // CONSTANTS
@@ -461,7 +454,7 @@ export class FastqWriter {
    */
   private detectPlatform(sequence: FastqSequence): Platform {
     // Construct full header line for platform detection
-    const headerLine = `@${sequence.id}${sequence.description ? " " + sequence.description : ""}`;
+    const headerLine = `@${sequence.id}${sequence.description ? ` ${sequence.description}` : ""}`;
     const platformInfo = extractPlatformInfo(headerLine);
 
     // Ensure we return a valid Platform type
@@ -589,7 +582,7 @@ export class FastqWriter {
    */
   async *formatStream(sequences: AsyncIterable<FastqSequence>): AsyncGenerator<string> {
     for await (const sequence of sequences) {
-      yield this.formatSequence(sequence) + "\n";
+      yield `${this.formatSequence(sequence)}\n`;
     }
   }
 
@@ -610,7 +603,7 @@ export class FastqWriter {
 
     try {
       for await (const sequence of sequences) {
-        const formatted = this.formatSequence(sequence) + "\n";
+        const formatted = `${this.formatSequence(sequence)}\n`;
         await writer.write(encoder.encode(formatted));
       }
     } finally {

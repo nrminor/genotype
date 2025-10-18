@@ -8,7 +8,7 @@
 import { type } from "arktype";
 import { ParseError } from "../../errors";
 import { convertRecordToSequence } from "../../operations/fx2tab";
-import type { AbstractSequence, FastaSequence, FastqSequence } from "../../types";
+import type { AbstractSequence } from "../../types";
 import { deserializeJSON, deserializeJSONWrapped, jsonlToRows } from "./morphs";
 import type { JSONParseOptions } from "./types";
 

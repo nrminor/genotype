@@ -36,9 +36,7 @@ import { FilterProcessor } from "./filter";
 import {
   type ColumnId,
   type Fx2TabOptions,
-  type Fx2TabRow,
   fx2tab,
-  rowsToStrings,
   type Tab2FxOptions,
   TabularOps,
   tab2fx,
@@ -46,7 +44,7 @@ import {
 import { GrepProcessor } from "./grep";
 import { type InterleaveOptions, InterleaveProcessor } from "./interleave";
 import { LocateProcessor } from "./locate";
-import { PairProcessor, type PairOptions } from "./pair";
+import { type PairOptions, PairProcessor } from "./pair";
 import { QualityProcessor } from "./quality";
 import { rename } from "./rename";
 import { replace } from "./replace";
@@ -60,13 +58,11 @@ import { TransformProcessor } from "./transform";
 import { TranslateProcessor } from "./translate";
 import type {
   AmpliconOptions,
-  AnnotateOptions,
   CleanOptions,
   ConcatOptions,
   ConvertOptions,
   FilterOptions,
   GrepOptions,
-  GroupOptions,
   LocateOptions,
   QualityOptions,
   RenameOptions,
@@ -297,61 +293,6 @@ export class SeqOps<T extends AbstractSequence> {
       }
     }
     return new SeqOps(arrayToAsyncIterable());
-  }
-
-  /**
-   * Concatenate multiple sequence files into a single pipeline
-   *
-   * Static factory function that creates a SeqOps pipeline from multiple files.
-   * Elegant API for combining sequence sources with simple duplicate handling.
-   *
-   * @param filePaths - Array of file paths to concatenate
-   * @param handleDuplicateIds - How to handle duplicate IDs: 'suffix' | 'ignore' (default: 'ignore')
-   * @returns New SeqOps instance for chaining
-   *
-   * @example
-   * ```typescript
-   * // Simple concatenation
-   * const combined = SeqOps.concat(['file1.fasta', 'file2.fasta']);
-   *
-   * // With duplicate ID suffixing
-   * const merged = SeqOps.concat(['db1.fa', 'db2.fa'], 'suffix')
-   *   .filter({ minLength: 100 })
-   *   .writeFasta('combined.fa');
-   * ```
-   *
-   * @since 2.0.0
-   */
-  static concat(
-    filePaths: string[],
-    handleDuplicateIds: "suffix" | "ignore" = "ignore"
-  ): SeqOps<FastaSequence> {
-    async function* concatenateFiles(): AsyncIterable<FastaSequence> {
-      const seenIds = new Set<string>();
-
-      for (let sourceIndex = 0; sourceIndex < filePaths.length; sourceIndex++) {
-        const filePath = filePaths[sourceIndex];
-        if (!filePath) continue;
-
-        // Simple format detection and parsing
-        const parser = new FastaParser();
-        const sequences = parser.parseFile(filePath);
-
-        for await (const seq of sequences) {
-          let finalSeq = seq;
-
-          // Handle duplicate IDs simply
-          if (seenIds.has(seq.id) && handleDuplicateIds === "suffix") {
-            finalSeq = { ...seq, id: `${seq.id}_${sourceIndex}` };
-          }
-
-          seenIds.add(finalSeq.id);
-          yield finalSeq;
-        }
-      }
-    }
-
-    return new SeqOps(concatenateFiles());
   }
 
   // =============================================================================
@@ -843,6 +784,61 @@ export class SeqOps<T extends AbstractSequence> {
         : { pattern, target }; // TypeScript knows pattern is string | RegExp here
 
     return new SeqOps<T>(processor.process(this.source, options) as AsyncIterable<T>);
+  }
+
+  /**
+   * Concatenate multiple sequence files into a single pipeline
+   *
+   * Static factory function that creates a SeqOps pipeline from multiple files.
+   * Elegant API for combining sequence sources with simple duplicate handling.
+   *
+   * @param filePaths - Array of file paths to concatenate
+   * @param handleDuplicateIds - How to handle duplicate IDs: 'suffix' | 'ignore' (default: 'ignore')
+   * @returns New SeqOps instance for chaining
+   *
+   * @example
+   * ```typescript
+   * // Simple concatenation
+   * const combined = SeqOps.concat(['file1.fasta', 'file2.fasta']);
+   *
+   * // With duplicate ID suffixing
+   * const merged = SeqOps.concat(['db1.fa', 'db2.fa'], 'suffix')
+   *   .filter({ minLength: 100 })
+   *   .writeFasta('combined.fa');
+   * ```
+   *
+   * @since 2.0.0
+   */
+  static concat(
+    filePaths: string[],
+    handleDuplicateIds: "suffix" | "ignore" = "ignore"
+  ): SeqOps<FastaSequence> {
+    async function* concatenateFiles(): AsyncIterable<FastaSequence> {
+      const seenIds = new Set<string>();
+
+      for (let sourceIndex = 0; sourceIndex < filePaths.length; sourceIndex++) {
+        const filePath = filePaths[sourceIndex];
+        if (!filePath) continue;
+
+        // Simple format detection and parsing
+        const parser = new FastaParser();
+        const sequences = parser.parseFile(filePath);
+
+        for await (const seq of sequences) {
+          let finalSeq = seq;
+
+          // Handle duplicate IDs simply
+          if (seenIds.has(seq.id) && handleDuplicateIds === "suffix") {
+            finalSeq = { ...seq, id: `${seq.id}_${sourceIndex}` };
+          }
+
+          seenIds.add(finalSeq.id);
+          yield finalSeq;
+        }
+      }
+    }
+
+    return new SeqOps(concatenateFiles());
   }
 
   /**
@@ -2025,7 +2021,7 @@ export class SeqOps<T extends AbstractSequence> {
 
     try {
       for await (const row of fx2tab(this.source, { ...options, delimiter: "\t" })) {
-        stream.write(row.__raw + "\n");
+        stream.write(`${row.__raw}\n`);
       }
     } finally {
       stream.end();
@@ -2054,7 +2050,7 @@ export class SeqOps<T extends AbstractSequence> {
 
     try {
       for await (const row of fx2tab(this.source, { ...options, delimiter: "," })) {
-        stream.write(row.__raw + "\n");
+        stream.write(`${row.__raw}\n`);
       }
     } finally {
       stream.end();
@@ -2092,7 +2088,7 @@ export class SeqOps<T extends AbstractSequence> {
 
     try {
       for await (const row of fx2tab(this.source, { ...options, delimiter })) {
-        stream.write(row.__raw + "\n");
+        stream.write(`${row.__raw}\n`);
       }
     } finally {
       stream.end();
@@ -2168,7 +2164,7 @@ export class SeqOps<T extends AbstractSequence> {
    * ```
    */
   async collectSet(): Promise<SequenceSet<T> | KmerSet<any>> {
-    const sequences: T[] = [];
+    const sequences = [];
     for await (const seq of this.source) {
       sequences.push(seq);
     }
@@ -2960,7 +2956,7 @@ export class SeqOps<T extends AbstractSequence> {
   pair(options?: PairOptions): SeqOps<T>;
   pair(
     otherOrOptions?: SeqOps<T> | AsyncIterable<T> | PairOptions,
-    optionsArg?: PairOptions,
+    optionsArg?: PairOptions
   ): SeqOps<T> {
     const processor = new PairProcessor();
 
@@ -2972,18 +2968,13 @@ export class SeqOps<T extends AbstractSequence> {
           "onUnpaired" in otherOrOptions))
     ) {
       const options = otherOrOptions as PairOptions | undefined;
-      return new SeqOps<T>(
-        processor.process({ mode: "single", source: this.source }, options),
-      );
+      return new SeqOps<T>(processor.process({ mode: "single", source: this.source }, options));
     }
 
     const other = otherOrOptions as SeqOps<T> | AsyncIterable<T>;
     const otherSource = other instanceof SeqOps ? other.source : other;
     return new SeqOps<T>(
-      processor.process(
-        { mode: "dual", source1: this.source, source2: otherSource },
-        optionsArg,
-      ),
+      processor.process({ mode: "dual", source1: this.source, source2: otherSource }, optionsArg)
     );
   }
 
@@ -3112,6 +3103,7 @@ export {
   TabularOps,
   tab2fx,
 } from "./fx2tab";
+export type { PairOptions } from "./pair";
 // Export split-specific types
 export { SplitProcessor, type SplitResult, type SplitSummary } from "./split";
 // Re-export types and classes for convenience
@@ -3125,13 +3117,11 @@ export { TranslateProcessor } from "./translate";
 // Export new semantic API types
 export type {
   AmpliconOptions,
-  AnnotateOptions,
   CleanOptions,
   ConcatOptions,
   ConvertOptions,
   FilterOptions,
   GrepOptions,
-  GroupOptions,
   LocateOptions,
   QualityOptions,
   RenameOptions,
@@ -3145,7 +3135,6 @@ export type {
   ValidateOptions,
   WindowOptions,
 } from "./types";
-export type { PairOptions } from "./pair";
 export { KmerSet, SequenceSet } from "./types";
 export { type UniqueOptions, UniqueProcessor } from "./unique";
 export { WindowsProcessor } from "./windows";

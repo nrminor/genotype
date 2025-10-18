@@ -31,6 +31,14 @@ interface FastaParserOptions extends ParserOptions {
 }
 
 /**
+ * Discriminated union for processed FASTA lines
+ */
+type ProcessedFastaLine =
+  | { isHeader: true; headerData: Partial<FastaSequence> }
+  | { isHeader: false; sequenceData: string }
+  | null;
+
+/**
  * ArkType validation for FASTA parser options with genomics domain expertise
  * Provides excellent error messages for FASTA workflows and biological guidance
  */
@@ -293,7 +301,7 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
         } else {
           // Handle sequence data
           this.processSequenceData(
-            processedLine.sequenceData!,
+            processedLine.sequenceData,
             currentSequence,
             sequenceBuffer,
             currentLineNumber
@@ -302,7 +310,7 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
       } catch (error) {
         // Call error handler for parsing errors
         const errorMessage = error instanceof Error ? error.message : String(error);
-        this.options.onError!(errorMessage, currentLineNumber);
+        this.options.onError(errorMessage, currentLineNumber);
       }
     }
 
@@ -322,23 +330,16 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
    * @param lineNumber Line number for error reporting
    * @returns Processed line data or null if line should be skipped
    */
-  private processLine(
-    line: string,
-    lineNumber: number
-  ): {
-    isHeader: boolean;
-    headerData?: Partial<FastaSequence>;
-    sequenceData?: string;
-  } | null {
+  private processLine(line: string, lineNumber: number): ProcessedFastaLine {
     // Validate meaningful constraints
     if (!Number.isInteger(lineNumber) || lineNumber <= 0) {
       throw new ValidationError("lineNumber must be positive integer");
     }
 
     // Check line length bounds
-    if (line.length > this.options.maxLineLength!) {
-      this.options.onError!(
-        `Line too long (${line.length} > ${this.options.maxLineLength!})`,
+    if (line.length > this.options.maxLineLength) {
+      this.options.onError(
+        `Line too long (${line.length} > ${this.options.maxLineLength})`,
         lineNumber
       );
       return null;
@@ -388,7 +389,7 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
     }
 
     if (!currentSequence) {
-      this.options.onError!("Sequence data found before header", lineNumber);
+      this.options.onError("Sequence data found before header", lineNumber);
       return;
     }
 
@@ -547,7 +548,7 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
       // Warn about very large files
       if (metadata.size > 1_073_741_824) {
         // 1GB
-        this.options.onWarning!(
+        this.options.onWarning(
           `Large FASTA file detected: ${Math.round(metadata.size / 1_048_576)}MB. Consider using streaming with smaller buffer sizes.`,
           1
         );
@@ -593,7 +594,7 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
           } else {
             // Handle sequence data
             this.processSequenceData(
-              processedLine.sequenceData!,
+              processedLine.sequenceData,
               currentSequence,
               sequenceBuffer,
               lineNumber
@@ -602,7 +603,7 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
         } catch (lineError) {
           // Call error handler for line-level parsing errors
           const errorMessage = lineError instanceof Error ? lineError.message : String(lineError);
-          this.options.onError!(errorMessage, lineNumber);
+          this.options.onError(errorMessage, lineNumber);
         }
       }
 

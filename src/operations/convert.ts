@@ -17,7 +17,7 @@ import { ValidationError } from "../errors";
 import type { AbstractSequence, FastaSequence, FastqSequence, QualityEncoding } from "../types";
 import { calculateQualityStats } from "./core";
 import { convertScore, detectEncodingWithConfidence, scoreToChar } from "./core/encoding";
-import { type ValidPhred33Char, type ValidPhred64Char, type ValidSolexaChar } from "./core/quality";
+import type { ValidPhred33Char, ValidPhred64Char, ValidSolexaChar } from "./core/quality";
 import { charToScore, qualityToScores } from "./core/quality/conversion";
 import type { ConvertOptions, Processor } from "./types";
 

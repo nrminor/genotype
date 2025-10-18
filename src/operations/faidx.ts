@@ -60,53 +60,237 @@ const ExtractOptionsSchema = type({
 });
 
 /**
- * Coordinate pattern definitions
+ * Result type for parsing operations
  *
- * Order matters: patterns are tested sequentially.
- * More specific patterns should come before more general ones.
+ * Discriminated union encoding success/failure without exceptions.
+ * Enables type-safe error handling with TypeScript's control flow analysis.
+ *
+ * @template T - Success value type
+ * @template E - Error type (defaults to Error)
+ *
+ * @example
+ * ```ts
+ * const result = parseCoordinateRange("123-456");
+ * if (result.success) {
+ *   // TypeScript knows result.value exists
+ *   console.log(result.value);
+ * } else {
+ *   // TypeScript knows result.error exists
+ *   console.error(result.error.message);
+ * }
+ * ```
+ *
+ * @since 1.0.0
+ * @category Types
  */
-const REGION_PATTERNS: readonly RegionPattern[] = [
-  {
-    name: "single_position",
-    regex: /^(\d+)$/,
-    parse: (match) => {
-      const pos = Number.parseInt(match[1]!, 10);
-      return { start: pos, end: pos };
-    },
-  },
-  {
-    name: "negative_range",
-    regex: /^(-\d+):(-\d+)$/,
-    parse: (match) => ({
-      start: Number.parseInt(match[1]!, 10),
-      end: Number.parseInt(match[2]!, 10),
-    }),
-  },
-  {
-    name: "positive_range",
-    regex: /^(\d+)-(\d+)$/,
-    parse: (match) => ({
-      start: Number.parseInt(match[1]!, 10),
-      end: Number.parseInt(match[2]!, 10),
-    }),
-  },
-  {
-    name: "start_to_end",
-    regex: /^(\d+)-$/,
-    parse: (match) => ({
-      start: Number.parseInt(match[1]!, 10),
-      end: -1,
-    }),
-  },
-  {
-    name: "beginning_to_position",
-    regex: /^-(\d+)$/,
-    parse: (match) => ({
-      start: 1,
-      end: Number.parseInt(match[1]!, 10),
-    }),
-  },
-] as const;
+type ParseResult<T, E = Error> =
+  | { readonly success: true; readonly value: T }
+  | { readonly success: false; readonly error: E };
+
+/**
+ * Coordinate range specification with discriminated union encoding
+ *
+ * Uses TypeScript's type system to prove which fields exist based on format.
+ * Eliminates need for runtime assertions by encoding format variants in types.
+ *
+ * Supported coordinate formats:
+ * - Single position: "123" → { type: "single", position: 123 }
+ * - Range: "123-456" → { type: "range", start: 123, end: 456 }
+ * - Start to end: "123-" → { type: "startToEnd", start: 123 }
+ * - Beginning to position: "-456" → { type: "beginningToPosition", end: 456 }
+ *
+ * @example
+ * ```ts
+ * const coord: CoordinateRange = { type: "range", start: 100, end: 200 };
+ *
+ * // TypeScript proves fields exist based on type discriminant
+ * switch (coord.type) {
+ *   case "range":
+ *     console.log(coord.start, coord.end); // Both exist, no assertions needed
+ *     break;
+ *   case "single":
+ *     console.log(coord.position); // Exists, no assertion needed
+ *     break;
+ * }
+ * ```
+ *
+ * @since 1.0.0
+ * @category Types
+ */
+type CoordinateRange =
+  | { readonly type: "single"; readonly position: number }
+  | { readonly type: "range"; readonly start: number; readonly end: number }
+  | { readonly type: "startToEnd"; readonly start: number }
+  | { readonly type: "beginningToPosition"; readonly end: number };
+
+/**
+ * Error type for coordinate parsing failures
+ *
+ * Provides context about what input failed and why.
+ * Used in ParseResult to encode parse failures at type level.
+ *
+ * @example
+ * ```ts
+ * throw new CoordinateParseError(
+ *   "Invalid coordinate format: abc",
+ *   "abc"
+ * );
+ * ```
+ *
+ * @since 1.0.0
+ * @category Errors
+ */
+class CoordinateParseError extends Error {
+  constructor(
+    message: string,
+    public readonly input: string,
+    public readonly position?: number
+  ) {
+    super(message);
+    this.name = "CoordinateParseError";
+  }
+}
+
+/**
+ * Parse coordinate specification into typed structure
+ *
+ * Supports multiple coordinate formats used in genomic tools:
+ * - "123" → single position
+ * - "123-456" → range (start to end)
+ * - "123-" → start to end of sequence
+ * - "-456" → beginning to position
+ * - "-5:-1" → negative offsets (Python-style)
+ *
+ * Uses destructuring instead of array index assertions to safely access
+ * regex capture groups. TypeScript proves safety through discriminated unions.
+ *
+ * @param input - Coordinate string to parse
+ * @returns ParseResult with CoordinateRange on success or CoordinateParseError on failure
+ *
+ * @example
+ * ```ts
+ * const result = parseCoordinateRange("123-456");
+ * if (result.success) {
+ *   switch (result.value.type) {
+ *     case 'range':
+ *       const { start, end } = result.value;  // TypeScript knows these exist
+ *       console.log(`Range: ${start}-${end}`);
+ *       break;
+ *     case 'single':
+ *       const { position } = result.value;    // TypeScript knows this exists
+ *       console.log(`Position: ${position}`);
+ *       break;
+ *   }
+ * }
+ * ```
+ *
+ * @since 1.0.0
+ * @category Parsing
+ */
+function parseCoordinateRange(input: string): ParseResult<CoordinateRange, CoordinateParseError> {
+  // Single position: "123"
+  const singleMatch = /^(\d+)$/.exec(input);
+  if (singleMatch) {
+    const [, posStr] = singleMatch; // Destructure instead of singleMatch[1]!
+    if (!posStr) {
+      return {
+        success: false,
+        error: new CoordinateParseError("Failed to extract position", input),
+      };
+    }
+    return {
+      success: true,
+      value: {
+        type: "single",
+        position: Number.parseInt(posStr, 10),
+      },
+    };
+  }
+
+  // Negative range: "-5:-1" (Python-style negative indexing)
+  const negativeMatch = /^(-\d+):(-\d+)$/.exec(input);
+  if (negativeMatch) {
+    const [, startStr, endStr] = negativeMatch; // Destructure instead of negativeMatch[1]!, negativeMatch[2]!
+    if (!startStr || !endStr) {
+      return {
+        success: false,
+        error: new CoordinateParseError("Failed to extract range coordinates", input),
+      };
+    }
+    return {
+      success: true,
+      value: {
+        type: "range",
+        start: Number.parseInt(startStr, 10),
+        end: Number.parseInt(endStr, 10),
+      },
+    };
+  }
+
+  // Positive range: "123-456"
+  const rangeMatch = /^(\d+)-(\d+)$/.exec(input);
+  if (rangeMatch) {
+    const [, startStr, endStr] = rangeMatch; // Destructure instead of rangeMatch[1]!, rangeMatch[2]!
+    if (!startStr || !endStr) {
+      return {
+        success: false,
+        error: new CoordinateParseError("Failed to extract range coordinates", input),
+      };
+    }
+    return {
+      success: true,
+      value: {
+        type: "range",
+        start: Number.parseInt(startStr, 10),
+        end: Number.parseInt(endStr, 10),
+      },
+    };
+  }
+
+  // Start to end: "123-"
+  const startToEndMatch = /^(\d+)-$/.exec(input);
+  if (startToEndMatch) {
+    const [, startStr] = startToEndMatch; // Destructure instead of startToEndMatch[1]!
+    if (!startStr) {
+      return {
+        success: false,
+        error: new CoordinateParseError("Failed to extract start position", input),
+      };
+    }
+    return {
+      success: true,
+      value: {
+        type: "startToEnd",
+        start: Number.parseInt(startStr, 10),
+      },
+    };
+  }
+
+  // Beginning to position: "-456"
+  const beginningMatch = /^-(\d+)$/.exec(input);
+  if (beginningMatch) {
+    const [, endStr] = beginningMatch; // Destructure instead of beginningMatch[1]!
+    if (!endStr) {
+      return {
+        success: false,
+        error: new CoordinateParseError("Failed to extract end position", input),
+      };
+    }
+    return {
+      success: true,
+      value: {
+        type: "beginningToPosition",
+        end: Number.parseInt(endStr, 10),
+      },
+    };
+  }
+
+  // No pattern matched
+  return {
+    success: false,
+    error: new CoordinateParseError(`Invalid coordinate format: ${input}`, input),
+  };
+}
 
 /**
  * Options for Faidx initialization
@@ -136,28 +320,10 @@ export interface FaidxRecord {
   linewidth: number;
 }
 
-/**
- * Parsed region specification
- *
- * Internal representation of a region string after parsing.
- * Coordinates are 1-based, -1 means "to sequence end".
- */
 interface ParsedRegion {
   seqId: string;
   start: number;
   end: number;
-}
-
-/**
- * Region coordinate pattern definition
- *
- * Declarative pattern matching for genomic coordinate formats.
- * Each pattern has a name, regex, and parser function.
- */
-interface RegionPattern {
-  readonly name: string;
-  readonly regex: RegExp;
-  readonly parse: (match: RegExpExecArray) => { start: number; end: number };
 }
 
 /**
@@ -668,7 +834,7 @@ export class Faidx {
         // RegExp object provided
         if (options?.caseInsensitive && !pattern.flags.includes("i")) {
           // Add 'i' flag if not already present
-          regex = new RegExp(pattern.source, pattern.flags + "i");
+          regex = new RegExp(pattern.source, `${pattern.flags}i`);
         } else {
           regex = pattern;
         }
@@ -777,17 +943,31 @@ function calculateByteRange(
 /**
  * Match coordinate string against known patterns
  *
+ * Uses parseCoordinateRange to parse into discriminated union,
+ * then converts to legacy { start, end } format for backward compatibility.
+ *
  * @param coords - Coordinate portion of region string (after colon)
  * @returns Parsed coordinates or null if no pattern matched
  */
 function matchCoordinatePattern(coords: string): { start: number; end: number } | null {
-  for (const pattern of REGION_PATTERNS) {
-    const match = pattern.regex.exec(coords);
-    if (match) {
-      return pattern.parse(match);
-    }
+  const result = parseCoordinateRange(coords);
+
+  if (!result.success) {
+    return null;
   }
-  return null;
+
+  // Convert discriminated union to legacy format
+  const coord = result.value;
+  switch (coord.type) {
+    case "single":
+      return { start: coord.position, end: coord.position };
+    case "range":
+      return { start: coord.start, end: coord.end };
+    case "startToEnd":
+      return { start: coord.start, end: -1 };
+    case "beginningToPosition":
+      return { start: 1, end: coord.end };
+  }
 }
 
 /**

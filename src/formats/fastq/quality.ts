@@ -7,12 +7,11 @@
  * @module fastq/quality
  */
 
+import { ValidationError } from "../../errors";
 import {
   calculateQualityStats,
   convertQuality,
-  getEncodingInfo,
   qualityToScores,
-  scoresToQuality,
 } from "../../operations/core/quality";
 import type { QualityEncoding } from "../../types";
 import { QUALITY_THRESHOLDS, QUALITY_WINDOWS, TRIMMING_DEFAULTS } from "./constants";
@@ -211,8 +210,17 @@ function assessQuality(
   const mean = stats.mean;
 
   // Find matching quality level using declarative lookup
-  const matchedLevel =
-    QUALITY_LEVELS.find((q) => mean >= q.minScore) ?? QUALITY_LEVELS[QUALITY_LEVELS.length - 1]!; // Non-null assertion safe: array is non-empty
+  // Destructure last element with explicit validation
+  const fallbackLevel = QUALITY_LEVELS[QUALITY_LEVELS.length - 1];
+  if (!fallbackLevel) {
+    throw new ValidationError(
+      "QUALITY_LEVELS array must contain at least one quality level definition",
+      undefined,
+      "Quality assessment requires non-empty QUALITY_LEVELS configuration"
+    );
+  }
+
+  const matchedLevel = QUALITY_LEVELS.find((q) => mean >= q.minScore) ?? fallbackLevel;
 
   return {
     level: matchedLevel.level,

@@ -15,8 +15,8 @@
  * @since v0.1.0
  */
 
+import { basename, extname } from "node:path";
 import { type } from "arktype";
-import { basename, extname } from "path";
 import { ValidationError } from "../errors";
 import { readToString } from "../io/file-reader";
 import type { AbstractSequence } from "../types";

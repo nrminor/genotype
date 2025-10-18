@@ -832,7 +832,7 @@ GGGGGGGGGGGGGGGG
       await faidx.init();
 
       // Match all sequences starting with 'chr'
-      const pattern = new RegExp("^chr");
+      const pattern = /^chr/;
       const sequences = await Array.fromAsync(faidx.extractByPattern(pattern));
 
       expect(sequences).toHaveLength(3);

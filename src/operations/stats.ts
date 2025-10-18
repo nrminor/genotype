@@ -373,8 +373,8 @@ export class SequenceStatsCalculator {
     let q30Count = 0;
 
     for (const qualityString of qualities) {
-      for (let i = 0; i < qualityString.length; i++) {
-        const score = charToScore(qualityString[i]!, encoding);
+      for (const char of qualityString) {
+        const score = charToScore(char, encoding);
         totalScore += score;
         totalBases++;
         minScore = Math.min(minScore, score);
@@ -498,9 +498,7 @@ export class SequenceStatsCalculator {
   ): void {
     const upperSeq = sequence.toUpperCase();
 
-    for (let i = 0; i < upperSeq.length; i++) {
-      const char = upperSeq[i]!;
-
+    for (const char of upperSeq) {
       // Count bases
       switch (char) {
         case "G":
@@ -578,8 +576,8 @@ export class SequenceStatsCalculator {
     const quality = sequence.quality;
     const encoding = sequence.qualityEncoding;
 
-    for (let i = 0; i < quality.length; i++) {
-      const score = charToScore(quality[i]!, encoding);
+    for (const char of quality) {
+      const score = charToScore(char, encoding);
 
       accumulator.totalQuality += score;
       accumulator.qualityCount++;

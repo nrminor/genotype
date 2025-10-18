@@ -22,7 +22,6 @@ import {
   sequenceOverlap,
   sequenceSymmetricDifference,
   sequenceUnion,
-  sequenceUnique,
 } from "./core/sequence-sets";
 
 /**
@@ -285,7 +284,7 @@ type QualityBinningOptions<N extends 2 | 3 | 5 = 2 | 3 | 5> =
  *
  * @public
  */
-export type QualityOptions = QualityBaseOptions & ({} | QualityBinningOptions);
+export type QualityOptions = QualityBaseOptions & Partial<QualityBinningOptions>;
 
 /**
  * Options for quality score encoding conversion
@@ -325,31 +324,6 @@ export interface ValidateOptions {
 
   /** Character to use when fixing invalid bases */
   fixChar?: string;
-}
-
-/**
- * Options for annotating sequence metadata
- *
- * Annotation operations modify sequence headers and descriptions.
- */
-export interface AnnotateOptions {
-  /** Add prefix to sequence IDs */
-  prefix?: string;
-
-  /** Add suffix to sequence IDs */
-  suffix?: string;
-
-  /** Keep only first word of ID */
-  simplifyId?: boolean;
-
-  /** Add sequence length to description */
-  addLength?: boolean;
-
-  /** Add GC content to description */
-  addGC?: boolean;
-
-  /** Custom annotation function */
-  custom?: (seq: AbstractSequence) => Partial<AbstractSequence>;
 }
 
 /**
@@ -975,17 +949,6 @@ export type ReplaceOptions =
   | BaseReplaceOptions; // Neither kvMap nor kvFile;
 
 /**
- * Options for grouping sequences
- */
-export interface GroupOptions {
-  /** Grouping criterion */
-  by: "length" | "gc" | ((seq: AbstractSequence) => string);
-
-  /** Aggregation method for groups */
-  aggregate?: "count" | "stats" | "collect";
-}
-
-/**
  * Options for motif location finding operations
  *
  * Comprehensive interface for finding patterns within sequences with
@@ -1380,10 +1343,6 @@ export class SequenceSet<T extends AbstractSequence = AbstractSequence> {
  * ```
  */
 export class KmerSet<K extends number> extends SequenceSet<KmerSequence<K>> {
-  constructor(sequences: KmerSequence<K>[]) {
-    super(sequences);
-  }
-
   override union(other: KmerSet<K>): KmerSet<K> {
     return new KmerSet<K>(super.union(other).toArray());
   }

@@ -174,7 +174,7 @@ export function extractPlatformInfo(
 ): { platform?: string; flowcell?: string; lane?: number } | undefined {
   // Common Illumina pattern: @<instrument>:<run>:<flowcell>:<lane>:<tile>:<x>:<y>
   const illuminaMatch = headerLine.match(/@(\w+):(\d+):([\w-]+):(\d+):/);
-  if (illuminaMatch && illuminaMatch[3] && illuminaMatch[4]) {
+  if (illuminaMatch?.[3] && illuminaMatch[4]) {
     return {
       platform: "illumina",
       flowcell: illuminaMatch[3],
@@ -184,7 +184,7 @@ export function extractPlatformInfo(
 
   // PacBio pattern: @<movie>/<zmw>/<start>_<end>
   const pacbioMatch = headerLine.match(/@(\w+)\/(\d+)\/(\d+)_(\d+)/);
-  if (pacbioMatch && pacbioMatch[1]) {
+  if (pacbioMatch?.[1]) {
     return {
       platform: "pacbio",
       flowcell: pacbioMatch[1],

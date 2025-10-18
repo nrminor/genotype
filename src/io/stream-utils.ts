@@ -420,8 +420,9 @@ function checkMemoryUsage(bufferSize: number, totalProcessed: number): void {
 
   if (estimatedMemory > limit) {
     throw new MemoryError(
-      `Memory usage ${estimatedMemory} bytes exceeds ${runtime} limit of ${limit} bytes`,
-      "Consider using smaller buffer sizes or processing files in chunks"
+      `Memory usage ${estimatedMemory} bytes exceeds ${runtime} limit of ${limit} bytes` +
+        `after processing ${totalProcessed} records.`,
+      `Consider using smaller buffer sizes than ${bufferSize} or processing files in chunks`
     );
   }
 }

@@ -11,7 +11,6 @@
 import type { AbstractSequence } from "../types";
 // Import IUPAC constants and validation primitives from core
 import {
-  expandAmbiguous,
   IUPAC_DNA,
   IUPAC_PROTEIN,
   IUPAC_RNA,

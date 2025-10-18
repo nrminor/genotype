@@ -252,7 +252,7 @@ function parseGtfScore(scoreStr: string): number | null {
   }
 
   const score = parseFloat(scoreStr);
-  if (isNaN(score)) {
+  if (Number.isNaN(score)) {
     throw new ParseError(`Invalid score: ${scoreStr}`, "GTF");
   }
 
@@ -273,7 +273,7 @@ function parseGtfFrame(frameStr: string): number | null {
   }
 
   const frame = parseInt(frameStr, 10);
-  if (isNaN(frame) || frame < 0 || frame > 2) {
+  if (Number.isNaN(frame) || frame < 0 || frame > 2) {
     throw new ParseError(`Invalid frame: ${frameStr} (must be 0, 1, 2, or '.')`, "GTF");
   }
 
@@ -288,7 +288,7 @@ function validateGtfCoordinates(
   end: number,
   sequenceLength = Number.MAX_SAFE_INTEGER,
   region = `${start}-${end}`
-): { valid: boolean; error?: string } {
+): { valid: true } | { valid: false; error: string } {
   if (start < 1) {
     return {
       valid: false,
@@ -329,7 +329,7 @@ function parseGtfCoordinates(
     const startValue = parseInt(startStr, 10);
     const endValue = parseInt(endStr, 10);
 
-    if (isNaN(startValue) || isNaN(endValue)) {
+    if (Number.isNaN(startValue) || Number.isNaN(endValue)) {
       throw new Error(`Invalid coordinates: start=${startStr}, end=${endStr} (not numbers)`);
     }
 
@@ -352,7 +352,7 @@ function parseGtfCoordinates(
     );
 
     if (!validation.valid) {
-      throw new Error(validation.error!);
+      throw new Error(validation.error);
     }
 
     return { start: startResult.value, end: endResult.value };
@@ -440,7 +440,7 @@ function buildGtfFeature(
   const coordValidation = validateGtfCoordinates(start, end);
   if (!coordValidation.valid) {
     throw new ParseError(
-      coordValidation.error!,
+      coordValidation.error,
       "GTF",
       lineNumber,
       `Feature coordinates: ${seqname}:${start}-${end} (${feature})`
@@ -463,7 +463,7 @@ function buildGtfFeature(
   const attributes = parseGtfAttributes(attributeStr);
 
   // Add normalization if requested
-  let normalized: NormalizedGtfAttributes | undefined = undefined;
+  let normalized: NormalizedGtfAttributes | undefined;
   if (normalizeAttributes || shouldDetectDatabase) {
     const databaseVariant = shouldDetectDatabase ? detectDatabaseVariant(attributes) : "unknown";
     normalized = normalizeGtfAttributes(attributes, databaseVariant);

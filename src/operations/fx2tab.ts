@@ -28,13 +28,12 @@ import {
 import type { JSONWriteOptions } from "../formats/json";
 import {
   generateCollectionMetadata,
-  rowsToJSONL,
   serializeJSON,
   serializeJSONPretty,
   serializeJSONWithMetadata,
   serializeJSONWithMetadataPretty,
 } from "../formats/json";
-import type { AbstractSequence, FastqSequence } from "../types";
+import type { AbstractSequence, FastaSequence, FastqSequence } from "../types";
 import {
   atContent,
   baseComposition,
@@ -46,7 +45,6 @@ import {
 import { hashMD5 } from "./core/hashing";
 import { calculateAverageQuality } from "./core/quality";
 import { charToScore } from "./core/quality/conversion";
-import { getEncodingInfo } from "./core/quality/encoding-info";
 
 // =============================================================================
 // CONSTANTS
@@ -305,7 +303,7 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
     writer: DSVWriter | CSVWriter | TSVWriter,
     formatName: "TSV" | "CSV" | "DSV"
   ): Promise<void> {
-    let stream;
+    let stream: Bun.FileSink | undefined;
     try {
       stream = Bun.file(path).writer();
       for await (const row of this.source) {
@@ -414,7 +412,7 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
    * @since 2.0.0
    */
   async writeJSON(path: string, options?: JSONWriteOptions): Promise<void> {
-    let stream;
+    let stream: Bun.FileSink | undefined;
     try {
       const rows = await this.toArray();
 
@@ -493,8 +491,8 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
    * @performance O(n) time, O(1) memory - streams one row at a time
    * @since 2.0.0
    */
-  async writeJSONL(path: string, options?: JSONWriteOptions): Promise<void> {
-    let stream;
+  async writeJSONL(path: string): Promise<void> {
+    let stream: Bun.FileSink | undefined;
     try {
       stream = Bun.file(path).writer();
 
@@ -950,13 +948,50 @@ export async function* tab2fx(
  * Shared conversion logic used by both tab2fx() and JSON parsers.
  * Handles both FASTA and FASTQ formats based on presence of quality field.
  *
+ * Type-safe overloads ensure return type matches the format parameter:
+ * - format="fasta" → returns FastaSequence
+ * - format="fastq" → returns FastqSequence
+ * - format=union → returns AbstractSequence (FastaSequence | FastqSequence)
+ *
  * @param record - Object with id, sequence, and optional quality/description fields
  * @param format - Target format ("fasta" or "fastq")
  * @param qualityEncoding - Quality encoding for FASTQ sequences
- * @returns Typed AbstractSequence object
+ * @returns Typed sequence object (FastaSequence, FastqSequence, or AbstractSequence)
  *
  * @internal
  */
+export function convertRecordToSequence(
+  record: {
+    id: string;
+    sequence: string;
+    description?: string;
+    length?: number;
+  },
+  format: "fasta",
+  qualityEncoding?: never
+): FastaSequence;
+export function convertRecordToSequence(
+  record: {
+    id: string;
+    sequence: string;
+    quality: string;
+    description?: string;
+    length?: number;
+  },
+  format: "fastq",
+  qualityEncoding: "phred33" | "phred64" | "solexa"
+): FastqSequence;
+export function convertRecordToSequence(
+  record: {
+    id: string;
+    sequence: string;
+    quality?: string;
+    description?: string;
+    length?: number;
+  },
+  format: "fasta" | "fastq",
+  qualityEncoding?: "phred33" | "phred64" | "solexa"
+): AbstractSequence;
 export function convertRecordToSequence(
   record: {
     id: string;

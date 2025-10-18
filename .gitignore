@@ -44,6 +44,8 @@
 !/src/formats/fastq/*.ts
 !/src/formats/json/
 !/src/formats/json/*.ts
+!/src/formats/dsv/
+!/src/formats/dsv/*.ts
 !/src/io/
 !/src/io/*.ts
 !/src/utils/

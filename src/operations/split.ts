@@ -92,8 +92,15 @@ const SplitOptionsSchema = type({
       });
     }
     const [, , startStr, endStr] = regionMatch;
-    const start = parseInt(startStr!, 10);
-    const end = parseInt(endStr!, 10);
+    if (startStr === undefined || endStr === undefined) {
+      return ctx.reject({
+        expected: "valid region coordinates",
+        actual: options.region,
+        path: ["region"],
+      });
+    }
+    const start = parseInt(startStr, 10);
+    const end = parseInt(endStr, 10);
     if (start >= end) {
       return ctx.reject({
         expected: "start < end",
@@ -252,7 +259,8 @@ export class SplitProcessor {
     if (sequences.length === 0) return;
 
     const sequencesPerPart = Math.ceil(sequences.length / numParts);
-    const outputFormat = sequences.length > 0 && "quality" in sequences[0]! ? "fastq" : "fasta";
+    const [first] = sequences;
+    const outputFormat = first && "quality" in first ? "fastq" : "fasta";
     const extension = options.fileExtension ?? ".fasta";
     const writers = new Map<number, Bun.FileSink>();
 
@@ -267,7 +275,11 @@ export class SplitProcessor {
 
       // Distribute sequences across parts using round-robin
       for (let i = 0; i < sequences.length; i++) {
-        const sequence = sequences[i]!;
+        const sequence = sequences[i];
+        if (!sequence) {
+          throw new Error(`Invalid sequence at index ${i}`);
+        }
+
         const partId = Math.floor(i / sequencesPerPart) + 1;
         const countInPart = (i % sequencesPerPart) + 1;
 
@@ -381,7 +393,10 @@ export class SplitProcessor {
     source: AsyncIterable<AbstractSequence>,
     options: SplitOptions
   ): AsyncIterable<SplitResult> {
-    const regex = new RegExp(options.idRegex!);
+    if (options.idRegex === undefined) {
+      throw new SplitError("idRegex is required for by-id mode", "processById", "by-id");
+    }
+    const regex = new RegExp(options.idRegex);
     const outputDir = options.outputDir ?? "./split";
     const prefix = options.filePrefix ?? "group";
 
@@ -415,7 +430,15 @@ export class SplitProcessor {
         counts.set(groupId, count);
 
         // Write sequence in appropriate format
-        const writer = writers.get(groupId)!;
+        const writer = writers.get(groupId);
+        if (writer === undefined) {
+          throw new SplitError(
+            `Internal error: writer not found for group ${groupId}`,
+            "by-id",
+            "by-id",
+            `groupId="${groupId}", writers.has()=${writers.has(groupId)}`
+          );
+        }
         if (outputFormat === "fastq" && "quality" in sequence) {
           const fastqWriter = new FastqWriter();
           writer.write(fastqWriter.formatSequence(sequence as FastqSequence));
@@ -454,7 +477,10 @@ export class SplitProcessor {
     source: AsyncIterable<AbstractSequence>,
     options: SplitOptions
   ): AsyncIterable<SplitResult> {
-    const regionId = options.region!; // Keep original format for partId
+    if (options.region === undefined) {
+      throw new SplitError("region is required for by-region mode", "processByRegion", "by-region");
+    }
+    const regionId = options.region; // Keep original format for partId
     const outputDir = options.outputDir ?? "./split";
     const prefix = options.filePrefix ?? "region";
 
@@ -648,15 +674,23 @@ export async function splitById(
 
       // Get or create writer
       if (!writers.has(groupId)) {
-        const filePath = outputDir + "/" + prefix + "_" + groupId + ".fasta";
+        const filePath = `${outputDir}/${prefix}_${groupId}.fasta`;
         const writer = Bun.file(filePath).writer();
         writers.set(groupId, writer);
         filesCreated.push(filePath);
         groupCounts.set(groupId, 0);
       }
 
-      const writer = writers.get(groupId)!;
-      const count = groupCounts.get(groupId)! || 0;
+      const writer = writers.get(groupId);
+      if (writer === undefined) {
+        throw new SplitError(
+          `Internal error: writer not found for group ${groupId}`,
+          "splitById",
+          undefined,
+          `groupId="${groupId}", writers.has()=${writers.has(groupId)}`
+        );
+      }
+      const count = groupCounts.get(groupId) ?? 0;
 
       // Write sequence
       const fastaWriter = new FastaWriter();

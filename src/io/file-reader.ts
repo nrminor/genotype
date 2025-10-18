@@ -562,13 +562,30 @@ async function readBinaryStream(
 
   try {
     while (true) {
+      // Check for abort signal before reading next chunk
+      if (mergedOptions.signal?.aborted) {
+        throw new Error("Read operation aborted");
+      }
+
       const { done, value } = await reader.read();
       if (done === true) break;
 
       chunks.push(value);
       totalLength += value.length;
 
-      // Progress tracking removed - users can implement their own by counting bytes
+      // Enforce size limit during streaming to prevent runaway memory usage
+      if (totalLength > mergedOptions.maxFileSize) {
+        throw new FileError(
+          `Stream exceeded maximum file size: ${totalLength} > ${mergedOptions.maxFileSize}`,
+          "<stream>",
+          "read"
+        );
+      }
+    }
+
+    // Validate final size matches expected (detect concurrent modifications or streaming issues)
+    if (fileSize > 0 && totalLength !== fileSize) {
+      console.warn(`Size mismatch: expected ${fileSize} bytes, read ${totalLength} bytes`);
     }
 
     const combined = new Uint8Array(totalLength);
@@ -591,18 +608,39 @@ async function readTextStream(
 ): Promise<string> {
   const decoder = new TextDecoder("utf-8");
   let result = "";
+  let bytesRead = 0;
 
   try {
     while (true) {
+      // Check for abort signal before reading next chunk
+      if (mergedOptions.signal?.aborted) {
+        throw new Error("Read operation aborted");
+      }
+
       const { done, value } = await reader.read();
       if (done === true) break;
 
-      result += decoder.decode(value, { stream: true });
+      bytesRead += value.length;
 
-      // Progress tracking removed - users can implement their own by counting bytes
+      // Enforce size limit during streaming to prevent runaway memory usage
+      if (bytesRead > mergedOptions.maxFileSize) {
+        throw new FileError(
+          `Stream exceeded maximum file size: ${bytesRead} > ${mergedOptions.maxFileSize}`,
+          "<stream>",
+          "read"
+        );
+      }
+
+      result += decoder.decode(value, { stream: true });
     }
 
     result += decoder.decode();
+
+    // Validate final size matches expected (detect concurrent modifications or streaming issues)
+    if (fileSize > 0 && bytesRead !== fileSize) {
+      console.warn(`Size mismatch: expected ${fileSize} bytes, read ${bytesRead} bytes`);
+    }
+
     return result;
   } finally {
     reader.releaseLock();

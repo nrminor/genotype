@@ -171,16 +171,16 @@ export class LocateProcessor {
     // Create case-insensitive version if needed
     let searchPattern = pattern;
     if (options.ignoreCase === true && !pattern.flags.includes("i")) {
-      searchPattern = new RegExp(pattern.source, pattern.flags + "i");
+      searchPattern = new RegExp(pattern.source, `${pattern.flags}i`);
     }
 
     // Add global flag if not present to find all matches
     if (!searchPattern.flags.includes("g")) {
-      searchPattern = new RegExp(searchPattern.source, searchPattern.flags + "g");
+      searchPattern = new RegExp(searchPattern.source, `${searchPattern.flags}g`);
     }
 
-    let match;
-    while ((match = searchPattern.exec(seq.sequence)) !== null) {
+    let match: RegExpExecArray | null = searchPattern.exec(seq.sequence);
+    while (match !== null) {
       const location: MotifLocation = {
         sequenceId: seq.id,
         start: match.index,
@@ -202,6 +202,9 @@ export class LocateProcessor {
       if (match[0].length === 0) {
         searchPattern.lastIndex++;
       }
+
+      // Get next match for next iteration
+      match = searchPattern.exec(seq.sequence);
     }
 
     return results;

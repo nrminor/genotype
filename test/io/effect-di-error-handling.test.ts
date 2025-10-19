@@ -9,13 +9,13 @@
  * - Malformed data handling
  */
 
-import { expect, test, describe, beforeEach, afterEach } from "bun:test";
-import { readToString, readByteRange } from "../../src/io/file-reader";
-import { writeString, writeBytes } from "../../src/io/file-writer";
-import { FileError, CompressionError } from "../../src/errors";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, unlinkSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
+import { CompressionError, FileError } from "../../src/errors";
+import { readByteRange, readToString } from "../../src/io/file-reader";
+import { writeBytes, writeString } from "../../src/io/file-writer";
 
 describe("Effect DI Error Handling", () => {
   let testFile: string;

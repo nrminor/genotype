@@ -16,9 +16,9 @@
  */
 
 import { Context, Effect, Layer } from "effect";
+import { CompressionService } from "../../src/compression";
 import { CompressionError } from "../../src/errors";
 import type { CompressionFormat } from "../../src/types";
-import { CompressionService } from "../../src/compression";
 
 /**
  * Mock compression service that passes through data unchanged

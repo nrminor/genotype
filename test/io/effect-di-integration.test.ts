@@ -8,12 +8,12 @@
  * - Compression format detection with layers
  */
 
-import { expect, test, describe, beforeEach, afterEach } from "bun:test";
-import { readToString, readByteRange } from "../../src/io/file-reader";
-import { writeString, writeBytes } from "../../src/io/file-writer";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, unlinkSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
+import { readByteRange, readToString } from "../../src/io/file-reader";
+import { writeBytes, writeString } from "../../src/io/file-writer";
 
 describe("Effect DI Integration - Compression Layers", () => {
   let testFile: string;
@@ -35,11 +35,11 @@ describe("Effect DI Integration - Compression Layers", () => {
     test("should pass through data unchanged (mock layer)", async () => {
       const content = "Hello, World! Mock Test";
       const filePath = `${testFile}.gz`; // .gz extension
-      
+
       // Write with real compression
       await writeString(filePath, content);
       expect(existsSync(filePath)).toBe(true);
-      
+
       // Read back - should decompress correctly
       const result = await readToString(filePath);
       expect(result).toBe(content);
@@ -48,12 +48,12 @@ describe("Effect DI Integration - Compression Layers", () => {
     test("should work with mock layer for fast testing", async () => {
       const testData = "Fast test with mock layer";
       const encoder = new TextEncoder();
-      
+
       // Note: In a real test scenario, you would extract the compression
       // logic into a separate Effect program to swap layers. For now,
       // we verify the API works correctly with the refactored code.
       const filePath = join(tmpdir(), `mock-test-${Date.now()}.txt`);
-      
+
       try {
         await writeString(filePath, testData);
         const read = await readToString(filePath);
@@ -127,7 +127,7 @@ describe("Effect DI Integration - Compression Layers", () => {
 
       try {
         await writeString(plainFile, content);
-        
+
         // Read specific byte range
         const bytes = await readByteRange(plainFile, 4, 9); // "quick"
         const result = new TextDecoder().decode(bytes);
@@ -145,7 +145,7 @@ describe("Effect DI Integration - Compression Layers", () => {
 
       try {
         await writeString(plainFile, content);
-        
+
         const bytes = await readByteRange(plainFile, 0, 5);
         const result = new TextDecoder().decode(bytes);
         expect(result).toBe("01234");
@@ -162,7 +162,7 @@ describe("Effect DI Integration - Compression Layers", () => {
 
       try {
         await writeString(plainFile, content);
-        
+
         const bytes = await readByteRange(plainFile, 5, 10);
         const result = new TextDecoder().decode(bytes);
         expect(result).toBe("56789");
@@ -182,7 +182,7 @@ describe("Effect DI Integration - Compression Layers", () => {
       try {
         // Write without specifying compressionFormat
         await writeString(autoDetectFile, content);
-        
+
         // Read back - should auto-detect and decompress
         const result = await readToString(autoDetectFile);
         expect(result).toBe(content);
@@ -273,7 +273,7 @@ describe("Effect DI Integration - Compression Layers", () => {
       // This test shows the pattern for composing layers
       // In production code, you would extract compression logic into
       // a separate Effect program for full layer swapping capability
-      
+
       const content = "Layer composition test";
       const testPath = join(tmpdir(), `layer-test-${Date.now()}.txt`);
 

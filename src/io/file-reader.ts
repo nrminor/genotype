@@ -16,13 +16,7 @@ import {
   MultiFormatCompressionService,
 } from "../compression";
 import { CompatibilityError, FileError } from "../errors";
-import type {
-  FileIOContext,
-  FileMetadata,
-  FilePath,
-  FileReaderOptions,
-  FileValidationResult,
-} from "../types";
+import type { FileIOContext, FileMetadata, FilePath, FileReaderOptions } from "../types";
 import { FilePathSchema, FileReaderOptionsSchema } from "../types";
 import { detectRuntime, getPlatform } from "./runtime";
 
@@ -38,116 +32,6 @@ const DEFAULT_OPTIONS: Required<FileReaderOptions> = {
   compressionFormat: "none", // Will be auto-detected
   decompressionOptions: {},
 };
-
-/**
- * Validate file accessibility and constraints
- */
-async function validateFile(
-  path: FilePath,
-  options: Required<FileReaderOptions>
-): Promise<FileValidationResult> {
-  // TypeScript guarantees types - no defensive checking needed
-
-  try {
-    // Check if file exists
-    if (!(await exists(path))) {
-      return {
-        isValid: false,
-        error: "File does not exist or is not accessible",
-      };
-    }
-
-    // Get metadata
-    const metadata = await getMetadata(path);
-
-    // Check file size
-    if (metadata.size > options.maxFileSize) {
-      return {
-        isValid: false,
-        metadata,
-        error: `File size ${metadata.size} exceeds maximum ${options.maxFileSize}`,
-      };
-    }
-
-    // Check readability
-    if (!metadata.readable) {
-      return {
-        isValid: false,
-        metadata,
-        error: "File is not readable",
-      };
-    }
-
-    return {
-      isValid: true,
-      metadata,
-    };
-  } catch (error) {
-    return {
-      isValid: false,
-      error: error instanceof Error ? error.message : String(error),
-    };
-  }
-}
-
-/**
- * Create base file stream using Effect Platform
- * Works across Node.js, Bun, and Deno automatically via platform layers
- */
-async function createBaseStream(
-  validatedPath: FilePath,
-  mergedOptions: Required<FileReaderOptions>
-): Promise<ReadableStream<Uint8Array>> {
-  const program = Effect.gen(function* () {
-    const fs = yield* FileSystem.FileSystem;
-    const effectStream = fs.stream(validatedPath, {
-      bufferSize: mergedOptions.bufferSize,
-    });
-    return Stream.toReadableStream(effectStream);
-  });
-
-  return Effect.runPromise(program.pipe(Effect.provide(getPlatform())));
-}
-
-/**
- * Apply decompression to stream if needed
- */
-async function applyDecompression(
-  stream: ReadableStream<Uint8Array>,
-  filePath: FilePath,
-  options: Required<FileReaderOptions>
-): Promise<ReadableStream<Uint8Array>> {
-  // TypeScript guarantees types - no defensive checking needed
-
-  try {
-    // Determine compression format
-    let compressionFormat = options.compressionFormat;
-
-    if (compressionFormat === "none") {
-      // Auto-detect compression from file extension
-      compressionFormat = CompressionDetector.fromExtension(filePath);
-    }
-
-    // If no compression detected, return original stream
-    if (compressionFormat === "none") {
-      return stream;
-    }
-
-    // Create appropriate decompressor
-    const decompressor = createDecompressor(compressionFormat);
-
-    // Apply decompression with merged options
-    const decompressionOptions = {
-      ...options.decompressionOptions,
-      bufferSize: options.bufferSize,
-      signal: options.signal,
-    };
-
-    return decompressor.wrapStream(stream, decompressionOptions);
-  } catch (error) {
-    throw FileError.fromSystemError("read", filePath, error);
-  }
-}
 
 /**
  * Check if a file exists and is accessible
@@ -241,17 +125,9 @@ export async function createStream(
   path: string,
   options: FileReaderOptions = {}
 ): Promise<ReadableStream<Uint8Array>> {
-  // TypeScript guarantees types - delegate to ArkType for domain validation
-
-  const validatedPath = validatePath(path);
   const runtime = detectRuntime();
+  const validatedPath = validatePath(path);
   const mergedOptions = mergeOptions(options);
-
-  // Validate file before creating stream
-  const validation = await validateFile(validatedPath, mergedOptions);
-  if (validation.isValid === false) {
-    throw new FileError(validation.error ?? "File validation failed", validatedPath, "read");
-  }
 
   const context: FileIOContext = {
     filePath: validatedPath,
@@ -262,15 +138,11 @@ export async function createStream(
   };
 
   try {
-    // Create base stream first
-    let stream = await createBaseStream(validatedPath, mergedOptions);
-
-    // Apply decompression if enabled and needed
-    if (mergedOptions.autoDecompress) {
-      stream = await applyDecompression(stream, validatedPath, mergedOptions);
-    }
-
-    return stream;
+    // ✅ SINGLE runtime launch at boundary
+    // Composes validateFileEffect + createBaseStreamEffect + decompression
+    return await Effect.runPromise(
+      createStreamEffect(path, options).pipe(Effect.provide(getPlatform()))
+    );
   } catch (error) {
     if (error instanceof CompatibilityError) throw error;
 
@@ -321,7 +193,6 @@ export async function createStream(
 export async function readToString(path: string, options: FileReaderOptions = {}): Promise<string> {
   const validatedPath = validatePath(path);
   const mergedOptions = mergeOptions(options);
-  await validateFileSize(validatedPath, mergedOptions);
 
   // Auto-detect compression format from file extension
   let compressionFormat = mergedOptions.compressionFormat;
@@ -331,31 +202,39 @@ export async function readToString(path: string, options: FileReaderOptions = {}
 
   // Build the Effect program that describes the computation
   const program = Effect.gen(function* () {
+    // Validate file size
+    yield* validateFileSizeEffect(validatedPath, mergedOptions);
+
     // Fast path: no decompression needed
     if (!mergedOptions.autoDecompress || compressionFormat === "none") {
-      return yield* Effect.promise(() => readFileToString(validatedPath));
+      const fs = yield* FileSystem.FileSystem;
+      return yield* fs.readFileString(validatedPath);
     }
 
     // Slow path: read and decompress
-    // Declare dependency: "I need a CompressionService"
     const compressionService = yield* CompressionService;
+    const fs = yield* FileSystem.FileSystem;
 
-    // Read file as binary (imperative wrapper in Effect)
-    const compressedBytes = yield* Effect.promise(() => readFileToBinary(validatedPath));
-
-    // Decompress using injected service (no coupling to implementation!)
+    const compressedBytes = yield* fs.readFile(validatedPath);
     const decompressedBytes = yield* compressionService.decompress(
       compressedBytes,
       compressionFormat
     );
 
-    // Decode back to string
     return new TextDecoder().decode(decompressedBytes);
   });
 
-  // Run the Effect with the compression service layer provided
-  // This is the ONLY place we need to decide which implementation to use
-  return Effect.runPromise(program.pipe(Effect.provide(MultiFormatCompressionService)));
+  try {
+    return await Effect.runPromise(
+      program.pipe(Effect.provide(getPlatform()), Effect.provide(MultiFormatCompressionService))
+    );
+  } catch (error) {
+    // Unwrap FileError from Effect FiberFailure
+    if (error instanceof FileError) {
+      throw error;
+    }
+    throw FileError.fromSystemError("read", validatedPath, error);
+  }
 }
 
 /**
@@ -410,21 +289,31 @@ export async function readByteRange(path: string, start: number, end: number): P
 
   // Fast path: uncompressed file - direct byte-range read (no decompression overhead)
   if (compressionFormat === "none") {
-    const program = Effect.promise(async () => {
-      const fs = await import("node:fs/promises");
-      const fileHandle = await fs.open(validatedPath, "r");
-      try {
-        const buffer = Buffer.alloc(end - start);
-        await fileHandle.read(buffer, 0, buffer.length, start);
-        return new Uint8Array(buffer);
-      } finally {
-        await fileHandle.close();
+    const program = Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const fullData = yield* fs.readFile(validatedPath);
+
+      // Validate byte range is within file
+      if (start >= fullData.length || end > fullData.length) {
+        return yield* Effect.fail(
+          new FileError(
+            `Byte range [${start}, ${end}) exceeds file size ${fullData.length}`,
+            validatedPath,
+            "read"
+          )
+        );
       }
+
+      // Return the requested slice
+      return fullData.slice(start, end);
     });
 
     try {
       return await Effect.runPromise(program.pipe(Effect.provide(getPlatform())));
     } catch (error) {
+      if (error instanceof FileError) {
+        throw error;
+      }
       throw FileError.fromSystemError("read", validatedPath, error);
     }
   }
@@ -432,13 +321,10 @@ export async function readByteRange(path: string, start: number, end: number): P
   // Slow path: compressed file - must decompress entire content using Effect DI
   // (can't random-access compressed data without full decompression)
   const program = Effect.gen(function* () {
-    // Declare dependency: "I need a CompressionService"
     const compressionService = yield* CompressionService;
+    const fs = yield* FileSystem.FileSystem;
 
-    // Read full file as binary
-    const compressedBytes = yield* Effect.promise(() => readFileToBinary(validatedPath));
-
-    // Decompress using injected service
+    const compressedBytes = yield* fs.readFile(validatedPath);
     const decompressedBytes = yield* compressionService.decompress(
       compressedBytes,
       compressionFormat
@@ -459,46 +345,15 @@ export async function readByteRange(path: string, start: number, end: number): P
   });
 
   try {
-    return await Effect.runPromise(program.pipe(Effect.provide(MultiFormatCompressionService)));
+    return await Effect.runPromise(
+      program.pipe(Effect.provide(getPlatform()), Effect.provide(MultiFormatCompressionService))
+    );
   } catch (error) {
     if (error instanceof FileError) {
       throw error;
     }
     throw FileError.fromSystemError("read", validatedPath, error);
   }
-}
-
-async function validateFileSize(
-  validatedPath: FilePath,
-  mergedOptions: Required<FileReaderOptions>
-): Promise<number> {
-  const fileSize = await getSize(validatedPath);
-  if (fileSize > mergedOptions.maxFileSize) {
-    throw new FileError(
-      `File too large: ${fileSize} bytes exceeds limit of ${mergedOptions.maxFileSize} bytes`,
-      validatedPath,
-      "read"
-    );
-  }
-  return fileSize;
-}
-
-async function readFileToString(validatedPath: FilePath): Promise<string> {
-  const program = Effect.gen(function* () {
-    const fs = yield* FileSystem.FileSystem;
-    return yield* fs.readFileString(validatedPath);
-  });
-
-  return Effect.runPromise(program.pipe(Effect.provide(getPlatform())));
-}
-
-async function readFileToBinary(validatedPath: FilePath): Promise<Uint8Array> {
-  const program = Effect.gen(function* () {
-    const fs = yield* FileSystem.FileSystem;
-    return yield* fs.readFile(validatedPath);
-  });
-
-  return Effect.runPromise(program.pipe(Effect.provide(getPlatform())));
 }
 
 // Backward compatibility namespace export
@@ -509,10 +364,6 @@ export const FileReader = {
   createStream,
   readToString,
 } as const;
-
-// =============================================================================
-// PRIVATE HELPER FUNCTIONS
-// =============================================================================
 
 /**
  * Validate file path using ArkType and return branded type
@@ -556,4 +407,176 @@ function mergeOptions(options: FileReaderOptions): Required<FileReaderOptions> {
   }
 
   return merged;
+}
+
+/**
+ * Effect-based file validation - returns Effect instead of launching runtime
+ * @internal Used by createStreamEffect for composition
+ */
+function validateFileEffect(path: FilePath, options: Required<FileReaderOptions>) {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+
+    // Check if file exists
+    const pathExists = yield* fs.exists(path);
+    if (!pathExists) {
+      return {
+        isValid: false as const,
+        error: "File does not exist or is not accessible",
+      };
+    }
+
+    // Get metadata
+    const info = yield* fs.stat(path);
+    const metadata: FileMetadata = {
+      path,
+      size: Number(info.size),
+      lastModified: new Date(Number(info.mtime)),
+      readable: true,
+      writable: false,
+      extension: path.substring(path.lastIndexOf(".")),
+    };
+
+    // Check file size
+    if (metadata.size > options.maxFileSize) {
+      return {
+        isValid: false as const,
+        metadata,
+        error: `File size ${metadata.size} exceeds maximum ${options.maxFileSize}`,
+      };
+    }
+
+    // Check readability
+    if (!metadata.readable) {
+      return {
+        isValid: false as const,
+        metadata,
+        error: "File is not readable",
+      };
+    }
+
+    return {
+      isValid: true as const,
+      metadata,
+    };
+  });
+}
+
+/**
+ * Effect-based stream creation - returns Effect instead of launching runtime
+ * @internal Used by createStreamEffect for composition
+ */
+function createBaseStreamEffect(
+  validatedPath: FilePath,
+  mergedOptions: Required<FileReaderOptions>
+) {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const effectStream = fs.stream(validatedPath, {
+      bufferSize: mergedOptions.bufferSize,
+    });
+    return Stream.toReadableStream(effectStream);
+  });
+}
+
+/**
+ * Private function: Compose all effects for stream creation
+ * Combines validation, stream creation, and optional decompression in a single Effect
+ * @internal Not for external use - use createStream() instead
+ */
+function createStreamEffect(path: string, options: FileReaderOptions = {}) {
+  const validatedPath = validatePath(path);
+  const mergedOptions = mergeOptions(options);
+
+  return Effect.gen(function* () {
+    // Step 1: Validate file (requires FileSystem)
+    const validation = yield* validateFileEffect(validatedPath, mergedOptions);
+    if (validation.isValid === false) {
+      return yield* Effect.fail(
+        new FileError(validation.error ?? "File validation failed", validatedPath, "read")
+      );
+    }
+
+    // Step 2: Create base stream (requires FileSystem)
+    let stream = yield* createBaseStreamEffect(validatedPath, mergedOptions);
+
+    // Step 3: Apply decompression if needed (wrapped in Effect.promise)
+    if (mergedOptions.autoDecompress) {
+      stream = yield* Effect.promise(() =>
+        applyDecompression(stream, validatedPath, mergedOptions)
+      );
+    }
+
+    return stream;
+  });
+}
+
+/**
+ * Apply decompression to stream if needed
+ */
+async function applyDecompression(
+  stream: ReadableStream<Uint8Array>,
+  filePath: FilePath,
+  options: Required<FileReaderOptions>
+): Promise<ReadableStream<Uint8Array>> {
+  // TypeScript guarantees types - no defensive checking needed
+
+  try {
+    // Determine compression format
+    let compressionFormat = options.compressionFormat;
+
+    if (compressionFormat === "none") {
+      // Auto-detect compression from file extension
+      compressionFormat = CompressionDetector.fromExtension(filePath);
+    }
+
+    // If no compression detected, return original stream
+    if (compressionFormat === "none") {
+      return stream;
+    }
+
+    // Create appropriate decompressor
+    const decompressor = createDecompressor(compressionFormat);
+
+    // Apply decompression with merged options
+    const decompressionOptions = {
+      ...options.decompressionOptions,
+      bufferSize: options.bufferSize,
+      signal: options.signal,
+    };
+
+    return decompressor.wrapStream(stream, decompressionOptions);
+  } catch (error) {
+    throw FileError.fromSystemError("read", filePath, error);
+  }
+}
+
+/**
+ * Effect-based version of validateFileSize
+ * Returns Effect with FileSystem requirement instead of launching runtime
+ * @internal
+ */
+function validateFileSizeEffect(
+  validatedPath: FilePath,
+  mergedOptions: Required<FileReaderOptions>
+) {
+  return Effect.gen(function* () {
+    // Get file size using Effect version
+    const fileSize = yield* Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const info = yield* fs.stat(validatedPath);
+      return Number(info.size);
+    });
+
+    if (fileSize > mergedOptions.maxFileSize) {
+      return yield* Effect.fail(
+        new FileError(
+          `File too large: ${fileSize} bytes exceeds limit of ${mergedOptions.maxFileSize} bytes`,
+          validatedPath,
+          "read"
+        )
+      );
+    }
+    return fileSize;
+  });
 }

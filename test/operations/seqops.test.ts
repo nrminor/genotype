@@ -7,6 +7,7 @@ import { promises as fs } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { SeqOps, seqops } from "../../src/operations";
+import type { UnpairedStats } from "../../src/operations/interleave";
 import type { AbstractSequence, FastqSequence } from "../../src/types";
 
 describe("SeqOps", () => {
@@ -1756,7 +1757,7 @@ describe("SeqOps", () => {
         expect(result[5]?.id).toBe("R3"); // Right sixth
       });
 
-      test("stops at shortest stream", async () => {
+      test("throws on length mismatch by default (strict mode)", async () => {
         const left = [createSequence("L1", "AAA"), createSequence("L2", "CCC")];
         const right = [
           createSequence("R1", "TTT"),
@@ -1766,262 +1767,448 @@ describe("SeqOps", () => {
           createSequence("R5", "TTT"),
         ];
 
-        const result = await seqops(arrayToAsync(left)).interleave(arrayToAsync(right)).collect();
-
-        // Should have exactly 4 sequences (2 pairs)
-        expect(result).toHaveLength(4);
-        expect(result[0]?.id).toBe("L1");
-        expect(result[1]?.id).toBe("R1");
-        expect(result[2]?.id).toBe("L2");
-        expect(result[3]?.id).toBe("R2");
-        // R3, R4, R5 should NOT appear (left stream ended first)
-      });
-    });
-
-    describe("ID validation", () => {
-      test("validates matching IDs when enabled", async () => {
-        const left = [createSequence("read_001", "AAA"), createSequence("read_002", "CCC")];
-        const right = [createSequence("read_001", "TTT"), createSequence("read_002", "GGG")];
-
-        const result = await seqops(arrayToAsync(left))
-          .interleave(arrayToAsync(right), { validateIds: true })
-          .collect();
-
-        // Should succeed - IDs match
-        expect(result).toHaveLength(4);
-        expect(result[0]?.id).toBe("read_001");
-        expect(result[1]?.id).toBe("read_001");
-        expect(result[2]?.id).toBe("read_002");
-        expect(result[3]?.id).toBe("read_002");
-      });
-
-      test("throws error on ID mismatch", async () => {
-        const left = [createSequence("read_001", "AAA"), createSequence("read_002", "CCC")];
-        const right = [
-          createSequence("read_001", "TTT"),
-          createSequence("read_999", "GGG"), // Mismatched ID
-        ];
-
         await expect(async () => {
-          await seqops(arrayToAsync(left))
-            .interleave(arrayToAsync(right), { validateIds: true })
-            .collect();
-        }).toThrow('ID mismatch at position 1: left="read_002", right="read_999"');
+          await seqops(arrayToAsync(left)).interleave(arrayToAsync(right)).collect();
+        }).toThrow(/left stream exhausted.*right stream continues/);
       });
 
-      test("works without validation by default", async () => {
-        const left = [createSequence("read_001", "AAA"), createSequence("read_002", "CCC")];
-        const right = [
-          createSequence("read_999", "TTT"), // Different ID
-          createSequence("read_888", "GGG"), // Different ID
-        ];
-
-        const result = await seqops(arrayToAsync(left))
-          .interleave(arrayToAsync(right)) // No validateIds option
-          .collect();
-
-        // Should succeed - validation disabled by default
-        expect(result).toHaveLength(4);
-        expect(result[0]?.id).toBe("read_001");
-        expect(result[1]?.id).toBe("read_999");
-        expect(result[2]?.id).toBe("read_002");
-        expect(result[3]?.id).toBe("read_888");
-      });
-
-      test("uses custom ID comparator", async () => {
-        // Illumina paired-end format: forward has /1 suffix, reverse has /2 suffix
-        const forward = [
-          createSequence("SRR123_READ001/1", "ATCGATCG"),
-          createSequence("SRR123_READ002/1", "GCTAGCTA"),
-        ];
-        const reverse = [
-          createSequence("SRR123_READ001/2", "CGTAGCTA"),
-          createSequence("SRR123_READ002/2", "TAGCTAGC"),
-        ];
-
-        // Custom comparator that strips /1 and /2 suffixes for comparison
-        const result = await seqops(arrayToAsync(forward))
-          .interleave(arrayToAsync(reverse), {
-            validateIds: true,
-            idComparator: (idA, idB) => {
-              const stripSuffix = (id: string) => id.replace(/\/[12]$/, "");
-              return stripSuffix(idA) === stripSuffix(idB);
-            },
-          })
-          .collect();
-
-        // Should succeed - base IDs match after stripping suffixes
-        expect(result).toHaveLength(4);
-        expect(result[0]?.id).toBe("SRR123_READ001/1");
-        expect(result[1]?.id).toBe("SRR123_READ001/2");
-        expect(result[2]?.id).toBe("SRR123_READ002/1");
-        expect(result[3]?.id).toBe("SRR123_READ002/2");
-      });
-    });
-
-    describe("type safety", () => {
-      test("preserves FastqSequence type through chain", async () => {
-        // Create FastqSequence objects with quality scores
-        const forward: FastqSequence[] = [
-          {
-            format: "fastq" as const,
-            id: "read1",
-            sequence: "ATCG",
-            length: 4,
-            quality: "IIII",
-            qualityEncoding: "phred33" as const,
-          },
-          {
-            format: "fastq" as const,
-            id: "read2",
-            sequence: "GCTA",
-            length: 4,
-            quality: "JJJJ",
-            qualityEncoding: "phred33" as const,
-          },
-        ];
-        const reverse: FastqSequence[] = [
-          {
-            format: "fastq" as const,
-            id: "read1",
-            sequence: "CGAT",
-            length: 4,
-            quality: "KKKK",
-            qualityEncoding: "phred33" as const,
-          },
-          {
-            format: "fastq" as const,
-            id: "read2",
-            sequence: "TAGC",
-            length: 4,
-            quality: "LLLL",
-            qualityEncoding: "phred33" as const,
-          },
-        ];
-
-        const result = await seqops<FastqSequence>(arrayToAsync(forward))
-          .interleave(arrayToAsync(reverse))
-          .collect();
-
-        // Type is preserved - quality property exists
-        expect(result).toHaveLength(4);
-        expect(result[0]?.quality).toBe("IIII");
-        expect(result[1]?.quality).toBe("KKKK");
-        expect(result[2]?.quality).toBe("JJJJ");
-        expect(result[3]?.quality).toBe("LLLL");
-      });
-
-      test("works with both SeqOps and AsyncIterable", async () => {
-        const left = [createSequence("L1", "AAA"), createSequence("L2", "CCC")];
-        const right = [createSequence("R1", "TTT"), createSequence("R2", "GGG")];
-
-        // Left: SeqOps, Right: raw AsyncIterable
-        const result1 = await seqops(arrayToAsync(left)).interleave(arrayToAsync(right)).collect();
-
-        expect(result1).toHaveLength(4);
-        expect(result1[0]?.id).toBe("L1");
-        expect(result1[1]?.id).toBe("R1");
-
-        // Left: SeqOps, Right: SeqOps
-        const result2 = await seqops(arrayToAsync(left))
-          .interleave(seqops(arrayToAsync(right)))
-          .collect();
-
-        expect(result2).toHaveLength(4);
-        expect(result2[0]?.id).toBe("L1");
-        expect(result2[1]?.id).toBe("R1");
-      });
-    });
-
-    describe("edge cases", () => {
-      test("handles empty left stream", async () => {
-        const left: AbstractSequence[] = [];
-        const right = [
-          createSequence("R1", "TTT"),
-          createSequence("R2", "AAA"),
-          createSequence("R3", "CCC"),
-        ];
-
-        const result = await seqops(arrayToAsync(left)).interleave(arrayToAsync(right)).collect();
-
-        // Should return empty array (shortest-wins: left has 0 elements)
-        expect(result).toHaveLength(0);
-      });
-
-      test("handles empty right stream", async () => {
+      test("strict mode throws when left stream is longer", async () => {
         const left = [
           createSequence("L1", "AAA"),
           createSequence("L2", "CCC"),
           createSequence("L3", "GGG"),
         ];
-        const right: AbstractSequence[] = [];
+        const right = [createSequence("R1", "TTT"), createSequence("R2", "AAA")];
 
-        const result = await seqops(arrayToAsync(left)).interleave(arrayToAsync(right)).collect();
-
-        // Should return empty array (shortest-wins: right has 0 elements)
-        expect(result).toHaveLength(0);
+        await expect(async () => {
+          await seqops(arrayToAsync(left))
+            .interleave(arrayToAsync(right), { mode: "strict" })
+            .collect();
+        }).toThrow(/right stream exhausted.*left stream continues/);
       });
 
-      test("handles both streams empty", async () => {
-        const left: AbstractSequence[] = [];
-        const right: AbstractSequence[] = [];
+      test("strict mode throws when right stream is longer", async () => {
+        const left = [createSequence("L1", "AAA"), createSequence("L2", "CCC")];
+        const right = [
+          createSequence("R1", "TTT"),
+          createSequence("R2", "AAA"),
+          createSequence("R3", "GGG"),
+        ];
 
-        const result = await seqops(arrayToAsync(left)).interleave(arrayToAsync(right)).collect();
-
-        // Should return empty array
-        expect(result).toHaveLength(0);
+        await expect(async () => {
+          await seqops(arrayToAsync(left))
+            .interleave(arrayToAsync(right), { mode: "strict" })
+            .collect();
+        }).toThrow(/left stream exhausted.*right stream continues/);
       });
-    });
 
-    describe("integration", () => {
-      test("works with enumerate after interleaving", async () => {
+      test("strict mode succeeds when lengths match exactly", async () => {
         const left = [createSequence("L1", "AAA"), createSequence("L2", "CCC")];
         const right = [createSequence("R1", "TTT"), createSequence("R2", "GGG")];
 
         const result = await seqops(arrayToAsync(left))
-          .interleave(arrayToAsync(right))
-          .enumerate()
+          .interleave(arrayToAsync(right), { mode: "strict" })
           .collect();
 
-        // Should have indices attached
         expect(result).toHaveLength(4);
-        expect(result[0]?.index).toBe(0); // L1
-        expect(result[1]?.index).toBe(1); // R1
-        expect(result[2]?.index).toBe(2); // L2
-        expect(result[3]?.index).toBe(3); // R2
-        // Alternating pattern should be preserved
-        expect(result[0]?.id).toBe("L1");
-        expect(result[1]?.id).toBe("R1");
-        expect(result[2]?.id).toBe("L2");
-        expect(result[3]?.id).toBe("R2");
+        expect(result.map((s) => s.id)).toEqual(["L1", "R1", "L2", "R2"]);
       });
 
-      test("works with filter before interleaving", async () => {
+      test("lossless mode preserves unpaired sequences from left", async () => {
         const left = [
-          createSequence("L1", "AA"), // length 2
-          createSequence("L2", "CCCCCC"), // length 6
-          createSequence("L3", "GG"), // length 2
+          createSequence("L1", "AAA"),
+          createSequence("L2", "CCC"),
+          createSequence("L3", "GGG"),
+          createSequence("L4", "TTT"),
         ];
+        const right = [createSequence("R1", "TTT"), createSequence("R2", "AAA")];
+
+        const result = await seqops(arrayToAsync(left))
+          .interleave(arrayToAsync(right), { mode: "lossless" })
+          .collect();
+
+        expect(result).toHaveLength(6);
+        expect(result.map((s) => s.id)).toEqual(["L1", "R1", "L2", "R2", "L3", "L4"]);
+      });
+
+      test("lossless mode preserves unpaired sequences from right", async () => {
+        const left = [createSequence("L1", "AAA"), createSequence("L2", "CCC")];
         const right = [
-          createSequence("R1", "TTTTTT"), // length 6
-          createSequence("R2", "AAAA"), // length 4
-          createSequence("R3", "CC"), // length 2
+          createSequence("R1", "TTT"),
+          createSequence("R2", "AAA"),
+          createSequence("R3", "GGG"),
+          createSequence("R4", "CCC"),
         ];
 
         const result = await seqops(arrayToAsync(left))
+          .interleave(arrayToAsync(right), { mode: "lossless" })
+          .collect();
+
+        expect(result).toHaveLength(6);
+        expect(result.map((s) => s.id)).toEqual(["L1", "R1", "L2", "R2", "R3", "R4"]);
+      });
+
+      test("lossless mode calls onUnpaired callback with left stats", async () => {
+        const left = [
+          createSequence("L1", "AAA"),
+          createSequence("L2", "CCC"),
+          createSequence("L3", "GGG"),
+        ];
+        const right = [createSequence("R1", "TTT"), createSequence("R2", "AAA")];
+
+        let capturedStats: UnpairedStats | undefined;
+
+        await seqops(arrayToAsync(left))
+          .interleave(arrayToAsync(right), {
+            mode: "lossless",
+            onUnpaired: (stats) => {
+              capturedStats = stats;
+            },
+          })
+          .collect();
+
+        expect(capturedStats).toEqual({
+          pairedCount: 2,
+          unpairedSource: "left",
+          unpairedCount: 1,
+        });
+      });
+
+      test("lossless mode calls onUnpaired callback with right stats", async () => {
+        const left = [createSequence("L1", "AAA"), createSequence("L2", "CCC")];
+        const right = [
+          createSequence("R1", "TTT"),
+          createSequence("R2", "AAA"),
+          createSequence("R3", "GGG"),
+        ];
+
+        let capturedStats: UnpairedStats | undefined;
+
+        await seqops(arrayToAsync(left))
+          .interleave(arrayToAsync(right), {
+            mode: "lossless",
+            onUnpaired: (stats) => {
+              capturedStats = stats;
+            },
+          })
+          .collect();
+
+        expect(capturedStats).toEqual({
+          pairedCount: 2,
+          unpairedSource: "right",
+          unpairedCount: 1,
+        });
+      });
+
+      test("lossless mode does not call onUnpaired when lengths match", async () => {
+        const left = [createSequence("L1", "AAA"), createSequence("L2", "CCC")];
+        const right = [createSequence("R1", "TTT"), createSequence("R2", "GGG")];
+
+        let callbackInvoked = false;
+
+        await seqops(arrayToAsync(left))
+          .interleave(arrayToAsync(right), {
+            mode: "lossless",
+            onUnpaired: () => {
+              callbackInvoked = true;
+            },
+          })
+          .collect();
+
+        expect(callbackInvoked).toBe(false);
+      });
+    });
+  });
+
+  describe("ID validation", () => {
+    test("validates matching IDs when enabled", async () => {
+      const left = [createSequence("read_001", "AAA"), createSequence("read_002", "CCC")];
+      const right = [createSequence("read_001", "TTT"), createSequence("read_002", "GGG")];
+
+      const result = await seqops(arrayToAsync(left))
+        .interleave(arrayToAsync(right), { validateIds: true })
+        .collect();
+
+      // Should succeed - IDs match
+      expect(result).toHaveLength(4);
+      expect(result[0]?.id).toBe("read_001");
+      expect(result[1]?.id).toBe("read_001");
+      expect(result[2]?.id).toBe("read_002");
+      expect(result[3]?.id).toBe("read_002");
+    });
+
+    test("throws error on ID mismatch", async () => {
+      const left = [createSequence("read_001", "AAA"), createSequence("read_002", "CCC")];
+      const right = [
+        createSequence("read_001", "TTT"),
+        createSequence("read_999", "GGG"), // Mismatched ID
+      ];
+
+      await expect(async () => {
+        await seqops(arrayToAsync(left))
+          .interleave(arrayToAsync(right), { validateIds: true })
+          .collect();
+      }).toThrow('ID mismatch at position 1: left="read_002", right="read_999"');
+    });
+
+    test("works without validation by default", async () => {
+      const left = [createSequence("read_001", "AAA"), createSequence("read_002", "CCC")];
+      const right = [
+        createSequence("read_999", "TTT"), // Different ID
+        createSequence("read_888", "GGG"), // Different ID
+      ];
+
+      const result = await seqops(arrayToAsync(left))
+        .interleave(arrayToAsync(right)) // No validateIds option
+        .collect();
+
+      // Should succeed - validation disabled by default
+      expect(result).toHaveLength(4);
+      expect(result[0]?.id).toBe("read_001");
+      expect(result[1]?.id).toBe("read_999");
+      expect(result[2]?.id).toBe("read_002");
+      expect(result[3]?.id).toBe("read_888");
+    });
+
+    test("uses custom ID comparator", async () => {
+      // Illumina paired-end format: forward has /1 suffix, reverse has /2 suffix
+      const forward = [
+        createSequence("SRR123_READ001/1", "ATCGATCG"),
+        createSequence("SRR123_READ002/1", "GCTAGCTA"),
+      ];
+      const reverse = [
+        createSequence("SRR123_READ001/2", "CGTAGCTA"),
+        createSequence("SRR123_READ002/2", "TAGCTAGC"),
+      ];
+
+      // Custom comparator that strips /1 and /2 suffixes for comparison
+      const result = await seqops(arrayToAsync(forward))
+        .interleave(arrayToAsync(reverse), {
+          validateIds: true,
+          idComparator: (idA, idB) => {
+            const stripSuffix = (id: string) => id.replace(/\/[12]$/, "");
+            return stripSuffix(idA) === stripSuffix(idB);
+          },
+        })
+        .collect();
+
+      // Should succeed - base IDs match after stripping suffixes
+      expect(result).toHaveLength(4);
+      expect(result[0]?.id).toBe("SRR123_READ001/1");
+      expect(result[1]?.id).toBe("SRR123_READ001/2");
+      expect(result[2]?.id).toBe("SRR123_READ002/1");
+      expect(result[3]?.id).toBe("SRR123_READ002/2");
+    });
+  });
+
+  describe("type safety", () => {
+    test("preserves FastqSequence type through chain", async () => {
+      // Create FastqSequence objects with quality scores
+      const forward: FastqSequence[] = [
+        {
+          format: "fastq" as const,
+          id: "read1",
+          sequence: "ATCG",
+          length: 4,
+          quality: "IIII",
+          qualityEncoding: "phred33" as const,
+        },
+        {
+          format: "fastq" as const,
+          id: "read2",
+          sequence: "GCTA",
+          length: 4,
+          quality: "JJJJ",
+          qualityEncoding: "phred33" as const,
+        },
+      ];
+      const reverse: FastqSequence[] = [
+        {
+          format: "fastq" as const,
+          id: "read1",
+          sequence: "CGAT",
+          length: 4,
+          quality: "KKKK",
+          qualityEncoding: "phred33" as const,
+        },
+        {
+          format: "fastq" as const,
+          id: "read2",
+          sequence: "TAGC",
+          length: 4,
+          quality: "LLLL",
+          qualityEncoding: "phred33" as const,
+        },
+      ];
+
+      const result = await seqops<FastqSequence>(arrayToAsync(forward))
+        .interleave(arrayToAsync(reverse))
+        .collect();
+
+      // Type is preserved - quality property exists
+      expect(result).toHaveLength(4);
+      expect(result[0]?.quality).toBe("IIII");
+      expect(result[1]?.quality).toBe("KKKK");
+      expect(result[2]?.quality).toBe("JJJJ");
+      expect(result[3]?.quality).toBe("LLLL");
+    });
+
+    test("works with both SeqOps and AsyncIterable", async () => {
+      const left = [createSequence("L1", "AAA"), createSequence("L2", "CCC")];
+      const right = [createSequence("R1", "TTT"), createSequence("R2", "GGG")];
+
+      // Left: SeqOps, Right: raw AsyncIterable
+      const result1 = await seqops(arrayToAsync(left)).interleave(arrayToAsync(right)).collect();
+
+      expect(result1).toHaveLength(4);
+      expect(result1[0]?.id).toBe("L1");
+      expect(result1[1]?.id).toBe("R1");
+
+      // Left: SeqOps, Right: SeqOps
+      const result2 = await seqops(arrayToAsync(left))
+        .interleave(seqops(arrayToAsync(right)))
+        .collect();
+
+      expect(result2).toHaveLength(4);
+      expect(result2[0]?.id).toBe("L1");
+      expect(result2[1]?.id).toBe("R1");
+    });
+  });
+
+  describe("edge cases", () => {
+    test("handles empty left stream", async () => {
+      const left: AbstractSequence[] = [];
+      const right = [
+        createSequence("R1", "TTT"),
+        createSequence("R2", "AAA"),
+        createSequence("R3", "CCC"),
+      ];
+
+      // Strict mode should throw
+      await expect(async () => {
+        await seqops(arrayToAsync(left)).interleave(arrayToAsync(right)).collect();
+      }).toThrow(/left stream exhausted.*right stream continues/);
+
+      // Lossless mode should preserve all right sequences
+      const result = await seqops(arrayToAsync(left))
+        .interleave(arrayToAsync(right), { mode: "lossless" })
+        .collect();
+
+      expect(result).toHaveLength(3);
+      expect(result.map((s) => s.id)).toEqual(["R1", "R2", "R3"]);
+    });
+
+    test("handles empty right stream", async () => {
+      const left = [
+        createSequence("L1", "AAA"),
+        createSequence("L2", "CCC"),
+        createSequence("L3", "GGG"),
+      ];
+      const right: AbstractSequence[] = [];
+
+      // Strict mode should throw
+      await expect(async () => {
+        await seqops(arrayToAsync(left)).interleave(arrayToAsync(right)).collect();
+      }).toThrow(/right stream exhausted.*left stream continues/);
+
+      // Lossless mode should preserve all left sequences
+      const result = await seqops(arrayToAsync(left))
+        .interleave(arrayToAsync(right), { mode: "lossless" })
+        .collect();
+
+      expect(result).toHaveLength(3);
+      expect(result.map((s) => s.id)).toEqual(["L1", "L2", "L3"]);
+    });
+
+    test("handles both streams empty", async () => {
+      const left: AbstractSequence[] = [];
+      const right: AbstractSequence[] = [];
+
+      const result = await seqops(arrayToAsync(left)).interleave(arrayToAsync(right)).collect();
+
+      // Should return empty array
+      expect(result).toHaveLength(0);
+    });
+  });
+
+  describe("integration", () => {
+    test("works with enumerate after interleaving", async () => {
+      const left = [createSequence("L1", "AAA"), createSequence("L2", "CCC")];
+      const right = [createSequence("R1", "TTT"), createSequence("R2", "GGG")];
+
+      const result = await seqops(arrayToAsync(left))
+        .interleave(arrayToAsync(right))
+        .enumerate()
+        .collect();
+
+      // Should have indices attached
+      expect(result).toHaveLength(4);
+      expect(result[0]?.index).toBe(0); // L1
+      expect(result[1]?.index).toBe(1); // R1
+      expect(result[2]?.index).toBe(2); // L2
+      expect(result[3]?.index).toBe(3); // R2
+      // Alternating pattern should be preserved
+      expect(result[0]?.id).toBe("L1");
+      expect(result[1]?.id).toBe("R1");
+      expect(result[2]?.id).toBe("L2");
+      expect(result[3]?.id).toBe("R2");
+    });
+
+    test("strict mode with filter before interleaving throws on mismatch", async () => {
+      const left = [
+        createSequence("L1", "AA"), // length 2
+        createSequence("L2", "CCCCCC"), // length 6
+        createSequence("L3", "GG"), // length 2
+      ];
+      const right = [
+        createSequence("R1", "TTTTTT"), // length 6
+        createSequence("R2", "AAAA"), // length 4
+        createSequence("R3", "CC"), // length 2
+      ];
+
+      // Left after filter: L2 (length 6)
+      // Right after filter: R1 (length 6), R2 (length 4)
+      // Strict mode should throw because streams have different lengths (1 vs 2)
+      await expect(async () => {
+        await seqops(arrayToAsync(left))
           .filter((seq) => seq.length > 3)
           .interleave(seqops(arrayToAsync(right)).filter((seq) => seq.length > 3))
           .collect();
+      }).toThrow(/left stream exhausted.*right stream continues/);
+    });
 
-        // Left after filter: L2 (length 6)
-        // Right after filter: R1 (length 6), R2 (length 4)
-        // Interleaved: L2, R1 (stops because left has only 1)
-        expect(result).toHaveLength(2);
-        expect(result[0]?.id).toBe("L2");
-        expect(result[0]?.length).toBe(6);
-        expect(result[1]?.id).toBe("R1");
-        expect(result[1]?.length).toBe(6);
-      });
+    test("lossless mode with filter before interleaving preserves all sequences", async () => {
+      const left = [
+        createSequence("L1", "AA"), // length 2
+        createSequence("L2", "CCCCCC"), // length 6
+        createSequence("L3", "GG"), // length 2
+      ];
+      const right = [
+        createSequence("R1", "TTTTTT"), // length 6
+        createSequence("R2", "AAAA"), // length 4
+        createSequence("R3", "CC"), // length 2
+      ];
+
+      // Left after filter: L2 (length 6)
+      // Right after filter: R1 (length 6), R2 (length 4)
+      // Lossless mode should preserve both unpaired from right
+      const result = await seqops(arrayToAsync(left))
+        .filter((seq) => seq.length > 3)
+        .interleave(
+          seqops(arrayToAsync(right)).filter((seq) => seq.length > 3),
+          {
+            mode: "lossless",
+          }
+        )
+        .collect();
+
+      expect(result).toHaveLength(3);
+      expect(result[0]?.id).toBe("L2");
+      expect(result[0]?.length).toBe(6);
+      expect(result[1]?.id).toBe("R1");
+      expect(result[1]?.length).toBe(6);
+      expect(result[2]?.id).toBe("R2");
+      expect(result[2]?.length).toBe(4);
     });
   });
 });

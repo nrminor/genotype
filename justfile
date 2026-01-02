@@ -149,7 +149,21 @@ alias ta := test-all
 
 # ===== Code Quality =====
 
-# Run TypeScript type checking and oxlint
+# Run TypeScript type checking with tsgo (5x faster than tsc)
+[group('lint')]
+typecheck:
+    bun run typecheck
+
+alias tsc := typecheck
+
+# Run TypeScript type checking with tsc (fallback)
+[group('lint')]
+typecheck-tsc:
+    bun run typecheck:tsc
+
+alias tct := typecheck-tsc
+
+# Run oxlint
 [group('lint')]
 lint:
     bun run lint

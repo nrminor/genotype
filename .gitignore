@@ -7,8 +7,6 @@
 !/package.json
 !/bun.lockb
 !/tsconfig.json
-!/biome.json
-!/biome.jsonc
 !/.oxlintrc.json
 !/.oxfmtrc.jsonc
 !/justfile

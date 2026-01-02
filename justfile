@@ -149,7 +149,7 @@ alias ta := test-all
 
 # ===== Code Quality =====
 
-# Run TypeScript type checking and ESLint
+# Run TypeScript type checking and oxlint
 [group('lint')]
 lint:
     bun run lint
@@ -163,10 +163,17 @@ lint-fix:
 
 alias lf := lint-fix
 
-# Format code with Prettier
+# Run type-aware linting (slower, more thorough)
+[group('lint')]
+lint-types:
+    bun run lint:types
+
+alias lt := lint-types
+
+# Format code with oxfmt
 [group('lint')]
 fmt:
-    bun run format && bunx biome check --write
+    bun run format
 
 alias f := fmt
 

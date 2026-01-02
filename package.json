@@ -2,25 +2,41 @@
   "name": "genotype",
   "version": "0.1.0",
   "description": "A feature-rich TypeScript library for working with genomic data formats (FASTA, FASTQ, SAM, BAM, BED)",
-  "type": "module",
+  "keywords": [
+    "bam",
+    "bed",
+    "bioinformatics",
+    "fasta",
+    "fastq",
+    "genomics",
+    "performance",
+    "sam",
+    "streaming",
+    "typescript"
+  ],
+  "license": "MIT",
+  "author": "",
   "repository": {
     "type": "git",
     "url": "https://github.com/nrminor/genotype"
   },
-  "engines": {
-    "bun": ">=1.2.0"
-  },
-  "types": "src/index.ts",
-  "module": "src/index.ts",
+  "files": [
+    "dist",
+    "LICENSE*",
+    "README.md",
+    "src"
+  ],
+  "type": "module",
+  "sideEffects": false,
   "main": "dist/index.js",
+  "module": "src/index.ts",
+  "types": "src/index.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "src", "README.md", "LICENSE*"],
-  "sideEffects": false,
   "scripts": {
     "build": "bun run build:native && bun run build:lib",
     "build:lib": "bun scripts/build.mjs --lib",
@@ -32,11 +48,12 @@
     "test": "bun test",
     "test:rust": "cargo test",
     "test:node": "node --test test/**/*.test.js",
-    "lint": "tsc --noEmit && bunx biome lint",
-    "lint:fix": "bunx biome lint --write",
+    "lint": "tsc --noEmit && bunx oxlint",
+    "lint:fix": "bunx oxlint --fix",
+    "lint:types": "bunx oxlint --type-aware",
     "lint:rust": "cargo clippy -- -D warnings",
-    "format": "bunx biome format --write",
-    "format:check": "bunx biome check",
+    "format": "bunx oxfmt",
+    "format:check": "bunx oxfmt --check",
     "format:rust": "cargo fmt",
     "clean": "rm -rf dist && cargo clean",
     "clean:rust": "cargo clean",
@@ -48,23 +65,6 @@
     "docs": "typedoc",
     "docs:serve": "typedoc && bunx serve docs"
   },
-  "keywords": [
-    "bioinformatics",
-    "genomics",
-    "fasta",
-    "fastq",
-    "sam",
-    "bam",
-    "bed",
-    "typescript",
-    "streaming",
-    "performance"
-  ],
-  "author": "",
-  "license": "MIT",
-  "peerDependencies": {
-    "typescript": ">5.9.3"
-  },
   "dependencies": {
     "@effect/platform": "^0.94.1",
     "@effect/platform-bun": "^0.87.0",
@@ -74,16 +74,7 @@
     "effect": "^3.19.14",
     "fflate": "^0.8.2"
   },
-  "optionalDependencies": {
-    "genotype-darwin-x64": "0.1.0",
-    "genotype-darwin-arm64": "0.1.0",
-    "genotype-linux-x64": "0.1.0",
-    "genotype-linux-arm64": "0.1.0",
-    "genotype-win32-x64": "0.1.0",
-    "genotype-win32-arm64": "0.1.0"
-  },
   "devDependencies": {
-    "@biomejs/biome": "2.3.10",
     "@types/bun": "^1.3.5",
     "@types/node": "^22.19.3",
     "oxfmt": "^0.21.0",
@@ -95,5 +86,19 @@
     "typescript": "^5.9.3",
     "typescript-language-server": "^5.1.3",
     "vscode-langservers-extracted": "4.10.0"
+  },
+  "peerDependencies": {
+    "typescript": ">5.9.3"
+  },
+  "optionalDependencies": {
+    "genotype-darwin-arm64": "0.1.0",
+    "genotype-darwin-x64": "0.1.0",
+    "genotype-linux-arm64": "0.1.0",
+    "genotype-linux-x64": "0.1.0",
+    "genotype-win32-arm64": "0.1.0",
+    "genotype-win32-x64": "0.1.0"
+  },
+  "engines": {
+    "bun": ">=1.2.0"
   }
 }

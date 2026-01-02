@@ -17,7 +17,7 @@ describe("Replace operation", () => {
         replace(toAsyncIterable(input), {
           pattern: "seq",
           replacement: "sample",
-        }),
+        })
       );
 
       expect(result).toHaveLength(1);
@@ -34,7 +34,7 @@ describe("Replace operation", () => {
         replace(toAsyncIterable(input), {
           pattern: "\\.\\d+$",
           replacement: "",
-        }),
+        })
       );
 
       expect(result[0].id).toBe("ENSG00000139618");
@@ -51,7 +51,7 @@ describe("Replace operation", () => {
         replace(toAsyncIterable(input), {
           pattern: "^",
           replacement: "sample_",
-        }),
+        })
       );
 
       expect(result[0].id).toBe("sample_seq1");
@@ -68,7 +68,7 @@ describe("Replace operation", () => {
         replace(toAsyncIterable(input), {
           pattern: "$",
           replacement: "_v1",
-        }),
+        })
       );
 
       expect(result[0].id).toBe("gene1_v1");
@@ -85,7 +85,7 @@ describe("Replace operation", () => {
         replace(toAsyncIterable(input), {
           pattern: "_",
           replacement: "-",
-        }),
+        })
       );
 
       expect(result[0].id).toBe("sample-001_tissue_A");
@@ -101,7 +101,7 @@ describe("Replace operation", () => {
         replace(toAsyncIterable(input), {
           pattern: "chr",
           replacement: "",
-        }),
+        })
       );
 
       expect(result[0].id).toBe("1:100-200");
@@ -118,7 +118,7 @@ describe("Replace operation", () => {
         replace(toAsyncIterable(input), {
           pattern: "^([a-z]+)\\d+$",
           replacement: "$1_X",
-        }),
+        })
       );
 
       expect(result[0].id).toBe("gene_X");
@@ -133,7 +133,7 @@ describe("Replace operation", () => {
         replace(toAsyncIterable(input), {
           pattern: "^([a-z]+)(\\d+)$",
           replacement: "$2_$1",
-        }),
+        })
       );
 
       expect(result[0].id).toBe("123_gene");
@@ -148,7 +148,7 @@ describe("Replace operation", () => {
         replace(toAsyncIterable(input), {
           pattern: "^(ENSG)(\\d+)\\.(\\d+)$",
           replacement: "$1-$2_v$3",
-        }),
+        })
       );
 
       expect(result[0].id).toBe("ENSG-00000139618_v15");
@@ -163,7 +163,7 @@ describe("Replace operation", () => {
         replace(toAsyncIterable(input), {
           pattern: "patient_(\\d+)",
           replacement: "subject_$1",
-        }),
+        })
       );
 
       expect(result[0].id).toBe("subject_001_sample_A");
@@ -178,14 +178,14 @@ describe("Replace operation", () => {
         replace(toAsyncIterable(input), {
           pattern: "^([a-z]+)(\\d+)$",
           replacement: "$1_$2",
-        }),
+        })
       );
 
       const result2 = await Array.fromAsync(
         replace(toAsyncIterable(input), {
           pattern: "^([a-z]+)(\\d+)$",
           replacement: "${1}_${2}",
-        }),
+        })
       );
 
       expect(result1[0].id).toBe("gene_123");
@@ -206,7 +206,7 @@ describe("Replace operation", () => {
           pattern: "gene",
           replacement: "transcript",
           ignoreCase: true,
-        }),
+        })
       );
 
       expect(result[0].id).toBe("transcript123");
@@ -224,7 +224,7 @@ describe("Replace operation", () => {
         replace(toAsyncIterable(input), {
           pattern: "gene",
           replacement: "transcript",
-        }),
+        })
       );
 
       expect(result[0].id).toBe("GENE123");
@@ -240,7 +240,7 @@ describe("Replace operation", () => {
         replace(toAsyncIterable(input), {
           pattern: "test",
           replacement: "replacement",
-        }),
+        })
       );
 
       expect(result).toHaveLength(0);
@@ -253,7 +253,7 @@ describe("Replace operation", () => {
         replace(toAsyncIterable(input), {
           pattern: "NOMATCH",
           replacement: "replaced",
-        }),
+        })
       );
 
       expect(result[0].id).toBe("seq1");
@@ -274,7 +274,7 @@ describe("Replace operation", () => {
         replace(toAsyncIterable(input), {
           pattern: "seq",
           replacement: "sample",
-        }),
+        })
       );
 
       expect(result[0].id).toBe("sample1");
@@ -293,7 +293,7 @@ describe("Replace operation", () => {
         replace(toAsyncIterable(input), {
           pattern: "\\.",
           replacement: "_",
-        }),
+        })
       );
 
       expect(result[0].id).toBe("seq_1");
@@ -308,7 +308,7 @@ describe("Replace operation", () => {
         replace(toAsyncIterable(input), {
           pattern: "chr",
           replacement: "chromosome",
-        }),
+        })
       );
 
       expect(result[0].id).toBe("chromosome1|chr2|chr3");
@@ -327,7 +327,7 @@ describe("Replace operation", () => {
         replace(toAsyncIterable(input), {
           pattern: "seq\\d+",
           replacement: "sample_{nr}",
-        }),
+        })
       );
 
       expect(result[0].id).toBe("sample_1");
@@ -347,7 +347,7 @@ describe("Replace operation", () => {
           pattern: "seq\\d+",
           replacement: "sample_{nr}",
           nrWidth: 4,
-        }),
+        })
       );
 
       expect(result[0].id).toBe("sample_0001");
@@ -366,7 +366,7 @@ describe("Replace operation", () => {
           pattern: "^seq",
           replacement: "{fbn}_{fbne}",
           fileName: "/data/samples/experiment.fasta.gz",
-        }),
+        })
       );
 
       // {fbn} = basename = "experiment.fasta.gz"
@@ -382,7 +382,7 @@ describe("Replace operation", () => {
         replace(toAsyncIterable(input), {
           pattern: "seq",
           replacement: "price_$$100",
-        }),
+        })
       );
 
       // JavaScript's replace() does NOT auto-convert $$ to $
@@ -410,7 +410,7 @@ describe("Replace operation", () => {
           pattern: "gene_(\\w+)",
           replacement: "{kv}",
           kvMap,
-        }),
+        })
       );
 
       expect(result[0].id).toBe("breast_cancer_1");
@@ -434,7 +434,7 @@ describe("Replace operation", () => {
           replacement: "{kv}",
           kvMap,
           keepKey: true,
-        }),
+        })
       );
 
       expect(result[0].id).toBe("breast_cancer_1");
@@ -457,7 +457,7 @@ describe("Replace operation", () => {
           replacement: "{kv}",
           kvMap,
           keepUntouch: true,
-        }),
+        })
       );
 
       expect(result[0].id).toBe("breast_cancer_1");
@@ -480,7 +480,7 @@ describe("Replace operation", () => {
           replacement: "{kv}",
           kvMap,
           keyMissRepl: "uncharacterized",
-        }),
+        })
       );
 
       expect(result[0].id).toBe("breast_cancer_1");
@@ -502,7 +502,7 @@ describe("Replace operation", () => {
           pattern: "gene_(\\w+)",
           replacement: "{kv}",
           kvMap,
-        }),
+        })
       );
 
       expect(result[0].id).toBe("breast_cancer_1");
@@ -524,7 +524,7 @@ describe("Replace operation", () => {
           replacement: "$1_{kv}",
           kvMap,
           keyCaptIdx: 2, // Use second capture group as key
-        }),
+        })
       );
 
       expect(result[0].id).toBe("BRCA1_version_one");
@@ -542,7 +542,7 @@ describe("Replace operation", () => {
           pattern: "gene_(\\w+)",
           replacement: "{kv}",
           kvMap,
-        }),
+        })
       );
 
       expect(result[0].id).toBe("breast_cancer_1");
@@ -559,7 +559,7 @@ describe("Replace operation", () => {
           pattern: "gene_(\\w+)",
           replacement: "{kv}",
           kvFile: "test/fixtures/gene-aliases.tsv",
-        }),
+        })
       );
 
       expect(result[0].id).toBe("breast_cancer_1");
@@ -643,7 +643,7 @@ describe("Replace operation", () => {
           pattern: "-",
           replacement: "",
           bySeq: true,
-        }),
+        })
       );
 
       expect(result[0].id).toBe("seq1");
@@ -685,7 +685,7 @@ describe("Replace operation", () => {
           pattern: "[-. ]",
           replacement: "",
           bySeq: true,
-        }),
+        })
       );
 
       // Only first occurrence replaced (matches seqkit behavior)
@@ -700,7 +700,7 @@ describe("Replace operation", () => {
           pattern: "(.)",
           replacement: "$1 ",
           bySeq: true,
-        }),
+        })
       );
 
       // Only first occurrence replaced (matches seqkit behavior)
@@ -723,7 +723,7 @@ describe("Replace operation", () => {
           pattern: "-",
           replacement: "",
           bySeq: true,
-        }),
+        })
       );
 
       expect(result[0].id).toBe("seq1");
@@ -742,7 +742,7 @@ describe("Replace operation", () => {
           pattern: "(ATC)(G)",
           replacement: "$2$1",
           bySeq: true,
-        }),
+        })
       );
 
       // First occurrence: ATCG → GATC
@@ -763,7 +763,7 @@ describe("Replace operation", () => {
           pattern: "^gene",
           replacement: "sample",
           filterPattern: ["gene"],
-        }),
+        })
       );
 
       expect(result[0].id).toBe("sample_BRCA1");
@@ -784,7 +784,7 @@ describe("Replace operation", () => {
           replacement: "sample",
           filterPattern: ["\\d+$"],
           filterUseRegexp: true,
-        }),
+        })
       );
 
       expect(result[0].id).toBe("sample001");
@@ -805,7 +805,7 @@ describe("Replace operation", () => {
           replacement: "test",
           filterPattern: ["control"],
           filterInvertMatch: true,
-        }),
+        })
       );
 
       expect(result[0].id).toBe("control_001"); // Not modified (matches control)
@@ -826,7 +826,7 @@ describe("Replace operation", () => {
           replacement: "sample",
           filterPattern: ["ATCG"],
           filterBySeq: true,
-        }),
+        })
       );
 
       expect(result[0].id).toBe("sample1"); // Sequence contains ATCG
@@ -859,7 +859,7 @@ describe("Replace operation", () => {
           replacement: "sample",
           filterPattern: ["chromosome"],
           filterByName: true,
-        }),
+        })
       );
 
       expect(result[0].id).toBe("sample1"); // Description matches "chromosome"
@@ -880,7 +880,7 @@ describe("Replace operation", () => {
           replacement: "sample",
           filterPattern: ["gene"],
           filterIgnoreCase: true,
-        }),
+        })
       );
 
       // All should match with case-insensitive filter
@@ -901,7 +901,7 @@ describe("Replace operation", () => {
           pattern: "^[a-z]+",
           replacement: "sample",
           filterPattern: ["gene", "transcript"],
-        }),
+        })
       );
 
       expect(result[0].id).toBe("sample_BRCA1"); // Matches "gene"
@@ -924,7 +924,7 @@ describe("Replace operation", () => {
           filterUseRegexp: true,
           filterIgnoreCase: true,
           filterInvertMatch: true,
-        }),
+        })
       );
 
       expect(result[0].id).toBe("CONTROL_001"); // Matches control (not modified)
@@ -942,7 +942,7 @@ describe("Replace operation", () => {
         replace(toAsyncIterable(input), {
           pattern: "seq",
           replacement: "sample",
-        }),
+        })
       );
 
       // All sequences processed when no filters

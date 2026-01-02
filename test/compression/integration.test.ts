@@ -51,7 +51,7 @@ describe("Compression Integration", () => {
     test("should throw error for unsupported format", () => {
       expect(() => createDecompressor("bzip2" as "gzip")).toThrow(CompressionError);
       expect(() => createDecompressor("unsupported" as "gzip")).toThrow(
-        /Unsupported compression format/,
+        /Unsupported compression format/
       );
     });
   });

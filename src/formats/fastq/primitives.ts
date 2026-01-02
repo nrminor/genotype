@@ -170,7 +170,7 @@ export function extractDescription(headerLine: string): string | undefined {
  * @performance O(1) - Pattern matching
  */
 export function extractPlatformInfo(
-  headerLine: string,
+  headerLine: string
 ): { platform?: string; flowcell?: string; lane?: number } | undefined {
   // Common Illumina pattern: @<instrument>:<run>:<flowcell>:<lane>:<tile>:<x>:<y>
   const illuminaMatch = headerLine.match(/@(\w+):(\d+):([\w-]+):(\d+):/);
@@ -330,7 +330,7 @@ export function assembleFastqRecord(
   header: string,
   sequence: string,
   separator: string,
-  quality: string,
+  quality: string
 ): string {
   return `${header}\n${sequence}\n${separator}\n${quality}`;
 }

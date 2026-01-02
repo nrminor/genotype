@@ -13,7 +13,7 @@ import type { BAMAlignment, SAMAlignment, SAMHeader } from "../../src/types";
 export function assertSAMEquality(
   actual: SAMAlignment,
   expected: SAMAlignment,
-  message?: string,
+  message?: string
 ): void {
   expect(actual.format).toBe(expected.format);
   expect(actual.qname).toBe(expected.qname);
@@ -46,7 +46,7 @@ export function assertSAMEquality(
 export function assertSAMHeaderEquality(
   actual: SAMHeader,
   expected: SAMHeader,
-  message?: string,
+  message?: string
 ): void {
   expect(actual.format).toBe(expected.format);
   expect(actual.type).toBe(expected.type);
@@ -130,7 +130,7 @@ export function checkRoundTripFidelity(original: SAMAlignment, converted: BAMAli
  */
 export function validateCIGARConsistency(
   cigar: string,
-  sequence: string,
+  sequence: string
 ): {
   isValid: boolean;
   expectedLength: number;
@@ -190,7 +190,7 @@ export function validateGenomicCoordinates(
   cigar: string,
   rnext: string,
   pnext: number,
-  tlen: number,
+  tlen: number
 ): {
   isValid: boolean;
   warnings: string[];
@@ -213,7 +213,7 @@ export function validateGenomicCoordinates(
     const expectedTlen = Math.abs(pnext - pos);
     if (Math.abs(Math.abs(tlen) - expectedTlen) > 1000) {
       warnings.push(
-        `Template length ${tlen} seems inconsistent with positions (${pos} -> ${pnext})`,
+        `Template length ${tlen} seems inconsistent with positions (${pos} -> ${pnext})`
       );
     }
   }
@@ -221,7 +221,7 @@ export function validateGenomicCoordinates(
   // CIGAR and position consistency
   if (cigar !== "*" && pos === 0) {
     warnings.push(
-      "Position is 0 but CIGAR is specified - unmapped reads should have pos=0 and cigar=*",
+      "Position is 0 but CIGAR is specified - unmapped reads should have pos=0 and cigar=*"
     );
   }
 
@@ -242,7 +242,7 @@ export async function validateLargeDataset<T>(
     batchSize?: number;
     maxErrors?: number;
     onProgress?: (processed: number, total: number) => void;
-  } = {},
+  } = {}
 ): Promise<{
   totalProcessed: number;
   validItems: number;

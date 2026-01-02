@@ -120,7 +120,7 @@ export class ReservoirSampler<T> {
 
   constructor(
     private readonly size: number,
-    seed?: number,
+    seed?: number
   ) {
     // Tiger Style: Assert inputs
     if (size <= 0) {
@@ -225,7 +225,7 @@ export class RandomSampler<T> {
 
   constructor(
     private readonly sampleSize: number,
-    seed?: number,
+    seed?: number
   ) {
     // Tiger Style: Assert inputs
     if (sampleSize <= 0) {
@@ -301,7 +301,7 @@ export class SystematicSampler<T> {
 
   constructor(
     private readonly interval: number,
-    private readonly offset: number = 0,
+    private readonly offset: number = 0
   ) {
     // Tiger Style: Assert inputs
     if (interval <= 0) {
@@ -347,7 +347,7 @@ export class SystematicSampler<T> {
   static async *sampleBySize<T>(
     source: AsyncIterable<T>,
     sampleSize: number,
-    offset: number = 0,
+    offset: number = 0
   ): AsyncIterable<T> {
     // Tiger Style: Assert inputs
     if (sampleSize <= 0) {
@@ -393,7 +393,7 @@ export class StratifiedSampler<T> {
     private readonly totalSamples: number,
     private readonly getStratum: (item: T) => string,
     readonly expectedStrata?: number,
-    seed?: number,
+    seed?: number
   ) {
     // Tiger Style: Assert inputs
     if (totalSamples <= 0) {
@@ -516,7 +516,7 @@ export class WeightedReservoirSampler<T> {
 
   constructor(
     private readonly size: number,
-    seed?: number,
+    seed?: number
   ) {
     // Tiger Style: Assert inputs
     if (size <= 0) {
@@ -620,7 +620,7 @@ export class BernoulliSampler<T> {
 
   constructor(
     private readonly probability: number,
-    seed?: number,
+    seed?: number
   ) {
     // Tiger Style: Assert inputs
     if (probability < 0 || probability > 1) {

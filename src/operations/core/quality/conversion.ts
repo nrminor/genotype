@@ -49,7 +49,7 @@ export function charToScore(char: string, encoding: QualityEncoding): QualitySco
   if (charCode < info.minChar.charCodeAt(0) || charCode > info.maxChar.charCodeAt(0)) {
     throw new Error(
       `Invalid quality character '${char}' (ASCII ${charCode}) for ${encoding} encoding. ` +
-        `Valid range: ${info.minChar}-${info.maxChar} (ASCII ${info.minChar.charCodeAt(0)}-${info.maxChar.charCodeAt(0)})`,
+        `Valid range: ${info.minChar}-${info.maxChar} (ASCII ${info.minChar.charCodeAt(0)}-${info.maxChar.charCodeAt(0)})`
     );
   }
 
@@ -66,7 +66,7 @@ export function charToScore(char: string, encoding: QualityEncoding): QualitySco
   // For other encodings, validate normally
   if (!isValidQualityScore(score)) {
     throw new Error(
-      `Quality score ${score} is outside valid range (0-93) for ${encoding} encoding`,
+      `Quality score ${score} is outside valid range (0-93) for ${encoding} encoding`
     );
   }
 
@@ -105,7 +105,7 @@ export function charToScore(char: string, encoding: QualityEncoding): QualitySco
  */
 export function scoreToChar(
   score: QualityScore | SolexaScore | number,
-  encoding: QualityEncoding,
+  encoding: QualityEncoding
 ): string {
   const info = getEncodingInfo(encoding);
 
@@ -113,13 +113,13 @@ export function scoreToChar(
   if (encoding === "solexa") {
     if (!isValidSolexaScore(score)) {
       throw new Error(
-        `Invalid Solexa quality score ${score}. Must be an integer between -5 and 62.`,
+        `Invalid Solexa quality score ${score}. Must be an integer between -5 and 62.`
       );
     }
   } else {
     if (!isValidQualityScore(score)) {
       throw new Error(
-        `Invalid quality score ${score} for ${encoding}. Must be an integer between 0 and 93.`,
+        `Invalid quality score ${score} for ${encoding}. Must be an integer between 0 and 93.`
       );
     }
   }
@@ -128,7 +128,7 @@ export function scoreToChar(
   if (score < info.minScore || score > info.maxScore) {
     throw new Error(
       `Quality score ${score} is outside valid range for ${encoding} encoding. ` +
-        `Valid range: ${info.minScore}-${info.maxScore}`,
+        `Valid range: ${info.minScore}-${info.maxScore}`
     );
   }
 
@@ -150,7 +150,7 @@ export function scoreToChar(
  */
 export function qualityToScores(
   quality: string,
-  encoding: QualityEncoding = "phred33",
+  encoding: QualityEncoding = "phred33"
 ): (QualityScore | SolexaScore)[] {
   const { offset } = getEncodingInfo(encoding);
 
@@ -162,7 +162,7 @@ export function qualityToScores(
       if (!isValidSolexaScore(score)) {
         throw new Error(
           `Invalid Solexa score ${score} at position ${i}. ` +
-            `Character '${char}' (ASCII ${char.charCodeAt(0)}) produces out-of-range score.`,
+            `Character '${char}' (ASCII ${char.charCodeAt(0)}) produces out-of-range score.`
         );
       }
       return score as SolexaScore;
@@ -171,7 +171,7 @@ export function qualityToScores(
     if (!isValidQualityScore(score)) {
       throw new Error(
         `Invalid quality score ${score} at position ${i} in quality string. ` +
-          `Character '${char}' (ASCII ${char.charCodeAt(0)}) produces out-of-range score for ${encoding} encoding.`,
+          `Character '${char}' (ASCII ${char.charCodeAt(0)}) produces out-of-range score for ${encoding} encoding.`
       );
     }
     return score as QualityScore;
@@ -193,7 +193,7 @@ export function qualityToScores(
  */
 export function scoresToQuality(
   scores: (QualityScore | number)[],
-  encoding: QualityEncoding = "phred33",
+  encoding: QualityEncoding = "phred33"
 ): string {
   const { offset, minScore, maxScore } = getEncodingInfo(encoding);
 
@@ -208,7 +208,7 @@ export function scoresToQuality(
       if (score < minScore || score > maxScore) {
         throw new Error(
           `Quality score ${score} is outside valid range for ${encoding} encoding. ` +
-            `Valid range: ${minScore}-${maxScore}`,
+            `Valid range: ${minScore}-${maxScore}`
         );
       }
 
@@ -234,7 +234,7 @@ export function scoresToQuality(
 export function convertQuality(
   quality: string,
   from: QualityEncoding,
-  to: QualityEncoding,
+  to: QualityEncoding
 ): string {
   // Fast path: same encoding
   if (from === to) {

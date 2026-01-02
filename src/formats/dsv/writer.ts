@@ -176,7 +176,7 @@ export class DSVWriter {
   async writeToStream(
     records: AsyncIterable<DSVRecord>,
     stream: WritableStream<Uint8Array>,
-    options: DSVWriterOptions = {},
+    options: DSVWriterOptions = {}
   ): Promise<void> {
     const writer = stream.getWriter();
     const encoder = new TextEncoder();

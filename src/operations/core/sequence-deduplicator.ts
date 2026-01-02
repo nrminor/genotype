@@ -350,7 +350,7 @@ export class SequenceDeduplicator {
     if (this.options.scalable) {
       this.bloom = new ScalableBloomFilter(
         this.options.expectedSequences,
-        this.options.falsePositiveRate,
+        this.options.falsePositiveRate
       );
     } else {
       this.bloom = new BloomFilter(this.options.expectedSequences, this.options.falsePositiveRate);
@@ -792,7 +792,7 @@ export class ExactDeduplicator {
  */
 export async function deduplicateSequences(
   sequences: AsyncIterable<AbstractSequence>,
-  options?: DeduplicationOptions,
+  options?: DeduplicationOptions
 ): Promise<AbstractSequence[]> {
   const dedup = new SequenceDeduplicator(options);
   const result: AbstractSequence[] = [];
@@ -831,7 +831,7 @@ export async function deduplicateSequences(
  */
 export async function findDuplicates(
   sequences: AsyncIterable<AbstractSequence>,
-  options?: DeduplicationOptions,
+  options?: DeduplicationOptions
 ): Promise<DeduplicationStats> {
   const dedup = new SequenceDeduplicator({
     ...options,

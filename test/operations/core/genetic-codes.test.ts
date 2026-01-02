@@ -50,13 +50,13 @@ describe("Genetic Code Functions", () => {
 
     test("should handle empty sequence", () => {
       expect(() => translate("", GeneticCode.STANDARD)).toThrow(
-        "Sequence must be a non-empty string",
+        "Sequence must be a non-empty string"
       );
     });
 
     test("should validate frame parameter", () => {
       expect(() => translate("ATG", GeneticCode.STANDARD, 3 as 0 | 1 | 2)).toThrow(
-        "Frame must be 0, 1, or 2",
+        "Frame must be 0, 1, or 2"
       );
     });
   });
@@ -174,7 +174,7 @@ describe("Genetic Code Functions", () => {
 
       // Should find ORF that extends to end
       const extendedOrfs = orfs.filter(
-        (o) => o.end === dna.length - 1 || o.end === dna.length - 2 || o.end === dna.length - 3,
+        (o) => o.end === dna.length - 1 || o.end === dna.length - 2 || o.end === dna.length - 3
       );
       expect(extendedOrfs.length).toBeGreaterThan(0);
     });

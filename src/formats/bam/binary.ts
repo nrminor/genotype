@@ -45,7 +45,7 @@ export function readInt32LE(view: DataView, offset: number): number {
     throw new BamError(
       `Cannot read int32 at offset ${offset}: buffer too small (${view.byteLength} bytes)`,
       undefined,
-      "binary",
+      "binary"
     );
   }
 
@@ -64,7 +64,7 @@ export function readUInt32LE(view: DataView, offset: number): number {
     throw new BamError(
       `Cannot read uint32 at offset ${offset}: buffer too small (${view.byteLength} bytes)`,
       undefined,
-      "binary",
+      "binary"
     );
   }
 
@@ -83,7 +83,7 @@ export function readUInt16LE(view: DataView, offset: number): number {
     throw new BamError(
       `Cannot read uint16 at offset ${offset}: buffer too small (${view.byteLength} bytes)`,
       undefined,
-      "binary",
+      "binary"
     );
   }
 
@@ -102,7 +102,7 @@ export function readUInt8(view: DataView, offset: number): number {
     throw new BamError(
       `Cannot read uint8 at offset ${offset}: buffer too small (${view.byteLength} bytes)`,
       undefined,
-      "binary",
+      "binary"
     );
   }
 
@@ -120,13 +120,13 @@ export function readUInt8(view: DataView, offset: number): number {
 export function readCString(
   view: DataView,
   offset: number,
-  maxLength: number,
+  maxLength: number
 ): { value: string; bytesRead: number } {
   if (offset >= view.byteLength) {
     throw new BamError(
       `Cannot read string at offset ${offset}: buffer too small (${view.byteLength} bytes)`,
       undefined,
-      "binary",
+      "binary"
     );
   }
 
@@ -149,7 +149,7 @@ export function readCString(
   throw new BamError(
     `String not null-terminated within ${maxLength} bytes at offset ${offset}`,
     undefined,
-    "binary",
+    "binary"
   );
 }
 
@@ -174,7 +174,7 @@ export function decodeSequence(buffer: Uint8Array, length: number): string {
     throw new BamError(
       `Buffer too small for sequence: need ${bytesNeeded} bytes, have ${buffer.length}`,
       undefined,
-      "sequence",
+      "sequence"
     );
   }
 
@@ -196,7 +196,7 @@ export function decodeSequence(buffer: Uint8Array, length: number): string {
       throw new BamError(
         `Invalid sequence encoding: ${nibble} at position ${i}`,
         undefined,
-        "sequence",
+        "sequence"
       );
     }
 
@@ -229,7 +229,7 @@ export function parseBinaryCIGAR(view: DataView, offset: number, count: number):
     throw new BamError(
       `Buffer too small for CIGAR: need ${bytesNeeded} bytes at offset ${offset}, have ${view.byteLength - offset}`,
       undefined,
-      "cigar",
+      "cigar"
     );
   }
 
@@ -245,7 +245,7 @@ export function parseBinaryCIGAR(view: DataView, offset: number, count: number):
       throw new BamError(
         `Invalid CIGAR operation type: ${opType} at position ${i}`,
         undefined,
-        "cigar",
+        "cigar"
       );
     }
 
@@ -276,7 +276,7 @@ export function readFixedString(view: DataView, offset: number, length: number):
     throw new BamError(
       `Cannot read fixed string: need ${length} bytes at offset ${offset}, buffer has ${view.byteLength} bytes`,
       undefined,
-      "binary",
+      "binary"
     );
   }
 
@@ -298,7 +298,7 @@ export function createContext(buffer: ArrayBuffer, offset = 0, littleEndian = tr
     throw new BamError(
       `Offset ${offset} exceeds buffer size ${buffer.byteLength}`,
       undefined,
-      "binary",
+      "binary"
     );
   }
 
@@ -342,7 +342,7 @@ export function isValidBAMMagic(magicBytes: Uint8Array): boolean {
 export function parseAlignmentRecord(
   view: DataView,
   offset: number,
-  blockSize: number,
+  blockSize: number
 ): {
   refID: number;
   pos: number;
@@ -371,7 +371,7 @@ export function parseAlignmentRecord(
     view,
     offset + MIN_ALIGNMENT_BLOCK_SIZE,
     offset + blockSize,
-    fixedFields,
+    fixedFields
   );
 
   return {
@@ -398,7 +398,7 @@ export function decodeQualityScores(view: DataView, offset: number, length: numb
     throw new BamError(
       `Buffer too small for quality scores: need ${length} bytes at offset ${offset}`,
       undefined,
-      "qual",
+      "qual"
     );
   }
 
@@ -430,7 +430,7 @@ export function decodeQualityScores(view: DataView, offset: number, length: numb
  */
 export function parseOptionalTags(
   tagData: Uint8Array,
-  qname?: string,
+  qname?: string
 ): Array<{
   tag: string;
   type: string;
@@ -472,7 +472,7 @@ export function parseOptionalTags(
       // Log tag parsing error with context for debugging
       const errorContext = qname !== undefined && qname !== "" ? ` for read ${qname}` : "";
       console.warn(
-        `BAM tag parsing failed at offset ${offset}${errorContext}: ${error instanceof Error ? error.message : String(error)}`,
+        `BAM tag parsing failed at offset ${offset}${errorContext}: ${error instanceof Error ? error.message : String(error)}`
       );
       break;
     }
@@ -489,7 +489,7 @@ export function parseOptionalTags(
  */
 export function validateAlignment(
   record: ReturnType<typeof parseAlignmentRecord>,
-  references: string[],
+  references: string[]
 ): string[] {
   const warnings: string[] = [];
 
@@ -512,13 +512,13 @@ export function createOptimizedParser(
     bufferSize?: number;
     skipValidation?: boolean;
     onWarning?: (warning: string) => void;
-  } = {},
+  } = {}
 ): {
   parseAlignment: (
     view: DataView,
     offset: number,
     blockSize: number,
-    references: string[],
+    references: string[]
   ) => ReturnType<typeof parseAlignmentRecord>;
   getStats: () => {
     sequenceBufferSize: number;
@@ -540,7 +540,7 @@ export function createOptimizedParser(
       view: DataView,
       offset: number,
       blockSize: number,
-      references: string[],
+      references: string[]
     ): ReturnType<typeof parseAlignmentRecord> => {
       const record = parseAlignmentRecord(view, offset, blockSize);
 
@@ -635,7 +635,7 @@ function validateAlignmentBlock(blockSize: number, view: DataView, offset: numbe
     throw new BamError(
       `Alignment block too small: ${blockSize} bytes (minimum ${MIN_ALIGNMENT_BLOCK_SIZE})`,
       undefined,
-      "alignment",
+      "alignment"
     );
   }
 
@@ -643,7 +643,7 @@ function validateAlignmentBlock(blockSize: number, view: DataView, offset: numbe
     throw new BamError(
       `Buffer overflow reading alignment header: need ${MIN_ALIGNMENT_BLOCK_SIZE} bytes`,
       undefined,
-      "alignment",
+      "alignment"
     );
   }
 }
@@ -653,7 +653,7 @@ function validateAlignmentBlock(blockSize: number, view: DataView, offset: numbe
  */
 function parseAlignmentFixedFields(
   view: DataView,
-  offset: number,
+  offset: number
 ): {
   refID: number;
   pos: number;
@@ -738,7 +738,7 @@ function parseAlignmentVariableFields(
   view: DataView,
   startOffset: number,
   endOffset: number,
-  fixedFields: ReturnType<typeof parseAlignmentFixedFields>,
+  fixedFields: ReturnType<typeof parseAlignmentFixedFields>
 ): {
   readName: string;
   cigar: string;
@@ -752,7 +752,7 @@ function parseAlignmentVariableFields(
     view,
     currentOffset,
     endOffset,
-    fixedFields.readNameLength,
+    fixedFields.readNameLength
   );
   currentOffset += fixedFields.readNameLength;
 
@@ -761,7 +761,7 @@ function parseAlignmentVariableFields(
     currentOffset,
     endOffset,
     fixedFields.numCigarOps,
-    readName,
+    readName
   );
   currentOffset += fixedFields.numCigarOps * BYTES_PER_CIGAR_OP;
 
@@ -770,7 +770,7 @@ function parseAlignmentVariableFields(
     currentOffset,
     endOffset,
     fixedFields.seqLength,
-    readName,
+    readName
   );
   currentOffset += Math.ceil(fixedFields.seqLength / 2);
 
@@ -779,7 +779,7 @@ function parseAlignmentVariableFields(
     currentOffset,
     endOffset,
     fixedFields.seqLength,
-    readName,
+    readName
   );
   currentOffset += fixedFields.seqLength;
 
@@ -801,13 +801,13 @@ function parseAlignmentReadName(
   view: DataView,
   offset: number,
   endOffset: number,
-  readNameLength: number,
+  readNameLength: number
 ): string {
   if (offset + readNameLength > endOffset) {
     throw new BamError(
       `Buffer overflow reading read name: need ${readNameLength} bytes`,
       undefined,
-      "qname",
+      "qname"
     );
   }
 
@@ -822,14 +822,14 @@ function parseAlignmentCigar(
   offset: number,
   endOffset: number,
   numCigarOps: number,
-  readName: string,
+  readName: string
 ): string {
   const cigarBytesNeeded = numCigarOps * BYTES_PER_CIGAR_OP;
   if (offset + cigarBytesNeeded > endOffset) {
     throw new BamError(
       `Buffer overflow reading CIGAR: need ${cigarBytesNeeded} bytes`,
       readName,
-      "cigar",
+      "cigar"
     );
   }
 
@@ -844,14 +844,14 @@ function parseAlignmentSequence(
   offset: number,
   endOffset: number,
   seqLength: number,
-  readName: string,
+  readName: string
 ): string {
   const seqBytesNeeded = Math.ceil(seqLength / 2);
   if (offset + seqBytesNeeded > endOffset) {
     throw new BamError(
       `Buffer overflow reading sequence: need ${seqBytesNeeded} bytes`,
       readName,
-      "seq",
+      "seq"
     );
   }
 
@@ -871,13 +871,13 @@ function parseAlignmentQuality(
   offset: number,
   endOffset: number,
   seqLength: number,
-  readName: string,
+  readName: string
 ): string {
   if (offset + seqLength > endOffset) {
     throw new BamError(
       `Buffer overflow reading quality scores: need ${seqLength} bytes`,
       readName,
-      "qual",
+      "qual"
     );
   }
 
@@ -902,7 +902,7 @@ function parseAlignmentTags(view: DataView, offset: number, endOffset: number): 
 function parseTagValue(
   tagData: Uint8Array,
   offset: number,
-  tagType: string,
+  tagType: string
 ): {
   value: string | number;
   bytesConsumed: number;
@@ -939,7 +939,7 @@ function parseTagValue(
  */
 function parseCharacterTag(
   tagData: Uint8Array,
-  offset: number,
+  offset: number
 ): { value: string; bytesConsumed: number } {
   if (offset >= tagData.length) {
     throw new Error("Insufficient data for character tag");
@@ -961,7 +961,7 @@ function parseCharacterTag(
  */
 function parseInt8Tag(
   tagData: Uint8Array,
-  offset: number,
+  offset: number
 ): { value: number; bytesConsumed: number } {
   if (offset >= tagData.length) {
     throw new Error("Insufficient data for int8 tag");
@@ -983,7 +983,7 @@ function parseInt8Tag(
  */
 function parseUInt8Tag(
   tagData: Uint8Array,
-  offset: number,
+  offset: number
 ): { value: number; bytesConsumed: number } {
   if (offset >= tagData.length) {
     throw new Error("Insufficient data for uint8 tag");
@@ -1005,7 +1005,7 @@ function parseUInt8Tag(
  */
 function parseInt16Tag(
   tagData: Uint8Array,
-  offset: number,
+  offset: number
 ): { value: number; bytesConsumed: number } {
   if (offset + 2 > tagData.length) {
     throw new Error("Insufficient data for int16 tag");
@@ -1028,7 +1028,7 @@ function parseInt16Tag(
  */
 function parseUInt16Tag(
   tagData: Uint8Array,
-  offset: number,
+  offset: number
 ): { value: number; bytesConsumed: number } {
   if (offset + 2 > tagData.length) {
     throw new Error("Insufficient data for uint16 tag");
@@ -1051,7 +1051,7 @@ function parseUInt16Tag(
  */
 function parseInt32Tag(
   tagData: Uint8Array,
-  offset: number,
+  offset: number
 ): { value: number; bytesConsumed: number } {
   if (offset + 4 > tagData.length) {
     throw new Error("Insufficient data for int32 tag");
@@ -1079,7 +1079,7 @@ function parseInt32Tag(
  */
 function parseUInt32Tag(
   tagData: Uint8Array,
-  offset: number,
+  offset: number
 ): { value: number; bytesConsumed: number } {
   if (offset + 4 > tagData.length) {
     throw new Error("Insufficient data for uint32 tag");
@@ -1105,7 +1105,7 @@ function parseUInt32Tag(
  */
 function parseFloatTag(
   tagData: Uint8Array,
-  offset: number,
+  offset: number
 ): { value: number; bytesConsumed: number } {
   if (offset + 4 > tagData.length) {
     throw new Error("Insufficient data for float tag");
@@ -1124,7 +1124,7 @@ function parseFloatTag(
  */
 function parseStringTag(
   tagData: Uint8Array,
-  offset: number,
+  offset: number
 ): { value: string; bytesConsumed: number } {
   let nullPos = offset;
   while (nullPos < tagData.length && tagData[nullPos] !== 0) {
@@ -1148,7 +1148,7 @@ function parseStringTag(
  */
 function parseArrayTag(
   tagData: Uint8Array,
-  offset: number,
+  offset: number
 ): { value: string; bytesConsumed: number } {
   if (offset + 5 > tagData.length) {
     throw new Error("Insufficient data for array tag header");
@@ -1226,7 +1226,7 @@ function validateArrayDataSize(
   offset: number,
   arrayCount: number,
   elementSize: number,
-  dataLength: number,
+  dataLength: number
 ): void {
   if (offset + arrayCount * elementSize > dataLength) {
     throw new Error(`Insufficient data for array elements: need ${arrayCount * elementSize} bytes`);
@@ -1241,7 +1241,7 @@ function parseArrayElements(
   offset: number,
   arrayType: string,
   arrayCount: number,
-  elementSize: number,
+  elementSize: number
 ): number[] {
   const arrayValues: number[] = [];
 
@@ -1333,7 +1333,7 @@ function parseFloatElement(tagData: Uint8Array, offset: number): number {
 function validateReferenceIds(
   record: ReturnType<typeof parseAlignmentRecord>,
   references: string[],
-  warnings: string[],
+  warnings: string[]
 ): void {
   if (record.refID >= 0 && record.refID >= references.length) {
     warnings.push(`Reference ID ${record.refID} out of bounds (max ${references.length - 1})`);
@@ -1341,14 +1341,14 @@ function validateReferenceIds(
 
   if (record.nextRefID >= 0 && record.nextRefID >= references.length) {
     warnings.push(
-      `Next reference ID ${record.nextRefID} out of bounds (max ${references.length - 1})`,
+      `Next reference ID ${record.nextRefID} out of bounds (max ${references.length - 1})`
     );
   }
 }
 
 function validateCigarConsistency(
   record: ReturnType<typeof parseAlignmentRecord>,
-  warnings: string[],
+  warnings: string[]
 ): void {
   if (record.cigar === "*" || record.sequence === "*") {
     return;
@@ -1369,14 +1369,14 @@ function validateCigarConsistency(
 
   if (queryConsumed !== record.seqLength) {
     warnings.push(
-      `CIGAR consumes ${queryConsumed} bases but sequence length is ${record.seqLength}`,
+      `CIGAR consumes ${queryConsumed} bases but sequence length is ${record.seqLength}`
     );
   }
 }
 
 function validateMappingQuality(
   record: ReturnType<typeof parseAlignmentRecord>,
-  warnings: string[],
+  warnings: string[]
 ): void {
   if (record.mapq > MAX_MAPPING_QUALITY) {
     warnings.push(`Unusually high mapping quality: ${record.mapq}`);
@@ -1385,7 +1385,7 @@ function validateMappingQuality(
 
 function validateTemplateLength(
   record: ReturnType<typeof parseAlignmentRecord>,
-  warnings: string[],
+  warnings: string[]
 ): void {
   if (record.flag & 0x1) {
     // Paired read
@@ -1397,7 +1397,7 @@ function validateTemplateLength(
 
 function validatePosition(
   record: ReturnType<typeof parseAlignmentRecord>,
-  warnings: string[],
+  warnings: string[]
 ): void {
   if (record.pos > MAX_CHROMOSOME_POSITION) {
     warnings.push(`Unusually large position: ${record.pos}`);

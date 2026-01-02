@@ -8,7 +8,6 @@
 !/bun.lockb
 !/tsconfig.json
 !/.oxlintrc.json
-!/.oxfmtrc.jsonc
 !/.oxfmtrc.json
 !/justfile
 

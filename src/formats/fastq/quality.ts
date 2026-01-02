@@ -91,7 +91,7 @@ type AsciiOffset = 33 | 64 | 59;
  */
 function validateQualityString(
   quality: QualityString,
-  encoding: QualityEncoding,
+  encoding: QualityEncoding
 ): {
   valid: boolean;
   minChar: number;
@@ -160,7 +160,7 @@ function validateQualityString(
 function convertQualityEncoding(
   quality: QualityString,
   fromEncoding: QualityEncoding,
-  toEncoding: QualityEncoding,
+  toEncoding: QualityEncoding
 ): QualityString {
   if (fromEncoding === toEncoding) {
     return quality;
@@ -200,7 +200,7 @@ function getQualityStatistics(quality: QualityString, encoding: QualityEncoding)
  */
 function assessQuality(
   quality: QualityString,
-  encoding: QualityEncoding,
+  encoding: QualityEncoding
 ): {
   level: "excellent" | "good" | "fair" | "poor";
   meanScore: number;
@@ -216,7 +216,7 @@ function assessQuality(
     throw new ValidationError(
       "QUALITY_LEVELS array must contain at least one quality level definition",
       undefined,
-      "Quality assessment requires non-empty QUALITY_LEVELS configuration",
+      "Quality assessment requires non-empty QUALITY_LEVELS configuration"
     );
   }
 
@@ -247,7 +247,7 @@ function assessQuality(
 function analyzeWindow(
   scores: number[],
   start: number,
-  size: number,
+  size: number
 ): { start: number; end: number; meanScore: number; minScore: number; maxScore: number } | null {
   if (start + size > scores.length) return null;
 
@@ -277,7 +277,7 @@ function analyzeWindow(
 function analyzeQualityWindows(
   quality: QualityString,
   encoding: QualityEncoding,
-  windowSize = QUALITY_WINDOWS.DEFAULT_SIZE,
+  windowSize = QUALITY_WINDOWS.DEFAULT_SIZE
 ): Array<{
   start: number;
   end: number;
@@ -290,14 +290,14 @@ function analyzeQualityWindows(
   // Validate window size
   const validWindowSize = Math.max(
     QUALITY_WINDOWS.MIN_SIZE,
-    Math.min(windowSize, QUALITY_WINDOWS.MAX_SIZE, scores.length),
+    Math.min(windowSize, QUALITY_WINDOWS.MAX_SIZE, scores.length)
   );
 
   // Use functional approach with Array.from and map
   const numWindows = Math.max(0, scores.length - validWindowSize + 1);
 
   return Array.from({ length: numWindows }, (_, i) =>
-    analyzeWindow(scores, i, validWindowSize),
+    analyzeWindow(scores, i, validWindowSize)
   ).filter((w): w is NonNullable<typeof w> => w !== null);
 }
 
@@ -318,7 +318,7 @@ function analyzeQualityWindows(
 function findLowQualityPositions(
   quality: QualityString,
   encoding: QualityEncoding,
-  threshold: number,
+  threshold: number
 ): number[] {
   const scores = qualityToScores(quality, encoding);
   return scores
@@ -339,7 +339,7 @@ function suggestQualityTrimming(
   quality: QualityString,
   encoding: QualityEncoding,
   minQuality = TRIMMING_DEFAULTS.MIN_QUALITY,
-  minLength = TRIMMING_DEFAULTS.MIN_LENGTH,
+  minLength = TRIMMING_DEFAULTS.MIN_LENGTH
 ): {
   trimStart: number;
   trimEnd: number;

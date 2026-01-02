@@ -323,7 +323,7 @@ describe("GTF Real-World Edge Cases and Recovery", () => {
       // Current implementation treats whole string as single attribute value
       // This documents the actual behavior - the regex matches the first key-value pair
       expect(feature.attributes.gene_id).toBe(
-        `ENSG00000123456" gene_name "TEST" transcript_id "ENST001`,
+        `ENSG00000123456" gene_name "TEST" transcript_id "ENST001`
       );
       expect(feature.attributes).toBeDefined();
     });
@@ -515,7 +515,7 @@ chr1\tHAVANA\tgene\t30000\t35000\t.\t-\t.\tgene_id "ENSG00000004"; gene_type "un
       expect(features).toHaveLength(3);
 
       const processedPseudogene = features.find(
-        (f) => f.attributes.gene_id === "ENSG00000003" && f.feature === "gene",
+        (f) => f.attributes.gene_id === "ENSG00000003" && f.feature === "gene"
       );
       const unprocessedPseudogene = features.find((f) => f.attributes.gene_id === "ENSG00000004");
 
@@ -627,7 +627,7 @@ describe("GTF Coordinate System Validation", () => {
           for await (const feature of parser.parseString(zeroBased)) {
             // Should not reach here
           }
-        })(),
+        })()
       ).rejects.toThrow(GenotypeError);
     });
 
@@ -660,7 +660,7 @@ describe("GTF Coordinate System Validation", () => {
           for await (const feature of parser.parseString(backward)) {
             // Should not reach here
           }
-        })(),
+        })()
       ).rejects.toThrow(GenotypeError);
     });
   });
@@ -750,7 +750,7 @@ describe("GTF Performance and Memory Testing", () => {
         const geneId = `ENSG${i.toString().padStart(11, "0")}`;
 
         largeAnnotationLines.push(
-          `${chr}\tGENCODE\tgene\t${start}\t${end}\t.\t+\t.\tgene_id "${geneId}.1"; gene_type "protein_coding"; gene_name "TESTGENE${i}"; level 2;`,
+          `${chr}\tGENCODE\tgene\t${start}\t${end}\t.\t+\t.\tgene_id "${geneId}.1"; gene_type "protein_coding"; gene_name "TESTGENE${i}"; level 2;`
         );
       }
 
@@ -808,7 +808,7 @@ describe("GTF Performance and Memory Testing", () => {
         ].join("; ");
 
         complexLines.push(
-          `chr1\tHAVANA\texon\t${i * 1000}\t${i * 1000 + 200}\t.\t+\t.\t${complexAttributes};`,
+          `chr1\tHAVANA\texon\t${i * 1000}\t${i * 1000 + 200}\t.\t+\t.\t${complexAttributes};`
         );
       }
 
@@ -838,7 +838,7 @@ describe("GTF Performance and Memory Testing", () => {
       const largeAnnotationLines = [];
       for (let i = 1; i <= 50000; i++) {
         largeAnnotationLines.push(
-          `chr1\tGENCODE\tgene\t${i * 1000}\t${i * 1000 + 500}\t.\t+\t.\tgene_id "ENSG${i.toString().padStart(11, "0")}"; gene_type "protein_coding"; gene_name "GENE${i}";`,
+          `chr1\tGENCODE\tgene\t${i * 1000}\t${i * 1000 + 500}\t.\t+\t.\tgene_id "ENSG${i.toString().padStart(11, "0")}"; gene_type "protein_coding"; gene_name "GENE${i}";`
         );
       }
       const largeData = largeAnnotationLines.join("\n");
@@ -877,7 +877,7 @@ describe("GTF Performance and Memory Testing", () => {
       const streamLines = [];
       for (let i = 1; i <= streamTestCount; i++) {
         streamLines.push(
-          `chr1\tGENCODE\tgene\t${i * 1000}\t${i * 1000 + 500}\t.\t+\t.\tgene_id "STREAM${i}"; gene_type "test";`,
+          `chr1\tGENCODE\tgene\t${i * 1000}\t${i * 1000 + 500}\t.\t+\t.\tgene_id "STREAM${i}"; gene_type "test";`
         );
       }
 
@@ -915,7 +915,7 @@ describe("GTF Performance and Memory Testing", () => {
       const incrementalData = Array.from(
         { length: 1000 },
         (_, i) =>
-          `chr1\ttest\tgene\t${(i + 1) * 1000}\t${(i + 1) * 1000 + 100}\t.\t+\t.\tgene_id "INCREMENT${i + 1}";`,
+          `chr1\ttest\tgene\t${(i + 1) * 1000}\t${(i + 1) * 1000 + 100}\t.\t+\t.\tgene_id "INCREMENT${i + 1}";`
       ).join("\n");
 
       let firstFeatureTime: number | null = null;

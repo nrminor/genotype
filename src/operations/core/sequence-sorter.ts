@@ -324,7 +324,7 @@ export class SequenceSorter {
       this.options.chunkSize,
       this.options.tempDir,
       this.serializeSequence.bind(this),
-      this.deserializeSequence.bind(this),
+      this.deserializeSequence.bind(this)
     );
 
     yield* sorter.sort(input, this.compareFn);
@@ -399,7 +399,7 @@ export class SequenceSorter {
    */
   async *getTopN(
     sequences: AsyncIterable<AbstractSequence>,
-    n: number,
+    n: number
   ): AsyncGenerator<AbstractSequence> {
     // For top-N, we need to invert the comparison
     // The heap keeps the "smallest" N items according to its compareFn
@@ -537,7 +537,7 @@ export class SequenceSorter {
   }
 
   private async *deduplicate(
-    sequences: AsyncIterable<AbstractSequence>,
+    sequences: AsyncIterable<AbstractSequence>
   ): AsyncGenerator<AbstractSequence> {
     for await (const seq of sequences) {
       const key = this.getSequenceKey(seq);
@@ -562,7 +562,7 @@ export class SequenceSorter {
  */
 export async function sortSequences(
   sequences: AsyncIterable<AbstractSequence>,
-  options?: SortOptions,
+  options?: SortOptions
 ): Promise<AbstractSequence[]> {
   const sorter = new SequenceSorter(options);
   const result: AbstractSequence[] = [];
@@ -600,7 +600,7 @@ export async function sortSequences(
 export async function getTopSequences(
   sequences: AsyncIterable<AbstractSequence>,
   n: number,
-  sortBy: SortBy = "length",
+  sortBy: SortBy = "length"
 ): Promise<AbstractSequence[]> {
   const sorter = new SequenceSorter({ sortBy });
   const result: AbstractSequence[] = [];
@@ -622,7 +622,7 @@ class MinHeap<T> {
 
   constructor(
     maxSize: number,
-    private readonly compareFn: (a: T, b: T) => number,
+    private readonly compareFn: (a: T, b: T) => number
   ) {
     this.maxSize = maxSize;
   }

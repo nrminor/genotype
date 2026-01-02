@@ -28,7 +28,7 @@ export function validateFieldSize(field: string, maxSize: number = MAX_FIELD_SIZ
     throw new DSVParseError(
       `Field size (${sizeInBytes} bytes) exceeds maximum allowed (${maxSize} bytes)`,
       undefined,
-      undefined,
+      undefined
     );
   }
 }
@@ -91,7 +91,7 @@ export const DSVParserOptionsSchema = type({
   // Warn about Excel compatibility
   if (options.protectFromExcel === false) {
     console.warn(
-      "DSV: Excel protection disabled. Gene names like SEPT1, MARCH1 may be corrupted to dates.",
+      "DSV: Excel protection disabled. Gene names like SEPT1, MARCH1 may be corrupted to dates."
     );
   }
 
@@ -128,7 +128,7 @@ export const DSVWriterOptionsSchema = type({
   // Validate quote/escape compatibility
   if (options.quote && options.escapeChar && options.escapeChar !== options.quote) {
     console.warn(
-      "DSV: Using different quote and escape characters. RFC 4180 recommends doubling quotes for escaping.",
+      "DSV: Using different quote and escape characters. RFC 4180 recommends doubling quotes for escaping."
     );
   }
 
@@ -200,7 +200,7 @@ export function validateDSV(
     requireHeaders?: boolean;
     minColumns?: number;
     maxColumns?: number;
-  } = {},
+  } = {}
 ): {
   valid: boolean;
   errors: string[];
@@ -257,7 +257,7 @@ export function validateDSV(
     const line = lines[i];
     if (line && excelDangerPatterns.test(line)) {
       warnings.push(
-        `Line ${i + 1} contains gene names that Excel might corrupt (e.g., SEPT1, MARCH1)`,
+        `Line ${i + 1} contains gene names that Excel might corrupt (e.g., SEPT1, MARCH1)`
       );
       break;
     }

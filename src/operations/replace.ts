@@ -161,7 +161,7 @@ function isValidKeyValueMap(value: unknown): value is Map<string, string> | Reco
   // Check for Map with string entries
   if (value instanceof Map) {
     return Array.from(value.entries()).every(
-      ([key, val]) => typeof key === "string" && typeof val === "string",
+      ([key, val]) => typeof key === "string" && typeof val === "string"
     );
   }
 
@@ -173,7 +173,7 @@ function isValidKeyValueMap(value: unknown): value is Map<string, string> | Reco
     Object.getPrototypeOf(value) === Object.prototype
   ) {
     return Object.entries(value).every(
-      ([key, val]) => typeof key === "string" && typeof val === "string",
+      ([key, val]) => typeof key === "string" && typeof val === "string"
     );
   }
 
@@ -285,7 +285,7 @@ async function loadKeyValueFile(filePath: string): Promise<Map<string, string>> 
       const parts = line.split(TAB_DELIMITER);
       if (parts.length !== 2 || !parts[0] || !parts[1]) {
         throw new ValidationError(
-          `Invalid key-value file format at line ${index + 1}: "${line}". Expected tab-delimited key-value pairs (key<TAB>value).`,
+          `Invalid key-value file format at line ${index + 1}: "${line}". Expected tab-delimited key-value pairs (key<TAB>value).`
         );
       }
 
@@ -411,7 +411,7 @@ function expandCaptureVariables(template: string, captures: string[]): string {
       // Replace both $N and ${N} formats
       result = result.replace(
         new RegExp(`\\$\\{${captureNum}\\}|\\$${captureNum}`, "g"),
-        captureValue,
+        captureValue
       );
     }
   }
@@ -470,7 +470,7 @@ function expandRecordNumber(template: string, recordNumber: number, width: numbe
 function resolveKeyValueLookup(
   key: string | undefined,
   kvMap: Map<string, string>,
-  options: ReplaceOptions,
+  options: ReplaceOptions
 ): string | typeof SKIP_REPLACEMENT {
   // Key found: use value
   if (key !== undefined && kvMap.has(key)) {
@@ -513,7 +513,7 @@ function expandKeyValuePlaceholder(
   template: string,
   captures: string[],
   kvMap: Map<string, string> | null,
-  options: ReplaceOptions,
+  options: ReplaceOptions
 ): string | typeof SKIP_REPLACEMENT {
   if (!kvMap || !template.includes("{kv}")) {
     return template;
@@ -555,7 +555,7 @@ function expandKeyValuePlaceholder(
  */
 function expandFileNamePlaceholders(
   template: string,
-  fileInfo: { fn: string; fbn: string; fbne: string },
+  fileInfo: { fn: string; fbn: string; fbne: string }
 ): string {
   let result = template;
 
@@ -600,7 +600,7 @@ function expandPlaceholders(context: PlaceholderContext): string {
     result,
     context.captures,
     context.kvMap,
-    context.options,
+    context.options
   );
   if (kvResult === SKIP_REPLACEMENT) {
     return context.originalMatch; // keepUntouch: return original match
@@ -641,7 +641,7 @@ function applyReplacement<T extends AbstractSequence>(
   kvMap: Map<string, string> | null,
   fileInfo: { fn: string; fbn: string; fbne: string },
   options: ReplaceOptions,
-  bySeq: boolean,
+  bySeq: boolean
 ): T {
   // Determine target (name or sequence)
   const target = bySeq ? seq.sequence : seq.id;
@@ -770,7 +770,7 @@ function compilePattern(pattern: string, ignoreCase: boolean): RegExp {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     throw new ValidationError(
-      `Invalid regular expression pattern: "${pattern}". Error: ${errorMessage}`,
+      `Invalid regular expression pattern: "${pattern}". Error: ${errorMessage}`
     );
   }
 }
@@ -818,7 +818,7 @@ function escapeRegex(str: string): string {
 function shouldProcess<T extends AbstractSequence>(
   seq: T,
   patterns: string[],
-  options: ReplaceOptions,
+  options: ReplaceOptions
 ): boolean {
   // If no patterns, process all sequences
   if (patterns.length === 0) {
@@ -923,7 +923,7 @@ function shouldProcess<T extends AbstractSequence>(
  */
 export async function* replace<T extends AbstractSequence>(
   sequences: AsyncIterable<T>,
-  options: ReplaceOptions,
+  options: ReplaceOptions
 ): AsyncIterable<T> {
   // Validate options with ArkType schema (includes cross-option constraints and regex validation)
   const validationResult = ReplaceOptionsSchema(options);
@@ -949,7 +949,7 @@ export async function* replace<T extends AbstractSequence>(
     // Check format restriction for sequence replacement (FASTQ has quality property)
     if (bySeq && "quality" in seq) {
       throw new ValidationError(
-        "Sequence replacement (bySeq option) is only supported for FASTA format, not FASTQ",
+        "Sequence replacement (bySeq option) is only supported for FASTA format, not FASTQ"
       );
     }
 

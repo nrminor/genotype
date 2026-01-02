@@ -35,7 +35,7 @@ describe("FASTQ Writer Debug and Constants", () => {
       new FastqWriter({ debug: true });
 
       expect(
-        consoleOutput.some((log) => log.includes("[FastqWriter] Initialized with options:")),
+        consoleOutput.some((log) => log.includes("[FastqWriter] Initialized with options:"))
       ).toBe(true);
       // The object is logged as a JSON string
       expect(consoleOutput.some((log) => log.includes('"qualityEncoding":"phred33"'))).toBe(true);
@@ -62,10 +62,10 @@ describe("FASTQ Writer Debug and Constants", () => {
       writer.formatSequence(shortSequence);
 
       expect(consoleOutput.some((log) => log.includes("[FastqWriter] Strategy: 'simple'"))).toBe(
-        true,
+        true
       );
       expect(consoleOutput.some((log) => log.includes("auto - default for short sequence"))).toBe(
-        true,
+        true
       );
     });
 
@@ -85,7 +85,7 @@ describe("FASTQ Writer Debug and Constants", () => {
       writer.formatSequence(illuminaSequence);
 
       expect(
-        consoleOutput.some((log) => log.includes("[FastqWriter] Platform detected: illumina")),
+        consoleOutput.some((log) => log.includes("[FastqWriter] Platform detected: illumina"))
       ).toBe(true);
     });
 
@@ -105,8 +105,8 @@ describe("FASTQ Writer Debug and Constants", () => {
 
       expect(
         consoleOutput.some((log) =>
-          log.includes("[FastqWriter] Converting quality: phred33 -> phred64"),
-        ),
+          log.includes("[FastqWriter] Converting quality: phred33 -> phred64")
+        )
       ).toBe(true);
     });
 
@@ -126,8 +126,8 @@ describe("FASTQ Writer Debug and Constants", () => {
 
       expect(
         consoleOutput.some((log) =>
-          log.includes("[FastqWriter] Quality encoding: no conversion needed (phred33)"),
-        ),
+          log.includes("[FastqWriter] Quality encoding: no conversion needed (phred33)")
+        )
       ).toBe(true);
     });
 
@@ -146,7 +146,7 @@ describe("FASTQ Writer Debug and Constants", () => {
       writer.formatSequence(longSequence);
 
       expect(consoleOutput.some((log) => log.includes("[FastqWriter] Strategy: 'wrapped'"))).toBe(
-        true,
+        true
       );
       expect(consoleOutput.some((log) => log.includes("auto - long sequence"))).toBe(true);
     });
@@ -171,7 +171,7 @@ describe("FASTQ Writer Debug and Constants", () => {
       writer.formatSequence(unknownPlatformSequence);
 
       expect(consoleOutput.some((log) => log.includes("[FastqWriter] Platform: unknown"))).toBe(
-        true,
+        true
       );
     });
   });
@@ -216,8 +216,8 @@ describe("FASTQ Writer Debug and Constants", () => {
       // Check that initialization logged the default validation level (as JSON)
       expect(
         consoleOutput.some((log) =>
-          log.includes(`"validationLevel":"${PARSING_DEFAULTS.DEFAULT_VALIDATION}"`),
-        ),
+          log.includes(`"validationLevel":"${PARSING_DEFAULTS.DEFAULT_VALIDATION}"`)
+        )
       ).toBe(true);
     });
   });
@@ -245,20 +245,20 @@ describe("FASTQ Writer Debug and Constants", () => {
 
       // Should log platform detection
       expect(
-        consoleOutput.some((log) => log.includes("[FastqWriter] Platform detected: pacbio")),
+        consoleOutput.some((log) => log.includes("[FastqWriter] Platform detected: pacbio"))
       ).toBe(true);
 
       // Should log wrapped strategy selection
       expect(consoleOutput.some((log) => log.includes("[FastqWriter] Strategy: 'wrapped'"))).toBe(
-        true,
+        true
       );
       expect(consoleOutput.some((log) => log.includes("pacbio"))).toBe(true);
 
       // Should log quality conversion
       expect(
         consoleOutput.some((log) =>
-          log.includes("[FastqWriter] Converting quality: phred33 -> phred64"),
-        ),
+          log.includes("[FastqWriter] Converting quality: phred33 -> phred64")
+        )
       ).toBe(true);
     });
   });

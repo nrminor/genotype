@@ -117,7 +117,7 @@ export class TranslateProcessor {
    */
   async *process(
     source: AsyncIterable<AbstractSequence>,
-    options: TranslateOptions,
+    options: TranslateOptions
   ): AsyncIterable<AbstractSequence> {
     // Direct ArkType validation with comprehensive constraints
     const validationResult = TranslateOptionsSchema(options);
@@ -139,7 +139,7 @@ export class TranslateProcessor {
    */
   private async *translateSequence(
     seq: AbstractSequence,
-    options: TranslateOptions,
+    options: TranslateOptions
   ): AsyncIterable<AbstractSequence> {
     const frames = this.determineFrames(options);
     const geneticCode = options.geneticCode ?? GeneticCode.STANDARD;
@@ -182,7 +182,7 @@ export class TranslateProcessor {
     seq: AbstractSequence,
     frame: 1 | 2 | 3 | -1 | -2 | -3,
     geneticCode: GeneticCode,
-    options: TranslateOptions,
+    options: TranslateOptions
   ): string | null {
     // NATIVE_CRITICAL: String manipulation hot path - toUpperCase and character replacement
     let sequence = seq.sequence.toUpperCase().replace(/U/g, "T");
@@ -214,7 +214,7 @@ export class TranslateProcessor {
     sequence: string,
     frameOffset: number,
     geneticCode: GeneticCode,
-    options: TranslateOptions,
+    options: TranslateOptions
   ): string {
     const codeTable = getGeneticCode(geneticCode);
     if (!codeTable) {
@@ -275,7 +275,7 @@ export class TranslateProcessor {
     sequence: string,
     frameOffset: number,
     geneticCode: GeneticCode,
-    options: TranslateOptions,
+    options: TranslateOptions
   ): string | null {
     const codeTable = getGeneticCode(geneticCode);
     if (!codeTable) return null;
@@ -321,7 +321,7 @@ export class TranslateProcessor {
     originalSeq: AbstractSequence,
     translation: string,
     frame: number,
-    options: TranslateOptions,
+    options: TranslateOptions
   ): AbstractSequence {
     const frameStr = frame > 0 ? `+${frame}` : `${frame}`;
     const id =

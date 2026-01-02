@@ -392,7 +392,7 @@ describe("fx2tab", () => {
 
     test("can convert to array using TabularOps", async () => {
       const rows = await new TabularOps(
-        fx2tab(asyncSequences(), { columns: ["id", "length"] }),
+        fx2tab(asyncSequences(), { columns: ["id", "length"] })
       ).toArray();
 
       // Header + 3 sequences
@@ -461,7 +461,7 @@ describe("fx2tab", () => {
   describe("TabularOps chainability", () => {
     test("supports row filtering", async () => {
       const results = await new TabularOps(
-        fx2tab(asyncSequences(), { columns: ["id", "sequence", "length"], header: false }),
+        fx2tab(asyncSequences(), { columns: ["id", "sequence", "length"], header: false })
       )
         .filter((row) => typeof row.length === "number" && row.length > 4)
         .toArray();
@@ -474,7 +474,7 @@ describe("fx2tab", () => {
 
     test("supports chained filtering", async () => {
       const results = await new TabularOps(
-        fx2tab(asyncSequences(), { columns: ["id", "gc"], header: false }),
+        fx2tab(asyncSequences(), { columns: ["id", "gc"], header: false })
       )
         .filter((row) => typeof row.gc === "number" && row.gc >= 50)
         .toArray();
@@ -488,7 +488,7 @@ describe("fx2tab", () => {
       const tempFile = `test-${Date.now()}.tsv`;
 
       await new TabularOps(
-        fx2tab(asyncSequences(), { columns: ["id", "sequence"], header: true }),
+        fx2tab(asyncSequences(), { columns: ["id", "sequence"], header: true })
       ).writeTSV(tempFile);
 
       // Clean up
@@ -499,7 +499,7 @@ describe("fx2tab", () => {
       const tempFile = `test-${Date.now()}.csv`;
 
       await new TabularOps(
-        fx2tab(asyncSequences(), { columns: ["id", "sequence"], header: true }),
+        fx2tab(asyncSequences(), { columns: ["id", "sequence"], header: true })
       ).writeCSV(tempFile);
 
       // Clean up

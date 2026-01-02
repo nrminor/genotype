@@ -74,7 +74,7 @@ export class ExternalSorter<T> {
     private readonly chunkSize: number = 100_000_000, // 100MB chunks
     private readonly tempDir: string = "/tmp",
     private readonly serialize: (item: T) => string,
-    private readonly deserialize: (line: string) => T,
+    private readonly deserialize: (line: string) => T
   ) {}
 
   /**
@@ -98,7 +98,7 @@ export class ExternalSorter<T> {
    */
   private async createSortedChunks(
     items: AsyncIterable<T>,
-    compareFn: (a: T, b: T) => number,
+    compareFn: (a: T, b: T) => number
   ): Promise<void> {
     let chunk: T[] = [];
     let chunkBytes = 0;
@@ -141,7 +141,7 @@ export class ExternalSorter<T> {
 
     // Open all chunk files
     const iterators = await Promise.all(
-      this.chunkFiles.map((file) => this.createFileIterator(file)),
+      this.chunkFiles.map((file) => this.createFileIterator(file))
     );
 
     // Create heap for k-way merge
@@ -223,7 +223,7 @@ export class AdaptiveBuffer<T> {
 
   constructor(
     private readonly maxSize: number = 10000,
-    monitor?: MemoryMonitor,
+    monitor?: MemoryMonitor
   ) {
     this.monitor = monitor ?? new DefaultMemoryMonitor();
   }
@@ -288,7 +288,7 @@ export class DiskCache<T> {
   constructor(
     tempDir: string = "/tmp",
     private readonly serialize: (item: T) => string,
-    private readonly deserialize: (data: string) => T,
+    private readonly deserialize: (data: string) => T
   ) {
     this.tempDir = tempDir;
   }
@@ -355,7 +355,7 @@ export class DiskCache<T> {
       } catch (error) {
         // Log cleanup errors for debugging cache issues
         console.warn(
-          `Failed to cleanup cache file ${fileName} for key ${key}: ${error instanceof Error ? error.message : String(error)}`,
+          `Failed to cleanup cache file ${fileName} for key ${key}: ${error instanceof Error ? error.message : String(error)}`
         );
       }
     }

@@ -36,7 +36,7 @@ export class FilterProcessor implements Processor<FilterOptions> {
    */
   async *process(
     source: AsyncIterable<AbstractSequence>,
-    options: FilterOptions,
+    options: FilterOptions
   ): AsyncIterable<AbstractSequence> {
     // NATIVE_CANDIDATE: Hot loop - processes every sequence
     // Native filtering could batch process sequences

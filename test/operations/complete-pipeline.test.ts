@@ -172,7 +172,7 @@ describe("Complete SeqOps Pipeline Integration", () => {
 
     // All sequences should have 'Important' in description
     expect(analysisResults.every((seq) => seq.description?.includes("Important") === true)).toBe(
-      true,
+      true
     );
 
     // Should be sorted by ID

@@ -35,7 +35,7 @@ const replaceLinks = (text) => {
   return packageJson.homepage
     ? text.replace(
         /(\[.*?\]\()(\.\/.*?\))/g,
-        (_, p1, p2) => `${p1}${packageJson.homepage}/blob/HEAD/${p2.replace("./", "")}`,
+        (_, p1, p2) => `${p1}${packageJson.homepage}/blob/HEAD/${p2.replace("./", "")}`
       )
     : text;
 };
@@ -127,15 +127,15 @@ export default path;
         cpu: [arch],
       },
       null,
-      2,
-    ),
+      2
+    )
   );
 
   writeFileSync(
     join(nativeDir, "README.md"),
     replaceLinks(
-      `## ${nativeName}\n\n> Prebuilt ${platform}-${arch} binaries for \`${packageJson.name}\`.`,
-    ),
+      `## ${nativeName}\n\n> Prebuilt ${platform}-${arch} binaries for \`${packageJson.name}\`.`
+    )
   );
 
   if (existsSync(licensePath)) {
@@ -169,7 +169,7 @@ if (buildLib) {
     {
       cwd: rootDir,
       stdio: "inherit",
-    },
+    }
   );
 
   console.log("Generating TypeScript declarations...");
@@ -225,7 +225,7 @@ if (buildLib) {
     variants.map(({ platform, arch }) => [
       `${packageJson.name}-${platform}-${arch}`,
       `^${packageJson.version}`,
-    ]),
+    ])
   );
 
   writeFileSync(
@@ -253,13 +253,13 @@ if (buildLib) {
         },
       },
       null,
-      2,
-    ),
+      2
+    )
   );
 
   writeFileSync(
     join(distDir, "README.md"),
-    replaceLinks(readFileSync(join(rootDir, "README.md"), "utf8")),
+    replaceLinks(readFileSync(join(rootDir, "README.md"), "utf8"))
   );
   if (existsSync(licensePath)) {
     copyFileSync(licensePath, join(distDir, "LICENSE"));

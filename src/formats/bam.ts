@@ -139,7 +139,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
    */
   async *parseFile(
     filePath: string,
-    options?: import("../types").FileReaderOptions,
+    options?: import("../types").FileReaderOptions
   ): AsyncIterable<BAMAlignment | SAMHeader> {
     // Tiger Style: Assert function arguments
     if (typeof filePath !== "string") {
@@ -166,7 +166,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
           undefined,
           "file",
           undefined,
-          error.stack,
+          error.stack
         );
       }
       throw error;
@@ -253,7 +253,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
           if (buffer.length > 10 * 1024 * 1024) {
             // 10MB limit
             this.options.onWarning(
-              `Large buffer detected (${(buffer.length / 1024 / 1024).toFixed(1)}MB) at ${totalBytesProcessed} bytes processed, consider increasing processing speed`,
+              `Large buffer detected (${(buffer.length / 1024 / 1024).toFixed(1)}MB) at ${totalBytesProcessed} bytes processed, consider increasing processing speed`
             );
           }
         }
@@ -270,7 +270,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
         undefined,
         "parsing",
         undefined,
-        "Check file format and integrity",
+        "Check file format and integrity"
       );
     }
   }
@@ -324,7 +324,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
         undefined,
         "string_parsing",
         undefined,
-        "Ensure string is properly base64 or hex encoded binary data",
+        "Ensure string is properly base64 or hex encoded binary data"
       );
     }
   }
@@ -363,7 +363,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
       undefined,
       "string_encoding",
       undefined,
-      'Use Buffer.from(bamData).toString("base64") to encode BAM data',
+      'Use Buffer.from(bamData).toString("base64") to encode BAM data'
     );
   }
 
@@ -401,7 +401,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
       throw new BamError(
         "Invalid BAM magic bytes - file may be corrupted or not a BAM file",
         undefined,
-        "header",
+        "header"
       );
     }
 
@@ -414,7 +414,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
   private parseBAMHeaderText(
     view: DataView,
     buffer: Uint8Array,
-    startOffset: number,
+    startOffset: number
   ): { offset: number } {
     const headerLength = readInt32LE(view, startOffset);
     const offset = startOffset + 4;
@@ -440,7 +440,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
     view: DataView,
     buffer: Uint8Array,
     startOffset: number,
-    refIndex: number,
+    refIndex: number
   ): { reference: { name: string; length: number }; offset: number } {
     // Check if we have enough data for reference name length
     if (buffer.length < startOffset + 4) {
@@ -454,7 +454,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
       throw new BamError(
         `Invalid reference name length: ${nameLength} for reference ${refIndex}`,
         undefined,
-        "header",
+        "header"
       );
     }
 
@@ -476,7 +476,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
       throw new BamError(
         `Invalid reference length: ${refLength} for reference '${refName}'`,
         undefined,
-        "header",
+        "header"
       );
     }
 
@@ -492,7 +492,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
   private parseBAMReferences(
     view: DataView,
     buffer: Uint8Array,
-    startOffset: number,
+    startOffset: number
   ): {
     references: Array<{ name: string; length: number }>;
     referenceNames: string[];
@@ -525,7 +525,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
     referenceNames: string[],
     references: Array<{ name: string; length: number }>,
     bytesConsumed: number,
-    expectedRefCount: number,
+    expectedRefCount: number
   ): {
     header: SAMHeader;
     bytesConsumed: number;
@@ -547,7 +547,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
       throw new BamError(
         "bytes consumed must be greater than minimum header size",
         undefined,
-        "header",
+        "header"
       );
     }
     if (referenceNames.length !== expectedRefCount) {
@@ -574,14 +574,14 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
       const referencesResult = this.parseBAMReferences(
         validation.view,
         buffer,
-        headerTextResult.offset,
+        headerTextResult.offset
       );
 
       return this.createBAMHeaderResult(
         referencesResult.referenceNames,
         referencesResult.references,
         referencesResult.offset,
-        referencesResult.references.length,
+        referencesResult.references.length
       );
     } catch (error) {
       if (error instanceof Error && error.message === "INCOMPLETE_DATA") {
@@ -593,7 +593,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
       throw new BamError(
         `Header parsing failed: ${error instanceof Error ? error.message : String(error)}`,
         undefined,
-        "header",
+        "header"
       );
     }
   }
@@ -612,7 +612,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
     offset: number,
     blockSize: number,
     references: string[],
-    blockOffset: number,
+    blockOffset: number
   ): BAMAlignment {
     // Tiger Style: Assert function arguments
     if (!(view instanceof DataView)) {
@@ -683,7 +683,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
             parsedRecord.readName,
             "sequence_quality",
             blockOffset,
-            `Sequence: ${alignment.seq.substring(0, 50)}..., Quality: ${alignment.qual.substring(0, 50)}...`,
+            `Sequence: ${alignment.seq.substring(0, 50)}..., Quality: ${alignment.qual.substring(0, 50)}...`
           );
         }
       }
@@ -700,7 +700,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
           "position must be non-negative",
           alignment.qname,
           "alignment",
-          blockOffset,
+          blockOffset
         );
       }
 
@@ -713,7 +713,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
         `Alignment parsing failed: ${error instanceof Error ? error.message : String(error)}`,
         undefined,
         "alignment",
-        blockOffset,
+        blockOffset
       );
     }
   }
@@ -774,7 +774,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
           `Invalid FLAG value ${flag}: validation failed`,
           qname,
           "flag",
-          blockOffset,
+          blockOffset
         );
       }
       return result;
@@ -784,7 +784,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
         qname,
         "flag",
         blockOffset,
-        `Flag bits: ${flag.toString(2).padStart(12, "0")} (binary)`,
+        `Flag bits: ${flag.toString(2).padStart(12, "0")} (binary)`
       );
     }
   }
@@ -810,7 +810,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
           qname,
           "mapq",
           blockOffset,
-          `Valid range: 0-255, got: ${mapq}`,
+          `Valid range: 0-255, got: ${mapq}`
         );
       }
       return result;
@@ -820,7 +820,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
         qname,
         "mapq",
         blockOffset,
-        `Valid range: 0-255, got: ${mapq}`,
+        `Valid range: 0-255, got: ${mapq}`
       );
     }
   }
@@ -846,7 +846,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
           qname,
           "cigar",
           blockOffset,
-          `CIGAR length: ${cigar.length}, First 50 chars: ${cigar.substring(0, 50)}`,
+          `CIGAR length: ${cigar.length}, First 50 chars: ${cigar.substring(0, 50)}`
         );
       }
       return result;
@@ -856,7 +856,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
         qname,
         "cigar",
         blockOffset,
-        `CIGAR length: ${cigar.length}, First 50 chars: ${cigar.substring(0, 50)}`,
+        `CIGAR length: ${cigar.length}, First 50 chars: ${cigar.substring(0, 50)}`
       );
     }
   }
@@ -883,7 +883,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
         undefined,
         "file",
         undefined,
-        "Please check that the file exists and you have read permissions",
+        "Please check that the file exists and you have read permissions"
       );
     }
 
@@ -897,7 +897,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
           undefined,
           "file",
           undefined,
-          "Check file permissions",
+          "Check file permissions"
         );
       }
 
@@ -905,7 +905,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
       if (metadata.size > 10_737_418_240) {
         // 10GB
         this.options.onWarning(
-          `Very large BAM file detected: ${Math.round(metadata.size / 1_073_741_824)}GB. Processing may take significant time.`,
+          `Very large BAM file detected: ${Math.round(metadata.size / 1_073_741_824)}GB. Processing may take significant time.`
         );
       }
     } catch (error) {
@@ -915,7 +915,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
         undefined,
         "file",
         undefined,
-        filePath,
+        filePath
       );
     }
 
@@ -955,7 +955,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
   private async parseRecordsFromBuffer(
     buffer: Uint8Array,
     references: string[],
-    currentOffset: number,
+    currentOffset: number
   ): Promise<{ alignments: BAMAlignment[]; bytesConsumed: number }> {
     // Tiger Style: Assert function arguments
     if (!(buffer instanceof Uint8Array)) {
@@ -983,7 +983,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
             `Invalid alignment block size: ${blockSize}`,
             undefined,
             "alignment",
-            currentOffset + bytesConsumed,
+            currentOffset + bytesConsumed
           );
         }
 
@@ -998,7 +998,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
           4, // Skip block size
           blockSize,
           references,
-          currentOffset + bytesConsumed,
+          currentOffset + bytesConsumed
         );
 
         alignments.push(alignment);
@@ -1029,7 +1029,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
     buffer: Uint8Array,
     references: string[],
     currentOffset: number,
-    headerParsed: boolean,
+    headerParsed: boolean
   ): AsyncIterable<BAMAlignment> {
     // Tiger Style: Assert function arguments
     if (!(buffer instanceof Uint8Array)) {
@@ -1066,7 +1066,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
    */
   private async *parseFileGeneric(
     filePath: string,
-    options?: import("../types").FileReaderOptions,
+    options?: import("../types").FileReaderOptions
   ): AsyncIterable<BAMAlignment | SAMHeader> {
     // Tiger Style: Assert function arguments
     if (typeof filePath !== "string") {
@@ -1160,7 +1160,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
    */
   async loadIndex(
     baiFilePath: string,
-    options?: import("../types").BAIReaderOptions,
+    options?: import("../types").BAIReaderOptions
   ): Promise<void> {
     // Tiger Style: Assert function arguments
     if (typeof baiFilePath !== "string") {
@@ -1194,7 +1194,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
         undefined,
         "index_loading",
         undefined,
-        error instanceof Error ? error.stack : undefined,
+        error instanceof Error ? error.stack : undefined
       );
     }
   }
@@ -1221,7 +1221,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
   async *queryRegion(
     referenceName: string,
     start: number,
-    end: number,
+    end: number
   ): AsyncIterable<BAMAlignment> {
     // Tiger Style: Assert function arguments
     if (typeof referenceName !== "string") {
@@ -1244,7 +1244,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
       throw new BamError(
         "BAI index not loaded - call loadIndex() first",
         undefined,
-        "index_required",
+        "index_required"
       );
     }
 
@@ -1255,7 +1255,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
         throw new BamError(
           `Reference '${referenceName}' not found in index`,
           undefined,
-          "reference_not_found",
+          "reference_not_found"
         );
       }
 
@@ -1272,7 +1272,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
       }
 
       console.log(
-        `Found ${queryResult.chunks.length} chunks for region ${referenceName}:${start}-${end}`,
+        `Found ${queryResult.chunks.length} chunks for region ${referenceName}:${start}-${end}`
       );
 
       // Process each chunk and filter alignments
@@ -1282,7 +1282,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
           referenceId,
           referenceName,
           queryStart,
-          queryEnd,
+          queryEnd
         );
       }
     } catch (error) {
@@ -1294,7 +1294,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
         undefined,
         "region_query",
         undefined,
-        `Reference: ${referenceName}, Region: ${start}-${end}`,
+        `Reference: ${referenceName}, Region: ${start}-${end}`
       );
     }
   }
@@ -1327,7 +1327,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
       throw new BamError(
         "BAI index not loaded - call loadIndex() first",
         undefined,
-        "index_required",
+        "index_required"
       );
     }
 
@@ -1341,13 +1341,13 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
    * @throws {BamError} If index is not loaded
    */
   async validateIndex(
-    thorough = false,
+    thorough = false
   ): Promise<{ isValid: boolean; warnings: string[]; errors: string[] }> {
     if (!this.baiReader) {
       throw new BamError(
         "BAI index not loaded - call loadIndex() first",
         undefined,
-        "index_required",
+        "index_required"
       );
     }
 
@@ -1380,7 +1380,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
     // Try common chromosome name variations
     const normalizedName = this.normalizeReferenceName(referenceName);
     return this.referenceNames.findIndex(
-      (refName) => refName && this.normalizeReferenceName(refName) === normalizedName,
+      (refName) => refName && this.normalizeReferenceName(refName) === normalizedName
     );
   }
 
@@ -1410,7 +1410,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
     _referenceId: number,
     referenceName: string,
     queryStart: number,
-    queryEnd: number,
+    queryEnd: number
   ): AsyncIterable<BAMAlignment> {
     // Always throws, but structured to keep yield reachable for TypeScript
     const shouldImplement = true;
@@ -1422,7 +1422,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
         undefined,
         "not_implemented",
         undefined,
-        `Region: ${referenceName}:${queryStart}-${queryEnd}, Chunk: ${chunk.beginOffset}-${chunk.endOffset}`,
+        `Region: ${referenceName}:${queryStart}-${queryEnd}, Chunk: ${chunk.beginOffset}-${chunk.endOffset}`
       );
     }
 

@@ -110,7 +110,7 @@ export class SampleProcessor {
    */
   async *process(
     source: AsyncIterable<AbstractSequence>,
-    options: SampleOptions,
+    options: SampleOptions
   ): AsyncIterable<AbstractSequence> {
     // Direct ArkType validation
     const validationResult = SampleOptionsSchema(options);
@@ -206,7 +206,7 @@ export class SampleProcessor {
   private async *sampleByFraction<T extends AbstractSequence>(
     source: AsyncIterable<T>,
     fraction: number,
-    seed?: number,
+    seed?: number
   ): AsyncIterable<T> {
     const rng = this.getSeededRandom(seed);
 

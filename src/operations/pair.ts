@@ -288,7 +288,7 @@ export class PairProcessor {
   private checkBufferSize<T>(
     buffer1: Stream1Buffer<T> | Map<BaseId, T>,
     buffer2: Stream2Buffer<T> | Map<BaseId, T>,
-    maxSize: number,
+    maxSize: number
   ): void {
     const total = buffer1.size + buffer2.size;
 
@@ -296,14 +296,14 @@ export class PairProcessor {
     if (total > maxSize) {
       throw new MemoryError(
         `Pair buffer exceeded limit: ${total} reads buffered (max: ${maxSize}). ` +
-          `Files may be too shuffled or contain many unpaired reads.`,
+          `Files may be too shuffled or contain many unpaired reads.`
       );
     }
 
     // Warn at 80% threshold (once)
     if (total > maxSize * 0.8 && !this.hasWarned80Percent) {
       console.warn(
-        `⚠️  Pair buffer at ${total}/${maxSize} reads (${Math.round((total / maxSize) * 100)}%)`,
+        `⚠️  Pair buffer at ${total}/${maxSize} reads (${Math.round((total / maxSize) * 100)}%)`
       );
       this.hasWarned80Percent = true;
     }
@@ -319,7 +319,7 @@ export class PairProcessor {
    */
   private *handleUnpaired<T extends AbstractSequence>(
     read: T,
-    onUnpaired: "warn" | "skip" | "error",
+    onUnpaired: "warn" | "skip" | "error"
   ): Generator<T, void, undefined> {
     switch (onUnpaired) {
       case "warn":
@@ -354,7 +354,7 @@ export class PairProcessor {
     id: string,
     baseId: BaseId,
     r1Buffer: Stream1Buffer<T>,
-    r2Buffer: Stream2Buffer<T>,
+    r2Buffer: Stream2Buffer<T>
   ): ReadType {
     if (id.endsWith("/1")) return "r1";
     if (id.endsWith("/2")) return "r2";
@@ -384,7 +384,7 @@ export class PairProcessor {
     source: AsyncIterable<T>,
     extractPairId: (id: string) => string,
     maxBufferSize: number,
-    onUnpaired: "warn" | "skip" | "error",
+    onUnpaired: "warn" | "skip" | "error"
   ): AsyncIterable<T> {
     const r1Buffer = createStream1Buffer<T>();
     const r2Buffer = createStream2Buffer<T>();
@@ -400,7 +400,7 @@ export class PairProcessor {
             throw new PairSyncError(
               `Internal error: R2 read not found in buffer for base ID ${baseId}`,
               -1,
-              "r2",
+              "r2"
             );
           }
           yield read;
@@ -417,7 +417,7 @@ export class PairProcessor {
             throw new PairSyncError(
               `Internal error: R1 read not found in buffer for base ID ${baseId}`,
               -1,
-              "r1",
+              "r1"
             );
           }
           yield r1Read;
@@ -437,7 +437,7 @@ export class PairProcessor {
           throw new PairSyncError(
             `Internal error: R2 read not found in buffer for base ID ${baseId}`,
             -1,
-            "r2",
+            "r2"
           );
         }
         yield read1;
@@ -507,7 +507,7 @@ export class PairProcessor {
    */
   async *process<T extends AbstractSequence>(
     config: PairMode<T>,
-    options: PairOptions = {},
+    options: PairOptions = {}
   ): AsyncIterable<T> {
     // Destructure options with defaults
     const {
@@ -529,7 +529,7 @@ export class PairProcessor {
           config.source2,
           extractPairId,
           maxBufferSize,
-          onUnpaired,
+          onUnpaired
         );
         break;
 
@@ -549,7 +549,7 @@ export class PairProcessor {
     source2: AsyncIterable<T>,
     extractPairId: (id: string) => string,
     maxBufferSize: number,
-    onUnpaired: "warn" | "skip" | "error",
+    onUnpaired: "warn" | "skip" | "error"
   ): AsyncIterable<T> {
     // Initialize branded buffers
     const buffer1 = createStream1Buffer<T>();
@@ -581,7 +581,7 @@ export class PairProcessor {
             throw new PairSyncError(
               `Internal error: R2 read not found in buffer for base ID ${baseId1}`,
               -1,
-              "r2",
+              "r2"
             );
           }
           // Found match! Yield pair in interleaved order
@@ -607,7 +607,7 @@ export class PairProcessor {
             throw new PairSyncError(
               `Internal error: R1 read not found in buffer for base ID ${baseId2}`,
               -1,
-              "r1",
+              "r1"
             );
           }
           // Found match! Yield pair in interleaved order
@@ -631,7 +631,7 @@ export class PairProcessor {
           throw new PairSyncError(
             `Internal error: R2 read not found in buffer for base ID ${baseId}`,
             -1,
-            "r2",
+            "r2"
           );
         }
         // Found late match

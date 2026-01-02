@@ -68,7 +68,7 @@ const FastaParserOptionsSchema = type({
     // This is a warning, not an error - just guidance
     console.warn(
       `FASTA parsing with validation enabled for sequences >50MB may be slow. ` +
-        `Consider skipValidation: true for large genome assemblies.`,
+        `Consider skipValidation: true for large genome assemblies.`
     );
   }
 
@@ -126,7 +126,7 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
       throw new ValidationError(
         `Invalid FASTA parser options: ${validationResult.summary}`,
         undefined,
-        "FASTA parser configuration with genomics context",
+        "FASTA parser configuration with genomics context"
       );
     }
 
@@ -175,7 +175,7 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
    */
   async *parseFile(
     filePath: string,
-    options?: import("../types").FileReaderOptions,
+    options?: import("../types").FileReaderOptions
   ): AsyncIterable<FastaSequence> {
     // Validate meaningful constraints (preserve biological validation)
     if (filePath.length === 0) {
@@ -205,7 +205,7 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
           `Failed to parse FASTA file '${filePath}': ${error.message}`,
           "FASTA",
           undefined,
-          error.stack,
+          error.stack
         );
       }
       throw error;
@@ -305,7 +305,7 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
             processedLine.sequenceData,
             currentSequence,
             sequenceBuffer,
-            currentLineNumber,
+            currentLineNumber
           );
         }
       } catch (error) {
@@ -320,7 +320,7 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
       yield this.finalizeSequence(
         currentSequence,
         sequenceBuffer,
-        startLineNumber + lines.length - 1,
+        startLineNumber + lines.length - 1
       );
     }
   }
@@ -341,7 +341,7 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
     if (line.length > this.options.maxLineLength) {
       this.options.onError(
         `Line too long (${line.length} > ${this.options.maxLineLength})`,
-        lineNumber,
+        lineNumber
       );
       return null;
     }
@@ -382,7 +382,7 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
     sequenceData: string,
     currentSequence: Partial<FastaSequence> | null,
     sequenceBuffer: string[],
-    lineNumber: number,
+    lineNumber: number
   ): void {
     // Validate meaningful constraints
     if (!Number.isInteger(lineNumber) || lineNumber <= 0) {
@@ -401,7 +401,7 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
       throw new SequenceError(
         "sequenceBuffer should contain data after processing",
         "unknown",
-        lineNumber,
+        lineNumber
       );
     }
   }
@@ -425,7 +425,7 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
   private buildHeaderResult(
     id: string,
     description: string | undefined,
-    lineNumber: number,
+    lineNumber: number
   ): Partial<FastaSequence> {
     const result = {
       format: "fasta" as const,
@@ -475,7 +475,7 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
   private finalizeSequence(
     partialSequence: Partial<FastaSequence>,
     sequenceBuffer: string[],
-    lineNumber: number,
+    lineNumber: number
   ): FastaSequence {
     this.validateFinalizeInputs(partialSequence, sequenceBuffer, lineNumber);
 
@@ -487,7 +487,7 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
       throw new SequenceError(
         "Empty sequence found",
         this.getSequenceIdOrDefault(partialSequence),
-        lineNumber,
+        lineNumber
       );
     }
 
@@ -501,7 +501,7 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
   private validateFinalizeInputs(
     partialSequence: Partial<FastaSequence>,
     sequenceBuffer: string[],
-    lineNumber: number,
+    lineNumber: number
   ): void {
     // Note: Tree-shakeable function has slightly different error message but same validation
     validateFastaFinalizeInputs(partialSequence, sequenceBuffer, lineNumber);
@@ -514,7 +514,7 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
   private buildFastaSequence(
     partialSequence: Partial<FastaSequence>,
     sequence: string,
-    length: number,
+    length: number
   ): FastaSequence {
     // Delegate to tree-shakeable function
     return buildFastaRecord(partialSequence, sequence, length);
@@ -551,7 +551,7 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
         // 1GB
         this.options.onWarning(
           `Large FASTA file detected: ${Math.round(metadata.size / 1_048_576)}MB. Consider using streaming with smaller buffer sizes.`,
-          1,
+          1
         );
       }
     } catch (_error) {
@@ -567,7 +567,7 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
    * @yields FastaSequence objects as they are parsed
    */
   private async *parseLinesFromAsyncIterable(
-    lines: AsyncIterable<string>,
+    lines: AsyncIterable<string>
   ): AsyncIterable<FastaSequence> {
     // Tiger Style: Assert function arguments
 
@@ -598,7 +598,7 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
               processedLine.sequenceData,
               currentSequence,
               sequenceBuffer,
-              lineNumber,
+              lineNumber
             );
           }
         } catch (lineError) {
@@ -638,7 +638,7 @@ class FastaWriter {
       lineWidth?: number;
       includeDescription?: boolean;
       lineEnding?: string;
-    } = {},
+    } = {}
   ) {
     this.lineWidth = options.lineWidth || 80;
     this.includeDescription = options.includeDescription ?? true;
@@ -673,7 +673,7 @@ class FastaWriter {
    */
   async writeToStream(
     sequences: AsyncIterable<FastaSequence>,
-    stream: WritableStream<Uint8Array>,
+    stream: WritableStream<Uint8Array>
   ): Promise<void> {
     const writer = stream.getWriter();
     const encoder = new TextEncoder();
@@ -734,7 +734,7 @@ const FastaUtils = {
 function parseFastaHeader(
   headerLine: string,
   lineNumber: number,
-  options: { skipValidation?: boolean; onWarning?: (msg: string, line?: number) => void },
+  options: { skipValidation?: boolean; onWarning?: (msg: string, line?: number) => void }
 ): { id: string; description?: string } {
   // Validate header format
   if (!headerLine.startsWith(">")) {
@@ -751,7 +751,7 @@ function parseFastaHeader(
         'Empty FASTA header: header must contain an identifier after ">"',
         "FASTA",
         lineNumber,
-        headerLine,
+        headerLine
       );
     }
   }
@@ -768,7 +768,7 @@ function parseFastaHeader(
       options.onWarning?.(
         `Sequence ID '${id}' exceeds NCBI recommended maximum of 25 characters (${id.length} chars). ` +
           `Long IDs may cause compatibility issues with BLAST and other NCBI tools.`,
-        lineNumber,
+        lineNumber
       );
     }
 
@@ -779,7 +779,7 @@ function parseFastaHeader(
           `Use underscores (_) or hyphens (-) instead.`,
         id,
         lineNumber,
-        headerLine,
+        headerLine
       );
     }
 
@@ -791,7 +791,7 @@ function parseFastaHeader(
           `Invalid sequence ID: ${idValidation.summary}`,
           id,
           lineNumber,
-          headerLine,
+          headerLine
         );
       }
     } catch (error) {
@@ -800,7 +800,7 @@ function parseFastaHeader(
       }
       options.onWarning?.(
         `Sequence ID validation warning: ${error instanceof Error ? error.message : String(error)}`,
-        lineNumber,
+        lineNumber
       );
     }
   }
@@ -815,7 +815,7 @@ function parseFastaHeader(
 function validateFastaSequence(
   sequenceLine: string,
   lineNumber: number,
-  options: { skipValidation?: boolean },
+  options: { skipValidation?: boolean }
 ): string {
   // Remove whitespace
   const cleaned = sequenceLine.replace(/\s/g, "");
@@ -829,7 +829,7 @@ function validateFastaSequence(
     const validation = SequenceSchema(cleaned);
     if (validation instanceof type.errors) {
       const suggestion = getErrorSuggestion(
-        new ValidationError(`Invalid sequence characters: ${validation.summary}`),
+        new ValidationError(`Invalid sequence characters: ${validation.summary}`)
       );
 
       throw new SequenceError(
@@ -838,7 +838,7 @@ function validateFastaSequence(
           `and gap characters (-,.) for alignments. Check for invalid characters or encoding issues.`,
         "unknown",
         lineNumber,
-        sequenceLine,
+        sequenceLine
       );
     }
   }
@@ -884,7 +884,7 @@ function extractFastaIds(data: string): string[] {
 function buildFastaRecord(
   partialSequence: Partial<FastaSequence>,
   sequence: string,
-  length: number,
+  length: number
 ): FastaSequence {
   const id = partialSequence.id && partialSequence.id !== "unknown" ? partialSequence.id : "";
 
@@ -963,7 +963,7 @@ function createFastaParseError(error: unknown, lineNumber: number, context?: str
     `FASTA parsing failed at line ${lineNumber}: ${message}`,
     "FASTA",
     lineNumber,
-    context || "Check file format and content",
+    context || "Check file format and content"
   );
 }
 
@@ -977,13 +977,13 @@ function createFastaParseError(error: unknown, lineNumber: number, context?: str
 function validateFastaParsingState(
   currentSequence: Partial<FastaSequence> | null,
   sequenceBuffer: string[],
-  lineNumber: number,
+  lineNumber: number
 ): void {
   if (currentSequence && sequenceBuffer.length === 0) {
     throw new SequenceError(
       "Header found but no sequence data",
       currentSequence.id || "unknown",
-      lineNumber,
+      lineNumber
     );
   }
 }
@@ -1024,7 +1024,7 @@ function calculateFastaStats(sequence: string): {
 function validateFastaFinalizeInputs(
   partialSequence: Partial<FastaSequence> | null,
   sequenceBuffer: string[],
-  lineNumber: number,
+  lineNumber: number
 ): void {
   if (partialSequence === null) {
     throw new ValidationError("partialSequence must not be null");
@@ -1047,7 +1047,7 @@ function validateFastaFinalizeInputs(
 function validateFastaFinalSequence(
   fastaSequence: FastaSequence,
   lineNumber: number,
-  skipValidation?: boolean,
+  skipValidation?: boolean
 ): void {
   if (skipValidation) return;
 
@@ -1056,7 +1056,7 @@ function validateFastaFinalSequence(
     throw new SequenceError(
       `Invalid FASTA sequence structure: ${validation.summary}`,
       fastaSequence.id,
-      lineNumber,
+      lineNumber
     );
   }
 }
@@ -1094,7 +1094,7 @@ async function validateFastaFilePath(filePath: string): Promise<string> {
     throw new FileError(
       "Path traversal detected - file path cannot contain '../'",
       filePath,
-      "open",
+      "open"
     );
   }
 
@@ -1106,7 +1106,7 @@ async function validateFastaFilePath(filePath: string): Promise<string> {
       throw new FileError(
         `File not found: ${filePath}. Please check the file path and try again.`,
         filePath,
-        "read",
+        "read"
       );
     }
 
@@ -1119,7 +1119,7 @@ async function validateFastaFilePath(filePath: string): Promise<string> {
       `Cannot access file: ${error instanceof Error ? error.message : String(error)}`,
       filePath,
       "open",
-      error,
+      error
     );
   }
 }

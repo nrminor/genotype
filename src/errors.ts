@@ -13,7 +13,7 @@ export class GenotypeError extends Error {
     message: string,
     public readonly code: string,
     public readonly lineNumber?: number,
-    public readonly context?: string,
+    public readonly context?: string
   ) {
     super(message);
     this.name = "GenotypeError";
@@ -52,7 +52,7 @@ export class ParseError extends GenotypeError {
     message: string,
     public readonly format: string,
     lineNumber?: number,
-    context?: string,
+    context?: string
   ) {
     super(message, "PARSE_ERROR", lineNumber, context);
     this.name = "ParseError";
@@ -67,7 +67,7 @@ export class DSVParseError extends ParseError {
     message: string,
     public readonly line?: number,
     public readonly column?: number,
-    public readonly field?: string,
+    public readonly field?: string
   ) {
     const context = [
       line && `line ${line}`,
@@ -91,7 +91,7 @@ export class CompressionError extends GenotypeError {
     public readonly format: "gzip" | "zstd" | "none",
     public readonly operation: "detect" | "decompress" | "stream" | "validate" | "compress",
     public readonly bytesProcessed?: number,
-    context?: string,
+    context?: string
   ) {
     super(message, "COMPRESSION_ERROR", undefined, context);
     this.name = "CompressionError";
@@ -104,7 +104,7 @@ export class CompressionError extends GenotypeError {
     format: CompressionError["format"],
     operation: CompressionError["operation"],
     systemError: unknown,
-    bytesProcessed?: number,
+    bytesProcessed?: number
   ): CompressionError {
     const errorMessage = systemError instanceof Error ? systemError.message : String(systemError);
     const suggestion = CompressionError.getSuggestionForCompressionError(format, errorMessage);
@@ -114,7 +114,7 @@ export class CompressionError extends GenotypeError {
       format,
       operation,
       bytesProcessed,
-      `System error: ${errorMessage}`,
+      `System error: ${errorMessage}`
     );
   }
 
@@ -123,7 +123,7 @@ export class CompressionError extends GenotypeError {
    */
   private static getSuggestionForCompressionError(
     format: CompressionError["format"],
-    errorMessage: string,
+    errorMessage: string
   ): string | undefined {
     const msg = errorMessage.toLowerCase();
 
@@ -170,7 +170,7 @@ export class FileError extends GenotypeError {
     public readonly filePath: string,
     public readonly operation: "read" | "write" | "stat" | "open" | "close" | "seek",
     public readonly systemError?: unknown,
-    context?: string,
+    context?: string
   ) {
     super(message, "FILE_ERROR", undefined, context);
     this.name = "FileError";
@@ -182,7 +182,7 @@ export class FileError extends GenotypeError {
   static fromSystemError(
     operation: FileError["operation"],
     filePath: string,
-    systemError: unknown,
+    systemError: unknown
   ): FileError {
     const errorMessage = systemError instanceof Error ? systemError.message : String(systemError);
     const suggestion = FileError.getSuggestionForSystemError(errorMessage);
@@ -192,7 +192,7 @@ export class FileError extends GenotypeError {
       filePath,
       operation,
       systemError,
-      `System error: ${errorMessage}`,
+      `System error: ${errorMessage}`
     );
   }
 
@@ -251,7 +251,7 @@ export class FileError extends GenotypeError {
 export class MemoryError extends GenotypeError {
   constructor(
     message: string,
-    public readonly suggestedAction?: string,
+    public readonly suggestedAction?: string
   ) {
     super(message, "MEMORY_ERROR");
     this.name = "MemoryError";
@@ -266,7 +266,7 @@ export class SequenceError extends ValidationError {
     message: string,
     public readonly sequenceId: string,
     lineNumber?: number,
-    context?: string,
+    context?: string
   ) {
     super(`Sequence '${sequenceId}': ${message}`, lineNumber, context);
     this.name = "SequenceError";
@@ -282,7 +282,7 @@ export class QualityError extends ValidationError {
     public readonly sequenceId: string,
     public readonly qualityEncoding?: string,
     lineNumber?: number,
-    context?: string,
+    context?: string
   ) {
     super(`Quality scores for '${sequenceId}': ${message}`, lineNumber, context);
     this.name = "QualityError";
@@ -326,7 +326,7 @@ export class SamError extends ParseError {
     public readonly qname?: string,
     public readonly fieldName?: string,
     lineNumber?: number,
-    context?: string,
+    context?: string
   ) {
     super(message, "SAM", lineNumber, context);
     this.name = "SamError";
@@ -342,7 +342,7 @@ export class BamError extends ParseError {
     public readonly qname?: string,
     public readonly fieldName?: string,
     public readonly blockOffset?: number,
-    context?: string,
+    context?: string
   ) {
     super(message, "BAM", undefined, context);
     this.name = "BamError";
@@ -355,14 +355,14 @@ export class BamError extends ParseError {
     message: string,
     blockOffset: number,
     qname?: string,
-    fieldName?: string,
+    fieldName?: string
   ): BamError {
     return new BamError(
       `${message} (BGZF block at offset ${blockOffset})`,
       qname,
       fieldName,
       blockOffset,
-      `BGZF block offset: ${blockOffset}`,
+      `BGZF block offset: ${blockOffset}`
     );
   }
 
@@ -390,7 +390,7 @@ export function createContextualError(
     lineNumber?: number;
     context?: string;
     data?: Record<string, unknown>;
-  } = {},
+  } = {}
 ): GenotypeError {
   const { lineNumber, context, data } = options;
   let contextStr = context;
@@ -426,7 +426,7 @@ export class StreamError extends GenotypeError {
     message: string,
     public readonly streamType: "read" | "write" | "transform",
     public readonly bytesProcessed?: number,
-    context?: string,
+    context?: string
   ) {
     super(message, "STREAM_ERROR", undefined, context);
     this.name = "StreamError";
@@ -441,7 +441,7 @@ export class BufferError extends GenotypeError {
     message: string,
     public readonly bufferSize: number,
     public readonly operation: "allocate" | "resize" | "overflow" | "underflow",
-    context?: string,
+    context?: string
   ) {
     super(message, "BUFFER_ERROR", undefined, context);
     this.name = "BufferError";
@@ -456,7 +456,7 @@ export class TimeoutError extends GenotypeError {
     message: string,
     public readonly timeoutMs: number,
     public readonly operation: string,
-    context?: string,
+    context?: string
   ) {
     super(message, "TIMEOUT_ERROR", undefined, context);
     this.name = "TimeoutError";
@@ -471,7 +471,7 @@ export class CompatibilityError extends GenotypeError {
     message: string,
     public readonly runtime: "node" | "deno" | "bun",
     public readonly feature: string,
-    context?: string,
+    context?: string
   ) {
     super(message, "COMPATIBILITY_ERROR", undefined, context);
     this.name = "CompatibilityError";
@@ -486,7 +486,7 @@ export class FormatDetectionError extends GenotypeError {
     message: string,
     public readonly filePath: string,
     public readonly detectedFormats: string[],
-    context?: string,
+    context?: string
   ) {
     super(message, "FORMAT_DETECTION_ERROR", undefined, context);
     this.name = "FormatDetectionError";
@@ -511,7 +511,7 @@ export class LocateError extends GenotypeError {
     message: string,
     code: string = "LOCATE_ERROR",
     lineNumber?: number,
-    context?: string,
+    context?: string
   ) {
     super(message, code, lineNumber, context);
     this.name = "LocateError";
@@ -526,7 +526,7 @@ export class SplitError extends GenotypeError {
     message: string,
     public readonly operation: string,
     public readonly mode?: string,
-    public readonly splitContext?: string,
+    public readonly splitContext?: string
   ) {
     super(message, "SPLIT_ERROR");
     this.name = "SplitError";
@@ -539,7 +539,7 @@ export class ConcatError extends GenotypeError {
     public readonly sourceContext?: string,
     public readonly idConflict?: string,
     lineNumber?: number,
-    context?: string,
+    context?: string
   ) {
     super(message, "CONCAT_ERROR", lineNumber, context);
     this.name = "ConcatError";
@@ -552,14 +552,14 @@ export class ConcatError extends GenotypeError {
     message: string,
     sourceFile: string,
     idConflict?: string,
-    lineNumber?: number,
+    lineNumber?: number
   ): ConcatError {
     return new ConcatError(
       `${message} (source: ${sourceFile})`,
       sourceFile,
       idConflict,
       lineNumber,
-      `Source file: ${sourceFile}`,
+      `Source file: ${sourceFile}`
     );
   }
 
@@ -596,7 +596,7 @@ export class CigarValidationError extends ValidationError {
     public readonly consumedBases: number,
     public readonly mismatchPercentage: number,
     lineNumber?: number,
-    context?: string,
+    context?: string
   ) {
     super(message, lineNumber, context);
     this.name = "CigarValidationError";
@@ -609,7 +609,7 @@ export class CigarValidationError extends ValidationError {
     cigar: string,
     sequenceLength: number,
     consumedBases: number,
-    lineNumber?: number,
+    lineNumber?: number
   ): CigarValidationError {
     const mismatch = Math.abs(consumedBases - sequenceLength);
     const percentage = (mismatch / sequenceLength) * 100;
@@ -621,7 +621,7 @@ export class CigarValidationError extends ValidationError {
       consumedBases,
       percentage,
       lineNumber,
-      `CIGAR: ${cigar}, Expected: ${sequenceLength} bases, Actual: ${consumedBases} bases`,
+      `CIGAR: ${cigar}, Expected: ${sequenceLength} bases, Actual: ${consumedBases} bases`
     );
   }
 
@@ -650,7 +650,7 @@ export class GenomicCoordinateError extends ValidationError {
     public readonly maxExpected: number,
     public readonly coordinateType: "start" | "end" | "position",
     lineNumber?: number,
-    context?: string,
+    context?: string
   ) {
     super(message, lineNumber, context);
     this.name = "GenomicCoordinateError";
@@ -662,7 +662,7 @@ export class GenomicCoordinateError extends ValidationError {
   static forLargeCoordinate(
     coordinate: number,
     coordinateType: "start" | "end" | "position" = "position",
-    lineNumber?: number,
+    lineNumber?: number
   ): GenomicCoordinateError {
     const maxExpected = 2_500_000_000;
     const sizeGB = Math.round((coordinate / 1_000_000_000) * 10) / 10; // One decimal place
@@ -673,7 +673,7 @@ export class GenomicCoordinateError extends ValidationError {
       maxExpected,
       coordinateType,
       lineNumber,
-      `Coordinate: ${coordinate}, Expected max: ~${maxExpected.toLocaleString()}`,
+      `Coordinate: ${coordinate}, Expected max: ~${maxExpected.toLocaleString()}`
     );
   }
 
@@ -697,7 +697,7 @@ export class ChromosomeNamingError extends ValidationError {
     public readonly chromosomeName: string,
     public readonly suggestedNames: string[],
     lineNumber?: number,
-    context?: string,
+    context?: string
   ) {
     super(message, lineNumber, context);
     this.name = "ChromosomeNamingError";
@@ -714,7 +714,7 @@ export class ChromosomeNamingError extends ValidationError {
       chromosomeName,
       suggestedNames,
       lineNumber,
-      `Input: ${chromosomeName}`,
+      `Input: ${chromosomeName}`
     );
   }
 
@@ -735,7 +735,7 @@ export class SecurityPathError extends GenotypeError {
     message: string,
     public readonly attemptedPath: string,
     public readonly securityRisk: "traversal" | "sensitive-directory" | "system-access",
-    context?: string,
+    context?: string
   ) {
     super(message, "SECURITY_PATH_ERROR", undefined, context);
     this.name = "SecurityPathError";
@@ -749,7 +749,7 @@ export class SecurityPathError extends GenotypeError {
       `Access denied: path accesses sensitive system directory`,
       path,
       "sensitive-directory",
-      `Attempted path: ${path}`,
+      `Attempted path: ${path}`
     );
   }
 
@@ -772,7 +772,7 @@ export class ResourceLimitError extends ValidationError {
     public readonly actualValue: number,
     public readonly maxAllowed: number,
     public readonly unit: "bytes" | "ms" | "count",
-    context?: string,
+    context?: string
   ) {
     super(message, undefined, context);
     this.name = "ResourceLimitError";
@@ -791,7 +791,7 @@ export class ResourceLimitError extends ValidationError {
       actualSize,
       maxSize,
       "bytes",
-      `Operation: ${operation}, Actual: ${actualSize} bytes, Max: ${maxSize} bytes`,
+      `Operation: ${operation}, Actual: ${actualSize} bytes, Max: ${maxSize} bytes`
     );
   }
 
@@ -801,7 +801,7 @@ export class ResourceLimitError extends ValidationError {
   static forTimeout(
     actualTimeout: number,
     maxTimeout: number,
-    operation: string,
+    operation: string
   ): ResourceLimitError {
     const actualMin = Math.round(actualTimeout / 60_000);
     const maxMin = Math.round(maxTimeout / 60_000);
@@ -812,7 +812,7 @@ export class ResourceLimitError extends ValidationError {
       actualTimeout,
       maxTimeout,
       "ms",
-      `Operation: ${operation}, Actual: ${actualTimeout}ms, Max: ${maxTimeout}ms`,
+      `Operation: ${operation}, Actual: ${actualTimeout}ms, Max: ${maxTimeout}ms`
     );
   }
 
@@ -836,7 +836,7 @@ export class BAIIndexError extends ValidationError {
     public readonly indexComponent: "chunk" | "bin" | "linear-index" | "version" | "interval-size",
     public readonly value: number | string,
     public readonly recommendation?: string,
-    context?: string,
+    context?: string
   ) {
     super(message, undefined, context);
     this.name = "BAIIndexError";
@@ -849,14 +849,14 @@ export class BAIIndexError extends ValidationError {
     component: BAIIndexError["indexComponent"],
     value: number | string,
     threshold: number,
-    unit: string,
+    unit: string
   ): BAIIndexError {
     return new BAIIndexError(
       `BAI ${component} may impact performance: ${value} ${unit} (threshold: ${threshold})`,
       component,
       value,
       `Consider regenerating BAI index with standard parameters for better performance`,
-      `Component: ${component}, Value: ${value}, Threshold: ${threshold} ${unit}`,
+      `Component: ${component}, Value: ${value}, Threshold: ${threshold} ${unit}`
     );
   }
 
@@ -905,7 +905,7 @@ export class PairSyncError extends ParseError {
   constructor(
     message: string,
     public readonly pairIndex: number,
-    public readonly failedFile: "r1" | "r2" | "both",
+    public readonly failedFile: "r1" | "r2" | "both"
   ) {
     super(message, "FASTQ-Paired", pairIndex);
     this.name = "PairSyncError";
@@ -919,14 +919,14 @@ export class PairSyncError extends ParseError {
     r2Id: string,
     pairIndex: number,
     baseR1?: string,
-    baseR2?: string,
+    baseR2?: string
   ): PairSyncError {
     const baseIds = baseR1 && baseR2 ? ` (base IDs: "${baseR1}" vs "${baseR2}")` : "";
 
     return new PairSyncError(
       `Read ID mismatch at pair ${pairIndex}: R1="${r1Id}" vs R2="${r2Id}"${baseIds}`,
       pairIndex,
-      "both",
+      "both"
     );
   }
 
@@ -939,7 +939,7 @@ export class PairSyncError extends ParseError {
     return new PairSyncError(
       `Paired FASTQ files have different lengths: ${exhaustedFile === "r1" ? "R1" : "R2"} exhausted first at pair ${pairIndex}. ${otherFile} file has more reads.`,
       pairIndex,
-      exhaustedFile,
+      exhaustedFile
     );
   }
 
@@ -950,7 +950,7 @@ export class PairSyncError extends ParseError {
     return new PairSyncError(
       `Unpaired read found: "${readId}". No matching pair in opposite stream.`,
       -1, // No pair index for unpaired reads
-      "both",
+      "both"
     );
   }
 

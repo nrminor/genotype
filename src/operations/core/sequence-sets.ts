@@ -23,7 +23,7 @@ import type { AbstractSequence } from "../../types";
  */
 export function sequenceUnion<T extends AbstractSequence>(
   setA: Map<string, T>,
-  setB: Map<string, T>,
+  setB: Map<string, T>
 ): Map<string, T> {
   const result = new Map(setA);
 
@@ -48,7 +48,7 @@ export function sequenceUnion<T extends AbstractSequence>(
  */
 export function sequenceIntersection<T extends AbstractSequence>(
   setA: Map<string, T>,
-  setB: Map<string, T>,
+  setB: Map<string, T>
 ): Map<string, T> {
   const result = new Map<string, T>();
 
@@ -72,7 +72,7 @@ export function sequenceIntersection<T extends AbstractSequence>(
  */
 export function sequenceDifference<T extends AbstractSequence>(
   setA: Map<string, T>,
-  setB: Map<string, T>,
+  setB: Map<string, T>
 ): Map<string, T> {
   const result = new Map<string, T>();
 
@@ -97,7 +97,7 @@ export function sequenceDifference<T extends AbstractSequence>(
  */
 export function sequenceSymmetricDifference<T extends AbstractSequence>(
   setA: Map<string, T>,
-  setB: Map<string, T>,
+  setB: Map<string, T>
 ): Map<string, T> {
   const result = new Map<string, T>();
 
@@ -174,7 +174,7 @@ export function sequenceArrayToMap<T extends AbstractSequence>(sequences: T[]): 
  */
 export function sequenceEquals<T extends AbstractSequence>(
   setA: Map<string, T>,
-  setB: Map<string, T>,
+  setB: Map<string, T>
 ): boolean {
   if (setA.size !== setB.size) {
     return false;
@@ -200,7 +200,7 @@ export function sequenceEquals<T extends AbstractSequence>(
  */
 export function sequenceIsSubset<T extends AbstractSequence>(
   setA: Map<string, T>,
-  setB: Map<string, T>,
+  setB: Map<string, T>
 ): boolean {
   if (setA.size > setB.size) {
     return false;
@@ -226,7 +226,7 @@ export function sequenceIsSubset<T extends AbstractSequence>(
  */
 export function sequenceIsDisjoint<T extends AbstractSequence>(
   setA: Map<string, T>,
-  setB: Map<string, T>,
+  setB: Map<string, T>
 ): boolean {
   // Optimization: iterate smaller set
   const [smaller, larger] = setA.size <= setB.size ? [setA, setB] : [setB, setA];
@@ -252,7 +252,7 @@ export function sequenceIsDisjoint<T extends AbstractSequence>(
  */
 export function sequenceJaccardSimilarity<T extends AbstractSequence>(
   setA: Map<string, T>,
-  setB: Map<string, T>,
+  setB: Map<string, T>
 ): number {
   let intersectionSize = 0;
 
@@ -279,7 +279,7 @@ export function sequenceJaccardSimilarity<T extends AbstractSequence>(
  */
 export function sequenceContainment<T extends AbstractSequence>(
   setA: Map<string, T>,
-  setB: Map<string, T>,
+  setB: Map<string, T>
 ): number {
   if (setA.size === 0) {
     return 0;
@@ -308,7 +308,7 @@ export function sequenceContainment<T extends AbstractSequence>(
  */
 export function sequenceOverlap<T extends AbstractSequence>(
   setA: Map<string, T>,
-  setB: Map<string, T>,
+  setB: Map<string, T>
 ): number {
   const minSize = Math.min(setA.size, setB.size);
   if (minSize === 0) {

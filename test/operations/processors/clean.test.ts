@@ -145,7 +145,7 @@ describe("CleanProcessor", () => {
         processor.process(source(), {
           removeGaps: true,
           removeEmpty: true,
-        }),
+        })
       );
 
       expect(result).toHaveLength(2);

@@ -41,7 +41,7 @@ describe("Parser File Integration", () => {
         "TTTTTTTT",
         ">seq3",
         "NNNNATCGNNNN",
-      ].join("\n"),
+      ].join("\n")
     );
 
     // Create FASTQ test file
@@ -56,7 +56,7 @@ describe("Parser File Integration", () => {
         "GGGGAAAACCCC",
         "+",
         "HHHHHHHHHHHH",
-      ].join("\n"),
+      ].join("\n")
     );
 
     // Create SAM test file
@@ -67,7 +67,7 @@ describe("Parser File Integration", () => {
         "@SQ\tSN:chr1\tLN:1000",
         "read1\t0\tchr1\t100\t60\t12M\t*\t0\t0\tATCGATCGATCG\tIIIIIIIIIIII",
         "read2\t16\tchr1\t200\t60\t12M\t*\t0\t0\tGGGGAAAACCCC\tHHHHHHHHHHHH",
-      ].join("\n"),
+      ].join("\n")
     );
 
     // Create BED test file
@@ -77,7 +77,7 @@ describe("Parser File Integration", () => {
         "chr1\t100\t200\tfeature1\t500\t+",
         "chr1\t300\t400\tfeature2\t600\t-",
         "chr2\t500\t600\tfeature3\t700\t.",
-      ].join("\n"),
+      ].join("\n")
     );
 
     // Create large FASTA file for streaming tests
@@ -91,7 +91,7 @@ describe("Parser File Integration", () => {
     // Create malformed FASTA file
     writeFileSync(
       TEST_FILES.malformedFasta,
-      [">seq1", "ATCG", "INVALID_SEQUENCE_LINE_WITHOUT_HEADER", ">seq2", "GGGG"].join("\n"),
+      [">seq1", "ATCG", "INVALID_SEQUENCE_LINE_WITHOUT_HEADER", ">seq2", "GGGG"].join("\n")
     );
 
     // Create empty file
@@ -149,7 +149,7 @@ describe("Parser File Integration", () => {
           for await (const sequence of parser.parseFile(TEST_FILES.malformedFasta)) {
             sequences.push(sequence);
           }
-        })(),
+        })()
       ).rejects.toThrow(ParseError);
 
       // Test with custom error handler that allows recovery
@@ -185,7 +185,7 @@ describe("Parser File Integration", () => {
           for await (const _ of parser.parseFile(TEST_FILES.nonexistent)) {
             // Should not reach here
           }
-        })(),
+        })()
       ).rejects.toThrow(FileError);
     });
 
@@ -267,7 +267,7 @@ describe("Parser File Integration", () => {
           for await (const _ of parser.parseFile(TEST_FILES.binaryFile)) {
             // Should throw before yielding anything
           }
-        })(),
+        })()
       ).rejects.toThrow();
     });
   });
@@ -373,7 +373,7 @@ describe("Parser File Integration", () => {
           "chr1\t100\t200\tfeature1\t500\t+",
           "# Another comment",
           "chr1\t300\t400\tfeature2\t600\t-",
-        ].join("\n"),
+        ].join("\n")
       );
 
       const parser = new BedParser();
@@ -399,7 +399,7 @@ describe("Parser File Integration", () => {
             for await (const _ of parser.parseFile(TEST_FILES.nonexistent)) {
               // Should not reach here
             }
-          })(),
+          })()
         ).rejects.toThrow();
       }
     });
@@ -462,7 +462,7 @@ describe("Parser File Integration", () => {
           })) {
             // Should not reach here
           }
-        })(),
+        })()
       ).rejects.toThrow(FileError);
     });
   });

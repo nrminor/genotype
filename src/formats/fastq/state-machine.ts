@@ -54,7 +54,7 @@ export function parseMultiLineFastq(
     onError: (msg: string, line?: number) => void;
     qualityEncoding?: QualityEncoding; // Optional: use specified encoding instead of auto-detect
     trackLineNumbers?: boolean; // Optional: include line numbers in output
-  },
+  }
 ): FastqSequence[] {
   const results: FastqSequence[] = [];
   let lineNumber = startLineNumber - 1; // Start at 0 so first increment gives 1
@@ -125,13 +125,13 @@ export function parseMultiLineFastq(
           if (!quality) {
             options.onError(
               `Failed to accumulate quality data for sequence of length ${context.sequenceLength}`,
-              lineNumber,
+              lineNumber
             );
           } else if (!lengthsMatch(sequence, quality)) {
             // Validate exact length match using primitive
             options.onError(
               `FASTQ quality length (${quality.length}) != sequence length (${sequence.length})`,
-              lineNumber,
+              lineNumber
             );
           } else {
             // Use primitives to extract header information
@@ -142,7 +142,7 @@ export function parseMultiLineFastq(
             if (id.length > 50) {
               console.warn(
                 `FASTQ sequence ID '${id}' is very long (${id.length} chars). ` +
-                  `Long IDs may cause compatibility issues with some bioinformatics tools.`,
+                  `Long IDs may cause compatibility issues with some bioinformatics tools.`
               );
             }
 
@@ -155,7 +155,7 @@ export function parseMultiLineFastq(
               const encodingResult = detectEncodingWithConfidence(quality);
               if (encodingResult.confidence < 0.8) {
                 console.warn(
-                  `Uncertain quality encoding detection for sequence '${id}': ${encodingResult.evidence.join("; ")} (confidence: ${(encodingResult.confidence * 100).toFixed(1)}%). Consider specifying sourceEncoding explicitly if conversion results seem incorrect.`,
+                  `Uncertain quality encoding detection for sequence '${id}': ${encodingResult.evidence.join("; ")} (confidence: ${(encodingResult.confidence * 100).toFixed(1)}%). Consider specifying sourceEncoding explicitly if conversion results seem incorrect.`
                 );
               }
               qualityEncoding = encodingResult.encoding;

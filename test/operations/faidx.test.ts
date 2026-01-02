@@ -497,7 +497,7 @@ GGGGGGGGGGGGGGGG
       expect(chr1.format).toBe("fasta");
       expect(chr1.id).toBe("chr1");
       expect(chr1.sequence).toBe(
-        "ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT",
+        "ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT"
       );
       expect(chr1.length).toBe(64);
     });
@@ -529,7 +529,7 @@ GGGGGGGGGGGGGGGG
       await faidx.init();
 
       await expect(faidx.extract("invalid")).rejects.toThrow(
-        /Available sequences: chr1, chr2, chrM/,
+        /Available sequences: chr1, chr2, chrM/
       );
     });
   });
@@ -602,7 +602,7 @@ GGGGGGGGGGGGGGGG
       await expect(faidx.extract("chr1:0-10")).rejects.toThrow(/Start position 0 is less than 1/);
 
       await expect(faidx.extract("chr1:100-110")).rejects.toThrow(
-        /Start position 100 exceeds sequence length/,
+        /Start position 100 exceeds sequence length/
       );
     });
 
@@ -611,7 +611,7 @@ GGGGGGGGGGGGGGGG
       await faidx.init();
 
       await expect(faidx.extract("chr1:1-1000")).rejects.toThrow(
-        /End position 1000 exceeds sequence length/,
+        /End position 1000 exceeds sequence length/
       );
     });
 
@@ -844,7 +844,7 @@ GGGGGGGGGGGGGGGG
 
       // Pattern is lowercase, but IDs are mixed case
       const sequences = await Array.fromAsync(
-        faidx.extractByPattern("CHR", { caseInsensitive: true }),
+        faidx.extractByPattern("CHR", { caseInsensitive: true })
       );
 
       // Should match all three sequences (chr1, chr2, chrM)

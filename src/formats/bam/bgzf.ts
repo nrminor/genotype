@@ -70,7 +70,7 @@ export async function decompressBlock(blockData: Uint8Array): Promise<Uint8Array
     throw new CompressionError(
       `BGZF block too small: ${blockData.length} bytes (minimum 26)`,
       "gzip",
-      "decompress",
+      "decompress"
     );
   }
 
@@ -90,7 +90,7 @@ export async function decompressBlock(blockData: Uint8Array): Promise<Uint8Array
       throw new CompressionError(
         `Size mismatch: expected ${blockInfo.uncompressedSize}, got ${decompressedData.length}`,
         "gzip",
-        "validate",
+        "validate"
       );
     }
 
@@ -101,7 +101,7 @@ export async function decompressBlock(blockData: Uint8Array): Promise<Uint8Array
         throw new CompressionError(
           `CRC32 mismatch: expected 0x${blockInfo.crc32.toString(16)}, got 0x${calculatedCrc.toString(16)}`,
           "gzip",
-          "validate",
+          "validate"
         );
       }
     }
@@ -201,7 +201,7 @@ export function createStream(): TransformStream<Uint8Array, Uint8Array> {
         } catch (error) {
           // Log incomplete data errors for debugging - helps with corrupted files
           console.warn(
-            `BGZF flush warning: ${error instanceof Error ? error.message : String(error)} - possibly incomplete block data`,
+            `BGZF flush warning: ${error instanceof Error ? error.message : String(error)} - possibly incomplete block data`
           );
         }
       }
@@ -283,7 +283,7 @@ function validateBuffer(buffer: Uint8Array, offset: number): void {
     throw new BamError(
       `Buffer too small for BGZF header: need ${BGZF_HEADER_SIZE} bytes at offset ${offset}, have ${buffer.length - offset}`,
       undefined,
-      "bgzf",
+      "bgzf"
     );
   }
 }
@@ -299,7 +299,7 @@ function validateGzipHeader(view: DataView): void {
     throw new BamError(
       `Invalid gzip magic bytes: expected 0x1f 0x8b, got 0x${id1.toString(16)} 0x${id2.toString(16)}`,
       undefined,
-      "bgzf",
+      "bgzf"
     );
   }
 
@@ -309,7 +309,7 @@ function validateGzipHeader(view: DataView): void {
     throw new BamError(
       `Invalid compression method: expected 0x08 (deflate), got 0x${cm.toString(16)}`,
       undefined,
-      "bgzf",
+      "bgzf"
     );
   }
 
@@ -319,7 +319,7 @@ function validateGzipHeader(view: DataView): void {
     throw new BamError(
       `Invalid BGZF flags: extra field bit not set (0x${flg.toString(16)})`,
       undefined,
-      "bgzf",
+      "bgzf"
     );
   }
 }
@@ -334,7 +334,7 @@ function validateExtraField(view: DataView): void {
     throw new BamError(
       `Invalid BGZF extra field length: expected ${BGZF_XLEN}, got ${xlen}`,
       undefined,
-      "bgzf",
+      "bgzf"
     );
   }
 
@@ -345,7 +345,7 @@ function validateExtraField(view: DataView): void {
     throw new BamError(
       `Invalid BGZF subfield identifier: expected BC (0x42 0x43), got 0x${si1.toString(16)} 0x${si2.toString(16)}`,
       undefined,
-      "bgzf",
+      "bgzf"
     );
   }
 
@@ -355,7 +355,7 @@ function validateExtraField(view: DataView): void {
     throw new BamError(
       `Invalid BGZF BC subfield length: expected ${BGZF_SLEN}, got ${slen}`,
       undefined,
-      "bgzf",
+      "bgzf"
     );
   }
 }
@@ -376,7 +376,7 @@ function validateBlockSize(compressedSize: number, buffer: Uint8Array, offset: n
     throw new BamError(
       `Invalid BGZF block size: ${compressedSize} bytes (minimum ${MIN_BGZF_BLOCK_SIZE})`,
       undefined,
-      "bgzf",
+      "bgzf"
     );
   }
 
@@ -384,7 +384,7 @@ function validateBlockSize(compressedSize: number, buffer: Uint8Array, offset: n
     throw new BamError(
       `Invalid BGZF block size: ${compressedSize} bytes (maximum ${MAX_BGZF_BLOCK_SIZE})`,
       undefined,
-      "bgzf",
+      "bgzf"
     );
   }
 
@@ -393,7 +393,7 @@ function validateBlockSize(compressedSize: number, buffer: Uint8Array, offset: n
     throw new BamError(
       `Incomplete BGZF block: need ${compressedSize} bytes, have ${buffer.length - offset}`,
       undefined,
-      "bgzf",
+      "bgzf"
     );
   }
 }
@@ -404,7 +404,7 @@ function validateBlockSize(compressedSize: number, buffer: Uint8Array, offset: n
 function readBlockFooter(
   buffer: Uint8Array,
   offset: number,
-  compressedSize: number,
+  compressedSize: number
 ): { uncompressedSize: number; crc32: number } {
   const view = new DataView(buffer.buffer, buffer.byteOffset);
 
@@ -504,7 +504,7 @@ async function calculateCRC32(data: Uint8Array): Promise<number> {
       throw new CompressionError(
         `CRC table value undefined at index ${tableIndex}`,
         "gzip",
-        "validate",
+        "validate"
       );
     }
     crc = tableValue ^ (crc >>> 8);

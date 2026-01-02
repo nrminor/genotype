@@ -91,7 +91,7 @@ describe("Empty Validation Audit Fixes - Proper Error Handling", () => {
           "Non-standard interval size",
           "interval-size",
           32768,
-          "Use standard 16384 for compatibility",
+          "Use standard 16384 for compatibility"
         );
       }).toThrow(BAIIndexError);
     });

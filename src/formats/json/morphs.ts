@@ -12,13 +12,13 @@ import { SequenceArraySchema, SequenceRowSchema, WrappedSequenceSchema } from ".
 export const serializeJSON = SequenceArraySchema.pipe((data) => JSON.stringify(data));
 
 export const serializeJSONPretty = SequenceArraySchema.pipe((data) =>
-  JSON.stringify(data, null, 2),
+  JSON.stringify(data, null, 2)
 );
 
 export const serializeJSONWithMetadata = WrappedSequenceSchema.pipe((data) => JSON.stringify(data));
 
 export const serializeJSONWithMetadataPretty = WrappedSequenceSchema.pipe((data) =>
-  JSON.stringify(data, null, 2),
+  JSON.stringify(data, null, 2)
 );
 
 export const deserializeJSON = type("string.json.parse").pipe(SequenceArraySchema);

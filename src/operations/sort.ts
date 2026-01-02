@@ -92,7 +92,7 @@ export class SortProcessor {
    */
   async *process(
     source: AsyncIterable<AbstractSequence>,
-    options: CoreSortOptions,
+    options: CoreSortOptions
   ): AsyncIterable<AbstractSequence> {
     // Rust-style validation with comprehensive error context
     const validationResult = SortOptionsSchema(options);
@@ -100,7 +100,7 @@ export class SortProcessor {
       throw new ValidationError(
         `Invalid sort configuration: ${validationResult.summary}`,
         undefined,
-        "Check sortBy strategy, chunkSize, and qualityEncoding requirements",
+        "Check sortBy strategy, chunkSize, and qualityEncoding requirements"
       );
     }
 

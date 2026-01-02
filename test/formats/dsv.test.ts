@@ -1038,7 +1038,7 @@ seq2,GCTAGCTA,JJJJJJJJ`;
       // Only fail on catastrophic performance regression (>70% slower than expected)
       if (throughput < 2) {
         throw new Error(
-          `Severe performance regression detected: ${throughput.toFixed(2)} MB/s (expected >2 MB/s)`,
+          `Severe performance regression detected: ${throughput.toFixed(2)} MB/s (expected >2 MB/s)`
         );
       }
     });

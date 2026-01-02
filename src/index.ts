@@ -350,7 +350,7 @@ export function detectFormat(data: string): FormatDetection {
  */
 export async function* parseAny(
   data: string,
-  options?: ParserOptions,
+  options?: ParserOptions
 ): AsyncIterable<FastaSequence | FastqSequence | BedInterval> {
   const detection = detectFormat(data);
 
@@ -376,7 +376,7 @@ export async function* parseAny(
     default:
       throw new ParseError(
         `Unsupported or unrecognized format: ${detection.format}`,
-        detection.format,
+        detection.format
       );
   }
 }

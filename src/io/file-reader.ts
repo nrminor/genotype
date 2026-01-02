@@ -123,7 +123,7 @@ export async function getMetadata(path: string): Promise<FileMetadata> {
  */
 export async function createStream(
   path: string,
-  options: FileReaderOptions = {},
+  options: FileReaderOptions = {}
 ): Promise<ReadableStream<Uint8Array>> {
   const runtime = detectRuntime();
   const validatedPath = validatePath(path);
@@ -141,7 +141,7 @@ export async function createStream(
     // ✅ SINGLE runtime launch at boundary
     // Composes validateFileEffect + createBaseStreamEffect + decompression
     return await Effect.runPromise(
-      createStreamEffect(path, options).pipe(Effect.provide(getPlatform())),
+      createStreamEffect(path, options).pipe(Effect.provide(getPlatform()))
     );
   } catch (error) {
     if (error instanceof CompatibilityError) throw error;
@@ -218,7 +218,7 @@ export async function readToString(path: string, options: FileReaderOptions = {}
     const compressedBytes = yield* fs.readFile(validatedPath);
     const decompressedBytes = yield* compressionService.decompress(
       compressedBytes,
-      compressionFormat,
+      compressionFormat
     );
 
     return new TextDecoder().decode(decompressedBytes);
@@ -226,7 +226,7 @@ export async function readToString(path: string, options: FileReaderOptions = {}
 
   try {
     return await Effect.runPromise(
-      program.pipe(Effect.provide(getPlatform()), Effect.provide(MultiFormatCompressionService)),
+      program.pipe(Effect.provide(getPlatform()), Effect.provide(MultiFormatCompressionService))
     );
   } catch (error) {
     // Unwrap FileError from Effect FiberFailure
@@ -299,8 +299,8 @@ export async function readByteRange(path: string, start: number, end: number): P
           new FileError(
             `Byte range [${start}, ${end}) exceeds file size ${fullData.length}`,
             validatedPath,
-            "read",
-          ),
+            "read"
+          )
         );
       }
 
@@ -327,7 +327,7 @@ export async function readByteRange(path: string, start: number, end: number): P
     const compressedBytes = yield* fs.readFile(validatedPath);
     const decompressedBytes = yield* compressionService.decompress(
       compressedBytes,
-      compressionFormat,
+      compressionFormat
     );
 
     // Validate byte range is within decompressed content
@@ -336,8 +336,8 @@ export async function readByteRange(path: string, start: number, end: number): P
         new FileError(
           `Byte range [${start}, ${end}) exceeds decompressed file size ${decompressedBytes.length}`,
           validatedPath,
-          "read",
-        ),
+          "read"
+        )
       );
     }
 
@@ -346,7 +346,7 @@ export async function readByteRange(path: string, start: number, end: number): P
 
   try {
     return await Effect.runPromise(
-      program.pipe(Effect.provide(getPlatform()), Effect.provide(MultiFormatCompressionService)),
+      program.pipe(Effect.provide(getPlatform()), Effect.provide(MultiFormatCompressionService))
     );
   } catch (error) {
     if (error instanceof FileError) {
@@ -382,7 +382,7 @@ function validatePath(path: string): FilePath {
     throw new FileError(
       `Invalid file path: ${error instanceof Error ? error.message : String(error)}`,
       path,
-      "stat",
+      "stat"
     );
   }
 }
@@ -468,7 +468,7 @@ function validateFileEffect(path: FilePath, options: Required<FileReaderOptions>
  */
 function createBaseStreamEffect(
   validatedPath: FilePath,
-  mergedOptions: Required<FileReaderOptions>,
+  mergedOptions: Required<FileReaderOptions>
 ) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
@@ -493,7 +493,7 @@ function createStreamEffect(path: string, options: FileReaderOptions = {}) {
     const validation = yield* validateFileEffect(validatedPath, mergedOptions);
     if (validation.isValid === false) {
       return yield* Effect.fail(
-        new FileError(validation.error ?? "File validation failed", validatedPath, "read"),
+        new FileError(validation.error ?? "File validation failed", validatedPath, "read")
       );
     }
 
@@ -503,7 +503,7 @@ function createStreamEffect(path: string, options: FileReaderOptions = {}) {
     // Step 3: Apply decompression if needed (wrapped in Effect.promise)
     if (mergedOptions.autoDecompress) {
       stream = yield* Effect.promise(() =>
-        applyDecompression(stream, validatedPath, mergedOptions),
+        applyDecompression(stream, validatedPath, mergedOptions)
       );
     }
 
@@ -517,7 +517,7 @@ function createStreamEffect(path: string, options: FileReaderOptions = {}) {
 async function applyDecompression(
   stream: ReadableStream<Uint8Array>,
   filePath: FilePath,
-  options: Required<FileReaderOptions>,
+  options: Required<FileReaderOptions>
 ): Promise<ReadableStream<Uint8Array>> {
   // TypeScript guarantees types - no defensive checking needed
 
@@ -558,7 +558,7 @@ async function applyDecompression(
  */
 function validateFileSizeEffect(
   validatedPath: FilePath,
-  mergedOptions: Required<FileReaderOptions>,
+  mergedOptions: Required<FileReaderOptions>
 ) {
   return Effect.gen(function* () {
     // Get file size using Effect version
@@ -573,8 +573,8 @@ function validateFileSizeEffect(
         new FileError(
           `File too large: ${fileSize} bytes exceeds limit of ${mergedOptions.maxFileSize} bytes`,
           validatedPath,
-          "read",
-        ),
+          "read"
+        )
       );
     }
     return fileSize;

@@ -263,7 +263,7 @@ export class PairedFastqParser {
   async *parseFiles(
     r1Path: string,
     r2Path: string,
-    fileOptions?: FileReaderOptions,
+    fileOptions?: FileReaderOptions
   ): AsyncIterable<PairedFastqRead> {
     const r1Stream = this.r1Parser.parseFile(r1Path, fileOptions);
     const r2Stream = this.r2Parser.parseFile(r2Path, fileOptions);

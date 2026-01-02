@@ -221,7 +221,7 @@ export function fromMagicBytes(bytes: Uint8Array): CompressionDetection {
  *
  */
 export async function fromStream(
-  stream: ReadableStream<Uint8Array>,
+  stream: ReadableStream<Uint8Array>
 ): Promise<CompressionDetection> {
   // Tiger Style: Validate function arguments with proper error handling
 
@@ -330,7 +330,7 @@ export function hybrid(filePath: string, bytes?: Uint8Array): CompressionDetecti
       format: magicDetection.format,
       confidence: Math.max(
         MIN_CONFIDENCE_DISAGREEMENT,
-        magicDetection.confidence - CONFIDENCE_PENALTY_FOR_DISAGREEMENT,
+        magicDetection.confidence - CONFIDENCE_PENALTY_FOR_DISAGREEMENT
       ),
       ...(magicDetection.magicBytes && {
         magicBytes: magicDetection.magicBytes,
@@ -441,7 +441,7 @@ export function detectGzipVariant(data: Uint8Array): "standard" | "bgzf" {
     throw new CompressionError(
       `BGZF variant detection failed: ${error instanceof Error ? error.message : String(error)}`,
       "gzip",
-      "detect",
+      "detect"
     );
   }
 }

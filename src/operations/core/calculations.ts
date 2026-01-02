@@ -236,7 +236,7 @@ export function findQualityTrimStart(
   quality: string,
   threshold: number,
   windowSize: number,
-  encoding: "phred33" | "phred64" | "solexa",
+  encoding: "phred33" | "phred64" | "solexa"
 ): number {
   // Tiger Style: Assert inputs
   if (!quality || typeof quality !== "string") {
@@ -282,7 +282,7 @@ export function findQualityTrimEnd(
   threshold: number,
   windowSize: number,
   encoding: "phred33" | "phred64" | "solexa",
-  start: number,
+  start: number
 ): number {
   // Tiger Style: Assert inputs
   if (!quality || typeof quality !== "string") {

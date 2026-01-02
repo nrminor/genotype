@@ -60,7 +60,7 @@ export function validateRegionString(region: string): void {
 export function validateRegionParts(
   startStr: string | undefined,
   endStr: string | undefined,
-  region: string,
+  region: string
 ): void {
   if (startStr === undefined || endStr === undefined) {
     throw new Error(`Invalid region format: ${region} (missing start or end)`);
@@ -80,14 +80,14 @@ export function validateFinalCoordinates(
   start: number,
   end: number,
   sequenceLength: number,
-  region: string,
+  region: string
 ): void {
   if (start < 0) {
     throw new Error(`Invalid start position: ${start} (must be >= 0) in region ${region}`);
   }
   if (end > sequenceLength) {
     throw new Error(
-      `Invalid end position: ${end} (exceeds sequence length ${sequenceLength}) in region ${region}`,
+      `Invalid end position: ${end} (exceeds sequence length ${sequenceLength}) in region ${region}`
     );
   }
   if (start >= end) {
@@ -120,7 +120,7 @@ export function parseStartPosition(
   startStr: string,
   sequenceLength: number,
   oneBased: boolean,
-  hasNegativeIndices: boolean,
+  hasNegativeIndices: boolean
 ): { value: number; hasNegative: boolean } {
   // Tiger Style: Assert inputs
   if (typeof startStr !== "string" || startStr.trim() === "") {
@@ -173,7 +173,7 @@ export function parseEndPosition(
   endStr: string,
   sequenceLength: number,
   oneBased: boolean,
-  hasNegativeIndices: boolean,
+  hasNegativeIndices: boolean
 ): { value: number; hasNegative: boolean } {
   // Tiger Style: Assert inputs
   if (typeof endStr !== "string" || endStr.trim() === "") {

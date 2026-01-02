@@ -123,7 +123,7 @@ export class SplitProcessor {
    */
   async *process(
     source: AsyncIterable<AbstractSequence>,
-    options: SplitOptions,
+    options: SplitOptions
   ): AsyncIterable<SplitResult> {
     // Direct ArkType validation
     const validationResult = SplitOptionsSchema(options);
@@ -155,7 +155,7 @@ export class SplitProcessor {
    */
   async split(
     source: AsyncIterable<AbstractSequence>,
-    options: SplitOptions,
+    options: SplitOptions
   ): Promise<SplitSummary> {
     const results: SplitResult[] = [];
 
@@ -176,7 +176,7 @@ export class SplitProcessor {
 
   private async *processBySize(
     source: AsyncIterable<AbstractSequence>,
-    options: SplitOptions,
+    options: SplitOptions
   ): AsyncIterable<SplitResult> {
     const sequencesPerFile = options.sequencesPerFile ?? 1000;
     const outputDir = options.outputDir ?? "./split";
@@ -191,7 +191,7 @@ export class SplitProcessor {
     const writeFile = async (
       filePath: string,
       sequences: AbstractSequence[],
-      format: "fasta" | "fastq",
+      format: "fasta" | "fastq"
     ) => {
       await openForWriting(filePath, async (handle) => {
         for (const seq of sequences) {
@@ -260,7 +260,7 @@ export class SplitProcessor {
 
   private async *processByParts(
     source: AsyncIterable<AbstractSequence>,
-    options: SplitOptions,
+    options: SplitOptions
   ): AsyncIterable<SplitResult> {
     const numParts = options.numParts ?? 2;
     const outputDir = options.outputDir ?? "./split";
@@ -324,7 +324,7 @@ export class SplitProcessor {
    */
   private async *processByLength(
     source: AsyncIterable<AbstractSequence>,
-    options: SplitOptions,
+    options: SplitOptions
   ): AsyncIterable<SplitResult> {
     const basesPerFile = options.basesPerFile ?? 1000000;
     const outputDir = options.outputDir ?? "./split";
@@ -383,7 +383,7 @@ export class SplitProcessor {
 
   private async *processById(
     source: AsyncIterable<AbstractSequence>,
-    options: SplitOptions,
+    options: SplitOptions
   ): AsyncIterable<SplitResult> {
     if (options.idRegex === undefined) {
       throw new SplitError("idRegex is required for by-id mode", "processById", "by-id");
@@ -447,7 +447,7 @@ export class SplitProcessor {
 
   private async *processByRegion(
     source: AsyncIterable<AbstractSequence>,
-    options: SplitOptions,
+    options: SplitOptions
   ): AsyncIterable<SplitResult> {
     if (options.region === undefined) {
       throw new SplitError("region is required for by-region mode", "processByRegion", "by-region");
@@ -507,7 +507,7 @@ export async function splitBySize(
   sequences: AsyncIterable<AbstractSequence>,
   sequencesPerFile: number,
   outputDir: string = "./split",
-  prefix: string = "part",
+  prefix: string = "part"
 ): Promise<SplitSummary> {
   if (sequencesPerFile <= 0) {
     throw new SplitError(`Invalid sequencesPerFile: ${sequencesPerFile}`, "splitBySize", "by-size");
@@ -556,7 +556,7 @@ export async function splitBySize(
     throw new SplitError(
       `Failed to split sequences: ${error instanceof Error ? error.message : String(error)}`,
       "splitBySize",
-      "by-size",
+      "by-size"
     );
   }
 
@@ -574,7 +574,7 @@ export async function splitByParts(
   sequences: AsyncIterable<AbstractSequence>,
   numParts: number,
   outputDir: string = "./split",
-  prefix: string = "part",
+  prefix: string = "part"
 ): Promise<SplitSummary> {
   if (numParts <= 0) {
     throw new SplitError(`Invalid numParts: ${numParts}`, "splitByParts");
@@ -609,7 +609,7 @@ export async function splitById(
   sequences: AsyncIterable<AbstractSequence>,
   idPattern: RegExp,
   outputDir: string = "./split",
-  prefix: string = "group",
+  prefix: string = "group"
 ): Promise<SplitSummary> {
   const filesCreated: string[] = [];
   const groupCounts = new Map<string, number>();
@@ -635,7 +635,7 @@ export async function splitById(
           `Internal error: file path not found for group ${groupId}`,
           "splitById",
           undefined,
-          `groupId="${groupId}", groupFiles.has()=${groupFiles.has(groupId)}`,
+          `groupId="${groupId}", groupFiles.has()=${groupFiles.has(groupId)}`
         );
       }
 
@@ -657,7 +657,7 @@ export async function splitById(
   } catch (error) {
     throw new SplitError(
       `Failed to split by ID: ${error instanceof Error ? error.message : String(error)}`,
-      "splitById",
+      "splitById"
     );
   }
 

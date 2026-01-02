@@ -25,6 +25,6 @@
     "src/native/",
     "reports/**/*",
     "**/*.backup*",
-    "**/backup*/**/*",
-  ],
+    "**/backup*/**/*"
+  ]
 }

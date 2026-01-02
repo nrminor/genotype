@@ -145,7 +145,7 @@ const FastqParserOptionsSchema = type({
     console.warn(
       `FASTQ parsing with validation enabled for reads >10MB may impact performance significantly. ` +
         `For large sequencing datasets (PacBio/Nanopore), consider skipValidation: true for production workflows. ` +
-        `Validation provides exceptional error detection but adds substantial processing overhead.`,
+        `Validation provides exceptional error detection but adds substantial processing overhead.`
     );
   }
 
@@ -236,7 +236,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
       throw new ValidationError(
         `Invalid FASTQ parser options: ${validationResult.summary}`,
         undefined,
-        "FASTQ parser configuration with modern sequencing context",
+        "FASTQ parser configuration with modern sequencing context"
       );
     }
 
@@ -248,7 +248,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
       this.options.onWarning?.(
         "Solexa quality encoding is deprecated (pre-2009 Illumina) - " +
           "consider migrating to phred33 for modern sequencing workflows",
-        undefined,
+        undefined
       );
     }
 
@@ -256,7 +256,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
       this.options.onWarning?.(
         "Phred+64 encoding is legacy (Illumina 1.3-1.7) - " +
           "modern FASTQ files use phred33 encoding",
-        undefined,
+        undefined
       );
     }
   }
@@ -338,7 +338,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
     strategy: ParsingStrategy,
     usedPath: "fast" | "state-machine",
     detectedFormat?: "simple" | "complex",
-    confidence?: number,
+    confidence?: number
   ): void {
     // Store the actual parser used, not the input strategy
     this.parsingMetrics.lastStrategy = usedPath as ParsingStrategy;
@@ -435,7 +435,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
       strategy,
       useStateMachine ? "state-machine" : "fast",
       detectedFormat,
-      detectedConfidence,
+      detectedConfidence
     );
 
     // Use the appropriate parser
@@ -593,7 +593,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
         strategy,
         useStateMachine ? "state-machine" : "fast",
         detectedFormat,
-        detectedConfidence,
+        detectedConfidence
       );
 
       // Create fresh stream for actual parsing
@@ -693,7 +693,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
           `Failed to parse FASTQ file '${filePath}': ${error.message}`,
           "FASTQ",
           undefined,
-          error.stack,
+          error.stack
         );
       }
       throw error;
@@ -750,7 +750,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
       if (line.length > this.options.maxLineLength) {
         this.options.onError(
           `Line too long (${line.length} > ${this.options.maxLineLength})`,
-          lineNumber,
+          lineNumber
         );
         continue;
       }
@@ -775,7 +775,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
           }
           this.options.onError(
             error instanceof Error ? error.message : String(error),
-            lineNumber - 3,
+            lineNumber - 3
           );
         }
         lineBuffer.length = 0; // Clear buffer
@@ -786,7 +786,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
     if (lineBuffer.length > 0) {
       this.options.onError(
         `Incomplete FASTQ record: expected 4 lines, got ${lineBuffer.length}`,
-        lineNumber,
+        lineNumber
       );
     }
   }
@@ -803,7 +803,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
         'FASTQ header must start with "@"',
         "FASTQ",
         startLineNumber,
-        headerLine,
+        headerLine
       );
     }
 
@@ -822,7 +822,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
         'FASTQ separator must start with "+"',
         "FASTQ",
         startLineNumber + 2,
-        separatorLine,
+        separatorLine
       );
     }
 
@@ -848,7 +848,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
           "quality score parsing",
           id,
           startLineNumber + 3,
-          qualityLine,
+          qualityLine
         );
 
         // Get helpful suggestion based on error type
@@ -901,14 +901,14 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
       const validation = SequenceSchema(cleaned);
       if (validation instanceof type.errors) {
         const suggestion = getErrorSuggestion(
-          new ValidationError(`Invalid sequence characters: ${validation.summary}`),
+          new ValidationError(`Invalid sequence characters: ${validation.summary}`)
         );
 
         throw new SequenceError(
           `Invalid sequence characters found. ${suggestion}`,
           "unknown",
           lineNumber,
-          sequenceLine,
+          sequenceLine
         );
       }
     }
@@ -923,7 +923,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
     qualityLine: string,
     sequence: string,
     sequenceId: string,
-    lineNumber: number,
+    lineNumber: number
   ): string {
     // Delegate to tree-shakeable function
     return validateFastqQuality(qualityLine, sequence, sequenceId, lineNumber);
@@ -942,7 +942,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
     } catch (error) {
       this.options.onWarning(
         `Could not detect quality encoding for sequence '${sequenceId}': ${error instanceof Error ? error.message : String(error)}. Using phred33 as fallback`,
-        undefined,
+        undefined
       );
       return "phred33";
     }
@@ -966,7 +966,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
         `FASTQ file not found or not accessible: ${filePath}`,
         "FASTQ",
         undefined,
-        "Please check that the file exists and you have read permissions",
+        "Please check that the file exists and you have read permissions"
       );
     }
 
@@ -979,7 +979,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
           `FASTQ file is not readable: ${filePath}`,
           "FASTQ",
           undefined,
-          "Check file permissions",
+          "Check file permissions"
         );
       }
 
@@ -988,7 +988,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
         // 5GB
         this.options.onWarning(
           `Very large FASTQ file detected: ${Math.round(metadata.size / 1_073_741_824)}GB. Processing may take significant time and memory.`,
-          1,
+          1
         );
       }
     } catch (error) {
@@ -997,7 +997,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
         `Failed to validate FASTQ file: ${error instanceof Error ? error.message : String(error)}`,
         "FASTQ",
         undefined,
-        filePath,
+        filePath
       );
     }
 
@@ -1010,7 +1010,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
    * @yields FastqSequence objects as they are parsed
    */
   private async *parseLinesFromAsyncIterable(
-    lines: AsyncIterable<string>,
+    lines: AsyncIterable<string>
   ): AsyncIterable<FastqSequence> {
     // TypeScript guarantees lines is AsyncIterable<string>
 
@@ -1024,7 +1024,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
         if (rawLine.length > this.options.maxLineLength) {
           this.options.onError(
             `Line too long (${rawLine.length} > ${this.options.maxLineLength})`,
-            lineNumber,
+            lineNumber
           );
           continue;
         }
@@ -1049,7 +1049,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
             }
             this.options.onError(
               error instanceof Error ? error.message : String(error),
-              lineNumber - 3,
+              lineNumber - 3
             );
           }
           lineBuffer.length = 0; // Clear buffer
@@ -1062,7 +1062,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
           `Incomplete FASTQ record: expected 4 lines, got ${lineBuffer.length}`,
           "FASTQ",
           lineNumber,
-          `Record starts with: ${lineBuffer[0] || "unknown"}`,
+          `Record starts with: ${lineBuffer[0] || "unknown"}`
         );
 
         if (!this.options.skipValidation) {
@@ -1081,7 +1081,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
         `FASTQ parsing failed at line ${lineNumber}: ${error instanceof Error ? error.message : String(error)}`,
         "FASTQ",
         lineNumber,
-        "Check file format and content",
+        "Check file format and content"
       );
     }
 
@@ -1113,7 +1113,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
     context: {
       id: string;
       startLineNumber: number;
-    },
+    }
   ): void {
     // Early return if validation skipped
     if (this.options.skipValidation || this.options.validationLevel === "none") {
@@ -1144,12 +1144,12 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
    */
   private logValidationWarnings(
     warnings: Array<{ message: string; severity: string }>,
-    context: { id: string; startLineNumber: number },
+    context: { id: string; startLineNumber: number }
   ): void {
     for (const warning of warnings) {
       this.options.onWarning?.(
         `${warning.message} (severity: ${warning.severity})`,
-        context.startLineNumber,
+        context.startLineNumber
       );
     }
   }
@@ -1174,13 +1174,13 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
     },
     level: string,
     context: { id: string; startLineNumber: number },
-    sequence: FastqSequence,
+    sequence: FastqSequence
   ): never {
     const errorContext = buildErrorContext(
       `${level} validation`,
       context.id,
       context.startLineNumber,
-      sequence.sequence.substring(0, 50),
+      sequence.sequence.substring(0, 50)
     );
 
     const suggestion = getValidationErrorSuggestion(result.errors);
@@ -1292,7 +1292,7 @@ function buildErrorContext(
   operation: string,
   id: string,
   lineNumber?: number,
-  sample?: string,
+  sample?: string
 ): string {
   const parts: string[] = [`Failed during: ${operation}`];
 
@@ -1327,7 +1327,7 @@ function buildErrorContext(
  */
 function calculateQualityStatistics(
   scores: number[] | undefined,
-  options: { lowQualityThreshold?: number } = {},
+  options: { lowQualityThreshold?: number } = {}
 ): FastqSequence["qualityStats"] | undefined {
   if (!scores || scores.length === 0) {
     return undefined;
@@ -1376,7 +1376,7 @@ function calculateQualityStatistics(
 export async function* parseFastPath(
   lines: AsyncIterable<string>,
   qualityEncoding: QualityEncoding = "phred33",
-  validationLevel: ValidationLevel = "quick",
+  validationLevel: ValidationLevel = "quick"
 ): AsyncGenerator<FastqSequence> {
   let lineNumber = 0;
   let record: Partial<{
@@ -1395,7 +1395,7 @@ export async function* parseFastPath(
           throw new ParseError(
             `Invalid FASTQ header at line ${lineNumber + 1}: must start with '@'`,
             "FASTQ",
-            lineNumber + 1,
+            lineNumber + 1
           );
         }
         record.id = extractId(line);
@@ -1411,7 +1411,7 @@ export async function* parseFastPath(
           throw new ParseError(
             `Invalid separator at line ${lineNumber + 1}: must start with '+'`,
             "FASTQ",
-            lineNumber + 1,
+            lineNumber + 1
           );
         }
         break;
@@ -1425,7 +1425,7 @@ export async function* parseFastPath(
           throw new ParseError(
             `Invalid state: reached quality line without id/sequence at line ${lineNumber + 1}`,
             "FASTQ",
-            lineNumber + 1,
+            lineNumber + 1
           );
         }
 
@@ -1433,7 +1433,7 @@ export async function* parseFastPath(
           throw new ValidationError(
             `Quality length (${record.quality.length}) doesn't match sequence length (${record.sequence.length}) at line ${lineNumber + 1}`,
             undefined,
-            "FASTQ quality validation",
+            "FASTQ quality validation"
           );
         }
 
@@ -1467,7 +1467,7 @@ export async function* parseFastPath(
             throw new ValidationError(
               result.errors?.join("; ") || "Validation failed",
               undefined,
-              "FASTQ validation",
+              "FASTQ validation"
             );
           }
           // Emit the validated record if present, otherwise the original
@@ -1495,7 +1495,7 @@ export async function* parseFastPath(
     throw new ParseError(
       `Incomplete FASTQ record at end of file (${Object.keys(record).length}/4 lines)`,
       "FASTQ",
-      lineNumber,
+      lineNumber
     );
   }
 }

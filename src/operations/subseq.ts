@@ -277,7 +277,7 @@ export class SubseqExtractor {
    */
   async *extract<T extends AbstractSequence>(
     sequences: AsyncIterable<T>,
-    options: SubseqOptions,
+    options: SubseqOptions
   ): AsyncIterable<T> {
     // Direct ArkType validation
     const validationResult = SubseqOptionsSchema(options);
@@ -294,7 +294,7 @@ export class SubseqExtractor {
         `Subsequence extraction failed: ${error instanceof Error ? error.message : String(error)}`,
         "<subseq>",
         undefined,
-        "Check region specifications and sequence lengths",
+        "Check region specifications and sequence lengths"
       );
     }
   }
@@ -305,7 +305,7 @@ export class SubseqExtractor {
    */
   private async *processSequence<T extends AbstractSequence>(
     sequence: T,
-    options: SubseqOptions,
+    options: SubseqOptions
   ): AsyncIterable<T> {
     // Early return for sequences that don't match ID filters
     if (!shouldProcessSequence(sequence.id, options)) {
@@ -333,7 +333,7 @@ export class SubseqExtractor {
    */
   private async *processSequenceRegions<T extends AbstractSequence>(
     sequence: T,
-    options: SubseqOptions,
+    options: SubseqOptions
   ): AsyncIterable<T> {
     if (!hasRegionSpecifications(options)) {
       throw new Error("No extraction criteria specified");
@@ -360,7 +360,7 @@ export class SubseqExtractor {
   private async *extractBySpecifications<T extends AbstractSequence>(
     sequence: T,
     options: SubseqOptions,
-    extractedRegions: T[],
+    extractedRegions: T[]
   ): AsyncIterable<T> {
     // Extract by region strings
     if (hasRegionStrings(options)) {
@@ -422,7 +422,7 @@ export class SubseqExtractor {
     region: string,
     sequenceLength: number,
     oneBased: boolean = true,
-    circular: boolean = false,
+    circular: boolean = false
   ): ParsedRegion {
     // Tiger Style: Validate input early
     validateRegionString(region);
@@ -476,7 +476,7 @@ export class SubseqExtractor {
   private extractRegion<T extends AbstractSequence>(
     sequence: T,
     regionStr: string | ParsedRegion,
-    options: SubseqOptions,
+    options: SubseqOptions
   ): T | null {
     // Parse region if it's a string
     const region =
@@ -508,7 +508,7 @@ export class SubseqExtractor {
   private applyFlankingAdjustments(
     region: ParsedRegion,
     sequenceLength: number,
-    options: SubseqOptions,
+    options: SubseqOptions
   ): ParsedRegion {
     let start = region.start;
     let end = region.end;
@@ -545,15 +545,15 @@ export class SubseqExtractor {
   private extractOnlyFlanks<T extends AbstractSequence>(
     sequence: T,
     region: ParsedRegion,
-    options: SubseqOptions,
+    options: SubseqOptions
   ): T | null {
     const upstreamSeq = sequence.sequence.substring(
       Math.max(0, region.start - (options.upstream ?? 0)),
-      region.start,
+      region.start
     );
     const downstreamSeq = sequence.sequence.substring(
       region.end,
-      Math.min(sequence.length, region.end + (options.downstream ?? 0)),
+      Math.min(sequence.length, region.end + (options.downstream ?? 0))
     );
 
     const subseq = upstreamSeq + downstreamSeq;
@@ -572,7 +572,7 @@ export class SubseqExtractor {
   private extractSubsequence<T extends AbstractSequence>(
     sequence: T,
     coords: ParsedRegion,
-    options: SubseqOptions,
+    options: SubseqOptions
   ): string {
     // Handle circular sequences
     let subseq: string;
@@ -601,7 +601,7 @@ export class SubseqExtractor {
     original: T,
     subseq: string,
     region: ParsedRegion,
-    options: SubseqOptions,
+    options: SubseqOptions
   ): T {
     const newId = this.buildSequenceId(original.id, region, options);
     const quality = this.extractQualityScores(original, region, options);
@@ -622,7 +622,7 @@ export class SubseqExtractor {
   private buildSequenceId(
     originalId: string,
     region: ParsedRegion,
-    options: SubseqOptions,
+    options: SubseqOptions
   ): string {
     if (options.includeCoordinates !== true) {
       return originalId;
@@ -645,7 +645,7 @@ export class SubseqExtractor {
   private extractQualityScores<T extends AbstractSequence>(
     original: T,
     region: ParsedRegion,
-    options: SubseqOptions,
+    options: SubseqOptions
   ): string | undefined {
     if (!this.isFastqSequence(original)) {
       return undefined;
@@ -655,7 +655,7 @@ export class SubseqExtractor {
     const qualEnd = region.end + (options.downstream ?? 0);
     let quality = original.quality.substring(
       Math.max(0, qualStart),
-      Math.min(original.quality.length, qualEnd),
+      Math.min(original.quality.length, qualEnd)
     );
 
     // Reverse quality if sequence was reverse complemented
@@ -680,7 +680,7 @@ export class SubseqExtractor {
    */
   private extractWithCoordinates<T extends AbstractSequence>(
     sequence: T,
-    options: SubseqOptions,
+    options: SubseqOptions
   ): T | null {
     let start = options.start ?? 0;
     let end = options.end ?? sequence.length;
@@ -717,7 +717,7 @@ export class SubseqExtractor {
   private extractBedInterval<T extends AbstractSequence>(
     sequence: T,
     interval: BedInterval,
-    options: SubseqOptions,
+    options: SubseqOptions
   ): T | null {
     const region: ParsedRegion = {
       start: interval.start,
@@ -736,7 +736,7 @@ export class SubseqExtractor {
   private extractBedRegion<T extends AbstractSequence>(
     sequence: T,
     bed: { chromosome: string; chromStart: number; chromEnd: number },
-    options: SubseqOptions,
+    options: SubseqOptions
   ): T | null {
     const region: ParsedRegion = {
       start: bed.chromStart,
@@ -755,7 +755,7 @@ export class SubseqExtractor {
   private extractGtfFeatureData<T extends AbstractSequence>(
     sequence: T,
     feature: GtfFeature,
-    options: SubseqOptions,
+    options: SubseqOptions
   ): T | null {
     // GTF format is 1-based, inclusive
     const region: ParsedRegion = {
@@ -792,7 +792,7 @@ export class SubseqExtractor {
   private extractGtfFeature<T extends AbstractSequence>(
     sequence: T,
     feature: { seqname: string; start: number; end: number; feature: string },
-    options: SubseqOptions,
+    options: SubseqOptions
   ): T | null {
     // GTF format is 1-based, inclusive
     const region: ParsedRegion = {
@@ -812,7 +812,7 @@ export class SubseqExtractor {
   private async *extractByRegionStrings<T extends AbstractSequence>(
     sequence: T,
     options: SubseqOptions,
-    extractedRegions: T[],
+    extractedRegions: T[]
   ): AsyncIterable<T> {
     const regions: string[] = [];
     if (options.region !== undefined) {
@@ -841,7 +841,7 @@ export class SubseqExtractor {
   private async *extractByBedData<T extends AbstractSequence>(
     sequence: T,
     options: SubseqOptions,
-    extractedRegions: T[],
+    extractedRegions: T[]
   ): AsyncIterable<T> {
     // Load regions from file if specified
     if (options.bedFile !== undefined) {
@@ -863,7 +863,7 @@ export class SubseqExtractor {
   private async *extractByBedFile<T extends AbstractSequence>(
     sequence: T,
     options: SubseqOptions,
-    extractedRegions: T[],
+    extractedRegions: T[]
   ): AsyncIterable<T> {
     if (options.bedFile === undefined) return;
 
@@ -887,7 +887,7 @@ export class SubseqExtractor {
         `Failed to parse BED file: ${error instanceof Error ? error.message : String(error)}`,
         options.bedFile,
         undefined,
-        "Check BED file format and accessibility",
+        "Check BED file format and accessibility"
       );
     }
   }
@@ -899,7 +899,7 @@ export class SubseqExtractor {
   private async *extractByBedRegions<T extends AbstractSequence>(
     sequence: T,
     options: SubseqOptions,
-    extractedRegions: T[],
+    extractedRegions: T[]
   ): AsyncIterable<T> {
     if (options.bedRegions === undefined) return;
 
@@ -924,7 +924,7 @@ export class SubseqExtractor {
   private async *extractByGtfData<T extends AbstractSequence>(
     sequence: T,
     options: SubseqOptions,
-    extractedRegions: T[],
+    extractedRegions: T[]
   ): AsyncIterable<T> {
     // Load features from file if specified
     if (options.gtfFile !== undefined) {
@@ -946,7 +946,7 @@ export class SubseqExtractor {
   private async *extractByGtfFile<T extends AbstractSequence>(
     sequence: T,
     options: SubseqOptions,
-    extractedRegions: T[],
+    extractedRegions: T[]
   ): AsyncIterable<T> {
     if (options.gtfFile === undefined) return;
 
@@ -976,7 +976,7 @@ export class SubseqExtractor {
         `Failed to parse GTF file: ${error instanceof Error ? error.message : String(error)}`,
         options.gtfFile,
         undefined,
-        "Check GTF file format and accessibility",
+        "Check GTF file format and accessibility"
       );
     }
   }
@@ -988,7 +988,7 @@ export class SubseqExtractor {
   private async *extractByGtfFeatures<T extends AbstractSequence>(
     sequence: T,
     options: SubseqOptions,
-    extractedRegions: T[],
+    extractedRegions: T[]
   ): AsyncIterable<T> {
     if (options.gtfFeatures === undefined) return;
 
@@ -1095,7 +1095,7 @@ export function createSubseqExtractor(): SubseqExtractor {
  */
 export async function* extractSubsequences<T extends AbstractSequence>(
   sequences: AsyncIterable<T>,
-  options: SubseqOptions,
+  options: SubseqOptions
 ): AsyncIterable<T> {
   const extractor = new SubseqExtractor();
   yield* extractor.extract(sequences, options);
@@ -1119,7 +1119,7 @@ export async function* extractSubsequences<T extends AbstractSequence>(
 export async function extractSingleRegion<T extends AbstractSequence>(
   sequence: T,
   region: string,
-  options: SubseqOptions = {},
+  options: SubseqOptions = {}
 ): Promise<T | null> {
   const extractor = new SubseqExtractor();
 

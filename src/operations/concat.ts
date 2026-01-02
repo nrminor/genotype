@@ -67,7 +67,7 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
    */
   async *process(
     source: AsyncIterable<AbstractSequence>,
-    options: ConcatOptions,
+    options: ConcatOptions
   ): AsyncIterable<AbstractSequence> {
     // Validate and normalize options
     const normalizedOptions = this.normalizeOptions(options);
@@ -163,7 +163,7 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
   private async validateSource(
     source: string | AsyncIterable<AbstractSequence>,
     index: number,
-    options: Required<ConcatOptions>,
+    options: Required<ConcatOptions>
   ): Promise<SourceValidation> {
     const label = options.sourceLabels[index] ?? `source_${index}`;
 
@@ -202,7 +202,7 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
       } catch (error) {
         throw ConcatError.withSourceContext(
           `Failed to validate source file: ${error instanceof Error ? error.message : String(error)}`,
-          source,
+          source
         );
       }
     } else {
@@ -231,7 +231,7 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
       throw new FileError(
         `Failed to read sample from file: ${error instanceof Error ? error.message : String(error)}`,
         filePath,
-        "read",
+        "read"
       );
     }
   }
@@ -244,7 +244,7 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
       .map((v) => v.format?.format)
       .filter(
         (format): format is "fasta" | "fastq" | "bed" | "sam" | "bam" =>
-          format !== undefined && format !== "unknown",
+          format !== undefined && format !== "unknown"
       );
 
     if (detectedFormats.length === 0) {
@@ -254,7 +254,7 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
     const uniqueFormats = [...new Set(detectedFormats)];
     if (uniqueFormats.length > 1) {
       throw new ConcatError(
-        `Incompatible formats detected: ${uniqueFormats.join(", ")}. All sources must have the same format.`,
+        `Incompatible formats detected: ${uniqueFormats.join(", ")}. All sources must have the same format.`
       );
     }
   }
@@ -264,7 +264,7 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
    */
   private async loadFileSource(
     filePath: string,
-    _format?: FormatDetection,
+    _format?: FormatDetection
   ): Promise<AsyncIterable<AbstractSequence>> {
     try {
       const content = await FileReader.readToString(filePath);
@@ -276,7 +276,7 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
     } catch (error) {
       throw ConcatError.withSourceContext(
         `Failed to load sequences from file: ${error instanceof Error ? error.message : String(error)}`,
-        filePath,
+        filePath
       );
     }
   }
@@ -285,7 +285,7 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
    * Filter to only yield sequences, skip non-sequence items like BED intervals
    */
   private async *filterSequencesOnly(
-    source: AsyncIterable<FastaSequence | FastqSequence | BedInterval>,
+    source: AsyncIterable<FastaSequence | FastqSequence | BedInterval>
   ): AsyncIterable<AbstractSequence> {
     for await (const item of source) {
       // Check if item has sequence properties
@@ -310,7 +310,7 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
   private async *processSource(
     source: AsyncIterable<AbstractSequence>,
     context: ConcatContext,
-    options: Required<ConcatOptions>,
+    options: Required<ConcatOptions>
   ): AsyncIterable<AbstractSequence> {
     try {
       for await (const sequence of source) {
@@ -340,7 +340,7 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
     } catch (error) {
       throw ConcatError.withSourceContext(
         `Error processing sequences from source: ${error instanceof Error ? error.message : String(error)}`,
-        context.sourceLabel,
+        context.sourceLabel
       );
     }
   }
@@ -351,7 +351,7 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
   private resolveIdConflict(
     sequence: AbstractSequence,
     context: ConcatContext,
-    options: Required<ConcatOptions>,
+    options: Required<ConcatOptions>
   ): AbstractSequence | null {
     const { seenIds } = context;
     const originalId = sequence.id;
@@ -368,7 +368,7 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
         throw ConcatError.withSourceContext(
           `Duplicate sequence ID found: ${originalId}`,
           context.sourceLabel,
-          originalId,
+          originalId
         );
 
       case "ignore":
@@ -425,7 +425,7 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
       default:
         // Should never reach here due to type constraints
         throw new ConcatError(
-          `Unknown ID conflict resolution strategy: ${options.idConflictResolution}`,
+          `Unknown ID conflict resolution strategy: ${options.idConflictResolution}`
         );
     }
   }

@@ -100,7 +100,7 @@ export class BAIWriter {
       throw new BamError(
         `Invalid output path: ${validatedPath.toString()}`,
         undefined,
-        "file_path",
+        "file_path"
       );
     }
     this.outputPath = validatedPath;
@@ -117,7 +117,7 @@ export class BAIWriter {
     // Tiger Style: Assert initialized state
     console.assert(
       this.referenceAccumulators.size === 0,
-      "reference accumulators must be empty initially",
+      "reference accumulators must be empty initially"
     );
     console.assert(this.totalAlignments === 0, "alignment count must be zero initially");
   }
@@ -135,7 +135,7 @@ export class BAIWriter {
     console.assert(bamFilePath.length > 0, "bamFilePath must not be empty");
     console.assert(
       !referenceNames || Array.isArray(referenceNames),
-      "referenceNames must be array if provided",
+      "referenceNames must be array if provided"
     );
 
     if (this.isFinalized) {
@@ -171,7 +171,7 @@ export class BAIWriter {
           // Calculate virtual offset (simplified - in real implementation would track BGZF blocks)
           currentVirtualOffset = VirtualOffsetUtils.pack(
             Math.floor(alignmentCount / 1000) * 65536, // Simulate BGZF blocks
-            (alignmentCount % 1000) * 100, // Simulate intra-block offset
+            (alignmentCount % 1000) * 100 // Simulate intra-block offset
           );
 
           await this.addAlignment(bamAlignment, currentVirtualOffset);
@@ -194,7 +194,7 @@ export class BAIWriter {
         undefined,
         "index_generation",
         undefined,
-        `BAM file: ${bamFilePath}`,
+        `BAM file: ${bamFilePath}`
       );
     }
   }
@@ -215,7 +215,7 @@ export class BAIWriter {
       throw new BamError(
         "Cannot add alignment: BAI writer has been finalized",
         alignment.qname,
-        "writer_state",
+        "writer_state"
       );
     }
 
@@ -274,7 +274,7 @@ export class BAIWriter {
         refAccumulator.linearIndex,
         start,
         virtualOffset,
-        this.options.intervalSize,
+        this.options.intervalSize
       );
 
       // Update accumulator state
@@ -286,7 +286,7 @@ export class BAIWriter {
       // Check for memory limits
       if (binAccumulator.chunks.length > this.options.maxChunksPerBin) {
         console.warn(
-          `Bin ${binNumber} in reference ${refId} has ${binAccumulator.chunks.length} chunks - consider merging`,
+          `Bin ${binNumber} in reference ${refId} has ${binAccumulator.chunks.length} chunks - consider merging`
         );
       }
     } catch (error) {
@@ -295,7 +295,7 @@ export class BAIWriter {
         alignment.qname,
         "alignment_processing",
         undefined,
-        `Reference: ${alignment.rname}, Position: ${alignment.pos}`,
+        `Reference: ${alignment.rname}, Position: ${alignment.pos}`
       );
     }
   }
@@ -381,12 +381,12 @@ export class BAIWriter {
       // Tiger Style: Assert postconditions
       console.assert(
         validatedIndex.referenceCount === references.length,
-        "reference count must match",
+        "reference count must match"
       );
       console.assert(this.isFinalized, "writer must be finalized");
 
       console.log(
-        `Finalized BAI index: ${this.totalAlignments} alignments, ${references.length} references`,
+        `Finalized BAI index: ${this.totalAlignments} alignments, ${references.length} references`
       );
 
       return validatedIndex;
@@ -394,7 +394,7 @@ export class BAIWriter {
       throw new BamError(
         `Failed to finalize BAI index: ${error instanceof Error ? error.message : String(error)}`,
         undefined,
-        "finalization",
+        "finalization"
       );
     }
   }
@@ -426,7 +426,7 @@ export class BAIWriter {
         undefined,
         "file_write",
         undefined,
-        `Output path: ${this.outputPath}`,
+        `Output path: ${this.outputPath}`
       );
     }
   }
@@ -453,7 +453,7 @@ export class BAIWriter {
       throw new BamError(
         "Cannot set reference names: BAI writer has been finalized",
         undefined,
-        "writer_state",
+        "writer_state"
       );
     }
 
@@ -462,7 +462,7 @@ export class BAIWriter {
     // Tiger Style: Assert postconditions
     console.assert(
       this.referenceNames.length === names.length,
-      "reference names must be copied correctly",
+      "reference names must be copied correctly"
     );
   }
 
@@ -569,7 +569,7 @@ export class BAIWriter {
   private addChunkToBin(
     binAccumulator: BinAccumulator,
     beginOffset: VirtualOffset,
-    endOffset: VirtualOffset,
+    endOffset: VirtualOffset
   ): void {
     // For simplicity, always add chunks - in real implementation would:
     // 1. Check for overlapping/adjacent chunks
@@ -663,7 +663,7 @@ export class BAIWriter {
     // Tiger Style: Assert we used exactly the expected amount of space
     console.assert(
       offset === totalSize,
-      `serialized size mismatch: expected ${totalSize}, actual ${offset}`,
+      `serialized size mismatch: expected ${totalSize}, actual ${offset}`
     );
 
     return uint8View;
@@ -694,7 +694,7 @@ export class BAIWriter {
         undefined,
         "file_io",
         undefined,
-        `Output: ${this.outputPath}, Size: ${data.length} bytes`,
+        `Output: ${this.outputPath}, Size: ${data.length} bytes`
       );
     }
   }

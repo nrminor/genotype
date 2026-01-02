@@ -1044,7 +1044,7 @@ describe("SeqOps", () => {
       ];
 
       const longest = await seqops(arrayToAsync(sequences)).reduce((acc, seq) =>
-        seq.length > acc.length ? seq : acc,
+        seq.length > acc.length ? seq : acc
       );
 
       expect(longest?.id).toBe("seq2");
@@ -1074,7 +1074,7 @@ describe("SeqOps", () => {
       const sequences: AbstractSequence[] = [];
 
       const result = await seqops(arrayToAsync(sequences)).reduce((acc, seq) =>
-        seq.length > acc.length ? seq : acc,
+        seq.length > acc.length ? seq : acc
       );
 
       expect(result).toBeUndefined();
@@ -1084,7 +1084,7 @@ describe("SeqOps", () => {
       const sequences = [{ format: "fasta" as const, id: "seq1", sequence: "ATCG", length: 4 }];
 
       const result = await seqops(arrayToAsync(sequences)).reduce((acc, seq) =>
-        seq.length > acc.length ? seq : acc,
+        seq.length > acc.length ? seq : acc
       );
 
       expect(result?.id).toBe("seq1");
@@ -1111,7 +1111,7 @@ describe("SeqOps", () => {
       ];
 
       const longest = await seqops<FastqSequence>(arrayToAsync(sequences)).reduce((acc, seq) =>
-        seq.length > acc.length ? seq : acc,
+        seq.length > acc.length ? seq : acc
       );
 
       expect(longest?.quality).toBeDefined();
@@ -1142,7 +1142,7 @@ describe("SeqOps", () => {
       ];
 
       const result = await seqops(arrayToAsync(sequences)).reduce((acc, seq) =>
-        seq.length > acc.length ? seq : acc,
+        seq.length > acc.length ? seq : acc
       );
 
       expect(result?.id).toBe("seq4");
@@ -1195,7 +1195,7 @@ describe("SeqOps", () => {
 
       const totalLength = await seqops(arrayToAsync(sequences)).fold(
         (sum, seq) => sum + seq.length,
-        0,
+        0
       );
 
       expect(totalLength).toBe(15);
@@ -1223,7 +1223,7 @@ describe("SeqOps", () => {
 
       const index = await seqops<FastqSequence>(arrayToAsync(sequences)).fold(
         (map, seq) => map.set(seq.id, seq),
-        new Map<string, FastqSequence>(),
+        new Map<string, FastqSequence>()
       );
 
       expect(index.size).toBe(2);
@@ -1246,7 +1246,7 @@ describe("SeqOps", () => {
             acc.count++;
             return acc;
           },
-          { count: 0, positions: [] as number[] },
+          { count: 0, positions: [] as number[] }
         );
 
       expect(result.count).toBe(3);
@@ -1258,7 +1258,7 @@ describe("SeqOps", () => {
 
       const result = await seqops(arrayToAsync(sequences)).fold(
         (sum, seq) => sum + seq.length,
-        100,
+        100
       );
 
       expect(result).toBe(100);
@@ -1272,7 +1272,7 @@ describe("SeqOps", () => {
 
       const ids = await seqops(arrayToAsync(sequences)).fold(
         (arr, seq) => [...arr, seq.id],
-        [] as string[],
+        [] as string[]
       );
 
       expect(ids).toEqual(["seq1", "seq2"]);
@@ -1306,7 +1306,7 @@ describe("SeqOps", () => {
           sum: acc.sum + seq.length,
           count: acc.count + 1,
         }),
-        { min: Infinity, max: -Infinity, sum: 0, count: 0 },
+        { min: Infinity, max: -Infinity, sum: 0, count: 0 }
       );
 
       expect(stats).toEqual({
@@ -1348,7 +1348,7 @@ describe("SeqOps", () => {
             indices: [...acc.indices, idx],
             totalLength: acc.totalLength + seq.length,
           }),
-          { ids: [] as string[], indices: [] as number[], totalLength: 0 },
+          { ids: [] as string[], indices: [] as number[], totalLength: 0 }
         );
 
       expect(result).toEqual({
@@ -2198,7 +2198,7 @@ describe("SeqOps", () => {
           seqops(arrayToAsync(right)).filter((seq) => seq.length > 3),
           {
             mode: "lossless",
-          },
+          }
         )
         .collect();
 

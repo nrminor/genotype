@@ -102,7 +102,7 @@ export class WindowsProcessor<K extends number = number> implements Processor<Wi
    */
   async *process(
     source: AsyncIterable<AbstractSequence>,
-    options: WindowOptions<K>,
+    options: WindowOptions<K>
   ): AsyncIterable<KmerSequence<K>> {
     const result = WindowOptionsSchema(options);
 
@@ -117,7 +117,7 @@ export class WindowsProcessor<K extends number = number> implements Processor<Wi
 
   private *generateWindows(
     sequence: AbstractSequence,
-    options: WindowOptions<K>,
+    options: WindowOptions<K>
   ): Generator<KmerSequence<K>> {
     const { size, step = 1, greedy = false, circular = false } = options;
     const length = sequence.sequence.length;
@@ -144,7 +144,7 @@ export class WindowsProcessor<K extends number = number> implements Processor<Wi
     end: number,
     options: WindowOptions<K>,
     windowIndex: number,
-    isWrapped = false,
+    isWrapped = false
   ): KmerSequence<K> {
     const { size, step = 1, suffix = "_window", zeroBased = false } = options;
     const length = source.sequence.length;

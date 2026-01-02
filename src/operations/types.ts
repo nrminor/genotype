@@ -1380,7 +1380,7 @@ export interface Processor<TOptions> {
    */
   process(
     source: AsyncIterable<AbstractSequence>,
-    options: TOptions,
+    options: TOptions
   ): AsyncIterable<AbstractSequence>;
 }
 

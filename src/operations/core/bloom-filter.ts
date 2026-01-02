@@ -93,7 +93,7 @@ export class BloomFilter {
     // Generate hash seeds using golden ratio for good distribution
     this.hashSeeds = Array.from(
       { length: this.numHashes },
-      (_, i) => (i + 1) * 0x9e3779b9, // Golden ratio constant
+      (_, i) => (i + 1) * 0x9e3779b9 // Golden ratio constant
     );
   }
 

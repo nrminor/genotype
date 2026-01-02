@@ -274,7 +274,7 @@ export const isValidQualityCharForEncoding = (char: string, encoding: QualityEnc
  */
 export const isValidQualityScoreForEncoding = (
   score: number,
-  encoding: QualityEncoding,
+  encoding: QualityEncoding
 ): boolean => {
   if (!Number.isInteger(score)) return false;
 

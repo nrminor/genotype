@@ -35,7 +35,7 @@ export class TransformProcessor implements Processor<TransformOptions> {
    */
   async *process(
     source: AsyncIterable<AbstractSequence>,
-    options: TransformOptions,
+    options: TransformOptions
   ): AsyncIterable<AbstractSequence> {
     // NATIVE_CANDIDATE: Hot loop processing every sequence
     // Batch processing in native code would improve throughput

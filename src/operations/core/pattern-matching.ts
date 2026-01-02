@@ -348,7 +348,7 @@ export function boyerMoore(text: string, pattern: string): number[] {
 export function fuzzyMatch<T extends string>(
   text: string,
   pattern: T,
-  maxMismatches: number,
+  maxMismatches: number
 ): PatternMatch<T>[] {
   // Tiger Style: Assert inputs
   if (!pattern || pattern.length === 0) return [];
@@ -877,7 +877,7 @@ export function findOverlapping(text: string, pattern: string): number[] {
  */
 export function longestCommonSubstring(
   seq1: string,
-  seq2: string,
+  seq2: string
 ): {
   substring: string;
   position1: number;
@@ -1000,7 +1000,7 @@ export function longestCommonSubstring(
 export function findPalindromes(
   sequence: string,
   minLength: number = 4,
-  maxLength?: number,
+  maxLength?: number
 ): PatternMatch[] {
   // Tiger Style: Assert inputs
   if (!sequence || sequence.length < minLength) return [];
@@ -1106,7 +1106,7 @@ export function findTandemRepeats(
   sequence: string,
   minRepeatUnit: number = 1,
   maxRepeatUnit: number = 6,
-  minRepeats: number = 2,
+  minRepeats: number = 2
 ): Array<{
   position: number;
   unit: string;
@@ -1356,7 +1356,7 @@ export class SequenceMatcher {
   private boyerMooreMatchInternal(
     text: string,
     sequenceId: string,
-    originalText?: string,
+    originalText?: string
   ): SequenceMatch[] {
     const positions = this.getBoyerMoorePositions(text);
     const textForMatch = originalText ?? text;
@@ -1395,7 +1395,7 @@ export class SequenceMatcher {
   private kmpMatchInternal(
     text: string,
     sequenceId: string,
-    originalText?: string,
+    originalText?: string
   ): SequenceMatch[] {
     const matches: SequenceMatch[] = [];
     const pattern = this.patternUpper;
@@ -1431,7 +1431,7 @@ export class SequenceMatcher {
   private fuzzyMatchInternal(
     text: string,
     sequenceId: string,
-    originalText?: string,
+    originalText?: string
   ): SequenceMatch[] {
     const matches: SequenceMatch[] = [];
     const pattern = this.patternUpper;
@@ -1540,7 +1540,7 @@ export class SequenceMatcher {
     position: number,
     sequenceId: string,
     mismatches: number,
-    matchedText?: string,
+    matchedText?: string
   ): SequenceMatch {
     const matched = matchedText ?? text.substring(position, position + this.pattern.length);
     const contextWindow = this.options.contextWindow;
@@ -1592,7 +1592,7 @@ export class SequenceMatcher {
 export function findPattern(
   pattern: string,
   sequence: AbstractSequence | string,
-  options?: MatcherOptions,
+  options?: MatcherOptions
 ): SequenceMatch[] {
   const matcher = new SequenceMatcher(pattern, options);
   return matcher.findInSequence(sequence);
@@ -1611,7 +1611,7 @@ export function findPattern(
 export function hasPattern(
   pattern: string,
   sequence: AbstractSequence | string,
-  options?: MatcherOptions,
+  options?: MatcherOptions
 ): boolean {
   const matcher = new SequenceMatcher(pattern, options);
   return matcher.test(sequence);
@@ -1632,7 +1632,7 @@ export function hasPatternWithMismatches(
   sequence: string,
   pattern: string,
   maxMismatches: number,
-  searchBothStrands: boolean = false,
+  searchBothStrands: boolean = false
 ): boolean {
   // Check forward strand
   const forwardMatches = fuzzyMatch(sequence, pattern, maxMismatches);
@@ -1807,7 +1807,7 @@ export function findPatternWithMismatches<T extends string>(
   sequence: string,
   pattern: T,
   maxMismatches: number,
-  searchBothStrands: boolean = false,
+  searchBothStrands: boolean = false
 ): PatternMatch<T>[] {
   // Tiger Style: Assert inputs
   if (!sequence || typeof sequence !== "string") {
@@ -1917,7 +1917,7 @@ function findWithIUPACMatching<T extends string>(
   sequence: string,
   pattern: T,
   maxMismatches: number,
-  searchBothStrands: boolean,
+  searchBothStrands: boolean
 ): PatternMatch<T>[] {
   const allMatches: PatternMatch<T>[] = [];
 
@@ -1943,7 +1943,7 @@ function findWithExactMatching<T extends string>(
   sequence: string,
   pattern: T,
   maxMismatches: number,
-  searchBothStrands: boolean,
+  searchBothStrands: boolean
 ): PatternMatch<T>[] {
   const allMatches: PatternMatch<T>[] = [];
 
@@ -1969,7 +1969,7 @@ function findWithExactMatching<T extends string>(
 function findIUPACPositions<T extends string>(
   sequence: string,
   pattern: T,
-  maxMismatches: number,
+  maxMismatches: number
 ): PatternMatch<T>[] {
   const matches: PatternMatch<T>[] = [];
 

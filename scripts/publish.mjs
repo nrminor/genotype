@@ -18,7 +18,7 @@ Please confirm the following before continuing:
 2. The changes have been pushed to GitHub.
 
 Continue? (y/n)
-`.trim(),
+`.trim()
 );
 
 const confirm = spawnSync(
@@ -38,7 +38,7 @@ const confirm = spawnSync(
   {
     shell: false,
     stdio: "inherit",
-  },
+  }
 );
 
 if (confirm.status !== 0) {
@@ -48,7 +48,7 @@ if (confirm.status !== 0) {
 
 try {
   const versions = JSON.parse(
-    spawnSync("npm", ["view", packageJson.name, "versions", "--json"], {}).stdout.toString().trim(),
+    spawnSync("npm", ["view", packageJson.name, "versions", "--json"], {}).stdout.toString().trim()
   );
 
   if (versions.includes(packageJson.version)) {
@@ -71,7 +71,7 @@ const packageJsons = {
 };
 
 for (const pkgName of Object.keys(packageJsons[libDir].optionalDependencies).filter((x) =>
-  x.startsWith(packageJson.name),
+  x.startsWith(packageJson.name)
 )) {
   const nativeDir = join(rootDir, "node_modules", pkgName);
   if (!existsSync(nativeDir)) {
@@ -96,7 +96,7 @@ for (const [dir, { name, version }] of Object.entries(packageJsons)) {
 if (mismatches.length > 0) {
   console.error("Error: Version mismatch detected between root package and build packages:");
   mismatches.forEach((m) =>
-    console.error(`  - ${m.name}: expected ${m.expected}, found ${m.actual}\n  ^ "${m.dir}"`),
+    console.error(`  - ${m.name}: expected ${m.expected}, found ${m.actual}\n  ^ "${m.dir}"`)
   );
   process.exit(1);
 }
@@ -122,7 +122,7 @@ Object.entries(packageJsons).forEach(([dir, { name, version }]) => {
         cwd: dir,
       })
         .stdout.toString()
-        .trim(),
+        .trim()
     );
 
     if (Array.isArray(versions) && versions.includes(version)) {
@@ -136,7 +136,7 @@ Object.entries(packageJsons).forEach(([dir, { name, version }]) => {
   const npmAuth = spawnSync("npm", ["whoami"], {});
   if (npmAuth.status !== 0) {
     console.error(
-      "Error: NPM authentication failed. Please run 'npm login' or ensure NPM_AUTH_TOKEN is set",
+      "Error: NPM authentication failed. Please run 'npm login' or ensure NPM_AUTH_TOKEN is set"
     );
     process.exit(1);
   }

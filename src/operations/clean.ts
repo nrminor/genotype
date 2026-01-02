@@ -36,7 +36,7 @@ export class CleanProcessor implements Processor<CleanOptions> {
    */
   async *process(
     source: AsyncIterable<AbstractSequence>,
-    options: CleanOptions,
+    options: CleanOptions
   ): AsyncIterable<AbstractSequence> {
     // NATIVE_CANDIDATE: Hot loop processing every sequence
     // Native batch processing would improve performance

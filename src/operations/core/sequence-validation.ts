@@ -452,7 +452,7 @@ export class SequenceValidator {
    */
   validateAndClean(
     sequence: string,
-    options: { replaceChar?: string; returnCleaned?: boolean } = {},
+    options: { replaceChar?: string; returnCleaned?: boolean } = {}
   ): {
     isValid: boolean;
     originalSequence: string;
@@ -470,7 +470,7 @@ export class SequenceValidator {
 
       if (!isValid) {
         errors.push(
-          `Sequence contains characters not valid for ${this.mode} ${this.type} validation`,
+          `Sequence contains characters not valid for ${this.mode} ${this.type} validation`
         );
       }
 
@@ -500,7 +500,7 @@ export class SequenceValidator {
           }
         } catch (cleanError) {
           errors.push(
-            `Failed to clean sequence: ${cleanError instanceof Error ? cleanError.message : String(cleanError)}`,
+            `Failed to clean sequence: ${cleanError instanceof Error ? cleanError.message : String(cleanError)}`
           );
         }
       }
@@ -639,7 +639,7 @@ export function validateAndClean(
   sequence: string,
   mode: ValidationMode = "normal",
   type: SequenceType = "dna",
-  options: { replaceChar?: string; returnCleaned?: boolean } = {},
+  options: { replaceChar?: string; returnCleaned?: boolean } = {}
 ): {
   isValid: boolean;
   originalSequence: string;

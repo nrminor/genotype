@@ -116,14 +116,14 @@ export const Fa2FqOptionsSchema = type({
     if (encoding === "solexa") {
       if (options.qualityScore < -5 || options.qualityScore > 62) {
         ctx.mustBe(
-          `qualityScore must be between -5 and 62 for Solexa encoding (was ${options.qualityScore})`,
+          `qualityScore must be between -5 and 62 for Solexa encoding (was ${options.qualityScore})`
         );
         return false;
       }
     } else {
       if (options.qualityScore < 0 || options.qualityScore > 93) {
         ctx.mustBe(
-          `qualityScore must be between 0 and 93 for ${encoding} encoding (was ${options.qualityScore})`,
+          `qualityScore must be between 0 and 93 for ${encoding} encoding (was ${options.qualityScore})`
         );
         return false;
       }
@@ -146,7 +146,7 @@ export class ConvertProcessor implements Processor<ConvertOptions> {
    */
   async *process(
     source: AsyncIterable<AbstractSequence>,
-    options: ConvertOptions,
+    options: ConvertOptions
   ): AsyncIterable<AbstractSequence> {
     const validationResult = ConvertOptionsSchema(options);
     if (validationResult instanceof type.errors) {
@@ -190,7 +190,7 @@ export class ConvertProcessor implements Processor<ConvertOptions> {
     const convertedQuality = convertScore(
       fastqSeq.quality,
       detectionResult.encoding,
-      options.targetEncoding,
+      options.targetEncoding
     );
 
     return this.createConvertedSequence(fastqSeq, convertedQuality, options.targetEncoding);
@@ -208,7 +208,7 @@ export class ConvertProcessor implements Processor<ConvertOptions> {
    */
   private detectSourceEncoding(
     seq: FastqSequence,
-    options: ConvertOptions,
+    options: ConvertOptions
   ): EncodingDetectionResult {
     if (options.sourceEncoding) {
       return { encoding: options.sourceEncoding };
@@ -236,7 +236,7 @@ export class ConvertProcessor implements Processor<ConvertOptions> {
   private createConvertedSequence(
     original: FastqSequence,
     quality: string,
-    encoding: QualityEncoding,
+    encoding: QualityEncoding
   ): FastqSequence {
     const converted: FastqSequence = {
       format: "fastq",
@@ -294,7 +294,7 @@ function determineQualityChar(options: Fa2FqOptions, encoding: QualityEncoding):
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new ValidationError(
-      `Invalid quality character '${char}' for encoding '${encoding}': ${message}`,
+      `Invalid quality character '${char}' for encoding '${encoding}': ${message}`
     );
   }
 }
@@ -319,7 +319,7 @@ function createFastaSequence(seq: FastqSequence, description: string): FastaSequ
 function createFastqSequence(
   seq: FastaSequence,
   qualityChar: string,
-  encoding: QualityEncoding,
+  encoding: QualityEncoding
 ): FastqSequence {
   const fastq: FastqSequence = {
     format: "fastq",
@@ -345,7 +345,7 @@ function createFastqSequence(
  */
 export async function* fq2fa<T extends FastqSequence>(
   source: AsyncIterable<T>,
-  options: Fq2FaOptions = {},
+  options: Fq2FaOptions = {}
 ): AsyncIterable<FastaSequence> {
   const validationResult = Fq2FaOptionsSchema(options);
   if (validationResult instanceof type.errors) {
@@ -369,7 +369,7 @@ export async function* fq2fa<T extends FastqSequence>(
  */
 export async function* fa2fq<T extends FastaSequence>(
   source: AsyncIterable<T>,
-  options?: Fa2FqOptions,
+  options?: Fa2FqOptions
 ): AsyncIterable<FastqSequence> {
   const validationResult = Fa2FqOptionsSchema(options || {});
   if (validationResult instanceof type.errors) {

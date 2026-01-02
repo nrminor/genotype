@@ -416,7 +416,7 @@ describe("ORF Finding Biological Validation", () => {
 
       // Check for ORFs starting with valid start codons
       const validStartOrfs = orfs.filter((orf) =>
-        isStartCodon(sequence.substring(orf.start, orf.start + 3), GeneticCode.STANDARD),
+        isStartCodon(sequence.substring(orf.start, orf.start + 3), GeneticCode.STANDARD)
       );
       expect(validStartOrfs.length).toBeGreaterThan(0);
     });

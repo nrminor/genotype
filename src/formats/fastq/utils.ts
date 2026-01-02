@@ -54,7 +54,7 @@ import { detectFastqFormat } from "./detection";
 export function parseFastqHeader(
   headerLine: string,
   lineNumber: number,
-  options: { skipValidation?: boolean; onWarning?: (msg: string, line?: number) => void },
+  options: { skipValidation?: boolean; onWarning?: (msg: string, line?: number) => void }
 ): { id: string; description?: string } {
   // Validate FASTQ header format
   if (!headerLine.startsWith("@")) {
@@ -71,7 +71,7 @@ export function parseFastqHeader(
         'Empty FASTQ header: header must contain an identifier after "@"',
         "FASTQ",
         lineNumber,
-        headerLine,
+        headerLine
       );
     }
   }
@@ -88,7 +88,7 @@ export function parseFastqHeader(
       options.onWarning?.(
         `FASTQ sequence ID '${id}' is very long (${id.length} chars). ` +
           `Long IDs may cause compatibility issues with some bioinformatics tools.`,
-        lineNumber,
+        lineNumber
       );
     }
 
@@ -99,7 +99,7 @@ export function parseFastqHeader(
           `Use underscores (_) or hyphens (-) for better tool compatibility.`,
         id,
         lineNumber,
-        headerLine,
+        headerLine
       );
     }
   }
@@ -121,7 +121,7 @@ export function validateFastqQuality(
   qualityLine: string,
   sequence: string,
   sequenceId: string,
-  lineNumber: number,
+  lineNumber: number
 ): string {
   const quality = qualityLine.replace(/\s/g, "");
 
@@ -133,7 +133,7 @@ export function validateFastqQuality(
       sequenceId,
       undefined,
       lineNumber,
-      qualityLine,
+      qualityLine
     );
   }
 
@@ -174,7 +174,7 @@ export function extractFastqIds(data: string): string[] {
 export function validateFastqSequence(
   sequenceLine: string,
   lineNumber: number,
-  options: { skipValidation?: boolean },
+  options: { skipValidation?: boolean }
 ): string {
   // For FASTQ performance: validation is expensive, often disabled for large datasets
   if (options.skipValidation) {
@@ -193,7 +193,7 @@ export function validateFastqSequence(
           `Consider skipValidation: true for large read datasets if sequence quality is trusted.`,
         error.sequenceId || "unknown",
         lineNumber,
-        sequenceLine,
+        sequenceLine
       );
     }
     throw error;
@@ -261,7 +261,7 @@ export const FastqUtils = {
   convertQuality(
     qualityString: string,
     fromEncoding: QualityEncoding,
-    toEncoding: QualityEncoding,
+    toEncoding: QualityEncoding
   ): string {
     if (fromEncoding === toEncoding) return qualityString;
 

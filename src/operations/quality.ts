@@ -45,7 +45,7 @@ export class QualityProcessor implements Processor<QualityOptions> {
    */
   async *process(
     source: AsyncIterable<FastqSequence>,
-    options: QualityOptions,
+    options: QualityOptions
   ): AsyncIterable<FastqSequence> {
     // NATIVE_CANDIDATE: Hot loop processing FASTQ sequences
     // Quality score calculations are CPU-intensive
@@ -96,7 +96,7 @@ export class QualityProcessor implements Processor<QualityOptions> {
         options.trimWindow ?? 4,
         encoding,
         options.trimFromStart,
-        options.trimFromEnd,
+        options.trimFromEnd
       );
 
       if (!trimmed) {
@@ -128,7 +128,7 @@ export class QualityProcessor implements Processor<QualityOptions> {
         quality = this.applyBinning(quality, options);
       } catch (error) {
         throw new Error(
-          `Failed to bin quality for sequence '${seq.id}': ${error instanceof Error ? error.message : String(error)}`,
+          `Failed to bin quality for sequence '${seq.id}': ${error instanceof Error ? error.message : String(error)}`
         );
       }
     }
@@ -165,7 +165,7 @@ export class QualityProcessor implements Processor<QualityOptions> {
     windowSize: number,
     encoding: "phred33" | "phred64" | "solexa",
     trimStart?: boolean,
-    trimEnd?: boolean,
+    trimEnd?: boolean
   ): { sequence: string; quality: string } | null {
     // Default to trimming both ends if not specified
     const fromStart = trimStart ?? true;
@@ -330,7 +330,7 @@ export type BinQualityOptions<N extends 2 | 3 | 5 = 2 | 3 | 5> =
  */
 function resolveBinningStrategy(
   options: BinQualityOptions,
-  sampleQuality: string,
+  sampleQuality: string
 ): BinningStrategy {
   // Extract boundaries from preset or custom
   let boundaries: readonly number[];
@@ -345,7 +345,7 @@ function resolveBinningStrategy(
           `  - illumina: 2, 3, 5 bins\n` +
           `  - pacbio: 2, 3, 5 bins\n` +
           `  - nanopore: 2, 3, 5 bins\n` +
-          `Example: { bins: 3, preset: 'illumina' }`,
+          `Example: { bins: 3, preset: 'illumina' }`
       );
     }
     boundaries = presetBoundaries;
@@ -365,7 +365,7 @@ function resolveBinningStrategy(
     throw new Error(
       `Invalid boundaries for ${options.bins} bins: expected ${expectedLength}, got ${boundaries.length}.\n` +
         `For ${options.bins} bins, you need ${expectedLength} boundary value(s).\n` +
-        `Example: { bins: ${options.bins}, ${examples[options.bins as keyof typeof examples]} }`,
+        `Example: { bins: ${options.bins}, ${examples[options.bins as keyof typeof examples]} }`
     );
   }
 
@@ -437,7 +437,7 @@ function resolveBinningStrategy(
  */
 export async function* binQuality(
   source: AsyncIterable<AbstractSequence>,
-  options: BinQualityOptions,
+  options: BinQualityOptions
 ): AsyncIterable<AbstractSequence> {
   // Strategy will be resolved on first sequence
   let strategy: BinningStrategy | null = null;
@@ -472,7 +472,7 @@ export async function* binQuality(
     } catch (error) {
       // Re-throw with context
       throw new Error(
-        `Failed to bin quality for sequence '${seq.id}': ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to bin quality for sequence '${seq.id}': ${error instanceof Error ? error.message : String(error)}`
       );
     }
   }

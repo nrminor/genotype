@@ -39,7 +39,7 @@ export function createValidSAMAlignment(overrides: Partial<SAMAlignment> = {}): 
  */
 export function createValidSAMHeader(
   type: "HD" | "SQ" | "RG" | "PG" | "CO",
-  overrides: Partial<SAMHeader> = {},
+  overrides: Partial<SAMHeader> = {}
 ): SAMHeader {
   const fieldDefaults = {
     HD: { VN: "1.6", SO: "coordinate" },
@@ -296,7 +296,7 @@ export function generateRandomQuality(length: number): string {
   const maxQual = 33 + 40; // Phred+33 + quality 40
 
   return Array.from({ length }, () =>
-    String.fromCharCode(minQual + Math.floor(Math.random() * (maxQual - minQual + 1))),
+    String.fromCharCode(minQual + Math.floor(Math.random() * (maxQual - minQual + 1)))
   ).join("");
 }
 

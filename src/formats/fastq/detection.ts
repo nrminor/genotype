@@ -70,7 +70,7 @@ const CONFIDENCE_ZONES = [
  */
 export function detectFastqComplexity(
   input: string | string[],
-  sampleSize = 100,
+  sampleSize = 100
 ): {
   format: "simple" | "complex";
   confidence: number;
@@ -121,7 +121,7 @@ export function detectFastqComplexity(
  */
 function determineConfidence(
   minChar: number,
-  maxChar: number,
+  maxChar: number
 ): {
   confidence: number;
   zone: string;
@@ -336,7 +336,7 @@ export function autoDetectFastqFormat(
   options: {
     sampleSize?: number;
     detectPlatform?: boolean;
-  } = {},
+  } = {}
 ): {
   complexity: {
     format: "simple" | "complex";

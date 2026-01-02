@@ -14,7 +14,7 @@ class DSVParseError extends ParseError {
     message: string,
     public override readonly lineNumber?: number,
     public readonly column?: number,
-    public readonly field?: string,
+    public readonly field?: string
   ) {
     super(message, "dsv", lineNumber);
     this.name = "DSVParseError";
@@ -72,7 +72,7 @@ export function parseCSVRow(
   line: string,
   delimiter: string = ",",
   quote: string = '"',
-  escapeChar: string = '"',
+  escapeChar: string = '"'
 ): string[] {
   const fields: string[] = [];
   let currentField = "";
@@ -87,7 +87,7 @@ export function parseCSVRow(
         `Unexpected undefined character at index ${i} in line of length ${line.length}`,
         undefined,
         i,
-        line,
+        line
       );
     }
     const nextChar = line[i + 1];
@@ -187,7 +187,7 @@ export class CSVFieldParser {
   constructor(
     private delimiter: string,
     private quote: string,
-    private escapeChar: string,
+    private escapeChar: string
   ) {}
 
   /**

@@ -392,7 +392,7 @@ describe("Quality Operations - Type Safety", () => {
       // Generate random numbers
       const randomNumbers = Array.from(
         { length: 100 },
-        () => Math.floor(Math.random() * 200) - 50, // -50 to 149
+        () => Math.floor(Math.random() * 200) - 50 // -50 to 149
       );
 
       for (const num of randomNumbers) {

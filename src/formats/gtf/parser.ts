@@ -111,7 +111,7 @@ function normalizeTagsToArray(tagValue: string | string[] | undefined): string[]
  */
 function normalizeGtfAttributes(
   attributes: Record<string, string | string[]>,
-  sourceDatabase: DatabaseVariant
+  sourceDatabase: DatabaseVariant,
 ): NormalizedGtfAttributes {
   const normalized: NormalizedGtfAttributes = {
     tags: [],
@@ -287,7 +287,7 @@ function validateGtfCoordinates(
   start: number,
   end: number,
   sequenceLength = Number.MAX_SAFE_INTEGER,
-  region = `${start}-${end}`
+  region = `${start}-${end}`,
 ): { valid: true } | { valid: false; error: string } {
   if (start < 1) {
     return {
@@ -320,7 +320,7 @@ function parseGtfCoordinates(
   startStr: string,
   endStr: string,
   lineNumber: number,
-  seqname: string
+  seqname: string,
 ): { start: number; end: number } {
   try {
     // Use core functions for comprehensive coordinate parsing and validation
@@ -339,7 +339,7 @@ function parseGtfCoordinates(
     // GTF-specific validation preserving biological context
     if (startResult.value < GTF_LIMITS.MIN_COORDINATE) {
       throw new Error(
-        `Start coordinate ${startResult.value} is invalid (GTF coordinates are 1-based, minimum value is 1)`
+        `Start coordinate ${startResult.value} is invalid (GTF coordinates are 1-based, minimum value is 1)`,
       );
     }
 
@@ -348,7 +348,7 @@ function parseGtfCoordinates(
       startResult.value,
       endResult.value,
       LARGE_SEQUENCE_LENGTH,
-      `${seqname}:${startStr}-${endStr}`
+      `${seqname}:${startStr}-${endStr}`,
     );
 
     if (!validation.valid) {
@@ -361,7 +361,7 @@ function parseGtfCoordinates(
       `Invalid coordinates for ${seqname}: ${error instanceof Error ? error.message : String(error)}`,
       "GTF",
       lineNumber,
-      "GTF uses 1-based inclusive coordinates (both start and end positions are included)"
+      "GTF uses 1-based inclusive coordinates (both start and end positions are included)",
     );
   }
 }
@@ -371,7 +371,7 @@ function parseGtfCoordinates(
  */
 function parseGtfLineFields(
   line: string,
-  lineNumber: number
+  lineNumber: number,
 ): {
   seqname: string;
   source: string;
@@ -390,7 +390,7 @@ function parseGtfLineFields(
       `GTF format requires exactly 9 tab-separated fields, got ${fields.length}`,
       "GTF",
       lineNumber,
-      "Each GTF line must have: seqname, source, feature, start, end, score, strand, frame, attributes"
+      "Each GTF line must have: seqname, source, feature, start, end, score, strand, frame, attributes",
     );
   }
 
@@ -403,7 +403,7 @@ function parseGtfLineFields(
       "Missing required GTF fields",
       "GTF",
       lineNumber,
-      `Required: seqname, source, feature, start, end, strand`
+      `Required: seqname, source, feature, start, end, strand`,
     );
   }
 
@@ -431,7 +431,7 @@ function buildGtfFeature(
   lineNumber: number,
   trackLineNumbers: boolean,
   normalizeAttributes?: boolean,
-  shouldDetectDatabase?: boolean
+  shouldDetectDatabase?: boolean,
 ): GtfFeature {
   const { seqname, source, feature, start, end, scoreStr, strandStr, frameStr, attributeStr } =
     parsedFields;
@@ -443,7 +443,7 @@ function buildGtfFeature(
       coordValidation.error,
       "GTF",
       lineNumber,
-      `Feature coordinates: ${seqname}:${start}-${end} (${feature})`
+      `Feature coordinates: ${seqname}:${start}-${end} (${feature})`,
     );
   }
 
@@ -453,7 +453,7 @@ function buildGtfFeature(
       `Invalid strand '${strandStr}', must be '+', '-', or '.'`,
       "GTF",
       lineNumber,
-      "Valid strand annotations: + (forward), - (reverse), . (unknown/not applicable)"
+      "Valid strand annotations: + (forward), - (reverse), . (unknown/not applicable)",
     );
   }
 
@@ -543,7 +543,7 @@ class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
       throw new ValidationError(
         `Invalid GTF parser options: ${validationResult.summary}`,
         undefined,
-        "GTF parser configuration with biological context"
+        "GTF parser configuration with biological context",
       );
     }
 
@@ -575,7 +575,7 @@ class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
    */
   override async *parseFile(
     filePath: string,
-    options?: { encoding?: string }
+    options?: { encoding?: string },
   ): AsyncIterable<GtfFeature> {
     if (filePath.length === 0) {
       throw new ValidationError("filePath cannot be empty");
@@ -596,7 +596,7 @@ class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
         `Failed to parse GTF file '${filePath}': ${error instanceof Error ? error.message : String(error)}`,
         "GTF",
         undefined,
-        `File path: ${filePath}`
+        `File path: ${filePath}`,
       );
     }
   }
@@ -613,7 +613,7 @@ class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
       if (line.length > this.options.maxLineLength) {
         this.options.onError(
           `Line too long (${line.length} > ${this.options.maxLineLength})`,
-          lineNumber
+          lineNumber,
         );
         continue;
       }
@@ -655,7 +655,7 @@ class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
    * Parse lines from async iterable
    */
   private async *parseLinesFromAsyncIterable(
-    lines: AsyncIterable<string>
+    lines: AsyncIterable<string>,
   ): AsyncIterable<GtfFeature> {
     let lineNumber = 0;
 
@@ -671,7 +671,7 @@ class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
         if (line.length > this.options.maxLineLength) {
           this.options.onError(
             `Line too long (${line.length} > ${this.options.maxLineLength})`,
-            lineNumber
+            lineNumber,
           );
           continue;
         }
@@ -693,7 +693,7 @@ class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
       throw new ParseError(
         `GTF parsing failed at line ${lineNumber}: ${error instanceof Error ? error.message : String(error)}`,
         "GTF",
-        lineNumber
+        lineNumber,
       );
     }
   }
@@ -712,7 +712,7 @@ class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
         lineNumber,
         this.options.trackLineNumbers,
         this.options.normalizeAttributes,
-        this.options.detectDatabaseVariant
+        this.options.detectDatabaseVariant,
       );
 
       // Validate required attributes if specified
@@ -730,7 +730,7 @@ class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
         `Failed to parse GTF line: ${error instanceof Error ? error.message : String(error)}`,
         "GTF",
         lineNumber,
-        `Line content: ${line}`
+        `Line content: ${line}`,
       );
     }
   }
@@ -747,7 +747,7 @@ class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
           `Required attribute '${required}' not found`,
           "GTF",
           lineNumber,
-          `Available attributes: ${Object.keys(feature.attributes).join(", ")}`
+          `Available attributes: ${Object.keys(feature.attributes).join(", ")}`,
         );
       }
     }
@@ -813,10 +813,10 @@ class GtfQueryBuilder<TCurrentFilter = GtfFeature> {
    * ```
    */
   filterByChromosome<T extends HumanChromosome>(
-    chromosome: T
+    chromosome: T,
   ): GtfQueryBuilder<TCurrentFilter & { seqname: T }> {
     const filteredSource = this.filterAsync(
-      (feature) => (feature as GtfFeature).seqname === chromosome
+      (feature) => (feature as GtfFeature).seqname === chromosome,
     );
     return new GtfQueryBuilder(filteredSource as AsyncIterable<TCurrentFilter & { seqname: T }>);
   }
@@ -838,10 +838,10 @@ class GtfQueryBuilder<TCurrentFilter = GtfFeature> {
    * ```
    */
   filterByFeature<T extends GtfFeatureType>(
-    featureType: T
+    featureType: T,
   ): GtfQueryBuilder<TCurrentFilter & { feature: T }> {
     const filteredSource = this.filterAsync(
-      (feature) => (feature as GtfFeature).feature === featureType
+      (feature) => (feature as GtfFeature).feature === featureType,
     );
     return new GtfQueryBuilder(filteredSource as AsyncIterable<TCurrentFilter & { feature: T }>);
   }
@@ -862,7 +862,7 @@ class GtfQueryBuilder<TCurrentFilter = GtfFeature> {
    * ```
    */
   filterByGeneType<T extends StandardGeneType>(
-    geneType: T
+    geneType: T,
   ): GtfQueryBuilder<TCurrentFilter & { normalized: { geneType: T } }> {
     const filteredSource = this.filterAsync((feature) => {
       const gtfFeature = feature as GtfFeature;
@@ -870,7 +870,7 @@ class GtfQueryBuilder<TCurrentFilter = GtfFeature> {
       return normalized?.geneType === geneType;
     });
     return new GtfQueryBuilder(
-      filteredSource as AsyncIterable<TCurrentFilter & { normalized: { geneType: T } }>
+      filteredSource as AsyncIterable<TCurrentFilter & { normalized: { geneType: T } }>,
     );
   }
 
@@ -890,7 +890,7 @@ class GtfQueryBuilder<TCurrentFilter = GtfFeature> {
    * ```
    */
   filterByRegion<T extends string>(
-    region: T extends ValidGenomicRegion<T> ? T : never
+    region: T extends ValidGenomicRegion<T> ? T : never,
   ): GtfQueryBuilder<TCurrentFilter> {
     // Parse region string for filtering (template literal validation ensures proper format)
     const regionStr = region as unknown as string;
@@ -912,7 +912,7 @@ class GtfQueryBuilder<TCurrentFilter = GtfFeature> {
    * @private
    */
   private async *filterAsync(
-    predicate: (feature: TCurrentFilter) => boolean
+    predicate: (feature: TCurrentFilter) => boolean,
   ): AsyncIterable<TCurrentFilter> {
     for await (const feature of this.source) {
       if (predicate(feature)) {

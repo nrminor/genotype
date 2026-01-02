@@ -217,7 +217,7 @@ export function validateBoundaries(boundaries: readonly number[], encoding: Qual
           `Valid ${encoding} range: ${minScore} to ${maxScore}.\n` +
           `Example valid boundaries: [15, 30] for 3 bins`,
         "validation",
-        encoding
+        encoding,
       );
     }
 
@@ -233,7 +233,7 @@ export function validateBoundaries(boundaries: readonly number[], encoding: Qual
             `Boundaries must be in strictly ascending order.\n` +
             `Example: [15, 30] is valid (15 < 30), but [30, 15] is not`,
           "validation",
-          encoding
+          encoding,
         );
       }
     }
@@ -417,7 +417,7 @@ export function binQualityString(qualityString: string, strategy: BinningStrateg
     if (representative === undefined) {
       throw new Error(
         `No representative found for bin ${binIndex}. ` +
-          `Expected ${strategy.bins} representatives, got ${strategy.representatives.length}.`
+          `Expected ${strategy.bins} representatives, got ${strategy.representatives.length}.`,
       );
     }
 
@@ -464,7 +464,7 @@ export function binQualityString(qualityString: string, strategy: BinningStrateg
  */
 export function calculateBinDistribution(
   qualityString: string,
-  strategy: BinningStrategy
+  strategy: BinningStrategy,
 ): number[] {
   // Initialize count array with zeros for each bin
   const distribution = new Array(strategy.bins).fill(0);
@@ -481,7 +481,7 @@ export function calculateBinDistribution(
     if (currentCount === undefined) {
       throw new Error(
         `Invalid bin index ${binIndex} for ${strategy.bins} bins. ` +
-          `This should never happen - please report this bug.`
+          `This should never happen - please report this bug.`,
       );
     }
     distribution[binIndex] = currentCount + 1;

@@ -257,7 +257,7 @@ export class SequenceStatsCalculator {
    */
   async calculateStats(
     sequences: AsyncIterable<AbstractSequence | FASTXSequence>,
-    options: StatsOptions = {}
+    options: StatsOptions = {},
   ): Promise<SequenceStats> {
     // Validate options with ArkType
     const validationResult = StatsOptionsSchema(options);
@@ -265,7 +265,7 @@ export class SequenceStatsCalculator {
       throw new ValidationError(
         `Invalid statistics options: ${validationResult.summary}`,
         undefined,
-        "Check gap characters and ambiguous character patterns"
+        "Check gap characters and ambiguous character patterns",
       );
     }
 
@@ -293,7 +293,7 @@ export class SequenceStatsCalculator {
         `Statistics calculation failed: ${error instanceof Error ? error.message : String(error)}`,
         "<statistics>",
         undefined,
-        `Processed ${accumulator.count} sequences before error`
+        `Processed ${accumulator.count} sequences before error`,
       );
     }
   }
@@ -353,7 +353,7 @@ export class SequenceStatsCalculator {
    */
   calculateQualityStats(
     qualities: string[],
-    encoding: QualityEncoding
+    encoding: QualityEncoding,
   ): {
     mean: number;
     min: number;
@@ -458,7 +458,7 @@ export class SequenceStatsCalculator {
       gapChars: string;
       ambiguousChars: string;
       includeQuality: boolean;
-    }
+    },
   ): void {
     // Update count and length statistics
     accumulator.count++;
@@ -494,7 +494,7 @@ export class SequenceStatsCalculator {
       gapChars: string;
       ambiguousChars: string;
       includeComposition: boolean;
-    }
+    },
   ): void {
     const upperSeq = sequence.toUpperCase();
 
@@ -556,7 +556,7 @@ export class SequenceStatsCalculator {
    */
   private detectFormat(
     sequence: AbstractSequence | FASTXSequence,
-    accumulator: StatsAccumulator
+    accumulator: StatsAccumulator,
   ): void {
     if (this.isFastqSequence(sequence)) {
       accumulator.hasFastq = true;
@@ -600,7 +600,7 @@ export class SequenceStatsCalculator {
       detailed: boolean;
       includeComposition: boolean;
       includeQuality: boolean;
-    }
+    },
   ): SequenceStats {
     // Handle empty input
     if (accumulator.count === 0) {
@@ -775,7 +775,7 @@ export function createStatsCalculator(options: StatsOptions = {}): SequenceStats
  */
 export async function calculateSequenceStats(
   sequences: AsyncIterable<AbstractSequence | FASTXSequence>,
-  options: StatsOptions = {}
+  options: StatsOptions = {},
 ): Promise<SequenceStats> {
   const calculator = new SequenceStatsCalculator();
   return calculator.calculateStats(sequences, options);

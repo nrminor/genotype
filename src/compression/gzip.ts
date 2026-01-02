@@ -56,7 +56,7 @@ const DecompressorOptionsSchema = type({
 
 export async function decompress(
   compressed: Uint8Array,
-  options: DecompressorOptions = {}
+  options: DecompressorOptions = {},
 ): Promise<Uint8Array> {
   // Tiger Style: Validate function arguments
   validateCompressedData(compressed);
@@ -82,7 +82,7 @@ export async function decompress(
       "gzip",
       "decompress",
       0,
-      "Verify file is valid gzip format and not corrupted"
+      "Verify file is valid gzip format and not corrupted",
     );
   }
 }
@@ -107,7 +107,7 @@ export async function decompress(
  *
  */
 export function createStream(
-  options: DecompressorOptions = {}
+  options: DecompressorOptions = {},
 ): TransformStream<Uint8Array, Uint8Array> {
   const mergedOptions = validateAndMergeOptions(options);
   return createFflateTransformStream(mergedOptions);
@@ -115,7 +115,7 @@ export function createStream(
 
 export function wrapStream(
   input: ReadableStream<Uint8Array>,
-  options: DecompressorOptions = {}
+  options: DecompressorOptions = {},
 ): ReadableStream<Uint8Array> {
   // Tiger Style: Assert function arguments
   if (!(input instanceof ReadableStream)) {
@@ -130,7 +130,7 @@ export function wrapStream(
     throw new CompressionError(
       `Stream wrapping failed: ${error instanceof Error ? error.message : String(error)}`,
       "gzip",
-      "stream"
+      "stream",
     );
   }
 }
@@ -157,7 +157,7 @@ export function wrapStream(
  */
 export async function compress(
   data: Uint8Array,
-  options: { level?: number } = {}
+  options: { level?: number } = {},
 ): Promise<Uint8Array> {
   if (!(data instanceof Uint8Array)) {
     throw new CompressionError("Data must be Uint8Array", "gzip", "compress");
@@ -204,7 +204,7 @@ export async function compress(
  * @since v0.1.0
  */
 export function createCompressionStream(
-  options: { level?: number } = {}
+  options: { level?: number } = {},
 ): TransformStream<Uint8Array, Uint8Array> {
   const rawLevel = options.level ?? 6;
   const level = Math.min(9, Math.max(0, Math.floor(rawLevel))) as
@@ -275,7 +275,7 @@ function validateStandardGzipFormat(compressed: Uint8Array): void {
       "Invalid gzip magic bytes - file may not be gzip compressed",
       "gzip",
       "decompress",
-      0
+      0,
     );
   }
 
@@ -293,7 +293,7 @@ function validateStandardGzipFormat(compressed: Uint8Array): void {
             "This appears to be a BGZF file, not standard gzip. Use BGZFDecompressor instead.",
             "gzip",
             "decompress",
-            0
+            0,
           );
         }
       }
@@ -313,7 +313,7 @@ function validateAndMergeOptions(options: DecompressorOptions) {
     throw new CompressionError(
       `Invalid decompression options: ${optionsResult.summary}`,
       "gzip",
-      "decompress"
+      "decompress",
     );
   }
 
@@ -331,7 +331,7 @@ function performSyncDecompression(compressed: Uint8Array, maxSize: number): Uint
     throw new CompressionError(
       `Decompressed size ${result.length} exceeds maximum ${maxSize}`,
       "gzip",
-      "decompress"
+      "decompress",
     );
   }
 
@@ -340,7 +340,7 @@ function performSyncDecompression(compressed: Uint8Array, maxSize: number): Uint
 
 async function performAsyncDecompression(
   compressed: Uint8Array,
-  maxSize: number
+  maxSize: number,
 ): Promise<Uint8Array> {
   return new Promise((resolve, reject) => {
     gunzip(compressed, (error, result) => {
@@ -351,8 +351,8 @@ async function performAsyncDecompression(
             "gzip",
             "decompress",
             0,
-            "Check if file is properly compressed with standard gzip format"
-          )
+            "Check if file is properly compressed with standard gzip format",
+          ),
         );
         return;
       }
@@ -362,8 +362,8 @@ async function performAsyncDecompression(
           new CompressionError(
             `Decompressed size ${result.length} exceeds maximum ${maxSize}`,
             "gzip",
-            "decompress"
-          )
+            "decompress",
+          ),
         );
         return;
       }
@@ -376,7 +376,7 @@ async function performAsyncDecompression(
 async function performFflateDecompression(
   compressed: Uint8Array,
   options: { maxOutputSize: number; validateIntegrity: boolean },
-  method: "sync" | "async" | "streaming"
+  method: "sync" | "async" | "streaming",
 ): Promise<Uint8Array> {
   switch (method) {
     case "sync":
@@ -392,7 +392,7 @@ async function performFflateDecompression(
 
 async function decompressViaFflateStream(
   compressed: Uint8Array,
-  options: { maxOutputSize: number; validateIntegrity: boolean }
+  options: { maxOutputSize: number; validateIntegrity: boolean },
 ): Promise<Uint8Array> {
   const chunks: Uint8Array[] = [];
   let totalSize = 0;
@@ -408,8 +408,8 @@ async function decompressViaFflateStream(
             new CompressionError(
               `Decompressed size ${totalSize} exceeds maximum ${options.maxOutputSize}`,
               "gzip",
-              "decompress"
-            )
+              "decompress",
+            ),
           );
           return;
         }
@@ -427,8 +427,8 @@ async function decompressViaFflateStream(
         new CompressionError(
           error instanceof Error ? error.message : String(error),
           "gzip",
-          "decompress"
-        )
+          "decompress",
+        ),
       );
     }
   });
@@ -489,8 +489,8 @@ function createFflateTransformStream(options: {
               new CompressionError(
                 `Decompressed size ${totalBytes} exceeds maximum ${options.maxOutputSize}`,
                 "gzip",
-                "stream"
-              )
+                "stream",
+              ),
             );
             return;
           }
@@ -520,7 +520,7 @@ function createFflateTransformStream(options: {
         throw new CompressionError(
           error instanceof Error ? error.message : String(error),
           "gzip",
-          "stream"
+          "stream",
         );
       }
     },
@@ -536,7 +536,7 @@ function createFflateTransformStream(options: {
         throw new CompressionError(
           error instanceof Error ? error.message : String(error),
           "gzip",
-          "stream"
+          "stream",
         );
       }
     },

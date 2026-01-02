@@ -751,7 +751,7 @@ const GENETIC_CODES: Map<number, GeneticCodeDefinition> = new Map([
 export function translate(
   sequence: string,
   codeId: GeneticCode = GeneticCode.STANDARD,
-  frame: 0 | 1 | 2 = 0
+  frame: 0 | 1 | 2 = 0,
 ): string {
   // Tiger Style: Assert inputs
   if (!sequence || typeof sequence !== "string") {
@@ -823,7 +823,7 @@ export function translate(
  */
 export function translateSixFrames(
   sequence: string,
-  codeId: GeneticCode = GeneticCode.STANDARD
+  codeId: GeneticCode = GeneticCode.STANDARD,
 ): Record<string, string> {
   // Tiger Style: Assert input
   if (!sequence || typeof sequence !== "string") {
@@ -909,7 +909,7 @@ export function translateSixFrames(
 export function findORFs(
   sequence: string,
   codeId: GeneticCode = GeneticCode.STANDARD,
-  minLength: number = 20
+  minLength: number = 20,
 ): Array<{
   id?: string;
   sequence?: string;
@@ -970,7 +970,7 @@ function processFrameForORFs(
   frame: number,
   strand: "+" | "-",
   code: GeneticCodeDefinition,
-  minLength: number
+  minLength: number,
 ): Array<{
   start: number;
   end: number;
@@ -1244,7 +1244,7 @@ export function isAlternativeStart(codon: string): boolean {
  */
 export function translateCodon(
   codon: string,
-  codonTable: { readonly [codon: string]: string }
+  codonTable: { readonly [codon: string]: string },
 ): string {
   // Direct translation for exact matches
   const directTranslation = codonTable[codon];

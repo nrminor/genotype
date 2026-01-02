@@ -35,7 +35,7 @@ tasks to are vaguely defined or lack micro-step precision, as described below:
 
 ```bash
 echo "=== Starting [specific micro-task] ===" >> reports/$(date +%Y%m%d)/[PROJECT]/PROGRESS_LOG.md
-echo "Found: [specific discovery]" >> reports/$(date +%Y%m%d)/[PROJECT]/PROGRESS_LOG.md  
+echo "Found: [specific discovery]" >> reports/$(date +%Y%m%d)/[PROJECT]/PROGRESS_LOG.md
 echo "✅ [specific achievement completed]" >> reports/$(date +%Y%m%d)/[PROJECT]/PROGRESS_LOG.md
 ```
 

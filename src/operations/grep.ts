@@ -74,7 +74,7 @@ export class GrepProcessor {
    */
   async *process(
     source: AsyncIterable<AbstractSequence>,
-    options: GrepOptions
+    options: GrepOptions,
   ): AsyncIterable<AbstractSequence> {
     // Direct ArkType validation
     const validationResult = GrepOptionsSchema(options);
@@ -125,7 +125,7 @@ export class GrepProcessor {
         return seq.description ?? null;
       default:
         throw new GrepError(
-          `Invalid search target: ${target}. Valid targets: ${["sequence", "id", "description"].join(", ")}`
+          `Invalid search target: ${target}. Valid targets: ${["sequence", "id", "description"].join(", ")}`,
         );
     }
   }
@@ -156,7 +156,7 @@ export class GrepProcessor {
         searchTarget,
         searchPattern,
         maxMismatches,
-        searchBothStrands === true
+        searchBothStrands === true,
       );
     }
 
@@ -164,7 +164,7 @@ export class GrepProcessor {
     if (wholeWord === true) {
       const wordRegex = new RegExp(
         `\\b${this.escapeRegex(searchPattern)}\\b`,
-        ignoreCase === true ? "i" : ""
+        ignoreCase === true ? "i" : "",
       );
       return wordRegex.test(target);
     }

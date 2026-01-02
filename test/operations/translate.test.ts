@@ -32,7 +32,7 @@ async function* singleSequence(seq: AbstractSequence): AsyncIterable<AbstractSeq
 }
 
 async function collectResults(
-  iterator: AsyncIterable<AbstractSequence>
+  iterator: AsyncIterable<AbstractSequence>,
 ): Promise<AbstractSequence[]> {
   const results: AbstractSequence[] = [];
   for await (const seq of iterator) {
@@ -163,7 +163,7 @@ describe("TranslateProcessor", () => {
       const results = await collectResults(
         processor.process(source, {
           geneticCode: GeneticCode.VERTEBRATE_MITOCHONDRIAL,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -177,7 +177,7 @@ describe("TranslateProcessor", () => {
       const results = await collectResults(
         processor.process(source, {
           geneticCode: GeneticCode.CILIATE_NUCLEAR,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -194,7 +194,7 @@ describe("TranslateProcessor", () => {
         processor.process(source, {
           convertStartCodons: true,
           allowAlternativeStarts: true,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -218,7 +218,7 @@ describe("TranslateProcessor", () => {
       const results = await collectResults(
         processor.process(source, {
           convertStartCodons: true,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -244,7 +244,7 @@ describe("TranslateProcessor", () => {
       const results = await collectResults(
         processor.process(source, {
           removeStopCodons: true,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -258,7 +258,7 @@ describe("TranslateProcessor", () => {
       const results = await collectResults(
         processor.process(source, {
           stopCodonChar: "X",
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -272,7 +272,7 @@ describe("TranslateProcessor", () => {
       const results = await collectResults(
         processor.process(source, {
           trimAtFirstStop: true,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -318,7 +318,7 @@ describe("TranslateProcessor", () => {
       const results = await collectResults(
         processor.process(source, {
           unknownCodonChar: "?",
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -335,7 +335,7 @@ describe("TranslateProcessor", () => {
         processor.process(source, {
           orfsOnly: true,
           convertStartCodons: true,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -350,7 +350,7 @@ describe("TranslateProcessor", () => {
         processor.process(source, {
           orfsOnly: true,
           minOrfLength: 10, // Longer than our ORF
-        })
+        }),
       );
 
       expect(results).toHaveLength(0); // Should be filtered out
@@ -365,7 +365,7 @@ describe("TranslateProcessor", () => {
           orfsOnly: true,
           allowAlternativeStarts: true,
           convertStartCodons: true,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -379,7 +379,7 @@ describe("TranslateProcessor", () => {
       const results = await collectResults(
         processor.process(source, {
           orfsOnly: true,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -396,7 +396,7 @@ describe("TranslateProcessor", () => {
         processor.process(source, {
           frames: [2, -1],
           includeFrameInId: true,
-        })
+        }),
       );
 
       expect(results).toHaveLength(2);
@@ -412,7 +412,7 @@ describe("TranslateProcessor", () => {
         processor.process(source, {
           frames: [1],
           includeFrameInId: true,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -427,7 +427,7 @@ describe("TranslateProcessor", () => {
         processor.process(source, {
           frames: [1],
           includeFrameInId: true,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -453,7 +453,7 @@ describe("TranslateProcessor", () => {
         await collectResults(
           processor.process(source, {
             frames: [4] as Array<1 | 2 | 3 | -1 | -2 | -3>,
-          })
+          }),
         );
       }).toThrow("frames[0] must be");
     });
@@ -512,7 +512,7 @@ describe("TranslateProcessor", () => {
           unknownCodonChar: "?",
           includeFrameInId: true,
           orfsOnly: false,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -533,7 +533,7 @@ describe("TranslateProcessor", () => {
           frames: [1],
           convertStartCodons: true,
           allowAlternativeStarts: true,
-        })
+        }),
       );
 
       expect(results).toHaveLength(3);
@@ -552,7 +552,7 @@ describe("TranslateProcessor", () => {
       const results = await collectResults(
         processor.process(source, {
           geneticCode: GeneticCode.YEAST_MITOCHONDRIAL,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -567,7 +567,7 @@ describe("TranslateProcessor", () => {
       const results = await collectResults(
         processor.process(source, {
           geneticCode: GeneticCode.BACTERIAL_PLASTID,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);

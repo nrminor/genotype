@@ -524,7 +524,7 @@ describe("Essential invariants", () => {
     // Verifies streaming functionality - crucial for large genomic files
     const largeSAM = Array.from(
       { length: 100 },
-      (_, i) => `read${i}\t0\tchr1\t${1000 + i}\t60\t4M\t*\t0\t0\tACGT\tIIII`
+      (_, i) => `read${i}\t0\tchr1\t${1000 + i}\t60\t4M\t*\t0\t0\tACGT\tIIII`,
     ).join("\n");
 
     let recordCount = 0;

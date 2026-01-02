@@ -139,7 +139,11 @@ describe("WindowsProcessor", () => {
 
     // Step = 3, greedy = true
     const windows: KmerSequence<4>[] = [];
-    for await (const w of processor.process(makeAsync([seq]), { size: 4, step: 3, greedy: true })) {
+    for await (const w of processor.process(makeAsync([seq]), {
+      size: 4,
+      step: 3,
+      greedy: true,
+    })) {
       windows.push(w);
     }
 

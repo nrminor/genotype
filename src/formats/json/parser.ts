@@ -147,7 +147,7 @@ export class JSONParser {
    */
   private rowToSequence(
     row: Record<string, unknown>,
-    options?: JSONParseOptions
+    options?: JSONParseOptions,
   ): AbstractSequence {
     // Detect format from row or use provided format
     const format = options?.format || this.detectFormat(row);
@@ -297,7 +297,7 @@ export class JSONLParser {
    */
   private rowToSequence(
     row: Record<string, unknown>,
-    options?: JSONParseOptions
+    options?: JSONParseOptions,
   ): AbstractSequence {
     // Detect format from row or use provided format
     const format = options?.format || this.detectFormat(row);

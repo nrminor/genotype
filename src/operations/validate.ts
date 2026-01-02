@@ -203,7 +203,7 @@ export class SequenceValidator {
    */
   validateAndClean(
     sequence: string,
-    options: { replaceChar?: string; returnCleaned?: boolean } = {}
+    options: { replaceChar?: string; returnCleaned?: boolean } = {},
   ): {
     isValid: boolean;
     originalSequence: string;
@@ -221,7 +221,7 @@ export class SequenceValidator {
 
       if (!isValid) {
         errors.push(
-          `Sequence contains characters not valid for ${this.mode} ${this.type} validation`
+          `Sequence contains characters not valid for ${this.mode} ${this.type} validation`,
         );
       }
 
@@ -251,7 +251,7 @@ export class SequenceValidator {
           }
         } catch (cleanError) {
           errors.push(
-            `Failed to clean sequence: ${cleanError instanceof Error ? cleanError.message : String(cleanError)}`
+            `Failed to clean sequence: ${cleanError instanceof Error ? cleanError.message : String(cleanError)}`,
           );
         }
       }
@@ -300,7 +300,7 @@ export class ValidateProcessor implements Processor<ValidateOptions> {
    */
   async *process(
     source: AsyncIterable<AbstractSequence>,
-    options: ValidateOptions
+    options: ValidateOptions,
   ): AsyncIterable<AbstractSequence> {
     const validator = this.createValidator(options);
 
@@ -348,7 +348,7 @@ export class ValidateProcessor implements Processor<ValidateOptions> {
   private validateSequence(
     seq: AbstractSequence,
     options: ValidateOptions,
-    validator: SequenceValidator
+    validator: SequenceValidator,
   ): AbstractSequence | null {
     const action = options.action || "reject";
 

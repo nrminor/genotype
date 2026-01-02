@@ -38,7 +38,7 @@ const MEMORY_CHECK_INTERVAL = 1000; // Check memory every 1000 lines
  */
 export async function* readLines(
   stream: ReadableStream<Uint8Array>,
-  encoding: "utf8" | "ascii" | "binary" = "utf8"
+  encoding: "utf8" | "ascii" | "binary" = "utf8",
 ): AsyncIterable<string> {
   // TypeScript guarantees types - no defensive checking needed
 
@@ -89,7 +89,7 @@ export async function* readLines(
         throw new BufferError(
           `Buffer overflow: ${buffer.length} bytes exceeds maximum ${MAX_BUFFER_SIZE}`,
           buffer.length,
-          "overflow"
+          "overflow",
         );
       }
     }
@@ -110,7 +110,7 @@ export async function* readLines(
     throw new StreamError(
       `Line reading failed: ${error instanceof Error ? error.message : String(error)}`,
       "read",
-      totalBytesProcessed
+      totalBytesProcessed,
     );
   } finally {
     reader.releaseLock();
@@ -156,7 +156,7 @@ export function processBuffer(buffer: string): LineProcessingResult {
           `Line too long: ${line.length} characters exceeds maximum ${MAX_LINE_LENGTH}`,
           line.length,
           "overflow",
-          `Line starts with: ${line.slice(0, 100)}...`
+          `Line starts with: ${line.slice(0, 100)}...`,
         );
       }
 
@@ -174,7 +174,7 @@ export function processBuffer(buffer: string): LineProcessingResult {
         throw new BufferError(
           `Line too long: ${line.length} characters exceeds maximum ${MAX_LINE_LENGTH}`,
           line.length,
-          "overflow"
+          "overflow",
         );
       }
 
@@ -195,7 +195,7 @@ export function processBuffer(buffer: string): LineProcessingResult {
         `Incomplete line too long: ${remainder.length} characters exceeds maximum ${MAX_LINE_LENGTH}`,
         remainder.length,
         "overflow",
-        "This might indicate a file without proper line endings"
+        "This might indicate a file without proper line endings",
       );
     }
   }
@@ -223,7 +223,7 @@ export function processBuffer(buffer: string): LineProcessingResult {
  */
 export async function* pipe<T, U>(
   input: AsyncIterable<T>,
-  transform: (item: T, index: number) => U | Promise<U>
+  transform: (item: T, index: number) => U | Promise<U>,
 ): AsyncIterable<U> {
   // TypeScript guarantees types - no defensive checking needed
 
@@ -240,7 +240,7 @@ export async function* pipe<T, U>(
         throw new StreamError(
           `Transform failed at index ${index}: ${error instanceof Error ? error.message : String(error)}`,
           "transform",
-          processedCount
+          processedCount,
         );
       }
 
@@ -251,7 +251,7 @@ export async function* pipe<T, U>(
     throw new StreamError(
       `Stream processing failed: ${error instanceof Error ? error.message : String(error)}`,
       "read",
-      processedCount
+      processedCount,
     );
   }
 }
@@ -274,7 +274,7 @@ export async function* pipe<T, U>(
  * ```
  */
 export async function* processChunks(
-  stream: ReadableStream<Uint8Array>
+  stream: ReadableStream<Uint8Array>,
 ): AsyncIterable<StreamChunk & { stats: StreamStats }> {
   // TypeScript guarantees stream type - no defensive checking needed
 
@@ -338,7 +338,7 @@ export async function* processChunks(
     throw new StreamError(
       `Chunk processing failed: ${error instanceof Error ? error.message : String(error)}`,
       "read",
-      totalBytes
+      totalBytes,
     );
   } finally {
     reader.releaseLock();
@@ -357,7 +357,7 @@ export async function* processChunks(
  */
 export async function* batchLines(
   lines: AsyncIterable<string>,
-  batchSize: number = 1000
+  batchSize: number = 1000,
 ): AsyncIterable<string[]> {
   // TypeScript guarantees types - no defensive checking needed
 
@@ -384,7 +384,7 @@ export async function* batchLines(
     throw new StreamError(
       `Batch processing failed: ${error instanceof Error ? error.message : String(error)}`,
       "transform",
-      batchCount * batchSize
+      batchCount * batchSize,
     );
   }
 }
@@ -423,7 +423,7 @@ function checkMemoryUsage(bufferSize: number, totalProcessed: number): void {
     throw new MemoryError(
       `Memory usage ${estimatedMemory} bytes exceeds ${runtime} limit of ${limit} bytes` +
         `after processing ${totalProcessed} records.`,
-      `Consider using smaller buffer sizes than ${bufferSize} or processing files in chunks`
+      `Consider using smaller buffer sizes than ${bufferSize} or processing files in chunks`,
     );
   }
 }

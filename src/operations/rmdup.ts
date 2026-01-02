@@ -61,7 +61,7 @@ export class RmdupProcessor {
    */
   async *process(
     source: AsyncIterable<AbstractSequence>,
-    options: RmdupOptions
+    options: RmdupOptions,
   ): AsyncIterable<AbstractSequence> {
     // Direct ArkType validation
     const validationResult = RmdupOptionsSchema(options);
@@ -89,7 +89,7 @@ export class RmdupProcessor {
   private async *exactDeduplication(
     source: AsyncIterable<AbstractSequence>,
     strategy: DeduplicationStrategy,
-    caseSensitive: boolean
+    caseSensitive: boolean,
   ): AsyncIterable<AbstractSequence> {
     const deduplicator = new ExactDeduplicator(strategy, caseSensitive);
 
@@ -111,7 +111,7 @@ export class RmdupProcessor {
   private async *bloomDeduplication(
     source: AsyncIterable<AbstractSequence>,
     strategy: DeduplicationStrategy,
-    options: RmdupOptions
+    options: RmdupOptions,
   ): AsyncIterable<AbstractSequence> {
     const deduplicationOptions = {
       strategy,

@@ -68,11 +68,7 @@ export {
 // FASTA format exports
 export { FastaParser, FastaUtils, FastaWriter } from "./fasta";
 // FASTQ format exports
-export {
-  FastqParser,
-  FastqUtils,
-  FastqWriter,
-} from "./fastq";
+export { FastqParser, FastqUtils, FastqWriter } from "./fastq";
 // GTF format exports
 export {
   countGtfFeatures,

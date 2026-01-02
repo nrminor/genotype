@@ -349,7 +349,7 @@ ${stats.qualityStats ? `Mean quality: ${stats.qualityStats.meanQuality.toFixed(2
  * Utility function to calculate stats for a complete sequence collection
  */
 export async function calculateSequenceStats(
-  sequences: AsyncIterable<AbstractSequence> | Iterable<AbstractSequence>
+  sequences: AsyncIterable<AbstractSequence> | Iterable<AbstractSequence>,
 ): Promise<SequenceStats> {
   const accumulator = new SequenceStatsAccumulator();
 

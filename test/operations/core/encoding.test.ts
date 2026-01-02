@@ -27,11 +27,11 @@ describe("QualityEncodingDetector", () => {
 
     test("throws error for out-of-range scores", () => {
       expect(() => QualityEncodingDetector.scoreToChar(-1, "phred33")).toThrow(
-        "Score must be a non-negative number"
+        "Score must be a non-negative number",
       );
 
       expect(() => QualityEncodingDetector.scoreToChar(100, "phred33")).toThrow(
-        "Score 100 out of range for phred33 encoding"
+        "Score 100 out of range for phred33 encoding",
       );
     });
   });
@@ -53,21 +53,21 @@ describe("QualityEncodingDetector", () => {
 
     test("throws error for invalid characters", () => {
       expect(() => QualityEncodingDetector.charToScore(" ", "phred33")).toThrow(
-        "Character ' ' (ASCII 32) invalid for phred33"
+        "Character ' ' (ASCII 32) invalid for phred33",
       );
 
       expect(() => QualityEncodingDetector.charToScore("5", "phred64")).toThrow(
-        "Character '5' (ASCII 53) invalid for phred64"
+        "Character '5' (ASCII 53) invalid for phred64",
       );
     });
 
     test("throws error for empty or multi-character strings", () => {
       expect(() => QualityEncodingDetector.charToScore("", "phred33")).toThrow(
-        "Single character required for score conversion"
+        "Single character required for score conversion",
       );
 
       expect(() => QualityEncodingDetector.charToScore("AB", "phred33")).toThrow(
-        "Single character required for score conversion"
+        "Single character required for score conversion",
       );
     });
   });
@@ -91,7 +91,7 @@ describe("QualityEncodingDetector", () => {
 
     test("handles empty quality strings", () => {
       expect(() => QualityEncodingDetector.averageQuality("", "phred33")).toThrow(
-        "Quality string is required for average calculation"
+        "Quality string is required for average calculation",
       );
     });
 
@@ -138,7 +138,7 @@ describe("QualityEncodingDetector", () => {
 
     test("throws error for invalid input", () => {
       expect(() => QualityEncodingDetector.convertScore("", "phred33", "phred64")).toThrow(
-        "Quality string is required for conversion"
+        "Quality string is required for conversion",
       );
     });
   });
@@ -292,9 +292,8 @@ describe("QualityEncodingDetector", () => {
       }
 
       // Should still work and not process all 15,000 sequences
-      const detected = await QualityEncodingDetector.detectEncodingStatistical(
-        generateManySequences()
-      );
+      const detected =
+        await QualityEncodingDetector.detectEncodingStatistical(generateManySequences());
       expect(detected).toBe("phred33");
     });
   });

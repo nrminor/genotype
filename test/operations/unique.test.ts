@@ -192,7 +192,9 @@ describe("UniqueProcessor", () => {
 
       const processor = new UniqueProcessor();
       const result = [];
-      for await (const seq of processor.process(makeAsync(sequences), { caseSensitive: true })) {
+      for await (const seq of processor.process(makeAsync(sequences), {
+        caseSensitive: true,
+      })) {
         result.push(seq);
       }
 
@@ -207,7 +209,9 @@ describe("UniqueProcessor", () => {
 
       const processor = new UniqueProcessor();
       const result = [];
-      for await (const seq of processor.process(makeAsync(sequences), { caseSensitive: false })) {
+      for await (const seq of processor.process(makeAsync(sequences), {
+        caseSensitive: false,
+      })) {
         result.push(seq);
       }
 
@@ -219,9 +223,27 @@ describe("UniqueProcessor", () => {
   describe("custom key function", () => {
     test("deduplicates by custom key function", async () => {
       const sequences: AbstractSequence[] = [
-        { id: "sample1_read1", sequence: "ATCG", length: 4, lineNumber: 1, description: "" },
-        { id: "sample1_read2", sequence: "GCTA", length: 4, lineNumber: 2, description: "" },
-        { id: "sample2_read1", sequence: "TTTT", length: 4, lineNumber: 3, description: "" },
+        {
+          id: "sample1_read1",
+          sequence: "ATCG",
+          length: 4,
+          lineNumber: 1,
+          description: "",
+        },
+        {
+          id: "sample1_read2",
+          sequence: "GCTA",
+          length: 4,
+          lineNumber: 2,
+          description: "",
+        },
+        {
+          id: "sample2_read1",
+          sequence: "TTTT",
+          length: 4,
+          lineNumber: 3,
+          description: "",
+        },
       ];
 
       const processor = new UniqueProcessor();

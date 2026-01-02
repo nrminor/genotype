@@ -1,9 +1,9 @@
 name: CI
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 env:
   BUN_VERSION: latest
@@ -16,35 +16,42 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: ${{ env.BUN_VERSION }}
-      
+
       - name: Install dependencies
         run: bun install
-      
-      - name: TypeScript compilation check
+
+      - name: TypeScript type check (tsgo)
+        run: bun run typecheck
+
+      - name: Lint (oxlint)
         run: bun run lint
-      
-      - name: Format check
+
+      - name: Type-aware linting (oxlint)
+        run: bun run lint:types
+        continue-on-error: true
+
+      - name: Format check (oxfmt)
         run: bun run format:check
-      
+
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
           components: clippy, rustfmt
-      
+
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: "src/native"
-      
+
       - name: Check Rust formatting
         run: cargo fmt --manifest-path src/native/Cargo.toml -- --check
-      
+
       - name: Run Rust linting
         run: cargo clippy --manifest-path src/native/Cargo.toml -- -D warnings
 
@@ -60,15 +67,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: ${{ matrix.bun-version }}
-      
+
       - name: Install dependencies
         run: bun install
-      
+
       - name: Run TypeScript tests
         run: bun test
 
@@ -83,17 +90,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
-      
+
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: "src/native"
-      
+
       - name: Run Rust tests
         run: cargo test --manifest-path src/native/Cargo.toml
 
@@ -104,32 +111,32 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: ${{ env.BUN_VERSION }}
-      
+
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
-      
+
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: "src/native"
-      
+
       - name: Install dependencies
         run: bun install
-      
+
       # Comment out native build for now since native module isn't ready
       # - name: Build native module
       #   run: bun run build:native
-      
+
       - name: Run full validation suite
         run: bun run validate
-      
+
       # Uncomment when we have integration tests
       # - name: Test with real genomics data
       #   run: bun test test/integration/

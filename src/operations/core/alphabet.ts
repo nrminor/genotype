@@ -232,7 +232,7 @@ export function iupac<T extends string>(
   // Runtime validation using existing infrastructure
   if (!IUPAC_DNA.test(sequence)) {
     throw new Error(
-      `Invalid IUPAC sequence: contains invalid bases in "${sequence}". Valid: ACGTRYSWKMBDHVN`
+      `Invalid IUPAC sequence: contains invalid bases in "${sequence}". Valid: ACGTRYSWKMBDHVN`,
     );
   }
 
@@ -266,7 +266,7 @@ export function rna<T extends string>(
   // Runtime validation using existing infrastructure
   if (!IUPAC_RNA.test(sequence)) {
     throw new Error(
-      `Invalid RNA sequence: contains invalid bases in "${sequence}". Valid: ACGURYSWKMBDHVN`
+      `Invalid RNA sequence: contains invalid bases in "${sequence}". Valid: ACGURYSWKMBDHVN`,
     );
   }
 
@@ -317,17 +317,17 @@ export function primer<T extends string>(
   // Runtime validation for biological constraints
   if (!IUPAC_DNA.test(sequence)) {
     throw new Error(
-      `Invalid primer sequence: contains invalid bases in "${sequence}". Valid: ACGTRYSWKMBDHVN`
+      `Invalid primer sequence: contains invalid bases in "${sequence}". Valid: ACGTRYSWKMBDHVN`,
     );
   }
   if (sequence.length < 10) {
     throw new Error(
-      `Primer too short: ${sequence.length}bp < 10bp minimum for biological specificity`
+      `Primer too short: ${sequence.length}bp < 10bp minimum for biological specificity`,
     );
   }
   if (sequence.length > 50) {
     throw new Error(
-      `Primer too long: ${sequence.length}bp > 50bp maximum for efficient PCR amplification`
+      `Primer too long: ${sequence.length}bp > 50bp maximum for efficient PCR amplification`,
     );
   }
 
@@ -377,7 +377,7 @@ export function isPrimerSequence(seq: string): boolean {
  * (Though automatic widening usually makes this unnecessary)
  */
 export function asString<T extends DNASequence | IUPACSequence | RNASequence | PrimerSequence>(
-  seq: T
+  seq: T,
 ): string {
   return seq as string;
 }
@@ -387,7 +387,7 @@ export function asString<T extends DNASequence | IUPACSequence | RNASequence | P
  */
 export function validateAndBrand(
   seq: string,
-  alphabet: "dna" | "iupac" | "rna" | "primer"
+  alphabet: "dna" | "iupac" | "rna" | "primer",
 ): string | null {
   switch (alphabet) {
     case "dna":

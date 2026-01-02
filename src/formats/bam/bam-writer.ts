@@ -114,12 +114,12 @@ export class BAMWriter {
       throw new BamError(
         `Invalid compression level: ${this.options.compressionLevel} (must be 0-9)`,
         undefined,
-        "config"
+        "config",
       );
     }
     console.assert(
       this.options.blockSize >= 1024 && this.options.blockSize <= 65536,
-      "block size must be between 1KB and 64KB"
+      "block size must be between 1KB and 64KB",
     );
     console.assert(this.options.bufferSize >= 1024, "buffer size must be at least 1KB");
 
@@ -144,7 +144,7 @@ export class BAMWriter {
    */
   async writeString(
     header: SAMHeader | SAMHeader[],
-    alignments: Iterable<SAMAlignment> | AsyncIterable<SAMAlignment>
+    alignments: Iterable<SAMAlignment> | AsyncIterable<SAMAlignment>,
   ): Promise<Uint8Array> {
     // Tiger Style: Assert function arguments
     console.assert(header !== undefined, "header must be provided");
@@ -190,7 +190,7 @@ export class BAMWriter {
         undefined,
         "writing",
         undefined,
-        error instanceof Error ? error.stack : undefined
+        error instanceof Error ? error.stack : undefined,
       );
     }
   }
@@ -205,7 +205,7 @@ export class BAMWriter {
   async writeFile(
     filePath: string,
     header: SAMHeader | SAMHeader[],
-    alignments: Iterable<SAMAlignment> | AsyncIterable<SAMAlignment>
+    alignments: Iterable<SAMAlignment> | AsyncIterable<SAMAlignment>,
   ): Promise<void> {
     // Tiger Style: Assert function arguments
     console.assert(typeof filePath === "string", "filePath must be a string");
@@ -230,7 +230,7 @@ export class BAMWriter {
         undefined,
         "file",
         undefined,
-        error instanceof Error ? error.stack : undefined
+        error instanceof Error ? error.stack : undefined,
       );
     }
   }
@@ -249,7 +249,7 @@ export class BAMWriter {
           // Validate BGZF stream is ready
           if (bgzfStream === null || bgzfStream === undefined) {
             controller.error(
-              new BamError("BGZF compression stream failed to initialize", undefined, "stream")
+              new BamError("BGZF compression stream failed to initialize", undefined, "stream"),
             );
           }
         } catch (error) {
@@ -257,8 +257,8 @@ export class BAMWriter {
             new BamError(
               `Stream initialization failed: ${error instanceof Error ? error.message : String(error)}`,
               undefined,
-              "stream"
-            )
+              "stream",
+            ),
           );
         }
       },
@@ -276,7 +276,7 @@ export class BAMWriter {
           const bamError = new BamError(
             `Stream write failed: ${error instanceof Error ? error.message : String(error)}`,
             undefined,
-            "stream"
+            "stream",
           );
           controller.error(bamError);
           throw bamError;
@@ -292,7 +292,7 @@ export class BAMWriter {
           throw new BamError(
             `Stream close failed: ${error instanceof Error ? error.message : String(error)}`,
             undefined,
-            "stream"
+            "stream",
           );
         }
       },
@@ -484,7 +484,7 @@ export class BAMWriter {
       // Write next_refID
       const nextRefID = this.getRefID(
         alignment.rnext === "=" ? alignment.rname : alignment.rnext,
-        references
+        references,
       );
       writeInt32LE(view, offset, nextRefID);
       offset += 4;
@@ -527,7 +527,7 @@ export class BAMWriter {
       console.assert(result.length === offset, "result size must match bytes written");
       console.assert(
         result.length >= 36,
-        "alignment must be at least 36 bytes (32 fixed + 4 block size)"
+        "alignment must be at least 36 bytes (32 fixed + 4 block size)",
       );
 
       return result;
@@ -541,7 +541,7 @@ export class BAMWriter {
         alignment.qname,
         "alignment",
         undefined,
-        error instanceof Error ? error.stack : undefined
+        error instanceof Error ? error.stack : undefined,
       );
     }
   }
@@ -563,7 +563,7 @@ export class BAMWriter {
       throw new BamError(
         `Query name too long: ${alignment.qname.length} characters (max 254)`,
         alignment.qname,
-        "qname"
+        "qname",
       );
     }
 
@@ -571,7 +571,7 @@ export class BAMWriter {
       throw new BamError(
         `Invalid position: ${alignment.pos} (must be positive)`,
         alignment.qname,
-        "pos"
+        "pos",
       );
     }
 
@@ -579,7 +579,7 @@ export class BAMWriter {
       throw new BamError(
         `Invalid mate position: ${alignment.pnext} (must be positive)`,
         alignment.qname,
-        "pnext"
+        "pnext",
       );
     }
 
@@ -589,7 +589,7 @@ export class BAMWriter {
         throw new BamError(
           `Sequence/quality length mismatch: seq=${alignment.seq.length}, qual=${alignment.qual.length}`,
           alignment.qname,
-          "sequence_quality"
+          "sequence_quality",
         );
       }
     }
@@ -601,7 +601,7 @@ export class BAMWriter {
         if (queryLength !== alignment.seq.length) {
           if (this.options.enableWarnings) {
             console.warn(
-              `CIGAR query length (${queryLength}) doesn't match sequence length (${alignment.seq.length}) for ${alignment.qname}`
+              `CIGAR query length (${queryLength}) doesn't match sequence length (${alignment.seq.length}) for ${alignment.qname}`,
             );
           }
         }
@@ -609,7 +609,7 @@ export class BAMWriter {
         throw new BamError(
           `Invalid CIGAR string '${alignment.cigar}': ${error instanceof Error ? error.message : String(error)}`,
           alignment.qname,
-          "cigar"
+          "cigar",
         );
       }
     }
@@ -751,12 +751,12 @@ export class BAMWriter {
   private async writeToWriter(
     writer: { write(data: Uint8Array): Promise<void> },
     header: SAMHeader | SAMHeader[],
-    alignments: Iterable<SAMAlignment> | AsyncIterable<SAMAlignment>
+    alignments: Iterable<SAMAlignment> | AsyncIterable<SAMAlignment>,
   ): Promise<void> {
     // Tiger Style: Assert function arguments
     console.assert(
       writer !== undefined && writer !== null && typeof writer === "object",
-      "writer must be an object"
+      "writer must be an object",
     );
     console.assert("write" in writer, "writer must have write method");
 
@@ -822,7 +822,7 @@ export class BAMWriter {
   private async writeFileWithBun(
     filePath: string,
     header: SAMHeader | SAMHeader[],
-    alignments: Iterable<SAMAlignment> | AsyncIterable<SAMAlignment>
+    alignments: Iterable<SAMAlignment> | AsyncIterable<SAMAlignment>,
   ): Promise<void> {
     // Tiger Style: Assert function arguments and availability
     console.assert(typeof filePath === "string", "filePath must be a string");
@@ -847,7 +847,7 @@ export class BAMWriter {
   private async writeFileGeneric(
     filePath: string,
     header: SAMHeader | SAMHeader[],
-    alignments: Iterable<SAMAlignment> | AsyncIterable<SAMAlignment>
+    alignments: Iterable<SAMAlignment> | AsyncIterable<SAMAlignment>,
   ): Promise<void> {
     // Tiger Style: Assert function arguments
     console.assert(typeof filePath === "string", "filePath must be a string");
@@ -883,7 +883,7 @@ export class BAMWriter {
       undefined,
       "file",
       undefined,
-      "Use writeString() to get BAM data as Uint8Array, then write manually"
+      "Use writeString() to get BAM data as Uint8Array, then write manually",
     );
   }
 
@@ -956,7 +956,7 @@ export class BAMWriter {
     options: BAMWriterOptions & {
       prioritizeSpeed?: boolean;
       prioritizeCompression?: boolean;
-    } = {}
+    } = {},
   ): BAMWriter {
     const { prioritizeSpeed = false, prioritizeCompression = false, ...writerOptions } = options;
 

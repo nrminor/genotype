@@ -83,9 +83,9 @@ export interface UniqueOptions {
  *
  * @see UniqueOptions for configuration options
  */
-export class UniqueProcessor<T extends AbstractSequence = AbstractSequence>
-  implements Processor<UniqueOptions>
-{
+export class UniqueProcessor<
+  T extends AbstractSequence = AbstractSequence,
+> implements Processor<UniqueOptions> {
   /**
    * Process sequences and remove duplicates
    *
@@ -145,7 +145,7 @@ export class UniqueProcessor<T extends AbstractSequence = AbstractSequence>
 
   private getKeyFunction(
     by: "sequence" | "id" | "both" | ((seq: AbstractSequence) => string),
-    caseSensitive: boolean
+    caseSensitive: boolean,
   ): (seq: AbstractSequence) => string {
     if (typeof by === "function") {
       return by;
@@ -167,7 +167,7 @@ export class UniqueProcessor<T extends AbstractSequence = AbstractSequence>
   private resolveConflict(
     existing: T,
     candidate: T,
-    strategy: "last" | "longest" | "highest-quality"
+    strategy: "last" | "longest" | "highest-quality",
   ): T {
     switch (strategy) {
       case "last":

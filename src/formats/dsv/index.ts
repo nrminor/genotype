@@ -60,17 +60,9 @@ export { CSVParseState } from "./types";
 // RE-EXPORTS - MAIN CLASSES
 // =============================================================================
 
-export {
-  CSVParser,
-  DSVParser,
-  TSVParser,
-} from "./parser";
+export { CSVParser, DSVParser, TSVParser } from "./parser";
 
-export {
-  CSVWriter,
-  DSVWriter,
-  TSVWriter,
-} from "./writer";
+export { CSVWriter, DSVWriter, TSVWriter } from "./writer";
 
 // =============================================================================
 // RE-EXPORTS - DETECTION
@@ -117,10 +109,7 @@ export {
 // RE-EXPORTS - EXCEL PROTECTION
 // =============================================================================
 
-export {
-  ExcelProtector,
-  protectFromExcel,
-} from "./excel-protection";
+export { ExcelProtector, protectFromExcel } from "./excel-protection";
 
 // =============================================================================
 // RE-EXPORTS - STATE MACHINE (Low-level CSV parsing)

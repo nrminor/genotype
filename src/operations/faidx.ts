@@ -146,7 +146,7 @@ class CoordinateParseError extends Error {
   constructor(
     message: string,
     public readonly input: string,
-    public readonly position?: number
+    public readonly position?: number,
   ) {
     super(message);
     this.name = "CoordinateParseError";
@@ -512,7 +512,7 @@ export class FaiBuilder {
       if (parts.length !== 5) {
         throw new ParseError(
           `Invalid .fai format: expected 5 columns, got ${parts.length}. Line: ${line}`,
-          "fai"
+          "fai",
         );
       }
 
@@ -522,7 +522,7 @@ export class FaiBuilder {
       if (!name || !lengthStr || !offsetStr || !linebasesStr || !linewidthStr) {
         throw new ParseError(
           `Incomplete .fai record: missing required fields. Line: ${line}`,
-          "fai"
+          "fai",
         );
       }
 
@@ -619,7 +619,7 @@ export class Faidx {
           `Please decompress the file first:\n` +
           `  - For .gz files: gunzip ${this.fastaPath}\n` +
           `  - For .bgzf files: bgzip -d ${this.fastaPath}\n` +
-          `  - For .zst files: zstd -d ${this.fastaPath}`
+          `  - For .zst files: zstd -d ${this.fastaPath}`,
       );
     }
 
@@ -661,7 +661,7 @@ export class Faidx {
 
     if (!record) {
       throw new ValidationError(
-        `Sequence "${parsed.seqId}" not found in index. Available sequences: ${this.builder.getSequenceIds().slice(0, 5).join(", ")}${this.builder.size() > 5 ? "..." : ""}`
+        `Sequence "${parsed.seqId}" not found in index. Available sequences: ${this.builder.getSequenceIds().slice(0, 5).join(", ")}${this.builder.size() > 5 ? "..." : ""}`,
       );
     }
 
@@ -814,7 +814,7 @@ export class Faidx {
    */
   async *extractByPattern(
     pattern: string | RegExp,
-    options?: ExtractOptions
+    options?: ExtractOptions,
   ): AsyncIterable<FastaSequence> {
     // Validate options if provided
     if (options) {
@@ -841,7 +841,7 @@ export class Faidx {
       }
     } catch (error) {
       throw new ValidationError(
-        `Invalid regex pattern: ${error instanceof Error ? error.message : String(error)}`
+        `Invalid regex pattern: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
 
@@ -873,7 +873,7 @@ export class Faidx {
   private async extractSubsequence(
     record: FaidxRecord,
     start: number,
-    end: number
+    end: number,
   ): Promise<string> {
     const { startByte, endByte } = calculateByteRange(start, end, record);
 
@@ -907,7 +907,7 @@ export class Faidx {
 function calculateByteRange(
   start: number,
   end: number,
-  record: FaidxRecord
+  record: FaidxRecord,
 ): { startByte: number; endByte: number } {
   const start0 = start - 1;
   const end0 = end - 1;
@@ -1022,14 +1022,14 @@ function validateCoordinates(start: number, end: number, seqId: string, seqLengt
   if (start < 1) {
     throw new ValidationError(
       `Start position ${start} is less than 1 for sequence "${seqId}". ` +
-        `Coordinates are 1-based. Try using 1 for the first base.`
+        `Coordinates are 1-based. Try using 1 for the first base.`,
     );
   }
 
   if (start > seqLength) {
     throw new ValidationError(
       `Start position ${start} exceeds sequence length ${seqLength} for "${seqId}". ` +
-        `Valid coordinates are 1-${seqLength}.`
+        `Valid coordinates are 1-${seqLength}.`,
     );
   }
 
@@ -1037,21 +1037,21 @@ function validateCoordinates(start: number, end: number, seqId: string, seqLengt
   if (end < 1) {
     throw new ValidationError(
       `End position ${end} is less than 1 for sequence "${seqId}". ` +
-        `Use -1 to mean "end of sequence" or positive coordinates.`
+        `Use -1 to mean "end of sequence" or positive coordinates.`,
     );
   }
 
   if (end > seqLength) {
     throw new ValidationError(
       `End position ${end} exceeds sequence length ${seqLength} for "${seqId}". ` +
-        `Valid coordinates are 1-${seqLength}.`
+        `Valid coordinates are 1-${seqLength}.`,
     );
   }
 
   // Check range validity (after coordinate swapping for reverse complement)
   if (start > end) {
     throw new ValidationError(
-      `Invalid range: start (${start}) > end (${end}) for sequence "${seqId}".`
+      `Invalid range: start (${start}) > end (${end}) for sequence "${seqId}".`,
     );
   }
 }

@@ -107,7 +107,7 @@ export class BAIReader {
         undefined,
         "file_format",
         undefined,
-        `File: ${this.filePath}`
+        `File: ${this.filePath}`,
       );
     }
   }
@@ -131,7 +131,7 @@ export class BAIReader {
         undefined,
         `Expected: "BAI\\1", Found: ${Array.from(magic)
           .map((b) => `0x${b.toString(16).padStart(2, "0")}`)
-          .join(" ")}`
+          .join(" ")}`,
       );
     }
     offset += 4;
@@ -158,7 +158,7 @@ export class BAIReader {
     view: DataView,
     startOffset: number,
     referenceCount: number,
-    totalBytes: number
+    totalBytes: number,
   ): { references: BAIReference[]; finalOffset: number } {
     const references: BAIReference[] = [];
     let offset = startOffset;
@@ -169,7 +169,7 @@ export class BAIReader {
           throw new BamError(
             `Unexpected end of file while reading reference ${refId}`,
             undefined,
-            "file_format"
+            "file_format",
           );
         }
 
@@ -184,7 +184,7 @@ export class BAIReader {
           undefined,
           "reference_parsing",
           offset,
-          `Reference ID: ${refId}, Offset: ${offset}`
+          `Reference ID: ${refId}, Offset: ${offset}`,
         );
       }
     }
@@ -208,7 +208,7 @@ export class BAIReader {
     console.assert(index.referenceCount === referenceCount, "reference count must match");
     console.assert(
       index.references.length === referenceCount,
-      "references array length must match"
+      "references array length must match",
     );
 
     return index;
@@ -251,7 +251,7 @@ export class BAIReader {
         view,
         headerData.offset,
         headerData.referenceCount,
-        totalBytes
+        totalBytes,
       );
 
       // Validate we consumed all data
@@ -267,7 +267,7 @@ export class BAIReader {
 
       const loadTime = Date.now() - startTime;
       console.log(
-        `Loaded BAI index: ${headerData.referenceCount} references, ${loadTime}ms, ${(totalBytes / 1024).toFixed(1)}KB`
+        `Loaded BAI index: ${headerData.referenceCount} references, ${loadTime}ms, ${(totalBytes / 1024).toFixed(1)}KB`,
       );
 
       return this.cachedIndex;
@@ -280,7 +280,7 @@ export class BAIReader {
         undefined,
         "index_loading",
         undefined,
-        `File: ${this.filePath}`
+        `File: ${this.filePath}`,
       );
     }
   }
@@ -297,7 +297,7 @@ export class BAIReader {
     // Tiger Style: Assert function arguments
     console.assert(
       Number.isInteger(referenceId) && referenceId >= 0,
-      "referenceId must be non-negative integer"
+      "referenceId must be non-negative integer",
     );
     console.assert(Number.isInteger(start) && start >= 0, "start must be non-negative integer");
     console.assert(Number.isInteger(end) && end >= 0, "end must be non-negative integer");
@@ -306,7 +306,7 @@ export class BAIReader {
       throw new BamError(
         `Invalid query region: end (${end}) must be > start (${start})`,
         undefined,
-        "query_coordinates"
+        "query_coordinates",
       );
     }
 
@@ -317,7 +317,7 @@ export class BAIReader {
       throw new BamError(
         `Reference ID ${referenceId} out of bounds (max ${index.referenceCount - 1})`,
         undefined,
-        "query_coordinates"
+        "query_coordinates",
       );
     }
 
@@ -326,7 +326,7 @@ export class BAIReader {
       throw new BamError(
         `Reference ${referenceId} not found in index`,
         undefined,
-        "query_reference"
+        "query_reference",
       );
     }
 
@@ -352,7 +352,7 @@ export class BAIReader {
         allChunks,
         reference.linearIndex,
         start,
-        end
+        end,
       );
 
       // Merge adjacent/overlapping chunks to minimize I/O
@@ -379,7 +379,7 @@ export class BAIReader {
         undefined,
         "region_query",
         undefined,
-        `Reference: ${referenceId}, Region: ${start}-${end}`
+        `Reference: ${referenceId}, Region: ${start}-${end}`,
       );
     }
   }
@@ -394,7 +394,7 @@ export class BAIReader {
     // Tiger Style: Assert function arguments
     console.assert(
       Number.isInteger(referenceId) && referenceId >= 0,
-      "referenceId must be non-negative integer"
+      "referenceId must be non-negative integer",
     );
 
     const index = await this.readIndex();
@@ -403,7 +403,7 @@ export class BAIReader {
       throw new BamError(
         `Reference ID ${referenceId} out of bounds (max ${index.referenceCount - 1})`,
         undefined,
-        "reference_id"
+        "reference_id",
       );
     }
 
@@ -412,14 +412,14 @@ export class BAIReader {
       throw new BamError(
         `Reference ${referenceId} not found in index`,
         undefined,
-        "reference_access"
+        "reference_access",
       );
     }
 
     // Tiger Style: Assert postconditions
     console.assert(
       reference.linearIndex.intervals.length >= 0,
-      "linear index must have valid intervals"
+      "linear index must have valid intervals",
     );
 
     return reference.linearIndex;
@@ -431,7 +431,7 @@ export class BAIReader {
    * @returns Promise resolving to validation result
    */
   async validateIndex(
-    thorough = false
+    thorough = false,
   ): Promise<{ isValid: boolean; warnings: string[]; errors: string[] }> {
     const warnings: string[] = [];
     const errors: string[] = [];
@@ -488,7 +488,7 @@ export class BAIReader {
       }
     } catch (error) {
       errors.push(
-        `Index validation failed: ${error instanceof Error ? error.message : String(error)}`
+        `Index validation failed: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
 
@@ -514,7 +514,7 @@ export class BAIReader {
       const binCount = ref.bins.size;
       const chunkCount = Array.from(ref.bins.values()).reduce(
         (sum, bin) => sum + bin.chunks.length,
-        0
+        0,
       );
       const intervalCount = ref.linearIndex.intervals.length;
 
@@ -566,7 +566,7 @@ export class BAIReader {
       delete this.cachedIndex;
     } catch (error) {
       console.warn(
-        `Error closing BAI reader: ${error instanceof Error ? error.message : String(error)}`
+        `Error closing BAI reader: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
@@ -599,7 +599,7 @@ export class BAIReader {
         undefined,
         "file_io",
         undefined,
-        `File: ${this.filePath}`
+        `File: ${this.filePath}`,
       );
     }
   }
@@ -630,7 +630,7 @@ export class BAIReader {
   private parseReference(
     view: DataView,
     offset: number,
-    refId: number
+    refId: number,
   ): { data: BAIReference; bytesConsumed: number } {
     let currentOffset = offset;
     const startOffset = offset;
@@ -674,7 +674,7 @@ export class BAIReader {
           throw new BamError(
             `Invalid virtual offset at interval ${i}: ${validatedOffset.toString()}`,
             undefined,
-            "virtual_offset"
+            "virtual_offset",
           );
         }
         intervals.push(validatedOffset);
@@ -700,7 +700,7 @@ export class BAIReader {
         `Failed to parse reference at offset ${offset}: ${error instanceof Error ? error.message : String(error)}`,
         undefined,
         "reference_parsing",
-        offset
+        offset,
       );
     }
   }
@@ -743,7 +743,7 @@ export class BAIReader {
           throw new BamError(
             `Invalid begin offset for chunk ${chunkIdx}: ${beginOffsetValidated.toString()}`,
             undefined,
-            "virtual_offset"
+            "virtual_offset",
           );
         }
         const beginOffset = beginOffsetValidated;
@@ -755,7 +755,7 @@ export class BAIReader {
           throw new BamError(
             `Invalid end offset for chunk ${chunkIdx}: ${endOffsetValidated.toString()}`,
             undefined,
-            "virtual_offset"
+            "virtual_offset",
           );
         }
         const endOffset = endOffsetValidated;
@@ -782,7 +782,7 @@ export class BAIReader {
         `Failed to parse bin at offset ${offset}: ${error instanceof Error ? error.message : String(error)}`,
         undefined,
         "bin_parsing",
-        offset
+        offset,
       );
     }
   }
@@ -794,7 +794,7 @@ export class BAIReader {
     chunks: BAIChunk[],
     linearIndex: BAILinearIndex,
     start: number,
-    end: number
+    end: number,
   ): BAIChunk[] {
     if (chunks.length === 0 || linearIndex.intervals.length === 0) {
       return chunks;
@@ -804,7 +804,7 @@ export class BAIReader {
     const startInterval = Math.floor(start / linearIndex.intervalSize);
     const endInterval = Math.min(
       Math.floor(end / linearIndex.intervalSize) + 1,
-      linearIndex.intervals.length
+      linearIndex.intervals.length,
     );
 
     // Find minimum virtual offset from linear index in the query range
@@ -864,7 +864,7 @@ export class BAIReader {
     reference: BAIReference,
     refId: number,
     warnings: string[],
-    errors: string[]
+    errors: string[],
   ): Promise<void> {
     // Basic validation checks
     // Check that linear index intervals are reasonable
@@ -878,7 +878,7 @@ export class BAIReader {
         const offset = reference.linearIndex.intervals[i];
         if (offset !== undefined && offset < prevOffset) {
           errors.push(
-            `Reference ${refId}: Linear index interval ${i} offset ${offset} is less than previous ${prevOffset}`
+            `Reference ${refId}: Linear index interval ${i} offset ${offset} is less than previous ${prevOffset}`,
           );
         }
         if (offset !== undefined) {
@@ -912,7 +912,7 @@ export class BAIReader {
       throw new BamError(
         `Cannot read uint64 at offset ${offset}: buffer too small (${view.byteLength} bytes)`,
         undefined,
-        "binary"
+        "binary",
       );
     }
 

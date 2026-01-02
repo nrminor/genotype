@@ -77,7 +77,7 @@ const AmpliconOptionsSchema = type({
       validateRegionString(options.region);
     } catch {
       throw new Error(
-        `Invalid region format: "${options.region}". Examples: "1:100", "-50:50", "1:-1"`
+        `Invalid region format: "${options.region}". Examples: "1:100", "-50:50", "1:-1"`,
       );
     }
   }
@@ -85,7 +85,7 @@ const AmpliconOptionsSchema = type({
   // Biological constraint validation
   if (options.maxMismatches && options.maxMismatches > Math.floor(forwardPrimer.length / 2)) {
     throw new Error(
-      `Too many mismatches (${options.maxMismatches}) for primer length (${forwardPrimer.length}bp) - would compromise specificity`
+      `Too many mismatches (${options.maxMismatches}) for primer length (${forwardPrimer.length}bp) - would compromise specificity`,
     );
   }
 
@@ -93,7 +93,7 @@ const AmpliconOptionsSchema = type({
   if (options.searchWindow) {
     if (options.searchWindow.forward && options.searchWindow.forward < forwardPrimer.length) {
       throw new Error(
-        `Forward search window (${options.searchWindow.forward}bp) smaller than primer (${forwardPrimer.length}bp)`
+        `Forward search window (${options.searchWindow.forward}bp) smaller than primer (${forwardPrimer.length}bp)`,
       );
     }
 
@@ -103,7 +103,7 @@ const AmpliconOptionsSchema = type({
       options.searchWindow.reverse < reversePrimer.length
     ) {
       throw new Error(
-        `Reverse search window (${options.searchWindow.reverse}bp) smaller than primer (${reversePrimer.length}bp)`
+        `Reverse search window (${options.searchWindow.reverse}bp) smaller than primer (${reversePrimer.length}bp)`,
       );
     }
   }
@@ -158,7 +158,7 @@ interface CanonicalPatternMatch<T extends string = string> extends PatternMatch<
 export class AmpliconProcessor implements Processor<AmpliconOptions> {
   async *process(
     source: AsyncIterable<AbstractSequence>,
-    options: AmpliconOptions
+    options: AmpliconOptions,
   ): AsyncIterable<AbstractSequence> {
     // Validate options and brand primers using ArkType schema
     const validOptions = AmpliconOptionsSchema(options);
@@ -179,7 +179,7 @@ export class AmpliconProcessor implements Processor<AmpliconOptions> {
    */
   private findAmplicons(
     sequence: AbstractSequence,
-    options: AmpliconOptions & { forwardPrimer: PrimerSequence; reversePrimer?: PrimerSequence }
+    options: AmpliconOptions & { forwardPrimer: PrimerSequence; reversePrimer?: PrimerSequence },
   ): AmpliconMatch[] {
     // Determine search strategy using smart auto-detection
     const useCanonical = this.shouldUseCanonicalSearch(options);
@@ -188,14 +188,14 @@ export class AmpliconProcessor implements Processor<AmpliconOptions> {
     const { forwardMatches, reverseMatches } = this.findPrimersInWindows(
       sequence,
       options,
-      useCanonical
+      useCanonical,
     );
 
     // Pair primers with appropriate validation logic
     if (useCanonical) {
       return this.pairCanonicalMatches(
         forwardMatches as CanonicalPatternMatch[],
-        reverseMatches as CanonicalPatternMatch[]
+        reverseMatches as CanonicalPatternMatch[],
       );
     } else {
       return this.pairPrimers(forwardMatches as PatternMatch[], reverseMatches as PatternMatch[]);
@@ -207,7 +207,7 @@ export class AmpliconProcessor implements Processor<AmpliconOptions> {
    */
   private pairPrimers<TForward extends string, TReverse extends string>(
     forwardMatches: PatternMatch<TForward>[],
-    reverseMatches: PatternMatch<TReverse>[]
+    reverseMatches: PatternMatch<TReverse>[],
   ): AmpliconMatch<TForward, TReverse>[] {
     const pairs: AmpliconMatch<TForward, TReverse>[] = [];
 
@@ -258,7 +258,7 @@ export class AmpliconProcessor implements Processor<AmpliconOptions> {
   private extractAmplicons(
     sequence: AbstractSequence,
     matches: AmpliconMatch[],
-    options: AmpliconOptions
+    options: AmpliconOptions,
   ): AbstractSequence[] {
     return matches.map((match, index) => {
       let start: number, end: number;
@@ -270,13 +270,13 @@ export class AmpliconProcessor implements Processor<AmpliconOptions> {
           options.region,
           sequence.length,
           true,
-          hasNegativeIndices
+          hasNegativeIndices,
         );
         const regionEnd = parseEndPosition(
           options.region,
           sequence.length,
           true,
-          hasNegativeIndices
+          hasNegativeIndices,
         );
 
         if (options.flanking) {
@@ -284,7 +284,7 @@ export class AmpliconProcessor implements Processor<AmpliconOptions> {
           start = Math.max(0, match.forwardMatch.position + regionStart.value);
           end = Math.min(
             sequence.length,
-            match.reverseMatch.position + match.reverseMatch.length + regionEnd.value
+            match.reverseMatch.position + match.reverseMatch.length + regionEnd.value,
           );
         } else {
           // Inner regions: relative to amplicon boundaries (between primers)
@@ -331,7 +331,7 @@ export class AmpliconProcessor implements Processor<AmpliconOptions> {
    */
   private pairCanonicalMatches(
     forwardMatches: CanonicalPatternMatch[],
-    reverseMatches: CanonicalPatternMatch[]
+    reverseMatches: CanonicalPatternMatch[],
   ): AmpliconMatch[] {
     const pairs: AmpliconMatch[] = [];
 
@@ -352,7 +352,7 @@ export class AmpliconProcessor implements Processor<AmpliconOptions> {
    */
   private isValidCanonicalPair(
     forward: CanonicalPatternMatch,
-    reverse: CanonicalPatternMatch
+    reverse: CanonicalPatternMatch,
   ): boolean {
     // Basic geometric constraints
     if (forward.position >= reverse.position) return false;
@@ -370,7 +370,7 @@ export class AmpliconProcessor implements Processor<AmpliconOptions> {
    */
   private createCanonicalAmpliconMatch(
     forward: CanonicalPatternMatch,
-    reverse: CanonicalPatternMatch
+    reverse: CanonicalPatternMatch,
   ): AmpliconMatch {
     return {
       forwardMatch: forward,
@@ -444,7 +444,7 @@ export class AmpliconProcessor implements Processor<AmpliconOptions> {
   private findCanonicalMatches<T extends string>(
     sequence: string,
     pattern: T,
-    maxMismatches: number
+    maxMismatches: number,
   ): CanonicalPatternMatch<T>[] {
     const allMatches: CanonicalPatternMatch<T>[] = [];
 
@@ -456,7 +456,7 @@ export class AmpliconProcessor implements Processor<AmpliconOptions> {
         strand: "+" as const,
         isCanonical: false,
         matchedOrientation: "forward" as const,
-      }))
+      })),
     );
 
     // Search reverse complement (canonical orientation)
@@ -522,8 +522,11 @@ export class AmpliconProcessor implements Processor<AmpliconOptions> {
    */
   private findPrimersInWindows(
     sequence: AbstractSequence,
-    options: AmpliconOptions & { forwardPrimer: PrimerSequence; reversePrimer?: PrimerSequence },
-    useCanonical: boolean = false
+    options: AmpliconOptions & {
+      forwardPrimer: PrimerSequence;
+      reversePrimer?: PrimerSequence;
+    },
+    useCanonical: boolean = false,
   ): {
     forwardMatches: PatternMatch[] | CanonicalPatternMatch[];
     reverseMatches: PatternMatch[] | CanonicalPatternMatch[];
@@ -541,13 +544,13 @@ export class AmpliconProcessor implements Processor<AmpliconOptions> {
           ? this.findCanonicalMatches(
               forwardWindow,
               options.forwardPrimer,
-              options.maxMismatches || 0
+              options.maxMismatches || 0,
             )
           : findPatternWithMismatches(
               forwardWindow,
               options.forwardPrimer,
               options.maxMismatches || 0,
-              false
+              false,
             );
       }
 
@@ -563,7 +566,7 @@ export class AmpliconProcessor implements Processor<AmpliconOptions> {
           windowMatches = this.findCanonicalMatches(
             reverseWindow,
             reversePrimer,
-            options.maxMismatches || 0
+            options.maxMismatches || 0,
           );
         } else {
           // Standard PCR: search reverse complement of reverse primer
@@ -572,7 +575,7 @@ export class AmpliconProcessor implements Processor<AmpliconOptions> {
             reverseWindow,
             searchPattern,
             options.maxMismatches || 0,
-            false
+            false,
           );
         }
 
@@ -588,12 +591,12 @@ export class AmpliconProcessor implements Processor<AmpliconOptions> {
         forwardMatches = this.findCanonicalMatches(
           sequence.sequence,
           options.forwardPrimer,
-          options.maxMismatches || 0
+          options.maxMismatches || 0,
         );
         reverseMatches = this.findCanonicalMatches(
           sequence.sequence,
           reversePrimer,
-          options.maxMismatches || 0
+          options.maxMismatches || 0,
         );
       } else {
         // Standard PCR search (current behavior)
@@ -601,14 +604,14 @@ export class AmpliconProcessor implements Processor<AmpliconOptions> {
           sequence.sequence,
           options.forwardPrimer,
           options.maxMismatches || 0,
-          false
+          false,
         );
         const searchPattern = reverseComplement(reversePrimer) as PrimerSequence;
         reverseMatches = findPatternWithMismatches(
           sequence.sequence,
           searchPattern,
           options.maxMismatches || 0,
-          false
+          false,
         );
       }
     }
@@ -688,13 +691,13 @@ function validateAndBrandPrimer(primer: string | PrimerSequence): PrimerSequence
   if (primer.length < 10) {
     // Same as template literal minimum
     throw new Error(
-      `Primer too short: ${primer.length}bp < 10bp minimum for biological specificity`
+      `Primer too short: ${primer.length}bp < 10bp minimum for biological specificity`,
     );
   }
   if (primer.length > 50) {
     // Same as template literal maximum
     throw new Error(
-      `Primer too long: ${primer.length}bp > 50bp maximum for efficient PCR amplification`
+      `Primer too long: ${primer.length}bp > 50bp maximum for efficient PCR amplification`,
     );
   }
 

@@ -184,7 +184,7 @@ describe("SeqOps Amplicon Integration", () => {
         .amplicon(
           primer`ACCAGGAACTAATCAGACAAG`, // N gene forward
           primer`CAAAGACCAATCCTACCATGAG`, // N gene reverse
-          2 // Allow sequencing errors
+          2, // Allow sequencing errors
         )
         .validate({ mode: "strict" }) // Post-amplicon validation
         .stats({ detailed: true });
@@ -249,7 +249,7 @@ describe("SeqOps Amplicon Integration", () => {
         .amplicon(
           primer`ATCGATCGATCGATCG`, // PrimerSequence type
           "CGATCGATCGATCGAT", // string type
-          1 // number
+          1, // number
         )
         .collect();
 
@@ -271,7 +271,7 @@ describe("SeqOps Amplicon Integration", () => {
     test("works with all terminal operations", async () => {
       const seqOpsChain = SeqOps.from(testSequences).amplicon(
         "ATCGATCGATCGATCG",
-        "ATCGATCGATCGATCG"
+        "ATCGATCGATCGATCG",
       );
 
       // Should work with all terminal operations

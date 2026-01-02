@@ -86,7 +86,7 @@ const FastqWriterOptionsSchema = type({
   if (options.lineLength && options.lineLength > 0 && options.lineLength < 50) {
     console.warn(
       `FASTQ Writer: lineLength=${options.lineLength} is very short. ` +
-        `Standard FASTQ uses 80, while 50-100 is typical for readability.`
+        `Standard FASTQ uses 80, while 50-100 is typical for readability.`,
     );
   }
 
@@ -144,7 +144,7 @@ export class FastqWriter {
       throw new ValidationError(
         `Invalid FASTQ writer options: ${validationResult.summary}`,
         undefined,
-        "FASTQ writer configuration"
+        "FASTQ writer configuration",
       );
     }
 
@@ -241,7 +241,7 @@ export class FastqWriter {
       const strategy = this.lineLength > 0 ? "wrapped" : "simple";
       if (this.debug) {
         console.log(
-          `[FastqWriter] Strategy: '${strategy}' (wrapped requested, lineLength=${this.lineLength})`
+          `[FastqWriter] Strategy: '${strategy}' (wrapped requested, lineLength=${this.lineLength})`,
         );
       }
       return strategy;
@@ -264,7 +264,7 @@ export class FastqWriter {
       if (seqLength > DEFAULT_LONG_SEQUENCE_THRESHOLD && seqLength > this.lineLength) {
         if (this.debug) {
           console.log(
-            `[FastqWriter] Strategy: 'wrapped' (auto - long sequence: ${seqLength} bp > threshold ${DEFAULT_LONG_SEQUENCE_THRESHOLD} and > lineLength ${this.lineLength})`
+            `[FastqWriter] Strategy: 'wrapped' (auto - long sequence: ${seqLength} bp > threshold ${DEFAULT_LONG_SEQUENCE_THRESHOLD} and > lineLength ${this.lineLength})`,
           );
         }
         return "wrapped";
@@ -275,7 +275,7 @@ export class FastqWriter {
       if ((platform === "pacbio" || platform === "nanopore") && seqLength > this.lineLength) {
         if (this.debug) {
           console.log(
-            `[FastqWriter] Strategy: 'wrapped' (auto - ${platform} platform, ${seqLength} bp > lineLength ${this.lineLength})`
+            `[FastqWriter] Strategy: 'wrapped' (auto - ${platform} platform, ${seqLength} bp > lineLength ${this.lineLength})`,
           );
         }
         return "wrapped";
@@ -284,7 +284,7 @@ export class FastqWriter {
       // Default to simple for short sequences
       if (this.debug) {
         console.log(
-          `[FastqWriter] Strategy: 'simple' (auto - default for short sequence: ${seqLength} bp)`
+          `[FastqWriter] Strategy: 'simple' (auto - default for short sequence: ${seqLength} bp)`,
         );
       }
       return "simple";
@@ -344,7 +344,7 @@ export class FastqWriter {
     if (sequence.qualityEncoding === this.qualityEncoding) {
       if (this.debug) {
         console.log(
-          `[FastqWriter] Quality encoding: no conversion needed (${this.qualityEncoding})`
+          `[FastqWriter] Quality encoding: no conversion needed (${this.qualityEncoding})`,
         );
       }
       return sequence.quality;
@@ -352,7 +352,7 @@ export class FastqWriter {
 
     if (this.debug) {
       console.log(
-        `[FastqWriter] Converting quality: ${sequence.qualityEncoding} -> ${this.qualityEncoding}`
+        `[FastqWriter] Converting quality: ${sequence.qualityEncoding} -> ${this.qualityEncoding}`,
       );
     }
 
@@ -377,7 +377,7 @@ export class FastqWriter {
     if (lines.length < 4) {
       throw new ValidationError(
         `Invalid FASTQ output: expected at least 4 lines, got ${lines.length}. ` +
-          `A valid FASTQ record must have: header line, sequence line(s), separator line, and quality line(s).`
+          `A valid FASTQ record must have: header line, sequence line(s), separator line, and quality line(s).`,
       );
     }
 
@@ -386,7 +386,7 @@ export class FastqWriter {
     if (!headerLine || !isValidHeader(headerLine)) {
       throw new ValidationError(
         `Invalid FASTQ header in output at line 1: "${headerLine}". ` +
-          `Header must start with '@' followed by a sequence identifier.`
+          `Header must start with '@' followed by a sequence identifier.`,
       );
     }
 
@@ -402,7 +402,7 @@ export class FastqWriter {
     if (separatorIndex === -1) {
       throw new ValidationError(
         `Invalid FASTQ output: no separator line found. ` +
-          `Expected a line starting with '+' after the sequence data.`
+          `Expected a line starting with '+' after the sequence data.`,
       );
     }
 
@@ -464,7 +464,7 @@ export class FastqWriter {
       console.log(
         `[FastqWriter] Platform detected: ${detectedPlatform}` +
           (platformInfo.flowcell ? ` (flowcell: ${platformInfo.flowcell})` : "") +
-          (platformInfo.lane ? ` (lane: ${platformInfo.lane})` : "")
+          (platformInfo.lane ? ` (lane: ${platformInfo.lane})` : ""),
       );
     }
 
@@ -493,7 +493,7 @@ export class FastqWriter {
       // Use standard formatting
       return formatHeader(
         sequence.id,
-        this.includeDescription && sequence.description ? sequence.description : undefined
+        this.includeDescription && sequence.description ? sequence.description : undefined,
       );
     }
 
@@ -510,7 +510,7 @@ export class FastqWriter {
     // For unknown platforms, use standard formatting
     return formatHeader(
       sequence.id,
-      this.includeDescription && sequence.description ? sequence.description : undefined
+      this.includeDescription && sequence.description ? sequence.description : undefined,
     );
   }
 
@@ -596,7 +596,7 @@ export class FastqWriter {
    */
   async writeToStream(
     sequences: AsyncIterable<FastqSequence>,
-    stream: WritableStream<Uint8Array>
+    stream: WritableStream<Uint8Array>,
   ): Promise<void> {
     const writer = stream.getWriter();
     const encoder = new TextEncoder();

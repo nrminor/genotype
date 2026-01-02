@@ -202,7 +202,7 @@ export function detectEncodingImmediate(qualityString: string): QualityEncoding 
       undefined,
       `Expected ranges: Phred+33 (33-93), Phred+64 (64-104), or Solexa (59-104). ` +
         `Invalid characters may indicate corrupted data or non-standard encoding. ` +
-        `For custom encodings, specify qualityEncoding explicitly in parser options.`
+        `For custom encodings, specify qualityEncoding explicitly in parser options.`,
     );
   }
 }
@@ -221,7 +221,7 @@ export function detectEncodingImmediate(qualityString: string): QualityEncoding 
  * @returns Detected quality encoding
  */
 export async function detectEncodingStatistical(
-  sequences: AsyncIterable<FastqSequence>
+  sequences: AsyncIterable<FastqSequence>,
 ): Promise<QualityEncoding> {
   // Tiger Style: Assert input
   if (sequences === null || sequences === undefined) {
@@ -274,7 +274,7 @@ export async function detectEncodingStatistical(
   } else {
     throw new Error(
       `Cannot detect quality encoding: ASCII range ${minQual}-${maxQual} outside known standards. ` +
-        `Expected ranges: Phred+33 (33-93), Phred+64 (64-104), or Solexa (59-104).`
+        `Expected ranges: Phred+33 (33-93), Phred+64 (64-104), or Solexa (59-104).`,
     );
   }
 }
@@ -378,7 +378,7 @@ export function detectEncodingWithConfidence(qualityString: string): DetectionRe
       undefined,
       `Expected ranges: Phred+33 (33-93), Phred+64 (64-104), or Solexa (59-104). ` +
         `Invalid characters may indicate corrupted data or non-standard encoding. ` +
-        `For custom encodings, specify qualityEncoding explicitly in parser options.`
+        `For custom encodings, specify qualityEncoding explicitly in parser options.`,
     );
   }
 }
@@ -473,7 +473,7 @@ export function convertScore(quality: string, from: QualityEncoding, to: Quality
  */
 export function averageQuality(
   quality: string,
-  encoding: QualityEncoding = QualityEncodingConstants.PHRED33
+  encoding: QualityEncoding = QualityEncodingConstants.PHRED33,
 ): number {
   // Tiger Style: Assert inputs
   if (!quality || typeof quality !== "string") {

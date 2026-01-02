@@ -61,7 +61,7 @@ type ValidationResult<T> = { success: true; data: T } | { success: false; error:
  */
 export function createOptionsValidator<T>(
   schema: ReturnType<typeof type>,
-  customValidators?: CustomValidator<T>[]
+  customValidators?: CustomValidator<T>[],
 ): (options: T) => T {
   return (options: T): T => {
     // First, validate against the ArkType schema
@@ -82,7 +82,7 @@ export function createOptionsValidator<T>(
         throw new ValidationError(
           `Invalid options: ${JSON.stringify(schemaResult)}`,
           undefined,
-          "Review the options structure and types"
+          "Review the options structure and types",
         );
       }
     } catch (error) {
@@ -92,7 +92,7 @@ export function createOptionsValidator<T>(
       throw new ValidationError(
         `Schema validation failed: ${error instanceof Error ? error.message : "unknown error"}`,
         undefined,
-        "Check option types and required fields"
+        "Check option types and required fields",
       );
     }
 
@@ -114,7 +114,7 @@ export function createOptionsValidator<T>(
             throw new ValidationError(
               "Unknown validation error",
               undefined,
-              "Custom validation failed with unknown error"
+              "Custom validation failed with unknown error",
             );
           }
         }
@@ -153,7 +153,7 @@ export function createOptionsValidator<T>(
  */
 export function createSafeOptionsValidator<T>(
   schema: ReturnType<typeof type>,
-  customValidators?: CustomValidator<T>[]
+  customValidators?: CustomValidator<T>[],
 ): (options: T) => ValidationResult<T> {
   const validator = createOptionsValidator(schema, customValidators);
 
@@ -166,7 +166,7 @@ export function createSafeOptionsValidator<T>(
         error instanceof ValidationError
           ? error
           : new ValidationError(
-              error instanceof Error ? error.message : "Unknown validation error"
+              error instanceof Error ? error.message : "Unknown validation error",
             );
       return { success: false, error: validationError };
     }
@@ -181,7 +181,7 @@ export function createSafeOptionsValidator<T>(
 export function createValidationError(
   message: string,
   context?: string,
-  data?: Record<string, unknown>
+  data?: Record<string, unknown>,
 ): ValidationError {
   let contextStr =
     context !== undefined && context !== null && context !== "" ? context : "Validation failed";
@@ -263,7 +263,7 @@ export const CommonValidators = {
     (options: T): void => {
       if (!allowedTargets.includes(options.target)) {
         throw new Error(
-          `Invalid target: ${options.target}. Valid targets: ${allowedTargets.join(", ")}`
+          `Invalid target: ${options.target}. Valid targets: ${allowedTargets.join(", ")}`,
         );
       }
     },

@@ -230,7 +230,7 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
         `Failed to parse DSV file: ${error instanceof Error ? error.message : String(error)}`,
         path,
         "read",
-        error
+        error,
       );
     }
   }
@@ -240,7 +240,7 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
    */
   private decompressStream(
     stream: ReadableStream<Uint8Array>,
-    format: CompressionFormat
+    format: CompressionFormat,
   ): ReadableStream<Uint8Array> {
     try {
       switch (format) {
@@ -263,7 +263,7 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
       throw new CompressionError(
         `Failed to decompress ${format} stream: ${error instanceof Error ? error.message : String(error)}`,
         format,
-        "decompress"
+        "decompress",
       );
     }
   }
@@ -326,7 +326,7 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
             state.accumulatedRow,
             this.delimiter,
             this.quote,
-            this.escapeChar
+            this.escapeChar,
           );
 
           // Validate field sizes
@@ -346,7 +346,7 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
               processedFields = handleRaggedRow(
                 fields,
                 state.expectedColumns,
-                this.options.raggedRows
+                this.options.raggedRows,
               );
             }
 
@@ -364,7 +364,7 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
           if (this.options.onError) {
             this.options.onError(
               error instanceof Error ? error.message : String(error),
-              state.rowStartLine
+              state.rowStartLine,
             );
             state.accumulatedRow = "";
             state.inMultiLineField = false;
@@ -374,7 +374,7 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
               error instanceof Error ? error.message : String(error),
               state.rowStartLine,
               undefined,
-              state.accumulatedRow
+              state.accumulatedRow,
             );
           }
         }
@@ -403,7 +403,7 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
             state.accumulatedRow,
             this.delimiter,
             this.quote,
-            this.escapeChar
+            this.escapeChar,
           );
 
           const record = this.createRecord(fields, state.rowStartLine);
@@ -430,7 +430,7 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
                 processedFields = handleRaggedRow(
                   fields,
                   state.expectedColumns,
-                  this.options.raggedRows
+                  this.options.raggedRows,
                 );
               }
 
@@ -443,7 +443,7 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
               if (this.options.onError) {
                 this.options.onError(
                   `Failed to recover line ${state.rowStartLine + i}: ${recoveryError instanceof Error ? recoveryError.message : String(recoveryError)}`,
-                  state.rowStartLine + i
+                  state.rowStartLine + i,
                 );
               }
             }
@@ -463,7 +463,7 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
   private async *processChunk(
     chunk: string,
     state: DSVParserState,
-    bufferRef: { value: string }
+    bufferRef: { value: string },
   ): AsyncIterable<DSVRecord> {
     // Add chunk to buffer
     bufferRef.value += chunk;
@@ -589,7 +589,7 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
           // Stop accumulating if we've hit the limit - fall back to defaults
           if (initialLines.length >= MAX_DETECTION_LINES) {
             console.warn(
-              `Reached ${MAX_DETECTION_LINES} line limit for delimiter detection, using defaults`
+              `Reached ${MAX_DETECTION_LINES} line limit for delimiter detection, using defaults`,
             );
             this.delimiter = ",";
             delimiterDetected = true;
@@ -630,7 +630,7 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
             } else {
               // Fall back to comma when detection fails
               console.warn(
-                "Could not auto-detect delimiter from streaming data, defaulting to comma (,)"
+                "Could not auto-detect delimiter from streaming data, defaulting to comma (,)",
               );
               this.delimiter = ",";
             }

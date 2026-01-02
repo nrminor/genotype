@@ -103,7 +103,7 @@ function detectIlluminaPlatform(record: { id: string; quality?: string }): Platf
   // Check for Illumina ID pattern
   // CASAVA 1.8+ format: @<instrument>:<run>:<flowcell>:<lane>:<tile>:<x>:<y>
   const illuminaMatch = record.id.match(
-    /^([A-Z0-9]+):(\d+):([A-Z0-9-]+):(\d+):(\d+):(\d+):(\d+)(?:\s+\d+:[YN]:\d+:\d+)?/
+    /^([A-Z0-9]+):(\d+):([A-Z0-9-]+):(\d+):(\d+):(\d+):(\d+)(?:\s+\d+:[YN]:\d+:\d+)?/,
   );
 
   if (illuminaMatch) {
@@ -542,7 +542,7 @@ const ValidationBenchmark = {
  */
 function validateFastqRecord(
   record: Partial<FastqSequence>,
-  level: ValidationLevel = "quick"
+  level: ValidationLevel = "quick",
 ): ValidationResult {
   const result: ValidationResult = {
     valid: true,

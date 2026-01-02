@@ -51,7 +51,7 @@ export function normalizeLineEndings(text: string): string {
 export function handleRaggedRow(
   fields: string[],
   expectedColumns: number,
-  handling: "error" | "pad" | "truncate" | "ignore" = "pad"
+  handling: "error" | "pad" | "truncate" | "ignore" = "pad",
 ): string[] {
   if (fields.length === expectedColumns || handling === "ignore") {
     return fields;
@@ -174,7 +174,7 @@ export function summarizeDSV(
   options: {
     delimiter?: string;
     includeStats?: boolean;
-  } = {}
+  } = {},
 ): {
   rows: number;
   columns: number;

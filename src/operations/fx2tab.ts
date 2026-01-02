@@ -304,7 +304,7 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
   private async writeToFile(
     path: string,
     writer: DSVWriter | CSVWriter | TSVWriter,
-    formatName: "TSV" | "CSV" | "DSV"
+    formatName: "TSV" | "CSV" | "DSV",
   ): Promise<void> {
     try {
       await openForWriting(path, async (handle) => {
@@ -319,7 +319,7 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
         `Failed to write ${formatName} to ${path}: ${error instanceof Error ? error.message : String(error)}`,
         path,
         "write",
-        error
+        error,
       );
     }
   }
@@ -460,7 +460,7 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
         `Failed to write JSON to ${path}: ${error instanceof Error ? error.message : String(error)}`,
         path,
         "write",
-        error
+        error,
       );
     }
   }
@@ -503,7 +503,7 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
         `Failed to write JSONL to ${path}: ${error instanceof Error ? error.message : String(error)}`,
         path,
         "write",
-        error
+        error,
       );
     }
   }
@@ -552,7 +552,7 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
    * @since v0.1.0
    */
   map<NewColumns extends readonly ColumnId[]>(
-    fn: (row: Fx2TabRow<Columns>) => Fx2TabRow<NewColumns>
+    fn: (row: Fx2TabRow<Columns>) => Fx2TabRow<NewColumns>,
   ): TabularOps<NewColumns> {
     async function* transform(source: AsyncIterable<Fx2TabRow<Columns>>) {
       for await (const row of source) {
@@ -685,7 +685,7 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
  */
 export async function* fx2tab<Columns extends readonly ColumnId[]>(
   source: AsyncIterable<AbstractSequence>,
-  options: Fx2TabOptions<Columns> = {}
+  options: Fx2TabOptions<Columns> = {},
 ): AsyncIterable<Fx2TabRow<Columns>> {
   const {
     columns = DEFAULT_COLUMNS as unknown as Columns,
@@ -797,7 +797,7 @@ export async function* fx2tab<Columns extends readonly ColumnId[]>(
  * Utility function for writing to files
  */
 export async function* rowsToStrings<Columns extends readonly ColumnId[]>(
-  source: AsyncIterable<Fx2TabRow<Columns>>
+  source: AsyncIterable<Fx2TabRow<Columns>>,
 ): AsyncIterable<string> {
   for await (const row of source) {
     yield row.__raw;
@@ -841,7 +841,7 @@ export async function* rowsToStrings<Columns extends readonly ColumnId[]>(
  */
 export async function* tab2fx(
   path: string,
-  options: Tab2FxOptions = {}
+  options: Tab2FxOptions = {},
 ): AsyncIterable<AbstractSequence> {
   // Validate options at runtime
   const validatedOptions = Tab2FxOptionsSchema.assert(options);
@@ -920,7 +920,7 @@ export async function* tab2fx(
           length,
         },
         format,
-        qualityEncoding
+        qualityEncoding,
       );
 
       yield seq;
@@ -928,7 +928,7 @@ export async function* tab2fx(
   } catch (error) {
     throw new ParseError(
       `Failed to parse ${path}: ${error instanceof Error ? error.message : String(error)}`,
-      "tab2fx"
+      "tab2fx",
     );
   }
 }
@@ -959,7 +959,7 @@ export function convertRecordToSequence(
     length?: number;
   },
   format: "fasta",
-  qualityEncoding?: never
+  qualityEncoding?: never,
 ): FastaSequence;
 export function convertRecordToSequence(
   record: {
@@ -970,7 +970,7 @@ export function convertRecordToSequence(
     length?: number;
   },
   format: "fastq",
-  qualityEncoding: "phred33" | "phred64" | "solexa"
+  qualityEncoding: "phred33" | "phred64" | "solexa",
 ): FastqSequence;
 export function convertRecordToSequence(
   record: {
@@ -981,7 +981,7 @@ export function convertRecordToSequence(
     length?: number;
   },
   format: "fasta" | "fastq",
-  qualityEncoding?: "phred33" | "phred64" | "solexa"
+  qualityEncoding?: "phred33" | "phred64" | "solexa",
 ): AbstractSequence;
 export function convertRecordToSequence(
   record: {
@@ -992,7 +992,7 @@ export function convertRecordToSequence(
     length?: number;
   },
   format: "fasta" | "fastq" = "fasta",
-  qualityEncoding: "phred33" | "phred64" | "solexa" = "phred33"
+  qualityEncoding: "phred33" | "phred64" | "solexa" = "phred33",
 ): AbstractSequence {
   const { id, sequence, quality, description, length } = record;
 
@@ -1029,7 +1029,7 @@ export function convertRecordToSequence(
  */
 function getRowValue<T extends ColumnId>(
   row: Fx2TabRow<readonly ColumnId[]>,
-  key: T
+  key: T,
 ): ColumnValueType<T> | undefined {
   // Type-safe access without 'any'
   if (key in row) {
@@ -1046,7 +1046,7 @@ function createRow<Columns extends readonly ColumnId[]>(
   values: Array<string | number | null>,
   stringValues: string[],
   rawString: string,
-  delimiter: string
+  delimiter: string,
 ): Fx2TabRow<Columns> {
   const row: Record<string, unknown> = {
     __raw: rawString,
@@ -1078,7 +1078,7 @@ function getColumnValue(
     lineNumber: number;
     nullValue: string;
     caseSensitive?: boolean;
-  }
+  },
 ): string | number | null {
   const customCol = options.customColumns[column];
   if (!customCol) {
@@ -1103,7 +1103,7 @@ function formatColumnValue(
     excelSafe: boolean;
     precision: number;
     nullValue: string;
-  }
+  },
 ): string {
   if (typeof value === "number") {
     // base_count columns should be integers
@@ -1144,7 +1144,7 @@ function formatColumnValue(
 function computeColumn(
   seq: AbstractSequence,
   column: BuiltInColumnId | string,
-  options: { index: number; lineNumber: number; nullValue: string; caseSensitive?: boolean }
+  options: { index: number; lineNumber: number; nullValue: string; caseSensitive?: boolean },
 ): string | number | null {
   // Use column directly (no more aliases)
   const mappedColumn = column;

@@ -40,7 +40,7 @@ const ZSTD_MAGIC_NUMBER = new Uint8Array([
 // Helper functions (not exported)
 export async function decompress(
   compressed: Uint8Array,
-  options: DecompressorOptions = {}
+  options: DecompressorOptions = {},
 ): Promise<Uint8Array> {
   validateCompressedData(compressed);
 
@@ -87,7 +87,7 @@ function initializeZstdDecompressor(
     bytesProcessed: number;
     decompressor: unknown;
     initialized: boolean;
-  }
+  },
 ): void {
   try {
     // Initialize runtime-specific decompressor
@@ -109,7 +109,7 @@ function initializeZstdDecompressor(
 
             decompStream.on("error", (error: unknown) => {
               controller.error(
-                CompressionError.fromSystemError("zstd", "stream", error, state.bytesProcessed)
+                CompressionError.fromSystemError("zstd", "stream", error, state.bytesProcessed),
               );
             });
 
@@ -151,7 +151,7 @@ function processZstdChunk(
     decompressor: unknown;
     initialized: boolean;
     buffer: Uint8Array;
-  }
+  },
 ): void {
   if (!state.initialized) {
     controller.error(new CompressionError("Decompressor not initialized", "zstd", "stream"));
@@ -164,7 +164,7 @@ function processZstdChunk(
     // Check abort signal
     if (mergedOptions.signal?.aborted) {
       controller.error(
-        new CompressionError("Decompression aborted", "zstd", "stream", state.bytesProcessed)
+        new CompressionError("Decompression aborted", "zstd", "stream", state.bytesProcessed),
       );
       return;
     }
@@ -190,13 +190,13 @@ function processZstdChunk(
     }
   } catch (error) {
     controller.error(
-      CompressionError.fromSystemError("zstd", "stream", error, state.bytesProcessed)
+      CompressionError.fromSystemError("zstd", "stream", error, state.bytesProcessed),
     );
   }
 }
 
 export function createStream(
-  options: DecompressorOptions = {}
+  options: DecompressorOptions = {},
 ): TransformStream<Uint8Array, Uint8Array> {
   if (typeof options !== "object" || options === null) {
     throw new CompressionError("Options must be an object", "zstd", "stream");
@@ -237,7 +237,7 @@ export function createStream(
         controller.terminate();
       } catch (error) {
         controller.error(
-          CompressionError.fromSystemError("zstd", "stream", error, state.bytesProcessed)
+          CompressionError.fromSystemError("zstd", "stream", error, state.bytesProcessed),
         );
       }
     },
@@ -267,7 +267,7 @@ export function createStream(
  */
 export function wrapStream(
   input: ReadableStream<Uint8Array>,
-  options: DecompressorOptions = {}
+  options: DecompressorOptions = {},
 ): ReadableStream<Uint8Array> {
   if (!(input instanceof ReadableStream)) {
     throw new CompressionError("Input must be ReadableStream", "zstd", "stream");
@@ -317,7 +317,7 @@ function validateZstdFormat(compressed: Uint8Array): void {
       "Invalid Zstd magic bytes - file may not be Zstd compressed",
       "zstd",
       "decompress",
-      0
+      0,
     );
   }
 }
@@ -328,7 +328,7 @@ function checkSizeLimits(compressed: Uint8Array, options: Required<DecompressorO
       `Compressed size ${compressed.length} exceeds maximum ${options.maxOutputSize}`,
       "zstd",
       "decompress",
-      0
+      0,
     );
   }
 }
@@ -336,7 +336,7 @@ function checkSizeLimits(compressed: Uint8Array, options: Required<DecompressorO
 async function performDecompression(
   compressed: Uint8Array,
   options: Required<DecompressorOptions>,
-  runtime: Runtime
+  runtime: Runtime,
 ): Promise<Uint8Array> {
   // Node.js optimization: Use built-in zlib
   if (runtime === "node") {
@@ -374,7 +374,7 @@ async function decompressWithNode(compressed: Uint8Array): Promise<Uint8Array | 
       write(
         chunk: Buffer,
         _encoding: BufferEncoding,
-        callback: (error?: Error | null) => void
+        callback: (error?: Error | null) => void,
       ): void {
         chunks.push(chunk);
         callback();
@@ -392,7 +392,7 @@ async function decompressWithNode(compressed: Uint8Array): Promise<Uint8Array | 
 }
 
 function mergeOptions(
-  options: DecompressorOptions
+  options: DecompressorOptions,
 ): DecompressorOptions & typeof DEFAULT_ZSTD_OPTIONS {
   const defaults = {
     ...DEFAULT_ZSTD_OPTIONS,
@@ -408,7 +408,7 @@ function mergeOptions(
     throw new CompressionError(
       `Invalid decompressor options: ${error instanceof Error ? error.message : String(error)}`,
       "zstd",
-      "validate"
+      "validate",
     );
   }
 
@@ -418,7 +418,7 @@ function mergeOptions(
 function processZstdFrames(
   buffer: Uint8Array,
   controller: TransformStreamDefaultController<Uint8Array>,
-  flush = false
+  flush = false,
 ): void {
   // This is a simplified implementation - in production, you'd want
   // to use a proper Zstd decompression library like @mongodb-js/zstd
@@ -432,21 +432,21 @@ function processZstdFrames(
     new CompressionError(
       "Manual Zstd decompression not implemented - native library support required",
       "zstd",
-      "stream"
-    )
+      "stream",
+    ),
   );
 }
 
 async function decompressViaStream(
   _compressed: Uint8Array,
-  _options: Required<DecompressorOptions>
+  _options: Required<DecompressorOptions>,
 ): Promise<Uint8Array> {
   // This would require a WebAssembly Zstd implementation or external library
   // For now, throw an informative error
   throw new CompressionError(
     "Zstd decompression requires native library support. Consider using gzip compression instead, or install a Zstd library.",
     "zstd",
-    "decompress"
+    "decompress",
   );
 }
 

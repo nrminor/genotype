@@ -34,7 +34,7 @@ async function* toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
 
 // Helper to convert async iterable to array
 async function collectSequences(
-  source: AsyncIterable<AbstractSequence>
+  source: AsyncIterable<AbstractSequence>,
 ): Promise<AbstractSequence[]> {
   const results: AbstractSequence[] = [];
   for await (const item of source) {
@@ -55,7 +55,7 @@ describe("binQuality - Platform Presets", () => {
       binQuality(toAsyncIterable(sequences), {
         bins: 3,
         preset: "illumina",
-      })
+      }),
     );
 
     expect(binned).toHaveLength(3);
@@ -77,7 +77,7 @@ describe("binQuality - Platform Presets", () => {
       binQuality(toAsyncIterable(sequences), {
         bins: 2,
         preset: "pacbio",
-      })
+      }),
     );
 
     expect(binned).toHaveLength(2);
@@ -97,7 +97,7 @@ describe("binQuality - Platform Presets", () => {
       binQuality(toAsyncIterable(sequences), {
         bins: 5,
         preset: "nanopore",
-      })
+      }),
     );
 
     expect(binned).toHaveLength(1);
@@ -126,7 +126,7 @@ describe("binQuality - Custom Boundaries", () => {
       binQuality(toAsyncIterable(sequences), {
         bins: 2,
         boundaries: [20], // Custom boundary at Q20
-      })
+      }),
     );
 
     expect(binned).toHaveLength(2);
@@ -143,7 +143,7 @@ describe("binQuality - Custom Boundaries", () => {
       binQuality(toAsyncIterable(sequences), {
         bins: 3,
         boundaries: [18, 28], // Custom boundaries
-      })
+      }),
     );
 
     expect(binned).toHaveLength(1);
@@ -167,7 +167,7 @@ describe("binQuality - Encoding Detection", () => {
       binQuality(toAsyncIterable(sequences), {
         bins: 2,
         preset: "illumina",
-      })
+      }),
     );
 
     expect(binned).toHaveLength(1);
@@ -182,7 +182,7 @@ describe("binQuality - Encoding Detection", () => {
         bins: 2,
         preset: "illumina",
         encoding: "phred33", // Explicit encoding
-      })
+      }),
     );
 
     expect(binned).toHaveLength(1);
@@ -205,7 +205,7 @@ describe("binQuality - Non-FASTQ Sequences", () => {
       binQuality(sequences as any, {
         bins: 3,
         preset: "illumina",
-      })
+      }),
     );
 
     expect(binned).toHaveLength(1);
@@ -227,7 +227,7 @@ describe("binQuality - Non-FASTQ Sequences", () => {
       binQuality(sequences as any, {
         bins: 2,
         preset: "illumina",
-      })
+      }),
     );
 
     expect(binned).toHaveLength(2);
@@ -243,7 +243,7 @@ describe("binQuality - Compression Effectiveness", () => {
       createFastqSequence(
         "seq1",
         "ATCGATCGATCGATCGATCGATCG",
-        "!\"#$%&'()*+,-./0123456" // 24 unique chars
+        "!\"#$%&'()*+,-./0123456", // 24 unique chars
       ),
     ];
 
@@ -251,7 +251,7 @@ describe("binQuality - Compression Effectiveness", () => {
       binQuality(toAsyncIterable(sequences), {
         bins: 3,
         preset: "illumina",
-      })
+      }),
     );
 
     expect(binned).toHaveLength(1);
@@ -272,7 +272,7 @@ describe("binQuality - Compression Effectiveness", () => {
       binQuality(toAsyncIterable(sequences), {
         bins: 2,
         boundaries: [20],
-      })
+      }),
     );
 
     expect(binned).toHaveLength(1);
@@ -293,7 +293,7 @@ describe("binQuality - Error Handling", () => {
           bins: 3,
           // biome-ignore lint/suspicious/noExplicitAny: Testing invalid preset error
           preset: "invalid" as any,
-        })
+        }),
       );
     }).toThrow();
   });
@@ -307,7 +307,7 @@ describe("binQuality - Error Handling", () => {
           // biome-ignore lint/suspicious/noExplicitAny: Testing invalid bins count error
           bins: 4 as any, // Invalid - not 2, 3, or 5
           preset: "illumina",
-        })
+        }),
       );
     }).toThrow();
   });
@@ -321,7 +321,7 @@ describe("binQuality - Error Handling", () => {
           bins: 3,
           // biome-ignore lint/suspicious/noExplicitAny: Testing error message with invalid preset
           preset: "nonexistent" as any,
-        })
+        }),
       );
       expect(true).toBe(false); // Should not reach here
     } catch (error) {
@@ -339,7 +339,7 @@ describe("binQuality - Preserves Sequence Properties", () => {
       binQuality(toAsyncIterable(sequences), {
         bins: 2,
         preset: "illumina",
-      })
+      }),
     );
 
     expect(binned[0].id).toBe("my_sequence_id");
@@ -352,7 +352,7 @@ describe("binQuality - Preserves Sequence Properties", () => {
       binQuality(toAsyncIterable(sequences), {
         bins: 2,
         preset: "illumina",
-      })
+      }),
     );
 
     expect(binned[0].sequence).toBe("ATCGATCGATCG");
@@ -366,11 +366,11 @@ describe("binQuality - Preserves Sequence Properties", () => {
       binQuality(toAsyncIterable(sequences), {
         bins: 3,
         preset: "illumina",
-      })
+      }),
     );
 
     expect((binned[0] as FastqSequence).quality.length).toBe(
-      (sequences[0] as FastqSequence).quality.length
+      (sequences[0] as FastqSequence).quality.length,
     );
   });
 });
@@ -393,7 +393,7 @@ describe("binQuality - Edge Cases", () => {
         bins: 2,
         preset: "illumina",
         encoding: "solexa",
-      })
+      }),
     );
 
     expect(binned).toHaveLength(1);
@@ -418,7 +418,7 @@ describe("binQuality - Edge Cases", () => {
         bins: 3,
         preset: "illumina",
         encoding: "phred64",
-      })
+      }),
     );
 
     expect(binned).toHaveLength(1);
@@ -434,7 +434,7 @@ describe("binQuality - Edge Cases", () => {
         bins: 2,
         preset: "illumina",
         encoding: "phred64",
-      })
+      }),
     );
 
     expect(binned).toHaveLength(1);
@@ -450,7 +450,7 @@ describe("binQuality - Edge Cases", () => {
       binQuality(toAsyncIterable(sequences), {
         bins: 3,
         boundaries: [15, 30],
-      })
+      }),
     );
 
     expect(binned).toHaveLength(1);
@@ -466,7 +466,7 @@ describe("binQuality - Edge Cases", () => {
       binQuality(toAsyncIterable(sequences), {
         bins: 2,
         preset: "illumina",
-      })
+      }),
     );
 
     expect(binned).toHaveLength(1);
@@ -482,7 +482,7 @@ describe("binQuality - Edge Cases", () => {
       binQuality(toAsyncIterable(sequences), {
         bins: 2,
         preset: "illumina",
-      })
+      }),
     );
 
     expect(binned).toHaveLength(0);
@@ -495,7 +495,7 @@ describe("binQuality - Edge Cases", () => {
       binQuality(toAsyncIterable(sequences), {
         bins: 3,
         preset: "illumina",
-      })
+      }),
     );
 
     expect(binned).toHaveLength(1);

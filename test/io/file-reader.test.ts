@@ -195,7 +195,7 @@ describe("FileReader", () => {
       await expect(
         readToString(TEST_FILES.large, {
           maxFileSize: 1000,
-        })
+        }),
       ).rejects.toThrow(FileError);
     });
 

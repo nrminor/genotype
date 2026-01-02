@@ -151,7 +151,7 @@ describe("rename operation", () => {
     ];
 
     const result = await Array.fromAsync(
-      rename(toAsyncIterable(input), { renameFirst: true, startNum: 1 })
+      rename(toAsyncIterable(input), { renameFirst: true, startNum: 1 }),
     );
 
     expect(result[0].id).toBe("seq1_1");
@@ -264,8 +264,20 @@ describe("rename operation", () => {
 
   test("integration: preserves descriptions", async () => {
     const input: FastaSequence[] = [
-      { format: "fasta", id: "seq1", description: "original comment", sequence: "ATCG", length: 4 },
-      { format: "fasta", id: "seq1", description: "another comment", sequence: "GCTA", length: 4 },
+      {
+        format: "fasta",
+        id: "seq1",
+        description: "original comment",
+        sequence: "ATCG",
+        length: 4,
+      },
+      {
+        format: "fasta",
+        id: "seq1",
+        description: "another comment",
+        sequence: "GCTA",
+        length: 4,
+      },
     ];
 
     const result = await Array.fromAsync(rename(toAsyncIterable(input)));

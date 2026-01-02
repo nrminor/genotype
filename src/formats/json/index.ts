@@ -24,9 +24,5 @@ export type {
   SequenceRow,
   WrappedSequence,
 } from "./types";
-export {
-  SequenceArraySchema,
-  SequenceRowSchema,
-  WrappedSequenceSchema,
-} from "./types";
+export { SequenceArraySchema, SequenceRowSchema, WrappedSequenceSchema } from "./types";
 export { detectJSONFormat, generateCollectionMetadata } from "./utils";

@@ -1,18 +1,18 @@
 name: Genomics Data Validation
 on:
   push:
-    paths: 
-      - 'src/formats/**'
-      - 'src/operations/**'
-      - 'src/compression/**'
+    paths:
+      - "src/formats/**"
+      - "src/operations/**"
+      - "src/compression/**"
   pull_request:
     paths:
-      - 'src/formats/**'
-      - 'src/operations/**'
-      - 'src/compression/**'
+      - "src/formats/**"
+      - "src/operations/**"
+      - "src/compression/**"
   schedule:
     # Weekly validation with real data every Monday at 2 AM UTC
-    - cron: '0 2 * * 1'
+    - cron: "0 2 * * 1"
   workflow_dispatch:
 
 env:
@@ -25,18 +25,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: ${{ env.BUN_VERSION }}
-      
+
       - name: Install dependencies
         run: bun install
-      
+
       - name: Create test fixtures directory
         run: mkdir -p test/fixtures/real
-      
+
       # Download test datasets from NCBI for validation
       # Using small reference genomes for CI efficiency
       - name: Download NCBI test data
@@ -45,12 +45,12 @@ jobs:
           wget -q -O test/fixtures/real/sars-cov-2.fasta.gz \
             "https://ftp.ncbi.nlm.nih.gov/genomes/refseq/viral/SARS-CoV-2/latest_assembly_versions/GCF_009858895.2_ASM985889v3/GCF_009858895.2_ASM985889v3_genomic.fna.gz" \
             || echo "Failed to download SARS-CoV-2 genome, using local test data"
-          
+
           # E. coli reference (small bacterial genome, ~5MB)
           wget -q -O test/fixtures/real/ecoli.fasta.gz \
             "https://ftp.ncbi.nlm.nih.gov/genomes/refseq/bacteria/Escherichia_coli/reference/GCF_000005825.2_ASM582v2/GCF_000005825.2_ASM582v2_genomic.fna.gz" \
             || echo "Failed to download E. coli genome, using local test data"
-      
+
       - name: Validate format parsing with real data
         run: |
           # Test with downloaded data if available, otherwise skip gracefully
@@ -61,11 +61,11 @@ jobs:
             echo "Real genomics data not available, running standard format tests only"
           fi
           bun test test/formats/*.test.ts --timeout 30000
-      
+
       - name: Validate compression handling
         run: |
           bun test test/compression/*.test.ts --timeout 30000
-      
+
       - name: Memory usage validation
         run: |
           # Test streaming behavior with existing integration tests
@@ -78,24 +78,24 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: ${{ env.BUN_VERSION }}
-      
+
       - name: Install dependencies
         run: bun install
-      
+
       - name: Test core sequence operations
         run: |
           bun test test/operations/core/*.test.ts --timeout 30000
-      
+
       - name: Test SeqOps pipeline operations
         run: |
           bun test test/operations/seqops.test.ts --timeout 30000
           bun test test/operations/semantic-api.test.ts --timeout 30000
-      
+
       # Commented out until we have SeqKit comparison tests ready
       # - name: Test SeqKit compatibility
       #   run: |
@@ -103,7 +103,7 @@ jobs:
       #     wget -q https://github.com/shenwei356/seqkit/releases/download/v2.5.1/seqkit_linux_amd64.tar.gz
       #     tar -xzf seqkit_linux_amd64.tar.gz
       #     sudo mv seqkit /usr/local/bin/
-      #     
+      #
       #     # Validate that our operations produce identical results to SeqKit
       #     bun test test/integration/seqkit-compatibility.test.ts --timeout 60000
 
@@ -115,28 +115,28 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: ${{ env.BUN_VERSION }}
-      
+
       - name: Install dependencies
         run: bun install
-      
+
       # Commented out until we have benchmark suite ready
       # - name: Run performance benchmarks
       #   run: |
       #     bun run benchmark --reporter=json > benchmark-results.json
       #     cat benchmark-results.json
-      
+
       # - name: Upload benchmark results
       #   uses: actions/upload-artifact@v4
       #   with:
       #     name: benchmark-results
       #     path: benchmark-results.json
       #     retention-days: 30
-      
+
       - name: Placeholder benchmark test
         run: |
           echo "Performance benchmarks will be implemented when the library is more stable"

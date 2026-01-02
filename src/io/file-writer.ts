@@ -85,7 +85,7 @@ export interface FileWriteHandle {
 export async function writeString(
   path: string,
   content: string,
-  options?: WriteOptions
+  options?: WriteOptions,
 ): Promise<void> {
   // Convert string to bytes
   const encoder = new TextEncoder();
@@ -144,7 +144,7 @@ export async function writeString(
 export async function writeBytes(
   path: string,
   content: Uint8Array,
-  options?: WriteOptions
+  options?: WriteOptions,
 ): Promise<void> {
   // Apply compression if needed
   const finalData = await applyCompression(content, path, options);
@@ -204,8 +204,8 @@ export async function appendString(path: string, content: string): Promise<void>
   await Effect.runPromise(
     program.pipe(
       Effect.scoped, // Required for automatic file handle cleanup
-      Effect.provide(getPlatform())
-    )
+      Effect.provide(getPlatform()),
+    ),
   );
 }
 
@@ -270,7 +270,7 @@ export async function appendString(path: string, content: string): Promise<void>
 export async function openForWriting<T>(
   path: string,
   callback: (handle: FileWriteHandle) => Promise<T>,
-  options?: WriteOptions
+  options?: WriteOptions,
 ): Promise<T> {
   // Type allows for composition of compression and file write errors
   const writeQueue: Array<Effect.Effect<void, unknown, unknown>> = [];
@@ -296,8 +296,8 @@ export async function openForWriting<T>(
         // Create Effect directly (no callback wrapper needed - Effects are lazy)
         writeQueue.push(
           applyCompressionEffect(data, path, options).pipe(
-            Effect.flatMap((compressed) => file.writeAll(compressed))
-          )
+            Effect.flatMap((compressed) => file.writeAll(compressed)),
+          ),
         );
 
         // Return resolved promise immediately - actual write happens during queue flush
@@ -309,8 +309,8 @@ export async function openForWriting<T>(
         // Create Effect directly (no callback wrapper needed - Effects are lazy)
         writeQueue.push(
           applyCompressionEffect(content, path, options).pipe(
-            Effect.flatMap((compressed) => file.writeAll(compressed))
-          )
+            Effect.flatMap((compressed) => file.writeAll(compressed)),
+          ),
         );
 
         // Return resolved promise immediately - actual write happens during queue flush
@@ -333,8 +333,8 @@ export async function openForWriting<T>(
     program.pipe(
       Effect.scoped, // Enable scope for automatic file cleanup
       Effect.provide(getPlatform()),
-      Effect.provide(MultiFormatCompressionService)
-    ) as Effect.Effect<T, unknown, never>
+      Effect.provide(MultiFormatCompressionService),
+    ) as Effect.Effect<T, unknown, never>,
   );
 }
 
@@ -403,7 +403,7 @@ function applyCompressionEffect(data: Uint8Array, filePath: string, options: Wri
     const compressed = yield* compressionService.compress(
       data,
       compressionFormat,
-      options.compressionLevel ?? 6
+      options.compressionLevel ?? 6,
     );
 
     return compressed;
@@ -435,7 +435,7 @@ function applyCompressionEffect(data: Uint8Array, filePath: string, options: Wri
 async function applyCompression(
   data: Uint8Array,
   filePath: string,
-  options: WriteOptions = {}
+  options: WriteOptions = {},
 ): Promise<Uint8Array> {
   // Check if auto-compression is disabled
   const autoCompress = options.autoCompress ?? true; // Default true
@@ -465,7 +465,7 @@ async function applyCompression(
     const compressed = yield* compressionService.compress(
       data,
       compressionFormat,
-      options.compressionLevel ?? 6
+      options.compressionLevel ?? 6,
     );
 
     return compressed;

@@ -19,7 +19,7 @@ describe("defaultExtractPairId", () => {
 
     test("handles complex IDs with /1", () => {
       expect(defaultExtractPairId("NS500:123:ABC:1:1101:1234:5678/1")).toBe(
-        "NS500:123:ABC:1:1101:1234:5678"
+        "NS500:123:ABC:1:1101:1234:5678",
       );
     });
 
@@ -734,7 +734,7 @@ describe("PairedFastqParser", () => {
 
       for await (const pair of parser.parseFiles(
         "test/fixtures/paired-r1.fastq",
-        "test/fixtures/paired-r2.fastq"
+        "test/fixtures/paired-r2.fastq",
       )) {
         pairs.push(pair);
       }
@@ -757,7 +757,7 @@ describe("PairedFastqParser", () => {
 
       for await (const pair of parser.parseFiles(
         "test/fixtures/paired-r1.fastq",
-        "test/fixtures/paired-r2.fastq"
+        "test/fixtures/paired-r2.fastq",
       )) {
         pairs.push(pair);
       }
@@ -775,7 +775,7 @@ describe("PairedFastqParser", () => {
         const pairs: PairedFastqRead[] = [];
         for await (const pair of parser.parseFiles(
           "test/fixtures/paired-r1-mismatch.fastq",
-          "test/fixtures/paired-r2-mismatch.fastq"
+          "test/fixtures/paired-r2-mismatch.fastq",
         )) {
           pairs.push(pair);
         }
@@ -788,7 +788,7 @@ describe("PairedFastqParser", () => {
 
       for await (const pair of parser.parseFiles(
         "test/fixtures/paired-r1.fastq",
-        "test/fixtures/paired-r2.fastq"
+        "test/fixtures/paired-r2.fastq",
       )) {
         pairs.push(pair);
       }
@@ -805,7 +805,7 @@ describe("PairedFastqParser", () => {
 
       for await (const pair of parser.parseFiles(
         "test/fixtures/paired-r1.fastq",
-        "test/fixtures/paired-r2.fastq"
+        "test/fixtures/paired-r2.fastq",
       )) {
         pairs.push(pair);
       }
@@ -822,7 +822,7 @@ describe("PairedFastqParser", () => {
       for await (const pair of parser.parseFiles(
         "test/fixtures/paired-r1.fastq",
         "test/fixtures/paired-r2.fastq",
-        { encoding: "utf8" }
+        { encoding: "utf8" },
       )) {
         pairs.push(pair);
       }
@@ -857,7 +857,7 @@ describe("PairedFastqParser", () => {
 
       for await (const pair of parser.parseFiles(
         "test/fixtures/paired-r1.fastq",
-        "test/fixtures/paired-r2.fastq"
+        "test/fixtures/paired-r2.fastq",
       )) {
         pairCount++;
         totalLength += pair.totalLength;

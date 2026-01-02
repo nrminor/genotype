@@ -329,26 +329,27 @@ export type ParseGenomicRegion<T extends string> =
  * ): ExtractCoordinates<T> extends { length: number } ? T : never;
  * ```
  */
-export type ExtractCoordinates<T extends string> = ParseGenomicRegion<T> extends {
-  chromosome: infer Chr;
-  start: infer Start;
-  end: infer End;
-}
-  ? {
-      readonly chr: Chr;
-      readonly start: Start;
-      readonly end: End;
-      readonly length: Start extends number
-        ? End extends number
-          ? End extends 0
-            ? never
-            : Start extends 0
-              ? End
-              : never // Simplified arithmetic for template literals
-          : never
-        : never;
-    }
-  : never;
+export type ExtractCoordinates<T extends string> =
+  ParseGenomicRegion<T> extends {
+    chromosome: infer Chr;
+    start: infer Start;
+    end: infer End;
+  }
+    ? {
+        readonly chr: Chr;
+        readonly start: Start;
+        readonly end: End;
+        readonly length: Start extends number
+          ? End extends number
+            ? End extends 0
+              ? never
+              : Start extends 0
+                ? End
+                : never // Simplified arithmetic for template literals
+            : never
+          : never;
+      }
+    : never;
 
 /**
  * Validate genomic region format and coordinates at compile time
@@ -622,7 +623,7 @@ export const NucleotideBase = type("'A'|'C'|'G'|'T'|'U'");
 export const AmbiguityCode = type("'R'|'Y'|'S'|'W'|'K'|'M'|'B'|'D'|'H'|'V'|'N'");
 export const GapCharacter = type("'-'|'.'|'*'");
 export const ValidSequenceChar = type(
-  "'A'|'C'|'G'|'T'|'U'|'R'|'Y'|'S'|'W'|'K'|'M'|'B'|'D'|'H'|'V'|'N'|'-'|'.'|'*'|'a'|'c'|'g'|'t'|'u'|'r'|'y'|'s'|'w'|'k'|'m'|'b'|'d'|'h'|'v'|'n'"
+  "'A'|'C'|'G'|'T'|'U'|'R'|'Y'|'S'|'W'|'K'|'M'|'B'|'D'|'H'|'V'|'N'|'-'|'.'|'*'|'a'|'c'|'g'|'t'|'u'|'r'|'y'|'s'|'w'|'k'|'m'|'b'|'d'|'h'|'v'|'n'",
 );
 
 /**
@@ -636,7 +637,7 @@ export const SequenceIdSchema = type("string>0").pipe((id: string) => {
     throw new ValidationError(
       `Sequence ID contains invalid characters: original='${id}' would be sanitized to='${cleaned}'`,
       undefined,
-      "Use alphanumeric characters, hyphens, dots, pipes, and colons only"
+      "Use alphanumeric characters, hyphens, dots, pipes, and colons only",
     );
   }
   return cleaned;
@@ -769,7 +770,7 @@ export const FastaSequenceSchema = type({
   // Validate sequence length matches actual length
   if (fasta.sequence.length !== fasta.length) {
     throw new Error(
-      `Sequence length mismatch: declared ${fasta.length}, actual ${fasta.sequence.length}`
+      `Sequence length mismatch: declared ${fasta.length}, actual ${fasta.sequence.length}`,
     );
   }
 
@@ -806,7 +807,7 @@ export const FastqSequenceSchema = type({
   // Validate sequence and quality lengths match
   if (fastq.sequence.length !== fastq.quality.length) {
     throw new Error(
-      `Sequence/quality length mismatch: seq=${fastq.sequence.length}, qual=${fastq.quality.length}`
+      `Sequence/quality length mismatch: seq=${fastq.sequence.length}, qual=${fastq.quality.length}`,
     );
   }
 
@@ -879,7 +880,7 @@ function validateBedThickCoordinates(bed: any): void {
   if (bed.thickStart !== undefined && bed.thickEnd !== undefined) {
     if (bed.thickStart > bed.thickEnd) {
       throw new Error(
-        `Invalid thick coordinates: thickEnd (${bed.thickEnd}) must be >= thickStart (${bed.thickStart})`
+        `Invalid thick coordinates: thickEnd (${bed.thickEnd}) must be >= thickStart (${bed.thickStart})`,
       );
     }
     if (bed.thickStart < bed.start || bed.thickEnd > bed.end) {
@@ -895,12 +896,12 @@ function validateBedBlockStructure(bed: any): void {
   // Array length consistency validation (types.ts responsibility)
   if (bed.blockSizes?.length !== bed.blockCount) {
     throw new Error(
-      `Block sizes count (${bed.blockSizes?.length ?? 0}) != block count (${bed.blockCount})`
+      `Block sizes count (${bed.blockSizes?.length ?? 0}) != block count (${bed.blockCount})`,
     );
   }
   if (bed.blockStarts?.length !== bed.blockCount) {
     throw new Error(
-      `Block starts count (${bed.blockStarts?.length ?? 0}) != block count (${bed.blockCount})`
+      `Block starts count (${bed.blockStarts?.length ?? 0}) != block count (${bed.blockCount})`,
     );
   }
 
@@ -1129,7 +1130,7 @@ export const SAMAlignmentSchema = type({
   if (alignment.seq !== "*" && alignment.qual !== "*") {
     if (alignment.seq.length !== alignment.qual.length) {
       throw new Error(
-        `Sequence/quality length mismatch: seq=${alignment.seq.length}, qual=${alignment.qual.length}`
+        `Sequence/quality length mismatch: seq=${alignment.seq.length}, qual=${alignment.qual.length}`,
       );
     }
   }
@@ -1459,7 +1460,7 @@ export const FileReaderOptionsSchema = type({
       options.maxFileSize,
       10_737_418_240,
       "bytes",
-      `File size limit: ${options.maxFileSize} bytes, Max allowed: 10,737,418,240 bytes`
+      `File size limit: ${options.maxFileSize} bytes, Max allowed: 10,737,418,240 bytes`,
     );
   }
 
@@ -1470,7 +1471,7 @@ export const FileReaderOptionsSchema = type({
     } catch (error) {
       // Invalid decompression options detected - continuing with defaults
       console.warn(
-        `Invalid decompression options: ${error instanceof Error ? error.message : String(error)}. Using defaults.`
+        `Invalid decompression options: ${error instanceof Error ? error.message : String(error)}. Using defaults.`,
       );
     }
   }
@@ -1522,7 +1523,7 @@ export const StreamChunkSchema = type({
   // Validate bytes read matches data length
   if (chunk.bytesRead !== chunk.data.length) {
     throw new Error(
-      `Bytes read mismatch: reported ${chunk.bytesRead}, actual ${chunk.data.length}`
+      `Bytes read mismatch: reported ${chunk.bytesRead}, actual ${chunk.data.length}`,
     );
   }
 
@@ -1841,7 +1842,7 @@ export const DecompressorOptionsSchema = type({
       options.maxOutputSize,
       107_374_182_400,
       "bytes",
-      `Max output size: ${options.maxOutputSize} bytes, Max allowed: 107,374,182,400 bytes`
+      `Max output size: ${options.maxOutputSize} bytes, Max allowed: 107,374,182,400 bytes`,
     );
   }
 
@@ -1902,7 +1903,7 @@ export const BAIBinNumberSchema = type("number>=0").pipe((binNumber: number) => 
   ];
 
   const isValidLevel = validLevels.some(
-    (level) => binNumber >= level.min && binNumber <= level.max
+    (level) => binNumber >= level.min && binNumber <= level.max,
   );
   if (!isValidLevel) {
     throw new Error(`BAI bin number ${binNumber} is not within valid UCSC binning levels`);
@@ -1922,7 +1923,7 @@ export const BAIChunkSchema = type({
   // Tiger Style: Assert virtual offset ordering
   if (chunk.beginOffset >= chunk.endOffset) {
     throw new Error(
-      `Invalid BAI chunk: beginOffset (${chunk.beginOffset}) must be < endOffset (${chunk.endOffset})`
+      `Invalid BAI chunk: beginOffset (${chunk.beginOffset}) must be < endOffset (${chunk.endOffset})`,
     );
   }
 
@@ -1937,7 +1938,7 @@ export const BAIChunkSchema = type({
       "chunk",
       Math.round(chunkSize / 1_048_576),
       1024,
-      "MB"
+      "MB",
     );
   }
 
@@ -1973,7 +1974,7 @@ export const BAIBinSchema = type({
       "bin",
       bin.chunks.length,
       "May indicate sparse genomic coverage - consider regenerating index",
-      `Bin ID: ${bin.binId}, Chunks: ${bin.chunks.length}`
+      `Bin ID: ${bin.binId}, Chunks: ${bin.chunks.length}`,
     );
   }
 
@@ -2009,7 +2010,7 @@ export const BAILinearIndexSchema = type({
       "linear-index",
       linearIndex.intervalSize,
       "Use standard 16384 byte intervals for better tool compatibility",
-      `Interval size: ${linearIndex.intervalSize}, Standard: 16384`
+      `Interval size: ${linearIndex.intervalSize}, Standard: 16384`,
     );
   }
 
@@ -2112,7 +2113,7 @@ export const BAIIndexSchema = type({
   // Tiger Style: Assert reference count consistency
   if (index.references.length !== index.referenceCount) {
     throw new Error(
-      `Reference count mismatch: declared=${index.referenceCount}, actual=${index.references.length}`
+      `Reference count mismatch: declared=${index.referenceCount}, actual=${index.references.length}`,
     );
   }
 
@@ -2137,7 +2138,7 @@ export const BAIIndexSchema = type({
       "version",
       index.version,
       'Use standard version format (e.g., "1.0") for better compatibility',
-      `Version: ${index.version}, Expected format: X.Y`
+      `Version: ${index.version}, Expected format: X.Y`,
     );
   }
 
@@ -2184,7 +2185,7 @@ export const BAIQueryResultSchema = type({
   }).pipe((region) => {
     if (region.end <= region.start) {
       throw new Error(
-        `Invalid query region: end (${region.end}) must be > start (${region.start})`
+        `Invalid query region: end (${region.end}) must be > start (${region.start})`,
       );
     }
     return region;
@@ -2239,7 +2240,7 @@ export const BAIWriterOptionsSchema = type({
         "interval-size",
         options.intervalSize,
         "Use power-of-2 sizes (1024, 2048, 4096, etc.) for better memory efficiency",
-        `Interval size: ${options.intervalSize}`
+        `Interval size: ${options.intervalSize}`,
       );
     }
   }

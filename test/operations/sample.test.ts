@@ -210,7 +210,10 @@ describe("SampleProcessor", () => {
       }
 
       const results2 = [];
-      for await (const seq of processor.process(testSequences, { fraction: 0.2, seed: 123 })) {
+      for await (const seq of processor.process(testSequences, {
+        fraction: 0.2,
+        seed: 123,
+      })) {
         results2.push(seq.id);
       }
 
@@ -565,7 +568,10 @@ describe("SampleProcessor", () => {
       const singleSequence = [testSequences[0]];
 
       const results = [];
-      for await (const seq of processor.process(singleSequence, { fraction: 0.9, seed: 42 })) {
+      for await (const seq of processor.process(singleSequence, {
+        fraction: 0.9,
+        seed: 42,
+      })) {
         results.push(seq);
       }
 
@@ -614,7 +620,10 @@ describe("SampleProcessor", () => {
 
     test("negative seed should work", async () => {
       const results = [];
-      for await (const seq of processor.process(testSequences, { fraction: 0.1, seed: -42 })) {
+      for await (const seq of processor.process(testSequences, {
+        fraction: 0.1,
+        seed: -42,
+      })) {
         results.push(seq);
       }
 

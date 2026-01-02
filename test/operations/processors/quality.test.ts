@@ -48,7 +48,7 @@ describe("QualityProcessor", () => {
         processor.process(source(sequences), {
           bins: 3,
           preset: "illumina",
-        })
+        }),
       );
 
       expect(processed).toHaveLength(1);
@@ -65,7 +65,7 @@ describe("QualityProcessor", () => {
         processor.process(source(sequences), {
           bins: 2,
           boundaries: [20],
-        })
+        }),
       );
 
       expect(processed).toHaveLength(1);
@@ -79,7 +79,7 @@ describe("QualityProcessor", () => {
         processor.process(source(sequences), {
           bins: 2,
           preset: "pacbio",
-        })
+        }),
       );
 
       expect(processed).toHaveLength(1);
@@ -93,7 +93,7 @@ describe("QualityProcessor", () => {
         processor.process(source(sequences), {
           bins: 3,
           preset: "nanopore",
-        })
+        }),
       );
 
       expect(processed).toHaveLength(1);
@@ -113,7 +113,7 @@ describe("QualityProcessor", () => {
           minScore: 20, // Filter first
           bins: 2, // Then bin
           preset: "illumina",
-        })
+        }),
       );
 
       expect(processed).toHaveLength(1);
@@ -131,7 +131,7 @@ describe("QualityProcessor", () => {
           minScore: 25,
           bins: 3,
           preset: "illumina",
-        })
+        }),
       );
 
       expect(processed).toHaveLength(1);
@@ -147,7 +147,7 @@ describe("QualityProcessor", () => {
         processor.process(source(sequences), {
           bins: 2,
           preset: "illumina",
-        })
+        }),
       );
 
       expect(processed).toHaveLength(1);
@@ -176,7 +176,7 @@ describe("QualityProcessor", () => {
             bins: 3,
             // biome-ignore lint/suspicious/noExplicitAny: Testing invalid preset
             preset: "invalid" as any,
-          })
+          }),
         );
       }).toThrow(/No preset found/);
     });
@@ -190,7 +190,7 @@ describe("QualityProcessor", () => {
             bins: 3,
             // biome-ignore lint/suspicious/noExplicitAny: Testing error handling
             preset: "nonexistent" as any,
-          })
+          }),
         );
         expect(true).toBe(false); // Should not reach here
       } catch (error) {
@@ -219,7 +219,7 @@ describe("QualityProcessor", () => {
         processor.process(source(sequences), {
           bins: 2,
           preset: "illumina",
-        })
+        }),
       );
 
       expect(processed[0].id).toBe("important_id");
@@ -232,7 +232,7 @@ describe("QualityProcessor", () => {
         processor.process(source(sequences), {
           bins: 3,
           preset: "illumina",
-        })
+        }),
       );
 
       expect(processed[0].sequence).toBe("ATCGATCG");
@@ -245,7 +245,7 @@ describe("QualityProcessor", () => {
         processor.process(source(sequences), {
           bins: 3,
           preset: "illumina",
-        })
+        }),
       );
 
       expect(processed[0].quality.length).toBe(sequences[0].quality.length);

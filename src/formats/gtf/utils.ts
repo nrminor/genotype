@@ -112,7 +112,7 @@ function countGtfFeatures(data: string): number {
  */
 function filterFeaturesByType(
   features: AsyncIterable<GtfFeature>,
-  featureTypes: string[]
+  featureTypes: string[],
 ): AsyncIterable<GtfFeature> {
   const typeSet = new Set(featureTypes);
 

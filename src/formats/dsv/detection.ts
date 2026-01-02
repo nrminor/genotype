@@ -22,7 +22,7 @@ import { parseCSVRow } from "./state-machine";
  */
 export function detectDelimiter(
   lines: string[],
-  candidates: string[] = [",", "\t", "|", ";"] // Common DSV delimiters
+  candidates: string[] = [",", "\t", "|", ";"], // Common DSV delimiters
 ): string | null {
   const scores = new Map<string, number>();
 
@@ -127,7 +127,7 @@ export function detectHeaders(lines: string[], delimiter: string): boolean {
     // Check for common header patterns
     if (
       /^(id|name|seq|sequence|qual|quality|chr|chrom|chromosome|pos|position|ref|alt|gene|expression)$/i.test(
-        field
+        field,
       )
     ) {
       return true;
@@ -279,7 +279,7 @@ export function detectFormat(content: string): {
  */
 export function extractHeaders(
   content: string,
-  options: { delimiter?: string } = {}
+  options: { delimiter?: string } = {},
 ): string[] | null {
   const delimiter = options.delimiter || detectDelimiter(content.split(/\r?\n/).slice(0, 5)) || ",";
   const lines = content.split(/\r?\n/).filter((l) => l && !l.startsWith("#"));

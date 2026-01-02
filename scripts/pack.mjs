@@ -47,7 +47,7 @@ packagesToPack.push({
 });
 
 for (const pkgName of Object.keys(libPackageJson.optionalDependencies || {}).filter((x) =>
-  x.startsWith(packageJson.name)
+  x.startsWith(packageJson.name),
 )) {
   const nativeDir = join(rootDir, "node_modules", pkgName);
   if (existsSync(nativeDir)) {

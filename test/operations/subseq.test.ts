@@ -44,7 +44,7 @@ describe("SubseqExtractor", () => {
       const results = await collectResults(
         extractor.extract(arrayToAsync(sequences), {
           region: "3:6",
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -60,7 +60,7 @@ describe("SubseqExtractor", () => {
         extractor.extract(arrayToAsync(sequences), {
           start: 3,
           end: 6,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -74,7 +74,7 @@ describe("SubseqExtractor", () => {
       const results = await collectResults(
         extractor.extract(arrayToAsync(sequences), {
           region: "7:-1",
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -87,7 +87,7 @@ describe("SubseqExtractor", () => {
       const results = await collectResults(
         extractor.extract(arrayToAsync(sequences), {
           region: "1:5",
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -103,7 +103,7 @@ describe("SubseqExtractor", () => {
         extractor.extract(arrayToAsync(sequences), {
           region: "5:7",
           upstream: 2,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -117,7 +117,7 @@ describe("SubseqExtractor", () => {
         extractor.extract(arrayToAsync(sequences), {
           region: "5:7",
           downstream: 2,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -133,7 +133,7 @@ describe("SubseqExtractor", () => {
           region: "5:7",
           upstream: 2,
           downstream: 2,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -148,7 +148,7 @@ describe("SubseqExtractor", () => {
         extractor.extract(arrayToAsync(sequences), {
           region: "2:4",
           upstream: 10,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -162,7 +162,7 @@ describe("SubseqExtractor", () => {
         extractor.extract(arrayToAsync(sequences), {
           region: "10:11",
           downstream: 10,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -183,7 +183,7 @@ describe("SubseqExtractor", () => {
             { chromosome: "chr1", chromStart: 2, chromEnd: 5 },
             { chromosome: "chr2", chromStart: 4, chromEnd: 8 },
           ],
-        })
+        }),
       );
 
       expect(results).toHaveLength(2);
@@ -201,7 +201,7 @@ describe("SubseqExtractor", () => {
       const results = await collectResults(
         extractor.extract(arrayToAsync(sequences), {
           bedRegions: [{ chromosome: "chr1", chromStart: 2, chromEnd: 5 }],
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -218,7 +218,7 @@ describe("SubseqExtractor", () => {
             { chromosome: "chr1", chromStart: 8, chromEnd: 12 },
           ],
           concatenate: false,
-        })
+        }),
       );
 
       expect(results).toHaveLength(2);
@@ -239,7 +239,7 @@ describe("SubseqExtractor", () => {
       const results = await collectResults(
         extractor.extract(arrayToAsync(sequences), {
           idPattern: /^gene/,
-        })
+        }),
       );
 
       expect(results).toHaveLength(2);
@@ -258,7 +258,7 @@ describe("SubseqExtractor", () => {
       const results = await collectResults(
         extractor.extract(arrayToAsync(sequences), {
           idList: ["seq2", "seq4"],
-        })
+        }),
       );
 
       expect(results).toHaveLength(2);
@@ -277,7 +277,7 @@ describe("SubseqExtractor", () => {
         extractor.extract(arrayToAsync(sequences), {
           idPattern: /^gene/,
           region: "3:6",
-        })
+        }),
       );
 
       expect(results).toHaveLength(2);
@@ -296,7 +296,7 @@ describe("SubseqExtractor", () => {
         extractor.extract(arrayToAsync(sequences), {
           region: "7:3",
           circular: true,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -311,7 +311,7 @@ describe("SubseqExtractor", () => {
           region: "2:4",
           upstream: 3,
           circular: true,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -326,7 +326,7 @@ describe("SubseqExtractor", () => {
           region: "6:8",
           downstream: 3,
           circular: true,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -342,7 +342,7 @@ describe("SubseqExtractor", () => {
         extractor.extract(arrayToAsync(sequences), {
           region: "3:6",
           strand: "-",
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -358,7 +358,7 @@ describe("SubseqExtractor", () => {
           upstream: 2,
           downstream: 2,
           strand: "-",
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -378,7 +378,7 @@ describe("SubseqExtractor", () => {
             { chromosome: "seq1", chromStart: 8, chromEnd: 12 },
           ],
           concatenate: true,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -395,7 +395,7 @@ describe("SubseqExtractor", () => {
             { chromosome: "seq1", chromStart: 8, chromEnd: 12 },
           ],
           concatenate: false,
-        })
+        }),
       );
 
       expect(results).toHaveLength(2);
@@ -416,7 +416,7 @@ describe("SubseqExtractor", () => {
           ],
           featureType: "exon",
           concatenate: true,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -433,7 +433,7 @@ describe("SubseqExtractor", () => {
             { seqname: "chr1", start: 10, end: 12, feature: "intron" },
           ],
           featureType: "exon",
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -448,7 +448,7 @@ describe("SubseqExtractor", () => {
           gtfFeatures: [
             { seqname: "chr1", start: 1, end: 4, feature: "exon" }, // GTF 1-based
           ],
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -464,7 +464,7 @@ describe("SubseqExtractor", () => {
         extractor.extract(arrayToAsync(sequences), {
           region: "1:4",
           strand: "-",
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -480,7 +480,7 @@ describe("SubseqExtractor", () => {
           upstream: 1,
           downstream: 1,
           strand: "-",
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -498,7 +498,7 @@ describe("SubseqExtractor", () => {
         extractor.extract(arrayToAsync(sequences), {
           region: "2:5",
           oneBased: false,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -512,7 +512,7 @@ describe("SubseqExtractor", () => {
         extractor.extract(arrayToAsync(sequences), {
           region: "2:5",
           includeCoordinates: true,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -528,7 +528,7 @@ describe("SubseqExtractor", () => {
           region: "2:5",
           includeCoordinates: true,
           coordinateSeparator: "-",
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -543,7 +543,7 @@ describe("SubseqExtractor", () => {
       const results = await collectResults(
         extractor.extract(arrayToAsync(sequences), {
           regions: ["1:4", "8:12"],
-        })
+        }),
       );
 
       expect(results).toHaveLength(2);
@@ -560,7 +560,7 @@ describe("SubseqExtractor", () => {
           extractor.extract(arrayToAsync(sequences), {
             region: "1:5",
             gtfFeatures: [{ seqname: "seq1", start: 1, end: 5, feature: "exon" }],
-          })
+          }),
         );
       }).toThrow("only one region specification method");
     });
@@ -575,7 +575,7 @@ describe("SubseqExtractor", () => {
         await collectResults(
           extractor.extract(arrayToAsync(sequences), {
             region: "invalid",
-          })
+          }),
         );
       }).toThrow("Invalid region format");
     });
@@ -588,7 +588,7 @@ describe("SubseqExtractor", () => {
         await collectResults(
           extractor.extract(arrayToAsync(sequences), {
             region: "10:20",
-          })
+          }),
         );
       }).toThrow("Invalid coordinates");
     });
@@ -602,7 +602,7 @@ describe("SubseqExtractor", () => {
           extractor.extract(arrayToAsync(sequences), {
             start: 5,
             end: 3,
-          })
+          }),
         );
       }).toThrow("start < end");
     });
@@ -613,7 +613,7 @@ describe("SubseqExtractor", () => {
       const results = await collectResults(
         extractor.extract(arrayToAsync(sequences), {
           region: "1:5",
-        })
+        }),
       );
 
       expect(results).toHaveLength(0);
@@ -639,7 +639,7 @@ describe("SubseqExtractor", () => {
           extractor.extract(arrayToAsync(sequences), {
             region: "1:5",
             bedRegions: [{ chromosome: "seq1", chromStart: 1, chromEnd: 5 }],
-          })
+          }),
         );
       }).toThrow("only one region specification method");
     });
@@ -653,7 +653,7 @@ describe("SubseqExtractor", () => {
           extractor.extract(arrayToAsync(sequences), {
             region: "1:5",
             upstream: -1,
-          })
+          }),
         );
       }).toThrow("upstream must be non-negative");
     });
@@ -667,7 +667,7 @@ describe("SubseqExtractor", () => {
           extractor.extract(arrayToAsync(sequences), {
             region: "1:5",
             onlyFlank: true,
-          })
+          }),
         );
       }).toThrow("upstream or downstream required with onlyFlank");
     });
@@ -695,7 +695,7 @@ describe("SubseqExtractor", () => {
         extractSubsequences(arrayToAsync(sequences), {
           region: "5:8",
           upstream: 2,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);

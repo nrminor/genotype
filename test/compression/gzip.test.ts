@@ -20,7 +20,7 @@ describe("GzipDecompressor", () => {
 
       await expect(GzipDecompressor.decompress(invalidData)).rejects.toThrow(CompressionError);
       await expect(GzipDecompressor.decompress(invalidData)).rejects.toThrow(
-        /Invalid gzip magic bytes/
+        /Invalid gzip magic bytes/,
       );
     });
 
@@ -33,10 +33,10 @@ describe("GzipDecompressor", () => {
 
     test("should reject non-Uint8Array input", async () => {
       await expect(
-        GzipDecompressor.decompress([0x1f, 0x8b] as unknown as Uint8Array)
+        GzipDecompressor.decompress([0x1f, 0x8b] as unknown as Uint8Array),
       ).rejects.toThrow(CompressionError);
       await expect(
-        GzipDecompressor.decompress("gzip data" as unknown as Uint8Array)
+        GzipDecompressor.decompress("gzip data" as unknown as Uint8Array),
       ).rejects.toThrow(CompressionError);
     });
 
@@ -48,10 +48,10 @@ describe("GzipDecompressor", () => {
       const options = { maxOutputSize: 1024 * 1024 }; // 1MB limit
 
       await expect(GzipDecompressor.decompress(largeGzipData, options)).rejects.toThrow(
-        CompressionError
+        CompressionError,
       );
       await expect(GzipDecompressor.decompress(largeGzipData, options)).rejects.toThrow(
-        /exceeds maximum/
+        /exceeds maximum/,
       );
     });
 
@@ -138,7 +138,7 @@ describe("GzipDecompressor", () => {
           for await (const chunk of decompressedStream) {
             // Should not reach here due to abort
           }
-        })()
+        })(),
       ).rejects.toThrow(CompressionError);
     });
   });
@@ -159,10 +159,10 @@ describe("GzipDecompressor", () => {
 
     test("should reject invalid input", () => {
       expect(() => GzipDecompressor.wrapStream(null as unknown as ReadableStream)).toThrow(
-        CompressionError
+        CompressionError,
       );
       expect(() =>
-        GzipDecompressor.wrapStream("not a stream" as unknown as ReadableStream)
+        GzipDecompressor.wrapStream("not a stream" as unknown as ReadableStream),
       ).toThrow(CompressionError);
     });
 
@@ -284,7 +284,7 @@ describe("GzipDecompressor", () => {
       const options = { maxOutputSize: smallLimit };
 
       await expect(GzipDecompressor.decompress(largeGzipData, options)).rejects.toThrow(
-        /exceeds maximum/
+        /exceeds maximum/,
       );
     });
 

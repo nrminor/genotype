@@ -98,7 +98,7 @@ export function calculateQualityStats(scores: number[]): QualityStats {
  */
 export function calculateAverageQuality(
   quality: string,
-  encoding: QualityEncoding = "phred33"
+  encoding: QualityEncoding = "phred33",
 ): number {
   if (!quality || quality.length === 0) {
     return 0;
@@ -199,7 +199,7 @@ export function calculateErrorRate(quality: string, encoding: QualityEncoding = 
 export function percentAboveThreshold(
   quality: string,
   threshold: number,
-  encoding: QualityEncoding = "phred33"
+  encoding: QualityEncoding = "phred33",
 ): number {
   if (!quality || quality.length === 0) {
     return 0;

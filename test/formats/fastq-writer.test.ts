@@ -226,7 +226,7 @@ describe("FASTQ Writer Enhancements", () => {
       });
 
       expect(() => writer.formatSequence(invalidSeq)).toThrow(
-        /FASTQ sequence and quality must have equal length/
+        /FASTQ sequence and quality must have equal length/,
       );
     });
 
@@ -317,7 +317,7 @@ describe("FASTQ Writer Enhancements", () => {
           new FastqWriter({
             validationLevel: "full",
             validateOutput: false,
-          })
+          }),
       ).toThrow(/Setting a validation level has no effect/);
     });
 
@@ -348,7 +348,7 @@ describe("FASTQ Writer Enhancements", () => {
             lineLength: 80,
             outputStrategy: "wrapped",
             preservePlatformFormat: true,
-          })
+          }),
       ).not.toThrow();
     });
 
@@ -446,7 +446,7 @@ describe("FASTQ Writer Enhancements", () => {
           new FastqWriter({
             outputStrategy: "wrapped",
             lineLength: 0,
-          })
+          }),
       ).toThrow(/Wrapped output format requires a positive line length/);
     });
   });

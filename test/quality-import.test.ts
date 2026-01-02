@@ -142,12 +142,12 @@ test("Both import patterns produce identical results", async () => {
   for (const quality of testQualities) {
     // Verify averageQuality
     expect(averageQuality(quality, "phred33")).toBe(
-      QualityEncodingDetector.averageQuality(quality, "phred33")
+      QualityEncodingDetector.averageQuality(quality, "phred33"),
     );
 
     // Verify validateQualityString
     expect(validateQualityString(quality, "phred33")).toBe(
-      QualityEncodingDetector.validateQualityString(quality, "phred33")
+      QualityEncodingDetector.validateQualityString(quality, "phred33"),
     );
   }
 
@@ -155,12 +155,12 @@ test("Both import patterns produce identical results", async () => {
   for (let score = 0; score <= 40; score += 10) {
     // Verify scoreToChar
     expect(scoreToChar(score, "phred33")).toBe(
-      QualityEncodingDetector.scoreToChar(score, "phred33")
+      QualityEncodingDetector.scoreToChar(score, "phred33"),
     );
 
     // Verify scoreToErrorProbability
     expect(scoreToErrorProbability(score)).toBe(
-      QualityEncodingDetector.scoreToErrorProbability(score)
+      QualityEncodingDetector.scoreToErrorProbability(score),
     );
   }
 

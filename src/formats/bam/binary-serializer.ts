@@ -71,7 +71,7 @@ export function writeInt32LE(view: DataView, offset: number, value: number): voi
     throw new BamError(
       `Cannot write int32 at offset ${offset}: buffer too small (${view.byteLength} bytes)`,
       undefined,
-      "binary"
+      "binary",
     );
   }
 
@@ -104,7 +104,7 @@ export function writeUInt32LE(view: DataView, offset: number, value: number): vo
     throw new BamError(
       `Cannot write uint32 at offset ${offset}: buffer too small (${view.byteLength} bytes)`,
       undefined,
-      "binary"
+      "binary",
     );
   }
 
@@ -137,7 +137,7 @@ export function writeUInt16LE(view: DataView, offset: number, value: number): vo
     throw new BamError(
       `Cannot write uint16 at offset ${offset}: buffer too small (${view.byteLength} bytes)`,
       undefined,
-      "binary"
+      "binary",
     );
   }
 
@@ -170,7 +170,7 @@ export function writeUInt8(view: DataView, offset: number, value: number): void 
     throw new BamError(
       `Cannot write uint8 at offset ${offset}: buffer too small (${view.byteLength} bytes)`,
       undefined,
-      "binary"
+      "binary",
     );
   }
 
@@ -190,7 +190,7 @@ export function writeCString(
   view: DataView,
   offset: number,
   value: string,
-  maxLength: number
+  maxLength: number,
 ): number {
   // Tiger Style: Assert function arguments
   if (!(view instanceof DataView)) {
@@ -210,7 +210,7 @@ export function writeCString(
     throw new BamError(
       `String too long: ${value.length} characters (max ${maxLength - 1} with null terminator)`,
       undefined,
-      "binary"
+      "binary",
     );
   }
 
@@ -218,7 +218,7 @@ export function writeCString(
     throw new BamError(
       `Cannot write string at offset ${offset}: buffer too small (${view.byteLength} bytes)`,
       undefined,
-      "binary"
+      "binary",
     );
   }
 
@@ -243,7 +243,7 @@ export function writeCString(
     throw new BamError(
       "bytes written must equal string length plus null terminator",
       undefined,
-      "binary"
+      "binary",
     );
   }
 
@@ -343,7 +343,7 @@ export function packSequence(sequence: string, buffer: Uint8Array, offset: numbe
     throw new BamError(
       `Buffer too small for packed sequence: need ${bytesNeeded} bytes at offset ${offset}, have ${buffer.length - offset}`,
       undefined,
-      "sequence"
+      "sequence",
     );
   }
 
@@ -366,7 +366,7 @@ export function packSequence(sequence: string, buffer: Uint8Array, offset: numbe
       throw new BamError(
         `Invalid nucleotide character '${base1}' at position ${i}`,
         undefined,
-        "sequence"
+        "sequence",
       );
     }
 
@@ -381,7 +381,7 @@ export function packSequence(sequence: string, buffer: Uint8Array, offset: numbe
       throw new BamError(
         `Invalid nucleotide character '${base2}' at position ${i + 1}`,
         undefined,
-        "sequence"
+        "sequence",
       );
     }
 
@@ -448,7 +448,7 @@ function parseCIGARString(cigar: string): Array<{ operation: string; length: num
     throw new BamError(
       `CIGAR parsing incomplete: expected '${cigar}', got '${reconstructed}'`,
       undefined,
-      "cigar"
+      "cigar",
     );
   }
 
@@ -492,7 +492,7 @@ export function packCIGAR(cigar: CIGARString, buffer: Uint8Array, offset: number
     throw new BamError(
       `Buffer too small for CIGAR: need ${bytesNeeded} bytes at offset ${offset}, have ${buffer.length - offset}`,
       undefined,
-      "cigar"
+      "cigar",
     );
   }
 
@@ -510,7 +510,7 @@ export function packCIGAR(cigar: CIGARString, buffer: Uint8Array, offset: number
       throw new BamError(
         `Invalid CIGAR operation '${operation}' in position ${i}`,
         undefined,
-        "cigar"
+        "cigar",
       );
     }
 
@@ -519,7 +519,7 @@ export function packCIGAR(cigar: CIGARString, buffer: Uint8Array, offset: number
       throw new BamError(
         `Invalid CIGAR operation length ${length} for operation '${operation}'`,
         undefined,
-        "cigar"
+        "cigar",
       );
     }
 
@@ -554,7 +554,7 @@ export function packCIGAR(cigar: CIGARString, buffer: Uint8Array, offset: number
 export function packQualityScores(
   qualityString: string,
   buffer: Uint8Array,
-  offset: number
+  offset: number,
 ): number {
   // Tiger Style: Assert function arguments
   if (typeof qualityString !== "string") {
@@ -576,7 +576,7 @@ export function packQualityScores(
     throw new BamError(
       `Buffer too small for quality scores: need ${length} bytes at offset ${offset}, have ${buffer.length - offset}`,
       undefined,
-      "qual"
+      "qual",
     );
   }
 
@@ -588,7 +588,7 @@ export function packQualityScores(
       throw new BamError(
         `Invalid quality score character '${qualityString[i]}' (ASCII ${charCode}) at position ${i}`,
         undefined,
-        "qual"
+        "qual",
       );
     }
 
@@ -622,7 +622,7 @@ function validateTagPackingArgs(
   type: string,
   value: string | number,
   buffer: Uint8Array,
-  offset: number
+  offset: number,
 ): void {
   if (typeof type !== "string" || type.length !== 1) {
     throw new BamError("type must be single character", undefined, "tags");
@@ -646,7 +646,7 @@ function packCharacterTag(value: string | number, buffer: Uint8Array, offset: nu
     throw new BamError(
       `Invalid character tag value: '${value}' (must be single character)`,
       undefined,
-      "tags"
+      "tags",
     );
   }
   if (offset >= buffer.length) {
@@ -672,7 +672,7 @@ function pack8BitIntegerTag(
   type: string,
   value: string | number,
   buffer: Uint8Array,
-  offset: number
+  offset: number,
 ): number {
   validateIntegerValue(value);
 
@@ -688,7 +688,7 @@ function pack8BitIntegerTag(
       throw new BamError(
         `Invalid int8 tag value: ${value} (must be -128 to 127)`,
         undefined,
-        "tags"
+        "tags",
       );
     }
     view.setInt8(offset, value);
@@ -710,7 +710,7 @@ function pack16BitIntegerTag(
   type: string,
   value: string | number,
   buffer: Uint8Array,
-  offset: number
+  offset: number,
 ): number {
   validateIntegerValue(value);
 
@@ -726,7 +726,7 @@ function pack16BitIntegerTag(
       throw new BamError(
         `Invalid int16 tag value: ${value} (must be -32768 to 32767)`,
         undefined,
-        "tags"
+        "tags",
       );
     }
     view.setInt16(offset, value, true);
@@ -736,7 +736,7 @@ function pack16BitIntegerTag(
       throw new BamError(
         `Invalid uint16 tag value: ${value} (must be 0 to 65535)`,
         undefined,
-        "tags"
+        "tags",
       );
     }
     view.setUint16(offset, value, true);
@@ -752,7 +752,7 @@ function pack32BitIntegerTag(
   type: string,
   value: string | number,
   buffer: Uint8Array,
-  offset: number
+  offset: number,
 ): number {
   validateIntegerValue(value);
 
@@ -768,7 +768,7 @@ function pack32BitIntegerTag(
       throw new BamError(
         `Invalid int32 tag value: ${value} (must be 32-bit signed integer)`,
         undefined,
-        "tags"
+        "tags",
       );
     }
     view.setInt32(offset, value, true);
@@ -778,7 +778,7 @@ function pack32BitIntegerTag(
       throw new BamError(
         `Invalid uint32 tag value: ${value} (must be 32-bit unsigned integer)`,
         undefined,
-        "tags"
+        "tags",
       );
     }
     view.setUint32(offset, value, true);
@@ -794,7 +794,7 @@ function packIntegerTag(
   type: string,
   value: string | number,
   buffer: Uint8Array,
-  offset: number
+  offset: number,
 ): number {
   switch (type) {
     case "c": // Signed 8-bit integer
@@ -822,7 +822,7 @@ function packFloatTag(value: string | number, buffer: Uint8Array, offset: number
     throw new BamError(
       `Invalid float tag value: ${value} (must be finite number)`,
       undefined,
-      "tags"
+      "tags",
     );
   }
   if (offset + 4 > buffer.length) {
@@ -847,7 +847,7 @@ function packStringTag(value: string | number, buffer: Uint8Array, offset: numbe
     throw new BamError(
       `Buffer too small for string tag: need ${bytes.length + 1} bytes`,
       undefined,
-      "tags"
+      "tags",
     );
   }
 
@@ -883,7 +883,7 @@ function writeBTypeElements(
   subtype: string,
   elements: number[],
   buffer: Uint8Array,
-  offset: number
+  offset: number,
 ): number {
   let currentOffset = offset;
 
@@ -929,7 +929,7 @@ function packArrayTag(value: string | number, buffer: Uint8Array, offset: number
     throw new BamError(
       `B-type array tag value must be string format: "subtype,value1,value2,..."`,
       undefined,
-      "tags"
+      "tags",
     );
   }
 
@@ -955,7 +955,7 @@ function packArrayTag(value: string | number, buffer: Uint8Array, offset: number
     throw new BamError(
       `Buffer too small for B-type array: need ${totalSize} bytes`,
       undefined,
-      "tags"
+      "tags",
     );
   }
 
@@ -986,7 +986,7 @@ function packTagValue(
   type: string,
   value: string | number,
   buffer: Uint8Array,
-  offset: number
+  offset: number,
 ): number {
   validateTagPackingArgs(type, value, buffer, offset);
 
@@ -1049,7 +1049,7 @@ export function packTags(tags: SAMTag[] | undefined, buffer: Uint8Array, offset:
       throw new BamError(
         `Invalid tag name: '${tag.tag}' (must be exactly 2 characters)`,
         undefined,
-        "tags"
+        "tags",
       );
     }
 
@@ -1057,7 +1057,7 @@ export function packTags(tags: SAMTag[] | undefined, buffer: Uint8Array, offset:
       throw new BamError(
         `Invalid tag type: '${tag.type}' (must be exactly 1 character)`,
         undefined,
-        "tags"
+        "tags",
       );
     }
 
@@ -1066,7 +1066,7 @@ export function packTags(tags: SAMTag[] | undefined, buffer: Uint8Array, offset:
       throw new BamError(
         `Buffer too small for tag name: need 2 bytes at offset ${currentOffset}`,
         undefined,
-        "tags"
+        "tags",
       );
     }
 
@@ -1078,7 +1078,7 @@ export function packTags(tags: SAMTag[] | undefined, buffer: Uint8Array, offset:
       throw new BamError(
         `Buffer too small for tag type: need 1 byte at offset ${currentOffset}`,
         undefined,
-        "tags"
+        "tags",
       );
     }
 
@@ -1175,7 +1175,7 @@ export function calculateAlignmentSize(alignment: SAMAlignment, references: stri
     throw new BamError(
       "total size must be at least 32 bytes for fixed header",
       undefined,
-      "binary"
+      "binary",
     );
   }
 
@@ -1188,7 +1188,7 @@ export function calculateAlignmentSize(alignment: SAMAlignment, references: stri
  * @returns Optimized serializer functions
  */
 export function createOptimizedSerializer(
-  options: { maxAlignmentSize?: number; bufferPoolSize?: number } = {}
+  options: { maxAlignmentSize?: number; bufferPoolSize?: number } = {},
 ): {
   getBuffer: (size: number) => Uint8Array;
   getStats: () => {

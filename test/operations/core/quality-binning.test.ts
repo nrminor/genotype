@@ -325,25 +325,25 @@ describe("Quality Binning - Boundary Validation", () => {
 
   test("rejects non-ascending boundaries", () => {
     expect(() => validateBoundaries([30, 15], "phred33")).toThrow(
-      /value at index 1 \(15\) <= previous value \(30\)/
+      /value at index 1 \(15\) <= previous value \(30\)/,
     );
   });
 
   test("rejects duplicate boundaries", () => {
     expect(() => validateBoundaries([15, 15, 30], "phred33")).toThrow(
-      /value at index 1 \(15\) <= previous value \(15\)/
+      /value at index 1 \(15\) <= previous value \(15\)/,
     );
   });
 
   test("rejects out-of-range boundaries for phred33", () => {
     expect(() => validateBoundaries([15, 100], "phred33")).toThrow(
-      /value at index 1 \(100\) outside valid range \[0, 93\]/
+      /value at index 1 \(100\) outside valid range \[0, 93\]/,
     );
   });
 
   test("rejects negative boundaries for phred33", () => {
     expect(() => validateBoundaries([-5, 10], "phred33")).toThrow(
-      /value at index 0 \(-5\) outside valid range \[0, 93\]/
+      /value at index 0 \(-5\) outside valid range \[0, 93\]/,
     );
   });
 
@@ -353,13 +353,13 @@ describe("Quality Binning - Boundary Validation", () => {
 
   test("rejects boundaries below solexa minimum", () => {
     expect(() => validateBoundaries([-10, 10], "solexa")).toThrow(
-      /value at index 0 \(-10\) outside valid range \[-5, 62\]/
+      /value at index 0 \(-10\) outside valid range \[-5, 62\]/,
     );
   });
 
   test("rejects boundaries above phred64 maximum", () => {
     expect(() => validateBoundaries([10, 70], "phred64")).toThrow(
-      /value at index 1 \(70\) outside valid range \[0, 62\]/
+      /value at index 1 \(70\) outside valid range \[0, 62\]/,
     );
   });
 

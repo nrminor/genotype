@@ -216,7 +216,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
    * @returns AsyncIterable of SAM headers and alignments
    */
   override async *parse(
-    stream: ReadableStream<Uint8Array>
+    stream: ReadableStream<Uint8Array>,
   ): AsyncIterable<SAMHeader | SAMAlignment> {
     // Extract stream parsing logic from parseFile
     const { StreamUtils } = await import("../io/stream-utils");
@@ -244,7 +244,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
    */
   override async *parseFile(
     filePath: string,
-    options?: import("../types").FileReaderOptions
+    options?: import("../types").FileReaderOptions,
   ): AsyncIterable<SAMAlignment | SAMHeader> {
     // Tiger Style: Assert function arguments
     if (typeof filePath !== "string") {
@@ -277,7 +277,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
           undefined,
           "file",
           undefined,
-          error.stack
+          error.stack,
         );
       }
       throw error;
@@ -292,7 +292,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
    */
   private async *parseLines(
     lines: string[],
-    startLineNumber = 1
+    startLineNumber = 1,
   ): AsyncIterable<SAMAlignment | SAMHeader> {
     // Tiger Style: Assert function arguments
     if (!Array.isArray(lines)) {
@@ -317,7 +317,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
       if (trimmedLine.length > this.options.maxLineLength) {
         this.options.onError(
           `Line too long (${trimmedLine.length} > ${this.options.maxLineLength})`,
-          currentLineNumber
+          currentLineNumber,
         );
         continue;
       }
@@ -367,7 +367,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
 
   private parseHeaderParts(
     headerLine: string,
-    lineNumber: number
+    lineNumber: number,
   ): {
     headerType: "HD" | "SQ" | "RG" | "PG" | "CO";
     parts: string[];
@@ -384,7 +384,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
         undefined,
         "header",
         lineNumber,
-        headerLine
+        headerLine,
       );
     }
 
@@ -395,7 +395,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
     parts: string[],
     headerType: "HD" | "SQ" | "RG" | "PG" | "CO",
     lineNumber: number,
-    headerLine: string
+    headerLine: string,
   ): Record<string, string> {
     const fields: Record<string, string> = {};
 
@@ -412,7 +412,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
           undefined,
           "header",
           lineNumber,
-          headerLine
+          headerLine,
         );
       }
 
@@ -423,7 +423,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
           undefined,
           "header",
           lineNumber,
-          headerLine
+          headerLine,
         );
       }
 
@@ -438,7 +438,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
   private buildHeader(
     headerType: "HD" | "SQ" | "RG" | "PG" | "CO",
     fields: Record<string, string>,
-    lineNumber: number
+    lineNumber: number,
   ): SAMHeader {
     return {
       format: "sam-header",
@@ -461,7 +461,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
           undefined,
           "header",
           lineNumber,
-          headerLine
+          headerLine,
         );
       }
     } catch (error) {
@@ -473,7 +473,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
         undefined,
         "header",
         lineNumber,
-        headerLine
+        headerLine,
       );
     }
   }
@@ -481,7 +481,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
   private assertHeaderPostconditions(
     header: SAMHeader,
     lineNumber: number,
-    headerLine: string
+    headerLine: string,
   ): void {
     if (header.format !== "sam-header") {
       throw new SamError(
@@ -489,7 +489,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
         undefined,
         "header",
         lineNumber,
-        headerLine
+        headerLine,
       );
     }
     if (!["HD", "SQ", "RG", "PG", "CO"].includes(header.type)) {
@@ -601,7 +601,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
    */
   private parseMandatoryFields(
     line: string,
-    lineNumber: number
+    lineNumber: number,
   ): ParseResult<SamMandatoryFields, SamError> {
     const fields = line.split("\t");
 
@@ -614,7 +614,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
           fields[0] ?? "unknown",
           "alignment",
           lineNumber,
-          line
+          line,
         ),
       };
     }
@@ -659,7 +659,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
           qname ?? "unknown",
           "alignment",
           lineNumber,
-          line
+          line,
         ),
       };
     }
@@ -701,7 +701,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
                 qname,
                 "alignment",
                 lineNumber,
-                line
+                line,
               ),
       };
     }
@@ -728,7 +728,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
       mandatory.qname,
       fields,
       lineNumber,
-      alignmentLine
+      alignmentLine,
     );
 
     return {
@@ -756,7 +756,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
     qname: string,
     fields: string[],
     lineNumber: number,
-    alignmentLine: string
+    alignmentLine: string,
   ): void {
     if (Number.isNaN(pos) || pos < 0) {
       throw new SamError(`Invalid position: ${fields[3]}`, qname, "pos", lineNumber, alignmentLine);
@@ -767,7 +767,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
         qname,
         "pnext",
         lineNumber,
-        alignmentLine
+        alignmentLine,
       );
     }
     if (Number.isNaN(tlen)) {
@@ -776,7 +776,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
         qname,
         "tlen",
         lineNumber,
-        alignmentLine
+        alignmentLine,
       );
     }
   }
@@ -784,7 +784,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
   private validateAlignment(
     alignment: SAMAlignment,
     alignmentLine: string,
-    lineNumber: number
+    lineNumber: number,
   ): void {
     if (this.options.skipValidation) {
       return;
@@ -798,7 +798,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
           alignment.qname,
           "alignment",
           lineNumber,
-          alignmentLine
+          alignmentLine,
         );
       }
     } catch (error) {
@@ -810,7 +810,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
         alignment.qname,
         "alignment",
         lineNumber,
-        alignmentLine
+        alignmentLine,
       );
     }
   }
@@ -818,7 +818,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
   private assertAlignmentPostconditions(
     alignment: SAMAlignment,
     alignmentLine: string,
-    lineNumber: number
+    lineNumber: number,
   ): void {
     const qname = alignment.qname;
 
@@ -828,7 +828,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
         qname,
         "alignment",
         lineNumber,
-        alignmentLine
+        alignmentLine,
       );
     }
     if (typeof alignment.qname !== "string") {
@@ -840,7 +840,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
         qname,
         "alignment",
         lineNumber,
-        alignmentLine
+        alignmentLine,
       );
     }
   }
@@ -974,7 +974,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
         `Invalid tag format: ${tagField} (expected TAG:TYPE:VALUE)`,
         undefined,
         "tag",
-        lineNumber
+        lineNumber,
       );
     }
 
@@ -997,7 +997,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
     type: "A" | "i" | "f" | "Z" | "H" | "B",
     valueStr: string,
     tag: string | undefined,
-    lineNumber: number
+    lineNumber: number,
   ): string | number {
     try {
       switch (type) {
@@ -1028,7 +1028,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
         `Invalid tag value for ${tag}: ${error instanceof Error ? error.message : String(error)}`,
         undefined,
         "tag",
-        lineNumber
+        lineNumber,
       );
     }
   }
@@ -1043,7 +1043,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
         `SAM tag must be 2 alphanumeric characters: ${samTag.tag}`,
         undefined,
         "tag",
-        lineNumber
+        lineNumber,
       );
     }
   }
@@ -1057,7 +1057,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
         "result length must not exceed input length",
         undefined,
         "tag",
-        lineNumber
+        lineNumber,
       );
     }
   }
@@ -1087,7 +1087,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
         undefined,
         "file",
         undefined,
-        "Please check that the file exists and you have read permissions"
+        "Please check that the file exists and you have read permissions",
       );
     }
 
@@ -1101,7 +1101,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
           undefined,
           "file",
           undefined,
-          "Check file permissions"
+          "Check file permissions",
         );
       }
 
@@ -1110,7 +1110,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
         // 2GB
         this.options.onWarning(
           `Large SAM file detected: ${Math.round(metadata.size / 1_048_576)}MB. Consider using BAM format for better performance.`,
-          1
+          1,
         );
       }
     } catch (error) {
@@ -1120,7 +1120,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
         undefined,
         "file",
         undefined,
-        filePath
+        filePath,
       );
     }
 
@@ -1133,7 +1133,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
    * @yields SAMAlignment or SAMHeader objects as they are parsed
    */
   private async *parseLinesFromAsyncIterable(
-    lines: AsyncIterable<string>
+    lines: AsyncIterable<string>,
   ): AsyncIterable<SAMAlignment | SAMHeader> {
     // Tiger Style: Assert function arguments
     if (typeof lines !== "object" || !(Symbol.asyncIterator in lines)) {
@@ -1154,7 +1154,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
         if (line.length > this.options.maxLineLength) {
           this.options.onError(
             `Line too long (${line.length} > ${this.options.maxLineLength})`,
-            lineNumber
+            lineNumber,
           );
           continue;
         }
@@ -1183,7 +1183,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
         undefined,
         "parsing",
         lineNumber,
-        "Check file format and content"
+        "Check file format and content",
       );
     }
 
@@ -1249,7 +1249,7 @@ class SAMWriter {
       onError?: (error: string, record?: SAMAlignment | SAMHeader) => void;
       /** Custom warning handler */
       onWarning?: (warning: string, record?: SAMAlignment | SAMHeader) => void;
-    } = {}
+    } = {},
   ) {
     // Tiger Style: Assert constructor arguments
     if (typeof options !== "object") {
@@ -1344,7 +1344,7 @@ class SAMWriter {
   async writeFile(
     filePath: string,
     records: Array<SAMAlignment | SAMHeader>,
-    options?: { encoding?: "utf8" | "binary"; mode?: number }
+    options?: { encoding?: "utf8" | "binary"; mode?: number },
   ): Promise<void> {
     // Tiger Style: Assert function arguments
     if (typeof filePath !== "string") {
@@ -1370,7 +1370,7 @@ class SAMWriter {
         undefined,
         "file",
         undefined,
-        error instanceof Error ? error.stack : undefined
+        error instanceof Error ? error.stack : undefined,
       );
     }
   }
@@ -1395,7 +1395,7 @@ class SAMWriter {
    */
   async writeStream(
     stream: WritableStream<Uint8Array>,
-    records: AsyncIterable<SAMAlignment | SAMHeader>
+    records: AsyncIterable<SAMAlignment | SAMHeader>,
   ): Promise<void> {
     // Tiger Style: Assert function arguments
     if (!(stream instanceof WritableStream)) {
@@ -1457,7 +1457,7 @@ class SAMWriter {
             `Invalid SAM header: ${validation.summary}`,
             undefined,
             "header",
-            header.lineNumber
+            header.lineNumber,
           );
         }
       } catch (error) {
@@ -1468,7 +1468,7 @@ class SAMWriter {
           `Header validation failed: ${error instanceof Error ? error.message : String(error)}`,
           undefined,
           "header",
-          header.lineNumber
+          header.lineNumber,
         );
       }
     }
@@ -1500,7 +1500,7 @@ class SAMWriter {
         "formatted header must start with @",
         undefined,
         "header",
-        header.lineNumber
+        header.lineNumber,
       );
     }
     if (!line.includes(header.type)) {
@@ -1508,7 +1508,7 @@ class SAMWriter {
         "formatted header must include type",
         undefined,
         "header",
-        header.lineNumber
+        header.lineNumber,
       );
     }
 
@@ -1539,7 +1539,7 @@ class SAMWriter {
             `Invalid SAM alignment: ${validation.summary}`,
             alignment.qname,
             "alignment",
-            alignment.lineNumber
+            alignment.lineNumber,
           );
         }
       } catch (error) {
@@ -1550,7 +1550,7 @@ class SAMWriter {
           `Alignment validation failed: ${error instanceof Error ? error.message : String(error)}`,
           alignment.qname,
           "alignment",
-          alignment.lineNumber
+          alignment.lineNumber,
         );
       }
     }
@@ -1586,7 +1586,7 @@ class SAMWriter {
         "formatted alignment must have at least 11 fields",
         alignment.qname,
         "alignment",
-        alignment.lineNumber
+        alignment.lineNumber,
       );
     }
     if (line.startsWith("@")) {
@@ -1594,7 +1594,7 @@ class SAMWriter {
         "formatted alignment must not start with @",
         alignment.qname,
         "alignment",
-        alignment.lineNumber
+        alignment.lineNumber,
       );
     }
     if (!line.includes("\t")) {
@@ -1602,7 +1602,7 @@ class SAMWriter {
         "formatted alignment must contain tabs",
         alignment.qname,
         "alignment",
-        alignment.lineNumber
+        alignment.lineNumber,
       );
     }
 
@@ -1641,7 +1641,7 @@ class SAMWriter {
         throw new SamError(
           `Tag validation failed: ${error instanceof Error ? error.message : String(error)}`,
           undefined,
-          "tag"
+          "tag",
         );
       }
     }

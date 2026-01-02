@@ -69,7 +69,7 @@ function detectVariant(fieldCount: number): "BED3" | "BED4" | "BED5" | "BED6" | 
   if (fieldCount > 12) {
     throw new BedError(
       `Unsupported BED format: ${fieldCount} fields exceeds BED12 specification (max 12 fields)`,
-      { context: "Consider using bigBed format for extended field sets" }
+      { context: "Consider using bigBed format for extended field sets" },
     );
   }
 
@@ -89,7 +89,7 @@ function detectVariant(fieldCount: number): "BED3" | "BED4" | "BED5" | "BED6" | 
     default:
       throw new BedError(
         `Unsupported BED variant: BED${fieldCount} (valid: BED3, BED4, BED5, BED6, BED9, BED12)`,
-        { context: "Use supported BED format variants with proper field counts" }
+        { context: "Use supported BED format variants with proper field counts" },
       );
   }
 }
@@ -112,7 +112,7 @@ function validateBedBlockStructure(
     "blockCount" | "blockStarts" | "blockSizes" | "start" | "end" | "chromosome"
   >,
   lineNumber?: number,
-  line?: string
+  line?: string,
 ): void {
   // Early return for features without blocks
   if (!bed.blockCount || !bed.blockStarts?.length || !bed.blockSizes?.length) return;
@@ -129,7 +129,7 @@ function validateBedBlockStructure(
         end: bed.end,
         lineNumber,
         context: line,
-      }
+      },
     );
   }
 
@@ -160,7 +160,7 @@ function validateBedBlockStructure(
         end: bed.end,
         lineNumber,
         context: line,
-      }
+      },
     );
   }
 
@@ -192,7 +192,7 @@ function validateBedBlockStructure(
           end: bed.end,
           lineNumber,
           context: line,
-        }
+        },
       );
     }
   }
@@ -234,7 +234,7 @@ function parseBedCoordinate(
   fieldName: string,
   lineNumber: number,
   line: string,
-  options: { onWarning?: (msg: string, line: number) => void }
+  options: { onWarning?: (msg: string, line: number) => void },
 ): ZeroBasedCoordinate {
   // Early check for negative coordinate strings (biological impossibility)
   if (coordStr.trim().startsWith("-")) {
@@ -266,7 +266,7 @@ function parseBedCoordinate(
     if (coordinate > 2_500_000_000) {
       options.onWarning?.(
         `Large coordinate ${coordinate} may cause compatibility issues with bedtools (>2.5GB limit)`,
-        lineNumber
+        lineNumber,
       );
     }
 
@@ -277,7 +277,7 @@ function parseBedCoordinate(
       {
         lineNumber,
         context: `Line content: ${line.substring(0, 100)}${line.length > 100 ? "..." : ""}`,
-      }
+      },
     );
   }
 }
@@ -312,7 +312,7 @@ function validateBedInterval(interval: BedInterval, lineNumber: number, line: st
         end: interval.end,
         lineNumber,
         context: line,
-      }
+      },
     );
   }
 }
@@ -327,7 +327,7 @@ function buildBedInterval(
   end: ZeroBasedCoordinate,
   optionalFields: string[],
   lineNumber: number,
-  options: { onWarning?: (msg: string, line: number) => void }
+  options: { onWarning?: (msg: string, line: number) => void },
 ): BedInterval {
   // Determine all optional fields upfront (no mutation)
   const name = optionalFields.length >= 1 && optionalFields[0] ? optionalFields[0] : undefined;
@@ -358,7 +358,7 @@ function buildBedInterval(
           if (result.value > 2_500_000_000) {
             options.onWarning?.(
               `Large thickStart coordinate ${result.value} may cause compatibility issues with bedtools (>2.5GB limit)`,
-              lineNumber
+              lineNumber,
             );
           }
         }
@@ -377,7 +377,7 @@ function buildBedInterval(
           if (result.value > 2_500_000_000) {
             options.onWarning?.(
               `Large thickEnd coordinate ${result.value} may cause compatibility issues with bedtools (>2.5GB limit)`,
-              lineNumber
+              lineNumber,
             );
           }
         }
@@ -421,7 +421,7 @@ function buildBedInterval(
 function parseBed12BlockFields(
   interval: { blockCount?: number; blockSizes?: number[]; blockStarts?: number[] },
   optionalFields: string[],
-  lineNumber: number
+  lineNumber: number,
 ): void {
   if (optionalFields.length >= 9) {
     const blockCountStr = optionalFields[6];
@@ -450,13 +450,13 @@ function parseBed12BlockFields(
         if (interval.blockSizes && interval.blockSizes.length !== blockCount) {
           throw new BedError(
             `Block sizes count mismatch: blockCount=${blockCount} but found ${interval.blockSizes.length} block sizes`,
-            { lineNumber }
+            { lineNumber },
           );
         }
         if (interval.blockStarts && interval.blockStarts.length !== blockCount) {
           throw new BedError(
             `Block starts count mismatch: blockCount=${blockCount} but found ${interval.blockStarts.length} block starts`,
-            { lineNumber }
+            { lineNumber },
           );
         }
       }
@@ -471,7 +471,7 @@ function parseBed12BlockFields(
 function parseBedLine(
   line: string,
   lineNumber: number,
-  options: Required<ParserOptions & { allowZeroLength: boolean }>
+  options: Required<ParserOptions & { allowZeroLength: boolean }>,
 ): BedInterval | null {
   const fields = line.split(/\s+/);
 
@@ -545,7 +545,7 @@ function shouldSkipBedLine(trimmedLine: string): boolean {
 function validateCoordinates(
   start: number,
   end: number,
-  allowZeroLength = true
+  allowZeroLength = true,
 ): { valid: boolean; error?: string } {
   // Early validation for negative coordinates
   if (start < 0 || end < 0) {
@@ -597,7 +597,7 @@ class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
       throw new ValidationError(
         `Invalid BED parser options: ${validationResult.summary}`,
         undefined,
-        "BED parser configuration with genomics context"
+        "BED parser configuration with genomics context",
       );
     }
 
@@ -609,7 +609,7 @@ class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
       this.options.onWarning?.(
         "allowZeroLength: false disables insertion sites and point mutations - " +
           "these are valid genomics features in BED format",
-        undefined
+        undefined,
       );
     }
 
@@ -617,7 +617,7 @@ class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
       this.options.onWarning?.(
         "skipValidation: true without custom onError handler may silently ignore " +
           "malformed BED data - consider providing error handler for production use",
-        undefined
+        undefined,
       );
     }
   }
@@ -660,7 +660,7 @@ class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
     } catch (error) {
       throw new BedError(
         `Failed to read BED file '${filePath}': ${error instanceof Error ? error.message : String(error)}`,
-        { context: `File path: ${filePath}` }
+        { context: `File path: ${filePath}` },
       );
     }
   }
@@ -702,7 +702,7 @@ class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
       }
     } catch (error) {
       throw new BedError(
-        `Stream parsing failed: ${error instanceof Error ? error.message : String(error)}`
+        `Stream parsing failed: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
@@ -721,7 +721,7 @@ class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
       if (line.length > this.options.maxLineLength) {
         this.options.onError(
           `Line too long (${line.length} > ${this.options.maxLineLength})`,
-          lineNumber
+          lineNumber,
         );
         continue;
       }
@@ -752,7 +752,7 @@ class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
    * Function maintains streaming behavior for large files
    */
   private async *parseLinesFromAsyncIterable(
-    lines: AsyncIterable<string>
+    lines: AsyncIterable<string>,
   ): AsyncIterable<BedInterval> {
     let lineNumber = 0;
 
@@ -763,7 +763,7 @@ class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
         if (line.length > this.options.maxLineLength) {
           this.options.onError(
             `Line too long (${line.length} > ${this.options.maxLineLength})`,
-            lineNumber
+            lineNumber,
           );
           continue;
         }
@@ -789,7 +789,7 @@ class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
     } catch (error) {
       throw new BedError(
         `BED parsing failed at line ${lineNumber}: ${error instanceof Error ? error.message : String(error)}`,
-        { lineNumber }
+        { lineNumber },
       );
     }
   }

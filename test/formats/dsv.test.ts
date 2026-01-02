@@ -345,8 +345,18 @@ describe("DSV Format Module", () => {
   describe("Round-trip Preservation", () => {
     test("preserves data through write-read cycle", async () => {
       const original = [
-        { format: "dsv" as const, id: "gene1", sequence: "ATCGATCG", description: "test gene" },
-        { format: "dsv" as const, id: "gene2", sequence: "GCTAGCTA", description: "another gene" },
+        {
+          format: "dsv" as const,
+          id: "gene1",
+          sequence: "ATCGATCG",
+          description: "test gene",
+        },
+        {
+          format: "dsv" as const,
+          id: "gene2",
+          sequence: "GCTAGCTA",
+          description: "another gene",
+        },
       ];
 
       // Write to CSV
@@ -1028,7 +1038,7 @@ seq2,GCTAGCTA,JJJJJJJJ`;
       // Only fail on catastrophic performance regression (>70% slower than expected)
       if (throughput < 2) {
         throw new Error(
-          `Severe performance regression detected: ${throughput.toFixed(2)} MB/s (expected >2 MB/s)`
+          `Severe performance regression detected: ${throughput.toFixed(2)} MB/s (expected >2 MB/s)`,
         );
       }
     });

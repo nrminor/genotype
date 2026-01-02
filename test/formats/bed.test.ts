@@ -1453,7 +1453,7 @@ describe("Memory Usage and Streaming Architecture Validation", () => {
       Array.from(
         { length: count },
         (_, i) =>
-          `chr1\t${i * 1000}\t${(i + 1) * 1000}\tfeature${i}\t${Math.floor(Math.random() * 1000)}\t+`
+          `chr1\t${i * 1000}\t${(i + 1) * 1000}\tfeature${i}\t${Math.floor(Math.random() * 1000)}\t+`,
       ).join("\n");
 
     // Test with incrementally larger datasets
@@ -1573,7 +1573,7 @@ describe("Memory Usage and Streaming Architecture Validation", () => {
   test("supports early termination without full dataset processing", async () => {
     const largeDataset = Array.from(
       { length: 5000 },
-      (_, i) => `chr${(i % 22) + 1}\t${i * 1000}\t${(i + 1) * 1000}\tfeature${i}\t${i % 1000}\t+`
+      (_, i) => `chr${(i % 22) + 1}\t${i * 1000}\t${(i + 1) * 1000}\tfeature${i}\t${i % 1000}\t+`,
     ).join("\n");
 
     const startMemory = process.memoryUsage().heapUsed;

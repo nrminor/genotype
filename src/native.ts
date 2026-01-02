@@ -235,7 +235,7 @@ function findLibrary(): string {
   // Tiger Style: Provide actionable error message
   throw new Error(
     `Could not find genotype native library for platform: ${target}. ` +
-      `Expected at: ${targetLibPath}. Run 'cargo build --release' to build the native library.`
+      `Expected at: ${targetLibPath}. Run 'cargo build --release' to build the native library.`,
   );
 }
 

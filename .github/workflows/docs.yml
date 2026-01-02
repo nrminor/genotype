@@ -14,21 +14,21 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
-          
+
       - name: Install dependencies
         run: bun install
-        
+
       - name: Build project
         run: bun run build
-        
+
       - name: Generate documentation
         run: bun run docs
-        
+
       - name: Deploy to rendered-docs branch
         uses: peaceiris/actions-gh-pages@v4
         with:
@@ -37,5 +37,5 @@ jobs:
           publish_branch: rendered-docs
           force_orphan: true
           commit_message: "📚 Update documentation from ${{ github.sha }}"
-          user_name: 'github-actions[bot]'
-          user_email: 'github-actions[bot]@users.noreply.github.com'
+          user_name: "github-actions[bot]"
+          user_email: "github-actions[bot]@users.noreply.github.com"

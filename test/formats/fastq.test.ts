@@ -428,7 +428,7 @@ IIIIIIII`;
 
       expect(sequences).toHaveLength(1);
       expect(warnings.some((w) => w.includes("very long") && w.includes("compatibility"))).toBe(
-        true
+        true,
       );
 
       console.warn = originalWarn;

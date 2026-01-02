@@ -58,7 +58,7 @@ describe("Internal sequence set functions", () => {
       expect(
         Array.from(union.values())
           .map((s) => s.sequence)
-          .sort()
+          .sort(),
       ).toEqual(["ATCG", "GCTA", "TTTT"]);
     });
   });
@@ -184,14 +184,14 @@ describe("Internal sequence set functions", () => {
 
       const symDiff = sequenceSymmetricDifference(
         sequenceArrayToMap(setA),
-        sequenceArrayToMap(setB)
+        sequenceArrayToMap(setB),
       );
 
       expect(symDiff.size).toBe(2);
       expect(
         Array.from(symDiff.values())
           .map((s) => s.sequence)
-          .sort()
+          .sort(),
       ).toEqual(["ATCG", "TTTT"]);
     });
   });

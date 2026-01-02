@@ -1,12 +1,12 @@
 [package]
-name = "genotype-native" 
+name = "genotype-native"
 version = "0.1.0"
 edition = "2021"
 description = "Native performance layer for genotype bioinformatics library"
 
 [lib]
 name = "genotype"
-crate-type = ["cdylib"]  # Creates .dylib/.so/.dll for FFI
+crate-type = ["cdylib"] # Creates .dylib/.so/.dll for FFI
 
 [dependencies]
 # Zero dependencies following project philosophy!

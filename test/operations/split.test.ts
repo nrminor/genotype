@@ -81,7 +81,7 @@ describe("SplitProcessor", () => {
           sequencesPerFile: 2,
           outputDir: tempDir,
           filePrefix: "batch",
-        })
+        }),
       );
 
       expect(results).toHaveLength(5);
@@ -120,7 +120,7 @@ describe("SplitProcessor", () => {
           mode: "by-size",
           sequencesPerFile: 2,
           outputDir: tempDir,
-        })
+        }),
       );
 
       expect(results).toHaveLength(3);
@@ -147,7 +147,7 @@ describe("SplitProcessor", () => {
           mode: "by-size",
           sequencesPerFile: 1,
           outputDir: tempDir,
-        })
+        }),
       );
 
       expect(results).toHaveLength(2);
@@ -164,8 +164,8 @@ describe("SplitProcessor", () => {
             mode: "by-size",
             sequencesPerFile: 0,
             outputDir: tempDir,
-          })
-        )
+          }),
+        ),
       ).rejects.toThrow(ValidationError);
 
       await expect(
@@ -174,21 +174,21 @@ describe("SplitProcessor", () => {
             mode: "by-size",
             sequencesPerFile: -5,
             outputDir: tempDir,
-          })
-        )
+          }),
+        ),
       ).rejects.toThrow(ValidationError);
     });
 
     test("uses default sequencesPerFile when not specified", async () => {
       const sequences = Array.from({ length: 1500 }, (_, i) =>
-        createSequence(`seq${i + 1}`, "ATCG")
+        createSequence(`seq${i + 1}`, "ATCG"),
       );
 
       const results = await collect(
         processor.process(source(sequences), {
           mode: "by-size",
           outputDir: tempDir,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1500);
@@ -211,7 +211,7 @@ describe("SplitProcessor", () => {
           mode: "by-parts",
           numParts: 3,
           outputDir: tempDir,
-        })
+        }),
       );
 
       expect(results).toHaveLength(10);
@@ -235,7 +235,7 @@ describe("SplitProcessor", () => {
           mode: "by-parts",
           numParts: 3,
           outputDir: tempDir,
-        })
+        }),
       );
 
       expect(results).toHaveLength(7);
@@ -259,7 +259,7 @@ describe("SplitProcessor", () => {
           mode: "by-parts",
           numParts: 5,
           outputDir: tempDir,
-        })
+        }),
       );
 
       expect(results).toHaveLength(2);
@@ -278,8 +278,8 @@ describe("SplitProcessor", () => {
             mode: "by-parts",
             numParts: 0,
             outputDir: tempDir,
-          })
-        )
+          }),
+        ),
       ).rejects.toThrow(ValidationError);
 
       await expect(
@@ -288,8 +288,8 @@ describe("SplitProcessor", () => {
             mode: "by-parts",
             numParts: -2,
             outputDir: tempDir,
-          })
-        )
+          }),
+        ),
       ).rejects.toThrow(ValidationError);
     });
 
@@ -305,7 +305,7 @@ describe("SplitProcessor", () => {
         processor.process(source(sequences), {
           mode: "by-parts",
           outputDir: tempDir,
-        })
+        }),
       );
 
       expect(results).toHaveLength(4);
@@ -334,7 +334,7 @@ describe("SplitProcessor", () => {
           mode: "by-id",
           idRegex: "(chr[12])",
           outputDir: tempDir,
-        })
+        }),
       );
 
       expect(results).toHaveLength(5);
@@ -356,7 +356,7 @@ describe("SplitProcessor", () => {
           mode: "by-id",
           idRegex: "chr([0-9]+)",
           outputDir: tempDir,
-        })
+        }),
       );
 
       expect(results).toHaveLength(2);
@@ -380,7 +380,7 @@ describe("SplitProcessor", () => {
           mode: "by-id",
           idRegex: "chr[12]",
           outputDir: tempDir,
-        })
+        }),
       );
 
       expect(results).toHaveLength(3);
@@ -400,8 +400,8 @@ describe("SplitProcessor", () => {
           processor.process(source(sequences), {
             mode: "by-id",
             outputDir: tempDir,
-          })
-        )
+          }),
+        ),
       ).rejects.toThrow(ValidationError);
 
       await expect(
@@ -410,8 +410,8 @@ describe("SplitProcessor", () => {
             mode: "by-id",
             idRegex: "",
             outputDir: tempDir,
-          })
-        )
+          }),
+        ),
       ).rejects.toThrow(ValidationError);
     });
 
@@ -424,8 +424,8 @@ describe("SplitProcessor", () => {
             mode: "by-id",
             idRegex: "[invalid",
             outputDir: tempDir,
-          })
-        )
+          }),
+        ),
       ).rejects.toThrow(ValidationError);
     });
   });
@@ -444,7 +444,7 @@ describe("SplitProcessor", () => {
           mode: "by-region",
           region: "chr1:1000-3000",
           outputDir: tempDir,
-        })
+        }),
       );
 
       // Based on the implementation's simplified region matching
@@ -464,8 +464,8 @@ describe("SplitProcessor", () => {
           processor.process(source(sequences), {
             mode: "by-region",
             outputDir: tempDir,
-          })
-        )
+          }),
+        ),
       ).rejects.toThrow(ValidationError);
 
       await expect(
@@ -474,8 +474,8 @@ describe("SplitProcessor", () => {
             mode: "by-region",
             region: "invalid_format",
             outputDir: tempDir,
-          })
-        )
+          }),
+        ),
       ).rejects.toThrow(ValidationError);
     });
 
@@ -488,8 +488,8 @@ describe("SplitProcessor", () => {
             mode: "by-region",
             region: "chr1:2000-1000", // start > end
             outputDir: tempDir,
-          })
-        )
+          }),
+        ),
       ).rejects.toThrow(ValidationError);
 
       await expect(
@@ -498,8 +498,8 @@ describe("SplitProcessor", () => {
             mode: "by-region",
             region: "chr1:1000-1000", // start = end
             outputDir: tempDir,
-          })
-        )
+          }),
+        ),
       ).rejects.toThrow(ValidationError);
     });
   });
@@ -513,7 +513,7 @@ describe("SplitProcessor", () => {
           mode: "by-size",
           sequencesPerFile: 10,
           outputDir: tempDir,
-        })
+        }),
       );
 
       expect(results).toHaveLength(0);
@@ -527,7 +527,7 @@ describe("SplitProcessor", () => {
           mode: "by-parts",
           numParts: 3,
           outputDir: tempDir,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -548,7 +548,7 @@ describe("SplitProcessor", () => {
           mode: "by-size",
           sequencesPerFile: 1,
           outputDir: tempDir,
-        })
+        }),
       );
 
       expect(results).toHaveLength(2);
@@ -568,7 +568,7 @@ describe("SplitProcessor", () => {
           mode: "by-size",
           sequencesPerFile: 10,
           outputDir: tempDir,
-        })
+        }),
       );
 
       expect(results).toHaveLength(3);
@@ -592,7 +592,7 @@ describe("SplitProcessor", () => {
           mode: "by-size",
           sequencesPerFile: 2,
           outputDir: tempDir,
-        })
+        }),
       );
 
       expect(results).toHaveLength(4);
@@ -613,7 +613,7 @@ describe("SplitProcessor", () => {
           mode: "by-size",
           sequencesPerFile: 1,
           outputDir: customDir,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -630,7 +630,7 @@ describe("SplitProcessor", () => {
           sequencesPerFile: 1,
           outputDir: tempDir,
           filePrefix: "custom_prefix",
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -649,7 +649,7 @@ describe("SplitProcessor", () => {
           sequencesPerFile: 1,
           outputDir: tempDir,
           fileExtension: ".fa",
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -667,7 +667,7 @@ describe("SplitProcessor", () => {
         createSequence(
           "seq1",
           "ATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCG",
-          "Test sequence with long sequence"
+          "Test sequence with long sequence",
         ),
       ];
 
@@ -676,7 +676,7 @@ describe("SplitProcessor", () => {
           mode: "by-size",
           sequencesPerFile: 1,
           outputDir: tempDir,
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -692,7 +692,7 @@ describe("SplitProcessor", () => {
         .filter((line) => line && !line.startsWith(">") && line.trim());
       const reconstructedSequence = sequenceLines.join("");
       expect(reconstructedSequence).toBe(
-        "ATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCG"
+        "ATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCG",
       );
 
       // Check line wrapping (80 characters)
@@ -716,8 +716,8 @@ describe("SplitProcessor", () => {
             sequencesPerFile: 1,
             outputDir: tempDir,
             maxMemoryMB: -10,
-          })
-        )
+          }),
+        ),
       ).rejects.toThrow(ValidationError);
 
       await expect(
@@ -727,8 +727,8 @@ describe("SplitProcessor", () => {
             sequencesPerFile: 1,
             outputDir: tempDir,
             bufferSize: 0,
-          })
-        )
+          }),
+        ),
       ).rejects.toThrow(ValidationError);
     });
   });
@@ -742,8 +742,8 @@ describe("SplitProcessor", () => {
           processor.process(source(sequences), {
             mode: "invalid-mode" as "by-size",
             outputDir: tempDir,
-          })
-        )
+          }),
+        ),
       ).rejects.toThrow(ValidationError);
     });
 
@@ -755,8 +755,8 @@ describe("SplitProcessor", () => {
           processor.process(source(sequences), {
             mode: undefined as unknown as "by-size",
             outputDir: tempDir,
-          })
-        )
+          }),
+        ),
       ).rejects.toThrow(ValidationError);
     });
 
@@ -769,7 +769,7 @@ describe("SplitProcessor", () => {
             mode: "by-id",
             idRegex: "[invalid",
             outputDir: tempDir,
-          })
+          }),
         );
         expect(true).toBe(false); // Should not reach here
       } catch (error) {
@@ -854,7 +854,7 @@ describe("SeqOps split integration", () => {
         mode: "by-parts",
         numParts: 2,
         outputDir: tempDir,
-      })
+      }),
     );
 
     expect(splitResults).toHaveLength(4);
@@ -865,7 +865,7 @@ describe("SeqOps split integration", () => {
   test("maintains streaming behavior", async () => {
     // Create large dataset to test streaming
     const sequences = Array.from({ length: 100 }, (_, i) =>
-      createSequence(`seq${i + 1}`, "ATCGATCGATCG")
+      createSequence(`seq${i + 1}`, "ATCGATCGATCG"),
     );
 
     let processedCount = 0;
@@ -899,8 +899,8 @@ describe("SeqOps split integration", () => {
           mode: "by-id",
           idRegex: "[invalid",
           outputDir: tempDir,
-        })
-      )
+        }),
+      ),
     ).rejects.toThrow(ValidationError);
   });
 });
@@ -962,7 +962,7 @@ describe("Real-world bioinformatics scenarios", () => {
         idRegex: "(chr[0-9XY]+)",
         outputDir: tempDir,
         filePrefix: "chromosome",
-      })
+      }),
     );
 
     expect(results).toHaveLength(6);
@@ -995,7 +995,7 @@ describe("Real-world bioinformatics scenarios", () => {
         idRegex: "_q([0-9]+)",
         outputDir: tempDir,
         filePrefix: "quality",
-      })
+      }),
     );
 
     expect(results).toHaveLength(4);
@@ -1018,8 +1018,8 @@ describe("Real-world bioinformatics scenarios", () => {
       createSequence(
         `contig_${i + 1}`,
         "A".repeat(Math.floor(Math.random() * 10000) + 1000),
-        `Assembled contig ${i + 1}`
-      )
+        `Assembled contig ${i + 1}`,
+      ),
     );
 
     const results = await collect(
@@ -1028,7 +1028,7 @@ describe("Real-world bioinformatics scenarios", () => {
         sequencesPerFile: 1000,
         outputDir: tempDir,
         filePrefix: "genome_chunk",
-      })
+      }),
     );
 
     expect(results).toHaveLength(50000);
@@ -1061,7 +1061,7 @@ describe("Real-world bioinformatics scenarios", () => {
         idRegex: "(read[0-9]+)",
         outputDir: tempDir,
         filePrefix: "paired_reads",
-      })
+      }),
     );
 
     expect(results).toHaveLength(6);
@@ -1088,7 +1088,7 @@ describe("Real-world bioinformatics scenarios", () => {
         mode: "by-region",
         region: "chr1:1500-3500",
         outputDir: tempDir,
-      })
+      }),
     );
 
     // Based on implementation's region matching

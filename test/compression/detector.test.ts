@@ -99,7 +99,7 @@ describe("CompressionDetector", () => {
 
     test("should throw error for non-Uint8Array", () => {
       expect(() =>
-        CompressionDetector.fromMagicBytes([0x1f, 0x8b] as unknown as Uint8Array)
+        CompressionDetector.fromMagicBytes([0x1f, 0x8b] as unknown as Uint8Array),
       ).toThrow();
     });
   });
@@ -147,7 +147,7 @@ describe("CompressionDetector", () => {
 
     test("should throw error for non-ReadableStream", async () => {
       await expect(
-        CompressionDetector.fromStream(null as unknown as ReadableStream)
+        CompressionDetector.fromStream(null as unknown as ReadableStream),
       ).rejects.toThrow();
     });
   });

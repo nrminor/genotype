@@ -94,7 +94,7 @@ class GtfWriter {
    */
   async writeToStream(
     features: AsyncIterable<GtfFeature>,
-    stream: WritableStream<Uint8Array>
+    stream: WritableStream<Uint8Array>,
   ): Promise<void> {
     const writer = stream.getWriter();
     const encoder = new TextEncoder();

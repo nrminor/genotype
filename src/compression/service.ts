@@ -33,7 +33,7 @@ export interface CompressionService {
   compress(
     data: Uint8Array,
     format: CompressionFormat,
-    level?: number
+    level?: number,
   ): Effect.Effect<Uint8Array, CompressionError>;
 
   /**
@@ -45,7 +45,7 @@ export interface CompressionService {
    */
   decompress(
     data: Uint8Array,
-    format: CompressionFormat
+    format: CompressionFormat,
   ): Effect.Effect<Uint8Array, CompressionError>;
 
   /**
@@ -57,7 +57,7 @@ export interface CompressionService {
    */
   createCompressionStream(
     format: CompressionFormat,
-    level?: number
+    level?: number,
   ): TransformStream<Uint8Array, Uint8Array>;
 
   /**
@@ -96,8 +96,8 @@ export const GzipCompressionService: Layer.Layer<CompressionService> = Layer.suc
           new CompressionError(
             `GzipCompressionService only supports gzip format, got: ${format}`,
             format,
-            "compress"
-          )
+            "compress",
+          ),
         );
       }
 
@@ -110,8 +110,8 @@ export const GzipCompressionService: Layer.Layer<CompressionService> = Layer.suc
           new CompressionError(
             `GzipCompressionService only supports gzip format, got: ${format}`,
             format,
-            "decompress"
-          )
+            "decompress",
+          ),
         );
       }
 
@@ -123,7 +123,7 @@ export const GzipCompressionService: Layer.Layer<CompressionService> = Layer.suc
         throw new CompressionError(
           `GzipCompressionService only supports gzip format, got: ${format}`,
           format,
-          "stream"
+          "stream",
         );
       }
       return createGzipCompressionStream({ level: level ?? 6 });
@@ -134,13 +134,13 @@ export const GzipCompressionService: Layer.Layer<CompressionService> = Layer.suc
         throw new CompressionError(
           `GzipCompressionService only supports gzip format, got: ${format}`,
           format,
-          "stream"
+          "stream",
         );
       }
 
       return createGzipDecompressionStream();
     },
-  }
+  },
 );
 
 // ============================================================================
@@ -179,7 +179,7 @@ export const MultiFormatCompressionService: Layer.Layer<CompressionService> = La
 
           case "zstd":
             return yield* Effect.fail(
-              new CompressionError("Zstd compression not yet implemented", "zstd", "compress")
+              new CompressionError("Zstd compression not yet implemented", "zstd", "compress"),
             );
 
           case "none":
@@ -190,8 +190,8 @@ export const MultiFormatCompressionService: Layer.Layer<CompressionService> = La
               new CompressionError(
                 `Unsupported compression format: ${format}`,
                 format as CompressionFormat,
-                "compress"
-              )
+                "compress",
+              ),
             );
         }
       }),
@@ -204,7 +204,7 @@ export const MultiFormatCompressionService: Layer.Layer<CompressionService> = La
 
           case "zstd":
             return yield* Effect.fail(
-              new CompressionError("Zstd decompression not yet implemented", "zstd", "decompress")
+              new CompressionError("Zstd decompression not yet implemented", "zstd", "decompress"),
             );
 
           case "none":
@@ -215,8 +215,8 @@ export const MultiFormatCompressionService: Layer.Layer<CompressionService> = La
               new CompressionError(
                 `Unsupported compression format: ${format}`,
                 format as CompressionFormat,
-                "decompress"
-              )
+                "decompress",
+              ),
             );
         }
       }),
@@ -237,7 +237,7 @@ export const MultiFormatCompressionService: Layer.Layer<CompressionService> = La
           throw new CompressionError(
             `Unsupported compression format: ${format}`,
             format as CompressionFormat,
-            "stream"
+            "stream",
           );
       }
     },
@@ -258,9 +258,9 @@ export const MultiFormatCompressionService: Layer.Layer<CompressionService> = La
           throw new CompressionError(
             `Unsupported compression format: ${format}`,
             format as CompressionFormat,
-            "stream"
+            "stream",
           );
       }
     },
-  }
+  },
 );

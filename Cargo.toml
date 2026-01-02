@@ -10,7 +10,7 @@ resolver = "2"
 # Metadata for the entire workspace
 
 [profile.release]
-lto = true              # Link-time optimization
-codegen-units = 1      # Single codegen unit for max optimization  
-panic = "abort"        # Smaller binary size, no unwinding
-strip = true           # Remove debug symbols
+lto = true # Link-time optimization
+codegen-units = 1 # Single codegen unit for max optimization  
+panic = "abort" # Smaller binary size, no unwinding
+strip = true # Remove debug symbols

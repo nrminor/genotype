@@ -67,11 +67,7 @@ export {
 // ENCODING INFORMATION
 // ============================================================================
 
-export {
-  getEncodingInfo,
-  getSupportedEncodings,
-  isValidEncoding,
-} from "./encoding-info";
+export { getEncodingInfo, getSupportedEncodings, isValidEncoding } from "./encoding-info";
 
 // ============================================================================
 // DETECTION

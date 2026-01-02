@@ -136,7 +136,7 @@ describe("ConcatProcessor", () => {
       const result = await collect(
         processor.process(source(baseSequences), {
           sources: [file1, file2],
-        })
+        }),
       );
 
       expect(result).toHaveLength(5);
@@ -158,7 +158,7 @@ describe("ConcatProcessor", () => {
         processor.process(source([]), {
           sources: [file1, file2],
           preserveOrder: true,
-        })
+        }),
       );
 
       expect(result.map((s) => s.id)).toEqual(["seq_A", "seq_B", "seq_C", "seq_D"]);
@@ -179,7 +179,7 @@ describe("ConcatProcessor", () => {
       const result = await collect(
         processor.process(source([]), {
           sources: [file1, source(iterableSequences)],
-        })
+        }),
       );
 
       expect(result).toHaveLength(4);
@@ -205,7 +205,7 @@ describe("ConcatProcessor", () => {
           processor.process(source(baseSequences), {
             sources: [file1, file2],
             idConflictResolution: "error",
-          })
+          }),
         );
       }).toThrow(ConcatError);
     });
@@ -223,7 +223,7 @@ describe("ConcatProcessor", () => {
           sources: [file1, file2],
           idConflictResolution: "suffix",
           renameSuffix: "_src",
-        })
+        }),
       );
 
       expect(result).toHaveLength(3);
@@ -245,7 +245,7 @@ describe("ConcatProcessor", () => {
         processor.process(source(baseSequences), {
           sources: [file1],
           idConflictResolution: "ignore",
-        })
+        }),
       );
 
       expect(result).toHaveLength(2);
@@ -267,7 +267,7 @@ describe("ConcatProcessor", () => {
         processor.process(source(baseSequences), {
           sources: [file1],
           idConflictResolution: "rename",
-        })
+        }),
       );
 
       expect(result).toHaveLength(3);
@@ -290,7 +290,7 @@ describe("ConcatProcessor", () => {
           sources: [file1],
           idConflictResolution: "suffix",
           renameSuffix: "_src",
-        })
+        }),
       );
 
       expect(result).toHaveLength(3);
@@ -312,7 +312,7 @@ describe("ConcatProcessor", () => {
         processor.process(source([]), {
           sources: [file1, file2],
           validateFormats: true,
-        })
+        }),
       );
 
       expect(result).toHaveLength(2);
@@ -329,7 +329,7 @@ describe("ConcatProcessor", () => {
         processor.process(source([]), {
           sources: [file1, file2],
           validateFormats: true,
-        })
+        }),
       );
 
       expect(result).toHaveLength(2);
@@ -347,7 +347,7 @@ describe("ConcatProcessor", () => {
           processor.process(source([]), {
             sources: [fastaFile, fastqFile],
             validateFormats: true,
-          })
+          }),
         );
       }).toThrow(ConcatError);
     });
@@ -364,7 +364,7 @@ describe("ConcatProcessor", () => {
         processor.process(source([]), {
           sources: [fastaFile, fastqFile],
           validateFormats: false,
-        })
+        }),
       );
 
       expect(result).toHaveLength(2);
@@ -375,7 +375,7 @@ describe("ConcatProcessor", () => {
     test("processes large datasets without loading entire files", async () => {
       // Create smaller sequences to avoid format detection limits
       const largeSequences = Array.from({ length: 100 }, (_, i) =>
-        createSequence(`large_seq_${i}`, "A".repeat(50))
+        createSequence(`large_seq_${i}`, "A".repeat(50)),
       );
 
       const largeFile = await createTempFasta(largeSequences);
@@ -418,7 +418,7 @@ describe("ConcatProcessor", () => {
         processor.process(source([]), {
           sources: [hugeFile],
           validateFormats: false, // Skip validation to avoid file size issues
-        })
+        }),
       );
       const endTime = Date.now();
 
@@ -448,7 +448,7 @@ describe("ConcatProcessor", () => {
               finalTotal = total;
             }
           },
-        })
+        }),
       );
 
       // Test that all sequences were processed
@@ -469,7 +469,7 @@ describe("ConcatProcessor", () => {
         await collect(
           processor.process(source([]), {
             sources: [nonExistentFile],
-          })
+          }),
         );
       }).toThrow(ConcatError);
     });
@@ -479,7 +479,7 @@ describe("ConcatProcessor", () => {
         await collect(
           processor.process(source([]), {
             sources: [],
-          })
+          }),
         );
       }).toThrow(ConcatError);
     });
@@ -494,7 +494,7 @@ describe("ConcatProcessor", () => {
           processor.process(source([]), {
             sources: [malformedFile],
             validateFormats: true,
-          })
+          }),
         );
       }).toThrow();
     });
@@ -512,7 +512,7 @@ describe("ConcatProcessor", () => {
           await collect(
             processor.process(source([]), {
               sources: [restrictedFile],
-            })
+            }),
           );
         }).toThrow();
       } finally {
@@ -533,7 +533,7 @@ describe("ConcatProcessor", () => {
           processor.process(source([]), {
             sources: [nonExistentFile],
             sourceLabels: ["test_source"],
-          })
+          }),
         );
         fail("Expected ConcatError to be thrown");
       } catch (error) {
@@ -559,7 +559,7 @@ describe("ConcatProcessor", () => {
           sources: [source(sequences)],
           skipEmpty: false,
           validateFormats: false,
-        })
+        }),
       );
 
       expect(result).toHaveLength(3);
@@ -579,7 +579,7 @@ describe("ConcatProcessor", () => {
           sources: [source(sequences)],
           skipEmpty: true,
           validateFormats: false,
-        })
+        }),
       );
 
       expect(result).toHaveLength(2);
@@ -593,7 +593,7 @@ describe("ConcatProcessor", () => {
       const result = await collect(
         processor.process(source([]), {
           sources: [file],
-        })
+        }),
       );
 
       expect(result).toHaveLength(1);
@@ -608,7 +608,7 @@ describe("ConcatProcessor", () => {
         processor.process(source([]), {
           sources: [source(emptySequences)],
           validateFormats: false,
-        })
+        }),
       );
 
       expect(result).toHaveLength(0);
@@ -626,7 +626,7 @@ describe("ConcatProcessor", () => {
             sources: [file1],
             sourceLabels: ["custom_source"],
             idConflictResolution: "error",
-          })
+          }),
         );
         fail("Expected ConcatError");
       } catch (error) {
@@ -655,7 +655,7 @@ describe("ConcatProcessor", () => {
           sources: [chr1File, chr2File],
           sourceLabels: ["chr1", "chr2"],
           validateFormats: false, // Skip validation to avoid file size issues
-        })
+        }),
       );
 
       expect(result).toHaveLength(4);
@@ -682,7 +682,7 @@ describe("ConcatProcessor", () => {
           sources: [run1File, run2File],
           sourceLabels: ["run1", "run2"],
           idConflictResolution: "suffix",
-        })
+        }),
       );
 
       expect(result).toHaveLength(4);
@@ -706,7 +706,7 @@ describe("ConcatProcessor", () => {
           sources: [refFile, geneFile, vectorFile],
           sourceLabels: ["reference", "genes", "vectors"],
           validateFormats: false, // Skip validation to avoid file size issues
-        })
+        }),
       );
 
       expect(result).toHaveLength(4);
@@ -731,7 +731,7 @@ describe("ConcatProcessor", () => {
           renameSuffix: "_species",
           sourceLabels: ["homo_sapiens", "mus_musculus", "drosophila"],
           validateFormats: false, // Skip validation to avoid file size issues
-        })
+        }),
       );
 
       expect(result).toHaveLength(3);

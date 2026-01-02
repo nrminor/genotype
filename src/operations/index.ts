@@ -165,7 +165,7 @@ export class SeqOps<T extends AbstractSequence> {
    */
   static fromTSV(
     path: string,
-    options?: Omit<Tab2FxOptions, "delimiter">
+    options?: Omit<Tab2FxOptions, "delimiter">,
   ): SeqOps<AbstractSequence> {
     return SeqOps.fromDSV(path, { ...options, delimiter: "\t" });
   }
@@ -192,7 +192,7 @@ export class SeqOps<T extends AbstractSequence> {
    */
   static fromCSV(
     path: string,
-    options?: Omit<Tab2FxOptions, "delimiter">
+    options?: Omit<Tab2FxOptions, "delimiter">,
   ): SeqOps<AbstractSequence> {
     return SeqOps.fromDSV(path, { ...options, delimiter: "," });
   }
@@ -344,11 +344,11 @@ export class SeqOps<T extends AbstractSequence> {
    */
   filter(
     this: SeqOps<T & { index: number }>,
-    options: FilterOptions | ((seq: T, index: number) => boolean | Promise<boolean>)
+    options: FilterOptions | ((seq: T, index: number) => boolean | Promise<boolean>),
   ): SeqOps<T>;
   filter(options: FilterOptions | ((seq: T) => boolean | Promise<boolean>)): SeqOps<T>;
   filter(
-    options: FilterOptions | ((seq: T, index?: number) => boolean | Promise<boolean>)
+    options: FilterOptions | ((seq: T, index?: number) => boolean | Promise<boolean>),
   ): SeqOps<T> {
     // Handle predicate function
     if (typeof options === "function") {
@@ -398,7 +398,7 @@ export class SeqOps<T extends AbstractSequence> {
    */
   filterBySet<U extends AbstractSequence>(
     set: SequenceSet<U>,
-    options?: { exclude?: boolean; by?: "sequence" | "id" }
+    options?: { exclude?: boolean; by?: "sequence" | "id" },
   ): SeqOps<T> {
     const { exclude = false, by = "sequence" } = options || {};
 
@@ -504,7 +504,7 @@ export class SeqOps<T extends AbstractSequence> {
   amplicon(
     forwardPrimer: string,
     reversePrimer: string,
-    options: Partial<AmpliconOptions>
+    options: Partial<AmpliconOptions>,
   ): SeqOps<T>;
   amplicon(options: AmpliconOptions): SeqOps<T>;
 
@@ -512,7 +512,7 @@ export class SeqOps<T extends AbstractSequence> {
   amplicon(
     forwardPrimer: string | AmpliconOptions,
     reversePrimer?: string,
-    maxMismatchesOrOptions?: number | Partial<AmpliconOptions>
+    maxMismatchesOrOptions?: number | Partial<AmpliconOptions>,
   ): SeqOps<T> {
     const processor = new AmpliconProcessor();
 
@@ -677,7 +677,7 @@ export class SeqOps<T extends AbstractSequence> {
    */
   toFastqSequence<U extends T & FastaSequence>(
     this: SeqOps<U>,
-    options?: Fa2FqOptions
+    options?: Fa2FqOptions,
   ): SeqOps<FastqSequence> {
     // The type constraint ensures U extends FastaSequence
     // so this.source is AsyncIterable<U> where U extends FastaSequence
@@ -713,7 +713,7 @@ export class SeqOps<T extends AbstractSequence> {
    */
   toFastaSequence<U extends T & FastqSequence>(
     this: SeqOps<U>,
-    options?: Record<string, never>
+    options?: Record<string, never>,
   ): SeqOps<FastaSequence> {
     // The type constraint ensures U extends FastqSequence
     // so this.source is AsyncIterable<U> where U extends FastqSequence
@@ -774,7 +774,7 @@ export class SeqOps<T extends AbstractSequence> {
   // Implementation handles all overloads
   grep(
     pattern: string | RegExp | GrepOptions,
-    target: "sequence" | "id" | "description" = "sequence"
+    target: "sequence" | "id" | "description" = "sequence",
   ): SeqOps<T> {
     const processor = new GrepProcessor();
 
@@ -812,7 +812,7 @@ export class SeqOps<T extends AbstractSequence> {
    */
   static concat(
     filePaths: string[],
-    handleDuplicateIds: "suffix" | "ignore" = "ignore"
+    handleDuplicateIds: "suffix" | "ignore" = "ignore",
   ): SeqOps<FastaSequence> {
     async function* concatenateFiles(): AsyncIterable<FastaSequence> {
       const seenIds = new Set<string>();
@@ -873,7 +873,7 @@ export class SeqOps<T extends AbstractSequence> {
    */
   concat(
     sources: Array<string | AsyncIterable<AbstractSequence>>,
-    options?: Omit<ConcatOptions, "sources">
+    options?: Omit<ConcatOptions, "sources">,
   ): SeqOps<T> {
     const processor = new ConcatProcessor();
     const fullOptions: ConcatOptions = { ...options, sources };
@@ -885,7 +885,7 @@ export class SeqOps<T extends AbstractSequence> {
    * @private
    */
   private async *filterWithPredicate(
-    predicate: (seq: T, index?: number) => boolean | Promise<boolean>
+    predicate: (seq: T, index?: number) => boolean | Promise<boolean>,
   ): AsyncIterable<T> {
     for await (const seq of this.source) {
       let keep: boolean;
@@ -960,7 +960,7 @@ export class SeqOps<T extends AbstractSequence> {
    */
   windows<K extends number>(
     size: K,
-    options: Omit<WindowOptions<K>, "size">
+    options: Omit<WindowOptions<K>, "size">,
   ): SeqOps<KmerSequence<K>>;
 
   /**
@@ -973,7 +973,7 @@ export class SeqOps<T extends AbstractSequence> {
 
   windows<K extends number>(
     sizeOrOptions: K | WindowOptions<K>,
-    maybeOptions?: Omit<WindowOptions<K>, "size">
+    maybeOptions?: Omit<WindowOptions<K>, "size">,
   ): SeqOps<KmerSequence<K>> {
     const processor = new WindowsProcessor<K>();
 
@@ -997,12 +997,12 @@ export class SeqOps<T extends AbstractSequence> {
   sliding<K extends number>(size: K): SeqOps<KmerSequence<K>>;
   sliding<K extends number>(
     size: K,
-    options: Omit<WindowOptions<K>, "size">
+    options: Omit<WindowOptions<K>, "size">,
   ): SeqOps<KmerSequence<K>>;
   sliding<K extends number>(options: WindowOptions<K>): SeqOps<KmerSequence<K>>;
   sliding<K extends number>(
     sizeOrOptions: K | WindowOptions<K>,
-    maybeOptions?: Omit<WindowOptions<K>, "size">
+    maybeOptions?: Omit<WindowOptions<K>, "size">,
   ): SeqOps<KmerSequence<K>> {
     return this.windows(sizeOrOptions as any, maybeOptions as any);
   }
@@ -1016,12 +1016,12 @@ export class SeqOps<T extends AbstractSequence> {
   kmers<K extends number>(size: K): SeqOps<KmerSequence<K>>;
   kmers<K extends number>(
     size: K,
-    options: Omit<WindowOptions<K>, "size">
+    options: Omit<WindowOptions<K>, "size">,
   ): SeqOps<KmerSequence<K>>;
   kmers<K extends number>(options: WindowOptions<K>): SeqOps<KmerSequence<K>>;
   kmers<K extends number>(
     sizeOrOptions: K | WindowOptions<K>,
-    maybeOptions?: Omit<WindowOptions<K>, "size">
+    maybeOptions?: Omit<WindowOptions<K>, "size">,
   ): SeqOps<KmerSequence<K>> {
     return this.windows(sizeOrOptions as any, maybeOptions as any);
   }
@@ -1107,7 +1107,7 @@ export class SeqOps<T extends AbstractSequence> {
   // Implementation handles all overloads
   sample(
     count: number | SampleOptions,
-    strategy: "random" | "systematic" | "reservoir" = "reservoir"
+    strategy: "random" | "systematic" | "reservoir" = "reservoir",
   ): SeqOps<T> {
     const processor = new SampleProcessor();
 
@@ -1679,7 +1679,7 @@ export class SeqOps<T extends AbstractSequence> {
    */
   async splitByRegion<T extends string>(
     region: T extends ValidGenomicRegion<T> ? T : never,
-    outputDir = "./split"
+    outputDir = "./split",
   ): Promise<SplitSummary> {
     return this.split({ mode: "by-region", region, outputDir });
   }
@@ -1836,7 +1836,7 @@ export class SeqOps<T extends AbstractSequence> {
    */
   async writeJSON(
     path: string,
-    options?: Fx2TabOptions<readonly ColumnId[]> & JSONWriteOptions
+    options?: Fx2TabOptions<readonly ColumnId[]> & JSONWriteOptions,
   ): Promise<void> {
     // Separate Fx2TabOptions from JSONWriteOptions
     const { pretty, includeMetadata, nullValue: jsonNullValue, ...fx2tabOptions } = options || {};
@@ -1922,7 +1922,7 @@ export class SeqOps<T extends AbstractSequence> {
    * ```
    */
   toTabular<Columns extends readonly ColumnId[] = readonly ["id", "seq", "length"]>(
-    options?: Fx2TabOptions<Columns>
+    options?: Fx2TabOptions<Columns>,
   ): TabularOps<Columns> {
     return new TabularOps(fx2tab(this.source, options));
   }
@@ -1946,7 +1946,7 @@ export class SeqOps<T extends AbstractSequence> {
    * ```
    */
   fx2tab<Columns extends readonly ColumnId[] = readonly ["id", "seq", "length"]>(
-    options?: Fx2TabOptions<Columns>
+    options?: Fx2TabOptions<Columns>,
   ): TabularOps<Columns> {
     return this.toTabular(options);
   }
@@ -1987,7 +1987,7 @@ export class SeqOps<T extends AbstractSequence> {
    * @since v0.1.0
    */
   asRows<Columns extends readonly ColumnId[] = readonly ["id", "seq", "length"]>(
-    options?: Fx2TabOptions<Columns>
+    options?: Fx2TabOptions<Columns>,
   ): TabularOps<Columns> {
     return this.toTabular(options);
   }
@@ -2069,7 +2069,7 @@ export class SeqOps<T extends AbstractSequence> {
   async writeDSV(
     path: string,
     delimiter: string,
-    options: Omit<Fx2TabOptions, "delimiter"> = {}
+    options: Omit<Fx2TabOptions, "delimiter"> = {},
   ): Promise<void> {
     await openForWriting(path, async (handle) => {
       for await (const row of fx2tab(this.source, { ...options, delimiter })) {
@@ -2224,11 +2224,11 @@ export class SeqOps<T extends AbstractSequence> {
    */
   map<U extends AbstractSequence = T>(
     this: SeqOps<T & { index: number }>,
-    fn: (seq: T, index: number) => U | Promise<U>
+    fn: (seq: T, index: number) => U | Promise<U>,
   ): SeqOps<U>;
   map<U extends AbstractSequence = T>(fn: (seq: T) => U | Promise<U>): SeqOps<U>;
   map<U extends AbstractSequence = T>(
-    fn: ((seq: T) => U | Promise<U>) | ((seq: T, index: number) => U | Promise<U>)
+    fn: ((seq: T) => U | Promise<U>) | ((seq: T, index: number) => U | Promise<U>),
   ): SeqOps<U> {
     async function* mapGenerator(source: AsyncIterable<T>) {
       for await (const seq of source) {
@@ -2363,11 +2363,11 @@ export class SeqOps<T extends AbstractSequence> {
    */
   tap(
     this: SeqOps<T & { index: number }>,
-    fn: (seq: T, index: number) => void | Promise<void>
+    fn: (seq: T, index: number) => void | Promise<void>,
   ): SeqOps<T>;
   tap(fn: (seq: T) => void | Promise<void>): SeqOps<T>;
   tap(
-    fn: ((seq: T) => void | Promise<void>) | ((seq: T, index: number) => void | Promise<void>)
+    fn: ((seq: T) => void | Promise<void>) | ((seq: T, index: number) => void | Promise<void>),
   ): SeqOps<T> {
     async function* tapGenerator(source: AsyncIterable<T>) {
       for await (const seq of source) {
@@ -2441,15 +2441,15 @@ export class SeqOps<T extends AbstractSequence> {
    */
   flatMap<U extends AbstractSequence = T>(
     this: SeqOps<T & { index: number }>,
-    fn: (seq: T, index: number) => U[] | AsyncIterable<U> | Promise<U[]>
+    fn: (seq: T, index: number) => U[] | AsyncIterable<U> | Promise<U[]>,
   ): SeqOps<U>;
   flatMap<U extends AbstractSequence = T>(
-    fn: (seq: T) => U[] | AsyncIterable<U> | Promise<U[]>
+    fn: (seq: T) => U[] | AsyncIterable<U> | Promise<U[]>,
   ): SeqOps<U>;
   flatMap<U extends AbstractSequence = T>(
     fn:
       | ((seq: T) => U[] | AsyncIterable<U> | Promise<U[]>)
-      | ((seq: T, index: number) => U[] | AsyncIterable<U> | Promise<U[]>)
+      | ((seq: T, index: number) => U[] | AsyncIterable<U> | Promise<U[]>),
   ): SeqOps<U> {
     async function* flatMapGenerator(source: AsyncIterable<T>) {
       for await (const seq of source) {
@@ -2458,7 +2458,7 @@ export class SeqOps<T extends AbstractSequence> {
         if ("index" in seq && typeof seq.index === "number") {
           result = await (fn as (seq: T, index: number) => U[] | AsyncIterable<U> | Promise<U[]>)(
             seq,
-            seq.index
+            seq.index,
           );
         } else {
           result = await (fn as (seq: T) => U[] | AsyncIterable<U> | Promise<U[]>)(seq);
@@ -2520,11 +2520,11 @@ export class SeqOps<T extends AbstractSequence> {
    */
   async forEach(
     this: SeqOps<T & { index: number }>,
-    fn: (seq: T, index: number) => void | Promise<void>
+    fn: (seq: T, index: number) => void | Promise<void>,
   ): Promise<void>;
   async forEach(fn: (seq: T) => void | Promise<void>): Promise<void>;
   async forEach(
-    fn: ((seq: T) => void | Promise<void>) | ((seq: T, index: number) => void | Promise<void>)
+    fn: ((seq: T) => void | Promise<void>) | ((seq: T, index: number) => void | Promise<void>),
   ): Promise<void> {
     for await (const seq of this.source) {
       if ("index" in seq && typeof seq.index === "number") {
@@ -2581,11 +2581,11 @@ export class SeqOps<T extends AbstractSequence> {
    */
   async reduce(
     this: SeqOps<T & { index: number }>,
-    fn: (accumulator: T, seq: T, index: number) => T | Promise<T>
+    fn: (accumulator: T, seq: T, index: number) => T | Promise<T>,
   ): Promise<T | undefined>;
   async reduce(fn: (accumulator: T, seq: T) => T | Promise<T>): Promise<T | undefined>;
   async reduce(
-    fn: ((acc: T, seq: T) => T | Promise<T>) | ((acc: T, seq: T, index: number) => T | Promise<T>)
+    fn: ((acc: T, seq: T) => T | Promise<T>) | ((acc: T, seq: T, index: number) => T | Promise<T>),
   ): Promise<T | undefined> {
     const iter = this.source[Symbol.asyncIterator]();
     const first = await iter.next();
@@ -2602,7 +2602,7 @@ export class SeqOps<T extends AbstractSequence> {
       accumulator = await (fn as (acc: T, seq: T, index: number) => T | Promise<T>)(
         accumulator,
         seq,
-        indexToPass
+        indexToPass,
       );
     }
 
@@ -2666,14 +2666,14 @@ export class SeqOps<T extends AbstractSequence> {
   async fold<U>(
     this: SeqOps<T & { index: number }>,
     fn: (accumulator: U, seq: T, index: number) => U | Promise<U>,
-    initialValue: U
+    initialValue: U,
   ): Promise<U>;
   async fold<U>(fn: (accumulator: U, seq: T) => U | Promise<U>, initialValue: U): Promise<U>;
   async fold<U>(
     fn:
       | ((accumulator: U, seq: T) => U | Promise<U>)
       | ((accumulator: U, seq: T, index: number) => U | Promise<U>),
-    initialValue: U
+    initialValue: U,
   ): Promise<U> {
     let accumulator = initialValue;
     let currentIndex = 0;
@@ -2685,7 +2685,7 @@ export class SeqOps<T extends AbstractSequence> {
       accumulator = await (fn as (accumulator: U, seq: T, index: number) => U | Promise<U>)(
         accumulator,
         seq,
-        indexToPass
+        indexToPass,
       );
     }
 
@@ -2735,29 +2735,29 @@ export class SeqOps<T extends AbstractSequence> {
   zipWith<U extends AbstractSequence, V extends AbstractSequence = T>(
     this: SeqOps<T & { index: number }>,
     other: SeqOps<U & { index: number }>,
-    fn: (a: T, b: U, indexA: number, indexB: number) => V | Promise<V>
+    fn: (a: T, b: U, indexA: number, indexB: number) => V | Promise<V>,
   ): SeqOps<V>;
   zipWith<U extends AbstractSequence, V extends AbstractSequence = T>(
     this: SeqOps<T & { index: number }>,
     other: SeqOps<U>,
-    fn: (a: T, b: U, indexA: number) => V | Promise<V>
+    fn: (a: T, b: U, indexA: number) => V | Promise<V>,
   ): SeqOps<V>;
   zipWith<U extends AbstractSequence, V extends AbstractSequence = T>(
     other: SeqOps<U & { index: number }>,
-    fn: (a: T, b: U, indexB: number) => V | Promise<V>
+    fn: (a: T, b: U, indexB: number) => V | Promise<V>,
   ): SeqOps<V>;
   zipWith<U extends AbstractSequence, V extends AbstractSequence = T>(
     other: SeqOps<U>,
-    fn: (a: T, b: U) => V | Promise<V>
+    fn: (a: T, b: U) => V | Promise<V>,
   ): SeqOps<V>;
   zipWith<U extends AbstractSequence, V extends AbstractSequence = T>(
     this: SeqOps<T & { index: number }>,
     other: AsyncIterable<U>,
-    fn: (a: T, b: U, indexA: number) => V | Promise<V>
+    fn: (a: T, b: U, indexA: number) => V | Promise<V>,
   ): SeqOps<V>;
   zipWith<U extends AbstractSequence, V extends AbstractSequence = T>(
     other: AsyncIterable<U>,
-    fn: (a: T, b: U) => V | Promise<V>
+    fn: (a: T, b: U) => V | Promise<V>,
   ): SeqOps<V>;
   zipWith<U extends AbstractSequence, V extends AbstractSequence = T>(
     other: SeqOps<U> | AsyncIterable<U>,
@@ -2765,7 +2765,7 @@ export class SeqOps<T extends AbstractSequence> {
       | ((a: T, b: U) => V | Promise<V>)
       | ((a: T, b: U, indexA: number) => V | Promise<V>)
       | ((a: T, b: U, indexB: number) => V | Promise<V>)
-      | ((a: T, b: U, indexA: number, indexB: number) => V | Promise<V>)
+      | ((a: T, b: U, indexA: number, indexB: number) => V | Promise<V>),
   ): SeqOps<V> {
     const otherSource = other instanceof SeqOps ? other.source : other;
 
@@ -2789,19 +2789,19 @@ export class SeqOps<T extends AbstractSequence> {
             seq1,
             seq2,
             (seq1 as T & { index: number }).index,
-            (seq2 as U & { index: number }).index
+            (seq2 as U & { index: number }).index,
           );
         } else if (hasIndexA) {
           yield await (fn as (a: T, b: U, indexA: number) => V | Promise<V>)(
             seq1,
             seq2,
-            (seq1 as T & { index: number }).index
+            (seq1 as T & { index: number }).index,
           );
         } else if (hasIndexB) {
           yield await (fn as (a: T, b: U, indexB: number) => V | Promise<V>)(
             seq1,
             seq2,
-            (seq2 as U & { index: number }).index
+            (seq2 as U & { index: number }).index,
           );
         } else {
           yield await (fn as (a: T, b: U) => V | Promise<V>)(seq1, seq2);
@@ -2939,7 +2939,7 @@ export class SeqOps<T extends AbstractSequence> {
   pair(options?: PairOptions): SeqOps<T>;
   pair(
     otherOrOptions?: SeqOps<T> | AsyncIterable<T> | PairOptions,
-    optionsArg?: PairOptions
+    optionsArg?: PairOptions,
   ): SeqOps<T> {
     const processor = new PairProcessor();
 
@@ -2957,7 +2957,7 @@ export class SeqOps<T extends AbstractSequence> {
     const other = otherOrOptions as SeqOps<T> | AsyncIterable<T>;
     const otherSource = other instanceof SeqOps ? other.source : other;
     return new SeqOps<T>(
-      processor.process({ mode: "dual", source1: this.source, source2: otherSource }, optionsArg)
+      processor.process({ mode: "dual", source1: this.source, source2: otherSource }, optionsArg),
     );
   }
 
@@ -3000,7 +3000,7 @@ export class SeqOps<T extends AbstractSequence> {
   // Implementation handles all overloads
   locate(
     pattern: string | RegExp | LocateOptions,
-    mismatches: number = 0
+    mismatches: number = 0,
   ): AsyncIterable<MotifLocation> {
     const processor = new LocateProcessor();
 
@@ -3090,11 +3090,7 @@ export type { PairOptions } from "./pair";
 // Export split-specific types
 export { SplitProcessor, type SplitResult, type SplitSummary } from "./split";
 // Re-export types and classes for convenience
-export {
-  type SequenceStats,
-  SequenceStatsCalculator,
-  type StatsOptions,
-} from "./stats";
+export { type SequenceStats, SequenceStatsCalculator, type StatsOptions } from "./stats";
 export { SubseqExtractor, type SubseqOptions } from "./subseq";
 export { TranslateProcessor } from "./translate";
 // Export new semantic API types

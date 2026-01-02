@@ -84,7 +84,7 @@ export {
  * ```
  */
 export function createDecompressor(
-  format: CompressionFormat
+  format: CompressionFormat,
 ): typeof GzipDecompressor | typeof ZstdDecompressor {
   switch (format) {
     case "gzip":
@@ -95,13 +95,13 @@ export function createDecompressor(
       throw new CompressionError(
         "No decompression needed for uncompressed data",
         "none",
-        "validate"
+        "validate",
       );
     default:
       throw new CompressionError(
         `Unsupported compression format: ${format}`,
         format as CompressionFormat,
-        "validate"
+        "validate",
       );
   }
 }
@@ -128,7 +128,7 @@ export function isCompressionSupported(format: string): format is CompressionFor
  */
 export function getRecommendedCompression(
   fileSize: number,
-  priority: "speed" | "size" | "compatibility" = "compatibility"
+  priority: "speed" | "size" | "compatibility" = "compatibility",
 ): CompressionFormat {
   // For compatibility, gzip is still the gold standard in genomics
   if (priority === "compatibility") {
@@ -166,7 +166,7 @@ export function getRecommendedCompression(
  */
 export function estimateCompressionRatio(
   dataType: "sequence" | "alignment" | "variant" | "annotation",
-  format: CompressionFormat
+  format: CompressionFormat,
 ): number {
   if (format === "none") return 1.0;
 

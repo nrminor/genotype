@@ -9,12 +9,7 @@
 export { QualityEncoding } from "../../types";
 // Re-export SequenceValidator from operations for backward compatibility
 export { SequenceValidator } from "../validate";
-export type {
-  DNASequence,
-  IUPACSequence,
-  PrimerSequence,
-  RNASequence,
-} from "./alphabet";
+export type { DNASequence, IUPACSequence, PrimerSequence, RNASequence } from "./alphabet";
 // Alphabet validation and template literal tags
 export {
   dna,
@@ -201,11 +196,7 @@ export {
   // Note: SequenceValidator class moved to operations/validate.ts
 } from "./sequence-validation";
 // Statistics accumulator for streaming analysis
-export {
-  calculateSequenceStats,
-  type SequenceStats,
-  SequenceStatsAccumulator,
-} from "./statistics";
+export { calculateSequenceStats, type SequenceStats, SequenceStatsAccumulator } from "./statistics";
 // Common validation utilities for operations
 export {
   CommonValidators,

@@ -74,7 +74,7 @@ describe("FilterProcessor", () => {
       ];
 
       const result = await collect(
-        processor.process(source(sequences), { minLength: 4, maxLength: 8 })
+        processor.process(source(sequences), { minLength: 4, maxLength: 8 }),
       );
 
       expect(result).toHaveLength(2);
@@ -147,7 +147,7 @@ describe("FilterProcessor", () => {
       ];
 
       const result = await collect(
-        processor.process(source(sequences), { ids: ["keep1", "keep2"] })
+        processor.process(source(sequences), { ids: ["keep1", "keep2"] }),
       );
 
       expect(result).toHaveLength(2);
@@ -162,7 +162,7 @@ describe("FilterProcessor", () => {
       ];
 
       const result = await collect(
-        processor.process(source(sequences), { excludeIds: ["remove"] })
+        processor.process(source(sequences), { excludeIds: ["remove"] }),
       );
 
       expect(result).toHaveLength(2);
@@ -209,7 +209,7 @@ describe("FilterProcessor", () => {
       const result = await collect(
         processor.process(source(sequences), {
           custom: (seq) => seq.length % 2 === 0,
-        })
+        }),
       );
 
       expect(result).toHaveLength(2);
@@ -231,7 +231,7 @@ describe("FilterProcessor", () => {
           minLength: 5,
           maxGC: 60,
           pattern: /^chr/,
-        })
+        }),
       );
 
       expect(result).toHaveLength(2);

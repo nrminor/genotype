@@ -80,7 +80,7 @@ export class LocateProcessor {
    */
   async *locate(
     source: AsyncIterable<AbstractSequence>,
-    options: LocateOptions
+    options: LocateOptions,
   ): AsyncIterable<MotifLocation> {
     // Direct ArkType validation
     const validationResult = LocateOptionsSchema(options);
@@ -135,7 +135,7 @@ export class LocateProcessor {
         searchSequence,
         stringPattern,
         "+",
-        options
+        options,
       );
       results.push(...forwardMatches);
 
@@ -147,7 +147,7 @@ export class LocateProcessor {
           searchSequence,
           reversePattern,
           "-",
-          options
+          options,
         );
         results.push(...reverseMatches);
       }
@@ -218,7 +218,7 @@ export class LocateProcessor {
     searchSequence: string,
     pattern: string,
     strand: "+" | "-",
-    options: LocateOptions
+    options: LocateOptions,
   ): MotifLocation[] {
     const maxMismatches = options.allowMismatches ?? 0;
     const minLength = options.minLength ?? pattern.length;
@@ -238,7 +238,7 @@ export class LocateProcessor {
         // Preserve original case from the source sequence, not the search sequence
         const originalMatchedSequence = seq.sequence.substring(
           match.position,
-          match.position + match.length
+          match.position + match.length,
         );
 
         const location: MotifLocation = {
@@ -276,7 +276,7 @@ export class LocateProcessor {
     sequence: string,
     start: number,
     length: number,
-    contextSize: number = 10
+    contextSize: number = 10,
   ): { upstream: string; downstream: string } {
     const upstreamStart = Math.max(0, start - contextSize);
     const downstreamEnd = Math.min(sequence.length, start + length + contextSize);

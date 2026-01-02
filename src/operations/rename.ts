@@ -160,7 +160,7 @@ const RenameOptionsSchema = type({
  */
 export async function* rename<T extends AbstractSequence>(
   source: AsyncIterable<T>,
-  options: RenameOptions = {}
+  options: RenameOptions = {},
 ): AsyncIterable<T> {
   // Validate options with ArkType schema
   const validationResult = RenameOptionsSchema(options);

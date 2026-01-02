@@ -75,7 +75,7 @@ export function detectEncoding(quality: string): QualityEncoding {
     undefined,
     undefined,
     `Expected ranges: Phred+33 (33-126), Phred+64 (64-126), or Solexa (59-126). ` +
-      `Invalid characters may indicate corrupted data or non-standard encoding.`
+      `Invalid characters may indicate corrupted data or non-standard encoding.`,
   );
 }
 
@@ -201,7 +201,7 @@ export function detectEncodingWithConfidence(quality: string): DetectionResult {
  * ```
  */
 export async function detectEncodingStatistical(
-  sequences: AsyncIterable<{ quality?: string }>
+  sequences: AsyncIterable<{ quality?: string }>,
 ): Promise<DetectionResult> {
   let globalMinAscii = 255;
   let globalMaxAscii = 0;

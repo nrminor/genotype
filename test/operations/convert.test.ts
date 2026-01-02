@@ -27,7 +27,7 @@ function createFastqSequence(
   sequence: string,
   quality: string,
   encoding: "phred33" | "phred64" | "solexa" = "phred33",
-  description?: string
+  description?: string,
 ): FastqSequence {
   return {
     format: "fastq",
@@ -67,7 +67,7 @@ async function* singleFastaSequence(seq: FastaSequence): AsyncIterable<FastaSequ
 }
 
 async function collectResults(
-  iterator: AsyncIterable<AbstractSequence>
+  iterator: AsyncIterable<AbstractSequence>,
 ): Promise<AbstractSequence[]> {
   const results: AbstractSequence[] = [];
   for await (const seq of iterator) {
@@ -90,11 +90,11 @@ describe("ConvertProcessor", () => {
         "legacy_read",
         "ATCG",
         "@@@@", // Phred+64: ASCII 64 = Q0
-        "phred64"
+        "phred64",
       );
 
       const results = await collectResults(
-        processor.process(singleSequence(seq), { targetEncoding: "phred33" })
+        processor.process(singleSequence(seq), { targetEncoding: "phred33" }),
       );
 
       expect(results).toHaveLength(1);
@@ -109,11 +109,11 @@ describe("ConvertProcessor", () => {
         "modern_read",
         "GCTA",
         "!!!!", // Phred+33: ASCII 33 = Q0
-        "phred33"
+        "phred33",
       );
 
       const results = await collectResults(
-        processor.process(singleSequence(seq), { targetEncoding: "phred64" })
+        processor.process(singleSequence(seq), { targetEncoding: "phred64" }),
       );
 
       expect(results).toHaveLength(1);
@@ -126,7 +126,7 @@ describe("ConvertProcessor", () => {
       const seq = createFastqSequence("same_encoding", "ATCG", "!!!!", "phred33");
 
       const results = await collectResults(
-        processor.process(singleSequence(seq), { targetEncoding: "phred33" })
+        processor.process(singleSequence(seq), { targetEncoding: "phred33" }),
       );
 
       expect(results).toHaveLength(1);
@@ -141,7 +141,7 @@ describe("ConvertProcessor", () => {
       const results = await collectResults(
         processor.process(singleSequence(fastaSeq), {
           targetEncoding: "phred33",
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -167,7 +167,7 @@ describe("ConvertProcessor", () => {
       const seq = createFastqSequence("test", "ATCG", "!!!!", "phred33");
 
       const results = await collectResults(
-        processor.process(singleSequence(seq), { targetEncoding: "solexa" })
+        processor.process(singleSequence(seq), { targetEncoding: "solexa" }),
       );
 
       expect(results).toHaveLength(1);
@@ -191,7 +191,7 @@ describe("ConvertProcessor", () => {
       const results = await collectResults(
         processor.process(singleSequence(malformed), {
           targetEncoding: "phred33",
-        })
+        }),
       );
 
       expect(results).toHaveLength(1);
@@ -206,13 +206,13 @@ describe("ConvertProcessor", () => {
         "HiSeq_2000_read",
         "AAACCCGGGTTT", // 12bp read
         "BBBBBBBBBBBB", // Phred+64: ASCII 66 = Q2 (good quality)
-        "phred64"
+        "phred64",
       );
 
       const results = await collectResults(
         processor.process(singleSequence(legacyRead), {
           targetEncoding: "phred33",
-        })
+        }),
       );
 
       const modernRead = results[0] as FastqSequence;
@@ -226,13 +226,13 @@ describe("ConvertProcessor", () => {
         "ATCGATCG",
         "!!!!!!!!", // Low quality
         "phred33",
-        "Coverage read from chr1:12345-12352"
+        "Coverage read from chr1:12345-12352",
       );
 
       const results = await collectResults(
         processor.process(singleSequence(detailedSeq), {
           targetEncoding: "phred64",
-        })
+        }),
       );
 
       const result = results[0] as FastqSequence;
@@ -248,7 +248,7 @@ describe("ConvertProcessor", () => {
         "unknown_encoding_read",
         "ATCGATCGATCG",
         "BBBBBBBBBBBB", // Phred+64: ASCII 66 = Q2 (detectable pattern)
-        "phred64" // This is for test setup, but convert won't use this
+        "phred64", // This is for test setup, but convert won't use this
       );
 
       // Auto-detection workflow: Don't specify sourceEncoding
@@ -256,7 +256,7 @@ describe("ConvertProcessor", () => {
         processor.process(singleSequence(unknownEncodingSeq), {
           targetEncoding: "phred33",
           // No sourceEncoding specified - should auto-detect
-        })
+        }),
       );
 
       const converted = results[0] as FastqSequence;
@@ -273,7 +273,7 @@ describe("ConvertProcessor", () => {
       }
 
       const results = await collectResults(
-        processor.process(mixedSequences(), { targetEncoding: "phred33" })
+        processor.process(mixedSequences(), { targetEncoding: "phred33" }),
       );
 
       expect(results).toHaveLength(3);
@@ -299,7 +299,7 @@ describe("ConvertProcessor", () => {
       const seq = createFastqSequence("solexa_test", "ATCG", "!!!!", "phred33"); // Q0 scores
 
       const results = await collectResults(
-        processor.process(singleSequence(seq), { targetEncoding: "solexa" })
+        processor.process(singleSequence(seq), { targetEncoding: "solexa" }),
       );
 
       const converted = results[0] as FastqSequence;
@@ -313,7 +313,7 @@ describe("ConvertProcessor", () => {
       const seq = createFastqSequence("phred_test", "GCTA", "@@@@", "solexa"); // Q0 Solexa
 
       const results = await collectResults(
-        processor.process(singleSequence(seq), { targetEncoding: "phred33" })
+        processor.process(singleSequence(seq), { targetEncoding: "phred33" }),
       );
 
       const converted = results[0] as FastqSequence;
@@ -328,7 +328,7 @@ describe("ConvertProcessor", () => {
       const seq = createFastqSequence("negative_solexa", "ATCG", ";;;;", "solexa"); // Q-5 Solexa (minimum)
 
       const results = await collectResults(
-        processor.process(singleSequence(seq), { targetEncoding: "phred33" })
+        processor.process(singleSequence(seq), { targetEncoding: "phred33" }),
       );
 
       const converted = results[0] as FastqSequence;
@@ -345,7 +345,7 @@ describe("ConvertProcessor", () => {
         "clear_modern",
         "ATCGATCG",
         "IIIIIIII", // Uniform Q40 (ASCII 73) - clearly modern
-        "phred33"
+        "phred33",
       );
 
       // Capture console warnings
@@ -358,7 +358,7 @@ describe("ConvertProcessor", () => {
       const results = await collectResults(
         processor.process(singleSequence(clearModernSeq), {
           targetEncoding: "phred64",
-        })
+        }),
       );
 
       console.warn = originalWarn;
@@ -373,7 +373,7 @@ describe("ConvertProcessor", () => {
         "ambiguous_pattern",
         "ATCG",
         "@@@@", // ASCII 64 - could be phred64 Q0 or phred33 Q31
-        "phred64"
+        "phred64",
       );
 
       // Capture console warnings
@@ -386,7 +386,7 @@ describe("ConvertProcessor", () => {
       const results = await collectResults(
         processor.process(singleSequence(ambiguousSeq), {
           targetEncoding: "phred33",
-        })
+        }),
       );
 
       console.warn = originalWarn;
@@ -403,7 +403,7 @@ describe("ConvertProcessor", () => {
         "historical_data",
         "ATCG",
         ";;;;", // ASCII 59 - Solexa range, very rare
-        "solexa"
+        "solexa",
       );
 
       const originalWarn = console.warn;
@@ -415,7 +415,7 @@ describe("ConvertProcessor", () => {
       const results = await collectResults(
         processor.process(singleSequence(historicalSeq), {
           targetEncoding: "phred33",
-        })
+        }),
       );
 
       console.warn = originalWarn;
@@ -440,7 +440,7 @@ describe("ConvertProcessor", () => {
         processor.process(singleSequence(ambiguousSeq), {
           sourceEncoding: "phred64", // Explicitly specified
           targetEncoding: "phred33",
-        })
+        }),
       );
 
       console.warn = originalWarn;
@@ -457,13 +457,13 @@ describe("ConvertProcessor", () => {
         "HWI-EAS209_0006_FC706VJ:5:58:5894:21141#ATCACG/1",
         "TTAATTGGTAAATAAATCTCCTAATAGCTTAGATNTTACCTTNNNNNNNNNNTAGTTTCTTGAGATTTGTTGGGGGAGACATTTTTGTGATTGCCTTGAT",
         "efcfffffcfeefffcffffffddf`feed]`]_Ba_^__[YBBBBBBBBBBRTT\\]][]dddd`ddd^dddadd^BBBBBBBBBBBBBBBBBBBBBBBB", // Authentic Illumina 1.5 quality
-        "phred64"
+        "phred64",
       );
 
       const results = await collectResults(
         processor.process(singleSequence(illumina15Read), {
           targetEncoding: "phred33",
-        })
+        }),
       );
 
       const converted = results[0] as FastqSequence;
@@ -484,13 +484,13 @@ describe("ConvertProcessor", () => {
         "NovaSeq_2024_read",
         "ATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCG", // 100bp
         "JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJIIIHHHGGGFFFEEEDDCCBBAAA!!!!!!!!!!", // Q40 degrading to Q0
-        "phred33"
+        "phred33",
       );
 
       const results = await collectResults(
         processor.process(singleSequence(modernRead), {
           targetEncoding: "phred64",
-        })
+        }),
       );
 
       const converted = results[0] as FastqSequence;
@@ -509,7 +509,7 @@ describe("ConvertProcessor", () => {
           "HiSeq_legacy",
           "ATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCG",
           "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@", // Poor quality legacy
-          "phred64"
+          "phred64",
         );
 
         // Modern NovaSeq (Phred+33)
@@ -517,7 +517,7 @@ describe("ConvertProcessor", () => {
           "NovaSeq_modern",
           "GCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCT",
           "JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ", // High quality modern
-          "phred33"
+          "phred33",
         );
       }
 
@@ -585,7 +585,7 @@ describe("ConvertProcessor", () => {
           processor.process(singleSequence(phred33Seq), {
             sourceEncoding: "phred33", // Explicit source prevents auto-detection
             targetEncoding: "phred64",
-          })
+          }),
         );
         expect((to64[0] as FastqSequence).quality).toBe(benchmark.phred64);
 
@@ -595,7 +595,7 @@ describe("ConvertProcessor", () => {
           processor.process(singleSequence(phred64Seq), {
             sourceEncoding: "phred64", // Explicit source prevents auto-detection
             targetEncoding: "phred33",
-          })
+          }),
         );
         expect((to33[0] as FastqSequence).quality).toBe(benchmark.phred33);
       }
@@ -610,7 +610,7 @@ describe("ConvertProcessor", () => {
             `read_${i}`,
             "ATCGATCGATCGATCGATCG",
             "@@@@@@@@@@@@@@@@@@@@", // Phred+64
-            "phred64"
+            "phred64",
           );
         }
       }
@@ -641,7 +641,7 @@ describe("ConvertProcessor", () => {
             `seqkit_scale_read_${i}`,
             "ATCGATCG".repeat(18) + "ATCGATCG".substring(0, 6), // 150bp realistic sequence
             qualityPattern,
-            "phred33"
+            "phred33",
           );
         }
       }
@@ -672,14 +672,14 @@ describe("ConvertProcessor", () => {
         "PacBio_long_read",
         "A".repeat(50000), // 50KB sequence (realistic long-read length)
         "I".repeat(50000), // Q40 quality throughout
-        "phred33"
+        "phred33",
       );
 
       const startTime = Date.now();
       const results = await collectResults(
         processor.process(singleSequence(longReadSeq), {
           targetEncoding: "phred64",
-        })
+        }),
       );
       const duration = Date.now() - startTime;
 
@@ -709,7 +709,7 @@ describe("ConvertProcessor", () => {
         const results = await collectResults(
           processor.process(singleSequence(corruptedSeq), {
             targetEncoding: "phred64",
-          })
+          }),
         );
         // If it processes, should handle corruption appropriately
         expect(results).toHaveLength(1);
@@ -736,7 +736,7 @@ describe("ConvertProcessor", () => {
           // User specifies what they think encoding is (wrong for some files)
           sourceEncoding: "phred33",
           targetEncoding: "phred64",
-        })
+        }),
       );
 
       expect(results).toHaveLength(3);
@@ -773,7 +773,7 @@ describe("ConvertProcessor", () => {
         const results = await collectResults(
           processor.process(singleSequence(seq), {
             targetEncoding: "phred64",
-          })
+          }),
         );
 
         const converted = results[0] as FastqSequence;

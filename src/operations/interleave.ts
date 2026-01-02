@@ -245,7 +245,7 @@ export class InterleaveProcessor<T extends AbstractSequence> {
   async *process(
     source1: AsyncIterable<T>,
     source2: AsyncIterable<T>,
-    options: InterleaveOptions = {}
+    options: InterleaveOptions = {},
   ): AsyncIterable<T> {
     // Extract options with defaults for discriminated union
     const validateIds = "validateIds" in options ? options.validateIds : false;
@@ -287,7 +287,7 @@ export class InterleaveProcessor<T extends AbstractSequence> {
               `  1. Mismatched input files (wrong R1/R2 pairing)\n` +
               `  2. Quality filtering applied to only one file\n` +
               `  3. Incomplete data transfer or corruption\n\n` +
-              `If unpaired sequences are expected, use mode="lossless" to preserve them.`
+              `If unpaired sequences are expected, use mode="lossless" to preserve them.`,
           );
         }
 
@@ -324,7 +324,7 @@ export class InterleaveProcessor<T extends AbstractSequence> {
       // Validate IDs match if requested (critical for paired-end reads)
       if (validateIds && !idComparator(seq1.id, seq2.id)) {
         throw new Error(
-          `ID mismatch at position ${pairedCount}: ` + `left="${seq1.id}", right="${seq2.id}"`
+          `ID mismatch at position ${pairedCount}: ` + `left="${seq1.id}", right="${seq2.id}"`,
         );
       }
 

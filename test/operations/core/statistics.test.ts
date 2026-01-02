@@ -357,11 +357,11 @@ describe("SequenceStatsAccumulator", () => {
       const accumulator = new SequenceStatsAccumulator();
 
       expect(() => accumulator.add(null as unknown as FastaSequence)).toThrow(
-        "Valid sequence required for statistics"
+        "Valid sequence required for statistics",
       );
 
       expect(() => accumulator.add({ id: "1" } as FastaSequence)).toThrow(
-        "Valid sequence required for statistics"
+        "Valid sequence required for statistics",
       );
     });
 

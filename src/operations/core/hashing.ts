@@ -167,7 +167,7 @@ export type HashAlgorithm = "md5" | "sha1" | "sha256" | "djb2" | "murmur3";
 export function hash(
   input: string,
   algorithm: HashAlgorithm = "md5",
-  options?: { caseSensitive?: boolean; seed?: number }
+  options?: { caseSensitive?: boolean; seed?: number },
 ): string | number {
   const { caseSensitive = false, seed = 0 } = options || {};
 

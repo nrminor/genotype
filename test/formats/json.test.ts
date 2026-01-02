@@ -481,7 +481,7 @@ describe("JSON Format - JSONParser", () => {
 
       expect(sequences).toHaveLength(1);
       expect((sequences[0] as FastaSequence & { description?: string }).description).toBe(
-        "test sequence"
+        "test sequence",
       );
     });
 
@@ -555,7 +555,7 @@ describe("JSON Format - JSONParser", () => {
     test("parses JSON file with wrapped format", async () => {
       const parser = new JSONParser();
       const sequences = await Array.fromAsync(
-        parser.parseFile("test/fixtures/sequences-wrapped.json")
+        parser.parseFile("test/fixtures/sequences-wrapped.json"),
       );
 
       expect(sequences).toHaveLength(2);
@@ -566,7 +566,7 @@ describe("JSON Format - JSONParser", () => {
     test("parses JSON file with FASTQ sequences", async () => {
       const parser = new JSONParser();
       const sequences = await Array.fromAsync(
-        parser.parseFile("test/fixtures/sequences-fastq.json")
+        parser.parseFile("test/fixtures/sequences-fastq.json"),
       );
 
       expect(sequences).toHaveLength(2);
@@ -598,7 +598,7 @@ describe("JSON Format - JSONLParser", () => {
     test("parses JSONL file with FASTQ sequences", async () => {
       const parser = new JSONLParser();
       const sequences = await Array.fromAsync(
-        parser.parseFile("test/fixtures/sequences-fastq.jsonl")
+        parser.parseFile("test/fixtures/sequences-fastq.jsonl"),
       );
 
       expect(sequences).toHaveLength(3);
@@ -669,7 +669,12 @@ describe("JSON Format - Edge Cases", () => {
       const sequences = [
         { id: "seq with spaces", sequence: "ATCG", length: 4, format: "fasta" as const },
         { id: "seq-with-dashes", sequence: "GCTA", length: 4, format: "fasta" as const },
-        { id: "seq_with_underscores", sequence: "TTAA", length: 4, format: "fasta" as const },
+        {
+          id: "seq_with_underscores",
+          sequence: "TTAA",
+          length: 4,
+          format: "fasta" as const,
+        },
       ];
 
       const tempFile = "/tmp/genotype-test-special-chars.json";
@@ -683,7 +688,12 @@ describe("JSON Format - Edge Cases", () => {
     test("handles quotes in IDs (properly escaped)", async () => {
       const sequences = [
         { id: 'seq"with"quotes', sequence: "ATCG", length: 4, format: "fasta" as const },
-        { id: "seq'with'apostrophes", sequence: "GCTA", length: 4, format: "fasta" as const },
+        {
+          id: "seq'with'apostrophes",
+          sequence: "GCTA",
+          length: 4,
+          format: "fasta" as const,
+        },
       ];
 
       const tempFile = "/tmp/genotype-test-quotes.json";
@@ -703,7 +713,12 @@ describe("JSON Format - Edge Cases", () => {
     test("handles sequences over 100KB", async () => {
       const longSequence = "A".repeat(100000);
       const sequences = [
-        { id: "long_seq", sequence: longSequence, length: 100000, format: "fasta" as const },
+        {
+          id: "long_seq",
+          sequence: longSequence,
+          length: 100000,
+          format: "fasta" as const,
+        },
       ];
 
       const tempFile = "/tmp/genotype-test-long-seq.json";
@@ -797,7 +812,7 @@ describe("JSON Format - Edge Cases", () => {
         tempFile,
         '{"id":"seq1","sequence":"ATCG","length":4}\n' +
           "{ invalid json }\n" +
-          '{"id":"seq3","sequence":"GCTA","length":4}\n'
+          '{"id":"seq3","sequence":"GCTA","length":4}\n',
       );
 
       const parser = new JSONLParser();
@@ -850,7 +865,7 @@ describe("JSON Format - Edge Cases", () => {
           "\n" +
           '{"id":"seq2","sequence":"GCTA","length":4}\n' +
           "\n" +
-          '{"id":"seq3","sequence":"TTAA","length":4}\n'
+          '{"id":"seq3","sequence":"TTAA","length":4}\n',
       );
 
       const parser = new JSONLParser();

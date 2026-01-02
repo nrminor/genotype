@@ -71,11 +71,7 @@ export {
 // FASTA format
 export { FastaParser, FastaUtils, FastaWriter } from "./formats/fasta";
 // FASTQ format
-export {
-  FastqParser,
-  FastqUtils,
-  FastqWriter,
-} from "./formats/fastq";
+export { FastqParser, FastqUtils, FastqWriter } from "./formats/fastq";
 // SAM format
 export { SAMParser, SAMUtils, SAMWriter } from "./formats/sam";
 // File I/O infrastructure
@@ -354,7 +350,7 @@ export function detectFormat(data: string): FormatDetection {
  */
 export async function* parseAny(
   data: string,
-  options?: ParserOptions
+  options?: ParserOptions,
 ): AsyncIterable<FastaSequence | FastqSequence | BedInterval> {
   const detection = detectFormat(data);
 
@@ -380,7 +376,7 @@ export async function* parseAny(
     default:
       throw new ParseError(
         `Unsupported or unrecognized format: ${detection.format}`,
-        detection.format
+        detection.format,
       );
   }
 }

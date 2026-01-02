@@ -46,10 +46,7 @@ export function protectFromExcel(field: string): string {
 export class ExcelProtector {
   private patterns: RegExp[];
 
-  constructor(options?: {
-    customPatterns?: RegExp[];
-    disableDefaults?: boolean;
-  }) {
+  constructor(options?: { customPatterns?: RegExp[]; disableDefaults?: boolean }) {
     this.patterns = [];
 
     if (!options?.disableDefaults) {

@@ -199,7 +199,7 @@ describe("Compression-Format Integration Tests", () => {
 
       // Updated implementation should throw helpful error
       await expect(GzipDecompressor.decompress(invalidCompressed)).rejects.toThrow(
-        CompressionError
+        CompressionError,
       );
 
       // Error should have proper genomics context
@@ -227,7 +227,7 @@ describe("Compression-Format Integration Tests", () => {
           for await (const chunk of decompressed) {
             // Should error before yielding chunks
           }
-        })()
+        })(),
       ).rejects.toThrow(CompressionError);
     });
   });

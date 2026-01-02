@@ -62,7 +62,7 @@ export const MockCompressionService: Layer.Layer<CompressionService> = Layer.suc
         },
       });
     },
-  }
+  },
 );
 
 /**
@@ -72,7 +72,7 @@ export const MockCompressionService: Layer.Layer<CompressionService> = Layer.suc
  * Useful for testing error propagation through I/O operations.
  */
 export function createFailingCompressionService(
-  errorMessage: string = "Simulated compression failure"
+  errorMessage: string = "Simulated compression failure",
 ): Layer.Layer<CompressionService> {
   return Layer.succeed(CompressionService, {
     compress: () => {
@@ -114,7 +114,7 @@ export interface CompressionTracker {
 
 export function createTrackingCompressionService(
   tracker: CompressionTracker,
-  baseService: CompressionService
+  baseService: CompressionService,
 ): Layer.Layer<CompressionService> {
   return Layer.succeed(CompressionService, {
     compress: (data: Uint8Array, format: CompressionFormat, level?: number) => {
@@ -145,7 +145,7 @@ export function createTrackingCompressionService(
  */
 export function createSlowCompressionService(
   delayMs: number = 100,
-  baseService?: CompressionService
+  baseService?: CompressionService,
 ): Layer.Layer<CompressionService> {
   return Layer.succeed(CompressionService, {
     compress: (data: Uint8Array, format: CompressionFormat, level?: number) => {
@@ -199,7 +199,7 @@ export function createSlowCompressionService(
  * Useful for testing format validation in I/O operations.
  */
 export function createFormatRestrictedCompressionService(
-  allowedFormats: CompressionFormat[]
+  allowedFormats: CompressionFormat[],
 ): Layer.Layer<CompressionService> {
   return Layer.succeed(CompressionService, {
     compress: (data: Uint8Array, format: CompressionFormat, level?: number) => {
@@ -208,8 +208,8 @@ export function createFormatRestrictedCompressionService(
           new CompressionError(
             `Format ${format} not allowed. Allowed: ${allowedFormats.join(", ")}`,
             format,
-            "compress"
-          )
+            "compress",
+          ),
         );
       }
       return Effect.succeed(data);
@@ -221,8 +221,8 @@ export function createFormatRestrictedCompressionService(
           new CompressionError(
             `Format ${format} not allowed. Allowed: ${allowedFormats.join(", ")}`,
             format,
-            "decompress"
-          )
+            "decompress",
+          ),
         );
       }
       return Effect.succeed(data);
@@ -233,7 +233,7 @@ export function createFormatRestrictedCompressionService(
         throw new CompressionError(
           `Format ${format} not allowed. Allowed: ${allowedFormats.join(", ")}`,
           format,
-          "stream"
+          "stream",
         );
       }
       return new TransformStream<Uint8Array, Uint8Array>({
@@ -248,7 +248,7 @@ export function createFormatRestrictedCompressionService(
         throw new CompressionError(
           `Format ${format} not allowed. Allowed: ${allowedFormats.join(", ")}`,
           format,
-          "stream"
+          "stream",
         );
       }
       return new TransformStream<Uint8Array, Uint8Array>({

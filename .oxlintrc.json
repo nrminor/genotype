@@ -1,0 +1,143 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "env": {
+    "browser": true,
+    "es2024": true,
+    "node": true
+  },
+  "globals": {
+    "Bun": "readonly",
+    "DecompressionStream": "readonly",
+    "CompressionStream": "readonly",
+    "BufferEncoding": "readonly"
+  },
+  "rules": {
+    "eslint/no-regex-spaces": "error",
+    "eslint/no-extra-boolean-cast": "error",
+    "eslint/no-useless-catch": "error",
+    "eslint/no-useless-escape": "error",
+    "unicorn/no-static-only-class": "warn",
+    "eslint/no-unused-vars": [
+      "error",
+      {
+        "vars": "all",
+        "args": "after-used",
+        "ignoreRestSiblings": true,
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_"
+      }
+    ],
+    "eslint/no-const-assign": "error",
+    "eslint/no-constant-condition": "error",
+    "eslint/no-empty-character-class": "error",
+    "eslint/no-empty-pattern": "error",
+    "eslint/no-obj-calls": "error",
+    "eslint/constructor-super": "error",
+    "eslint/no-nonoctal-decimal-escape": "error",
+    "eslint/no-loss-of-precision": "error",
+    "eslint/no-self-assign": "error",
+    "eslint/no-setter-return": "error",
+    "eslint/no-case-declarations": "error",
+    "eslint/no-undef": "error",
+    "eslint/no-unreachable": "error",
+    "eslint/no-this-before-super": "error",
+    "eslint/no-unsafe-finally": "error",
+    "eslint/no-unsafe-optional-chaining": "error",
+    "eslint/no-unused-labels": "error",
+    "eslint/no-unused-private-class-members": "error",
+    "eslint/use-isnan": "error",
+    "eslint/for-direction": "error",
+    "eslint/valid-typeof": "error",
+    "eslint/require-yield": "error",
+    "unicorn/new-for-builtins": "error",
+    "eslint/no-async-promise-executor": "error",
+    "eslint/no-ex-assign": "error",
+    "eslint/no-class-assign": "error",
+    "eslint/no-compare-neg-zero": "error",
+    "eslint/no-control-regex": "error",
+    "eslint/no-debugger": "error",
+    "eslint/no-duplicate-case": "error",
+    "eslint/no-dupe-class-members": "error",
+    "eslint/no-dupe-else-if": "error",
+    "eslint/no-dupe-keys": "error",
+    "eslint/no-dupe-args": "error",
+    "eslint/no-empty": "error",
+    "eslint/no-fallthrough": "error",
+    "eslint/no-func-assign": "error",
+    "eslint/no-global-assign": "error",
+    "eslint/no-import-assign": "error",
+    "eslint/no-irregular-whitespace": "error",
+    "eslint/no-misleading-character-class": "error",
+    "eslint/no-prototype-builtins": "error",
+    "eslint/no-redeclare": "error",
+    "eslint/no-shadow-restricted-names": "error",
+    "eslint/no-sparse-arrays": "error",
+    "eslint/no-unsafe-negation": "error",
+    "eslint/no-with": "error",
+    "eslint/getter-return": "error",
+    "typescript/no-explicit-any": "off",
+
+    "unicorn/no-array-for-each": "off",
+    "unicorn/no-array-reduce": "off",
+    "unicorn/no-array-callback-reference": "off",
+    "unicorn/no-new-array": "off",
+    "unicorn/no-array-push-push": "off",
+    "unicorn/prefer-spread": "off",
+    "unicorn/consistent-function-scoping": "off",
+    "unicorn/no-empty-file": "off",
+    "unicorn/no-useless-length-check": "off",
+    "unicorn/no-array-sort": "off",
+    "unicorn/no-array-reverse": "off",
+    "eslint/no-new": "off",
+    "eslint/no-useless-concat": "off",
+    "eslint/preserve-caught-error": "off",
+    "eslint/no-control-regex": "off"
+  },
+  "ignorePatterns": [
+    "docs/",
+    "dist/",
+    "**/dist/",
+    "**/*.d.ts",
+    "**/node_modules/",
+    "test/fixtures/",
+    "src/native/",
+    "reports/**/*",
+    "**/*.backup*",
+    "**/backup*/**/*",
+    "scripts/*.mjs",
+    "src/formats/bam/*.ts"
+  ],
+  "overrides": [
+    {
+      "files": ["test/**/*.ts"],
+      "env": {
+        "jest": true
+      },
+      "globals": {
+        "expect": "readonly",
+        "describe": "readonly",
+        "it": "readonly",
+        "test": "readonly",
+        "beforeEach": "readonly",
+        "afterEach": "readonly",
+        "performance": "readonly",
+        "setTimeout": "readonly",
+        "global": "readonly",
+        "process": "readonly"
+      },
+      "rules": {
+        "eslint/no-useless-escape": "off",
+        "eslint/no-undef": "off",
+        "eslint/no-unused-vars": "off",
+        "typescript/no-explicit-any": "warn",
+        "eslint/no-redeclare": "off"
+      }
+    }
+  ]
+}

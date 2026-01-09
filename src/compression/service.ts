@@ -3,9 +3,58 @@
  *
  * Provides centralized, dependency-injected compression/decompression
  * that works across Node.js, Bun, and Deno transparently.
+ *
+ * ## Layer Selection Guide
+ *
+ * This module provides two layers with different tradeoffs:
+ *
+ * ### `CompressionService.Live` (Gzip-only)
+ * - **Use when:** You only need gzip compression (most common case)
+ * - **Initialization:** Synchronous, no async overhead
+ * - **Bundle impact:** Minimal (uses fflate, already a dependency)
+ * - **Zstd behavior:** Returns error if zstd format is requested
+ *
+ * ### `CompressionService.WithZstd` (Gzip + Zstd)
+ * - **Use when:** You need to handle `.zst` files or want better compression
+ * - **Initialization:** Async (loads ~160KB WASM module on first use)
+ * - **Bundle impact:** Adds @hpcc-js/wasm-zstd WASM module
+ * - **Resource management:** Uses `Layer.scoped` for proper lifecycle
+ *
+ * ## Direct Function Usage (Non-Effect)
+ *
+ * For code that doesn't use Effect, the standalone functions in `zstd.ts`
+ * and `gzip.ts` use internal lazy-loading and can be called directly:
+ *
+ * ```typescript
+ * import { compress, decompress } from "./compression/zstd";
+ *
+ * const compressed = await compress(data);
+ * const decompressed = await decompress(compressed);
+ * ```
+ *
+ * @example Using the compression service with Effect
+ * ```typescript
+ * import { Effect } from "effect";
+ * import { CompressionService } from "./compression";
+ *
+ * const program = Effect.gen(function* () {
+ *   const compressor = yield* CompressionService;
+ *   const compressed = yield* compressor.compress(data, "gzip", 6);
+ *   return compressed;
+ * });
+ *
+ * // Run with gzip-only support (no async init required)
+ * await Effect.runPromise(program.pipe(Effect.provide(CompressionService.Live)));
+ *
+ * // Run with gzip + zstd support (initializes Zstd WASM)
+ * await Effect.runPromise(program.pipe(Effect.provide(CompressionService.WithZstd)));
+ * ```
+ *
+ * @module compression/service
  */
 
 import { Context, Effect, Layer } from "effect";
+import { Zstd } from "@hpcc-js/wasm-zstd";
 import { CompressionError } from "../errors";
 import type { CompressionFormat } from "../types";
 import {
@@ -14,253 +63,363 @@ import {
   createStream as createGzipDecompressionStream,
   decompress as decompressGzip,
 } from "./gzip";
+import {
+  createCompressionStream as createZstdCompressionStream,
+  createStream as createZstdDecompressionStream,
+} from "./zstd";
+
+// =============================================================================
+// SERVICE SHAPE (Interface)
+// =============================================================================
 
 /**
- * Service interface for compression operations
+ * Shape of the compression service - defines the available operations.
  *
- * Enables dependency injection of different compression implementations
- * (gzip, zstd, brotli, etc.) without coupling to specific implementations.
+ * This interface is separate from the service tag to allow for clear
+ * documentation and type inference.
  */
-export interface CompressionService {
+export interface CompressionServiceShape {
   /**
-   * Compress data using configured format
+   * Compress data using the specified format
    *
    * @param data - Uncompressed data
-   * @param format - Compression format (gzip, zstd, etc)
-   * @param level - Compression level (1-9)
+   * @param format - Compression format (gzip, zstd, none)
+   * @param level - Compression level (format-specific, typically 1-9 or 1-22)
    * @returns Effect that produces compressed data
    */
-  compress(
+  readonly compress: (
     data: Uint8Array,
     format: CompressionFormat,
     level?: number
-  ): Effect.Effect<Uint8Array, CompressionError>;
+  ) => Effect.Effect<Uint8Array, CompressionError>;
 
   /**
-   * Decompress data using auto-detected or specified format
+   * Decompress data using the specified format
    *
    * @param data - Compressed data
-   * @param format - Compression format (auto-detect if "none")
+   * @param format - Compression format used to compress the data
    * @returns Effect that produces decompressed data
    */
-  decompress(
+  readonly decompress: (
     data: Uint8Array,
     format: CompressionFormat
-  ): Effect.Effect<Uint8Array, CompressionError>;
+  ) => Effect.Effect<Uint8Array, CompressionError>;
 
   /**
-   * Create compression transform stream
+   * Create a compression transform stream
    *
    * @param format - Compression format
    * @param level - Compression level
-   * @returns TransformStream for pipethrough
+   * @returns TransformStream for use with Web Streams API
    */
-  createCompressionStream(
+  readonly createCompressionStream: (
     format: CompressionFormat,
     level?: number
-  ): TransformStream<Uint8Array, Uint8Array>;
+  ) => TransformStream<Uint8Array, Uint8Array>;
 
   /**
-   * Create decompression transform stream
+   * Create a decompression transform stream
    *
    * @param format - Compression format
-   * @returns TransformStream for pipethrough
+   * @returns TransformStream for use with Web Streams API
    */
-  createDecompressionStream(format: CompressionFormat): TransformStream<Uint8Array, Uint8Array>;
+  readonly createDecompressionStream: (
+    format: CompressionFormat
+  ) => TransformStream<Uint8Array, Uint8Array>;
+}
+
+// =============================================================================
+// SERVICE TAG (Effect 3.x Class-Based Pattern)
+// =============================================================================
+
+/**
+ * Compression service for Effect-based dependency injection
+ *
+ * Provides two layer options:
+ * - `CompressionService.Live` - Gzip-only, no async initialization required
+ * - `CompressionService.WithZstd` - Gzip + Zstd, requires async WASM initialization
+ *
+ * @example Basic usage with gzip
+ * ```typescript
+ * const program = Effect.gen(function* () {
+ *   const svc = yield* CompressionService;
+ *   return yield* svc.compress(data, "gzip", 6);
+ * });
+ *
+ * await Effect.runPromise(program.pipe(Effect.provide(CompressionService.Live)));
+ * ```
+ *
+ * @example With Zstd support
+ * ```typescript
+ * const program = Effect.gen(function* () {
+ *   const svc = yield* CompressionService;
+ *   return yield* svc.compress(data, "zstd", 3);
+ * });
+ *
+ * await Effect.runPromise(program.pipe(Effect.provide(CompressionService.WithZstd)));
+ * ```
+ */
+export class CompressionService extends Context.Tag("@genotype/CompressionService")<
+  CompressionService,
+  CompressionServiceShape
+>() {
+  /**
+   * Gzip-only compression service layer
+   *
+   * Use this when you only need gzip support. No async initialization required.
+   * Attempting to use zstd format will result in an error.
+   */
+  static readonly Live: Layer.Layer<CompressionService> = Layer.succeed(
+    CompressionService,
+    createGzipOnlyService()
+  );
+
+  /**
+   * Multi-format compression service layer with Zstd support
+   *
+   * Initializes the Zstd WASM module on layer construction.
+   * Supports gzip, zstd, and passthrough (none) formats.
+   */
+  static readonly WithZstd: Layer.Layer<CompressionService, CompressionError> = Layer.scoped(
+    CompressionService,
+    Effect.gen(function* () {
+      // Load Zstd WASM module
+      const zstd = yield* Effect.tryPromise({
+        try: () => Zstd.load(),
+        catch: (error) =>
+          new CompressionError(
+            `Failed to initialize Zstd WASM: ${error instanceof Error ? error.message : String(error)}`,
+            "zstd",
+            "validate"
+          ),
+      });
+
+      return createMultiFormatService(zstd);
+    })
+  );
+}
+
+// =============================================================================
+// FORMAT VALIDATION
+// =============================================================================
+
+/**
+ * Supported formats for the multi-format service
+ */
+const MULTI_FORMAT_SUPPORTED: readonly CompressionFormat[] = ["gzip", "zstd", "none"] as const;
+
+/**
+ * Validate that a format is supported by the multi-format service
+ *
+ * Returns the format if valid, fails with CompressionError if not.
+ */
+function validateMultiFormat(
+  format: CompressionFormat,
+  operation: "compress" | "decompress" | "stream"
+): Effect.Effect<CompressionFormat, CompressionError> {
+  if (MULTI_FORMAT_SUPPORTED.includes(format)) {
+    return Effect.succeed(format);
+  }
+  return Effect.fail(
+    new CompressionError(`Unsupported compression format: ${format}`, format, operation)
+  );
 }
 
 /**
- * Tag for dependency injection
+ * Validate that a format is supported by the gzip-only service
  *
- * Use with Effect.gen():
- * ```typescript
- * const program = Effect.gen(function* () {
- *   const compressor = yield* CompressionService;
- *   const compressed = yield* compressor.compress(data, "gzip", 6);
- * });
- * ```
+ * Returns the format if valid, fails with CompressionError if not.
  */
-export const CompressionService = Context.GenericTag<CompressionService>("CompressionService");
+function validateGzipOnlyFormat(
+  format: CompressionFormat,
+  operation: "compress" | "decompress" | "stream"
+): Effect.Effect<CompressionFormat, CompressionError> {
+  if (format === "gzip" || format === "none") {
+    return Effect.succeed(format);
+  }
+  return Effect.fail(
+    new CompressionError(
+      `CompressionService.Live only supports gzip format, got: ${format}. Use CompressionService.WithZstd for zstd support.`,
+      format,
+      operation
+    )
+  );
+}
 
 /**
- * Gzip compression service implementation
+ * Run a validation Effect synchronously, throwing on failure
  *
- * Uses fflate library for efficient, zero-dependency compression
+ * Used by streaming methods to maintain the synchronous public API
+ * while using Effect internally for validation.
  */
-export const GzipCompressionService: Layer.Layer<CompressionService> = Layer.succeed(
-  CompressionService,
-  {
-    compress: (data, format, level) => {
-      if (format !== "gzip") {
-        return Effect.fail(
-          new CompressionError(
-            `GzipCompressionService only supports gzip format, got: ${format}`,
-            format,
-            "compress"
-          )
-        );
-      }
+function runValidation<A>(effect: Effect.Effect<A, CompressionError>): A {
+  return Effect.runSync(effect);
+}
 
-      return Effect.promise(() => compressGzip(data, { level: level ?? 6 }));
-    },
+// =============================================================================
+// SERVICE IMPLEMENTATIONS
+// =============================================================================
 
-    decompress: (data, format) => {
-      if (format !== "gzip") {
-        return Effect.fail(
-          new CompressionError(
-            `GzipCompressionService only supports gzip format, got: ${format}`,
-            format,
-            "decompress"
-          )
-        );
-      }
+/**
+ * Create a gzip-only compression service implementation
+ */
+function createGzipOnlyService(): CompressionServiceShape {
+  return {
+    compress: (data, format, level) =>
+      Effect.gen(function* () {
+        const validFormat = yield* validateGzipOnlyFormat(format, "compress");
 
-      return Effect.promise(() => decompressGzip(data));
-    },
+        if (validFormat === "none") {
+          return data;
+        }
+
+        return yield* Effect.tryPromise({
+          try: () => compressGzip(data, { level: level ?? 6 }),
+          catch: (error) => CompressionError.fromSystemError("gzip", "compress", error),
+        });
+      }),
+
+    decompress: (data, format) =>
+      Effect.gen(function* () {
+        const validFormat = yield* validateGzipOnlyFormat(format, "decompress");
+
+        if (validFormat === "none") {
+          return data;
+        }
+
+        return yield* Effect.tryPromise({
+          try: () => decompressGzip(data),
+          catch: (error) => CompressionError.fromSystemError("gzip", "decompress", error),
+        });
+      }),
 
     createCompressionStream: (format, level) => {
-      if (format !== "gzip") {
-        throw new CompressionError(
-          `GzipCompressionService only supports gzip format, got: ${format}`,
-          format,
-          "stream"
-        );
+      // Validate format using Effect, throw if invalid (preserves public API)
+      const validFormat = runValidation(validateGzipOnlyFormat(format, "stream"));
+
+      if (validFormat === "none") {
+        return createPassthroughStream();
       }
+
       return createGzipCompressionStream({ level: level ?? 6 });
     },
 
     createDecompressionStream: (format) => {
-      if (format !== "gzip") {
-        throw new CompressionError(
-          `GzipCompressionService only supports gzip format, got: ${format}`,
-          format,
-          "stream"
-        );
+      // Validate format using Effect, throw if invalid (preserves public API)
+      const validFormat = runValidation(validateGzipOnlyFormat(format, "stream"));
+
+      if (validFormat === "none") {
+        return createPassthroughStream();
       }
 
       return createGzipDecompressionStream();
     },
-  }
-);
-
-// ============================================================================
-// MULTI-FORMAT IMPLEMENTATION (FUTURE)
-// ============================================================================
+  };
+}
 
 /**
- * Universal compression service that supports multiple formats
+ * Create a multi-format compression service implementation
  *
- * Routes to appropriate implementation based on format.
- * Can be extended with new formats without modifying routing logic.
- *
- * Usage:
- * ```typescript
- * const program = Effect.gen(function* () {
- *   const compressor = yield* CompressionService;
- *
- *   // Works with any format
- *   const gzipped = yield* compressor.compress(data, "gzip", 9);
- *   const zstd = yield* compressor.compress(data, "zstd", 3);
- * });
- *
- * await Effect.runPromise(
- *   program.pipe(Effect.provide(MultiFormatCompressionService))
- * );
- * ```
+ * @param zstd - Initialized Zstd WASM instance
  */
-export const MultiFormatCompressionService: Layer.Layer<CompressionService> = Layer.succeed(
-  CompressionService,
-  {
+function createMultiFormatService(zstd: Zstd): CompressionServiceShape {
+  return {
     compress: (data, format, level) =>
       Effect.gen(function* () {
-        switch (format) {
+        const validFormat = yield* validateMultiFormat(format, "compress");
+
+        switch (validFormat) {
           case "gzip":
-            return yield* Effect.promise(() => compressGzip(data, { level: level ?? 6 }));
+            return yield* Effect.tryPromise({
+              try: () => compressGzip(data, { level: level ?? 6 }),
+              catch: (error) => CompressionError.fromSystemError("gzip", "compress", error),
+            });
 
           case "zstd":
-            return yield* Effect.fail(
-              new CompressionError("Zstd compression not yet implemented", "zstd", "compress")
-            );
+            return yield* Effect.try({
+              try: () => zstd.compress(data, level ?? 3),
+              catch: (error) => CompressionError.fromSystemError("zstd", "compress", error),
+            });
 
           case "none":
             return data;
-
-          default:
-            return yield* Effect.fail(
-              new CompressionError(
-                `Unsupported compression format: ${format}`,
-                format as CompressionFormat,
-                "compress"
-              )
-            );
         }
       }),
 
     decompress: (data, format) =>
       Effect.gen(function* () {
-        switch (format) {
+        const validFormat = yield* validateMultiFormat(format, "decompress");
+
+        switch (validFormat) {
           case "gzip":
-            return yield* Effect.promise(() => decompressGzip(data));
+            return yield* Effect.tryPromise({
+              try: () => decompressGzip(data),
+              catch: (error) => CompressionError.fromSystemError("gzip", "decompress", error),
+            });
 
           case "zstd":
-            return yield* Effect.fail(
-              new CompressionError("Zstd decompression not yet implemented", "zstd", "decompress")
-            );
+            return yield* Effect.try({
+              try: () => zstd.decompress(data),
+              catch: (error) => CompressionError.fromSystemError("zstd", "decompress", error),
+            });
 
           case "none":
             return data;
-
-          default:
-            return yield* Effect.fail(
-              new CompressionError(
-                `Unsupported compression format: ${format}`,
-                format as CompressionFormat,
-                "decompress"
-              )
-            );
         }
       }),
 
     createCompressionStream: (format, level) => {
-      switch (format) {
+      // Validate format using Effect, throw if invalid (preserves public API)
+      const validFormat = runValidation(validateMultiFormat(format, "stream"));
+
+      switch (validFormat) {
         case "gzip":
           return createGzipCompressionStream({ level: level ?? 6 });
         case "zstd":
-          throw new CompressionError("Zstd compression not yet implemented", "zstd", "stream");
+          return createZstdCompressionStream(level);
         case "none":
-          return new TransformStream<Uint8Array, Uint8Array>({
-            transform(chunk, controller) {
-              controller.enqueue(chunk);
-            },
-          });
-        default:
-          throw new CompressionError(
-            `Unsupported compression format: ${format}`,
-            format as CompressionFormat,
-            "stream"
-          );
+          return createPassthroughStream();
       }
     },
 
     createDecompressionStream: (format) => {
-      switch (format) {
+      // Validate format using Effect, throw if invalid (preserves public API)
+      const validFormat = runValidation(validateMultiFormat(format, "stream"));
+
+      switch (validFormat) {
         case "gzip":
           return createGzipDecompressionStream();
         case "zstd":
-          throw new CompressionError("Zstd decompression not yet implemented", "zstd", "stream");
+          return createZstdDecompressionStream();
         case "none":
-          return new TransformStream<Uint8Array, Uint8Array>({
-            transform(chunk, controller) {
-              controller.enqueue(chunk);
-            },
-          });
-        default:
-          throw new CompressionError(
-            `Unsupported compression format: ${format}`,
-            format as CompressionFormat,
-            "stream"
-          );
+          return createPassthroughStream();
       }
     },
-  }
-);
+  };
+}
+
+/**
+ * Create a passthrough stream that forwards data unchanged
+ */
+function createPassthroughStream(): TransformStream<Uint8Array, Uint8Array> {
+  return new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      controller.enqueue(chunk);
+    },
+  });
+}
+
+// =============================================================================
+// BACKWARD COMPATIBILITY EXPORTS
+// =============================================================================
+
+/**
+ * @deprecated Use `CompressionService.Live` instead
+ */
+export const GzipCompressionService: Layer.Layer<CompressionService> = CompressionService.Live;
+
+/**
+ * @deprecated Use `CompressionService.WithZstd` instead
+ */
+export const MultiFormatCompressionService: Layer.Layer<CompressionService, CompressionError> =
+  CompressionService.WithZstd;

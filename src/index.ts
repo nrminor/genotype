@@ -2,9 +2,7 @@
 export {
   CompressionDetector,
   createDecompressor,
-  estimateCompressionRatio,
   GzipDecompressor,
-  getRecommendedCompression,
   isCompressionSupported,
   ZstdDecompressor,
 } from "./compression";

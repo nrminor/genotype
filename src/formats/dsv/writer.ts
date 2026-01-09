@@ -17,6 +17,7 @@
 
 import { type } from "arktype";
 import { ValidationError } from "../../errors";
+import { writeString } from "../../io/file-writer";
 
 // Import from local DSV modules
 import { DEFAULT_ESCAPE, DEFAULT_QUOTE } from "./constants";
@@ -201,33 +202,23 @@ export class DSVWriter {
 
   /**
    * Write records to a file with optional compression
+   *
+   * Compression is auto-detected from file extension (.gz, .zst) * or can be specified via constructor options.
+   *
    * @param path - File path to write to
    * @param records - Records to write
    */
   async writeFile(path: string, records: DSVRecord[]): Promise<void> {
     const content = this.formatRecords(records);
-    const { writeFile } = await import("node:fs/promises");
 
-    // Auto-detect compression from file extension if not specified
-    let compression = this.compression;
-    if (!compression && path.endsWith(".gz")) {
-      compression = "gzip";
-    } else if (!compression && path.endsWith(".zst")) {
-      compression = "zstd";
-    }
-
-    if (compression === "gzip") {
-      // Use Bun's built-in gzip compression
-      const { gzipSync } = await import("bun");
-      const compressed = gzipSync(content);
-      await writeFile(path, compressed);
-    } else if (compression === "zstd") {
-      // Zstd not built into Bun, would need external library
-      throw new Error("Zstd compression writing not yet available - use gzip instead");
-    } else {
-      // Write uncompressed
-      await writeFile(path, content, "utf-8");
-    }
+    // Delegate to file-writer which handles:
+    // - Platform-agnostic I/O via Effect Platform
+    // - Compression via CompressionService DI
+    // - Auto-detection from file extension
+    await writeString(path, content, {
+      ...(this.compression && { compressionFormat: this.compression }),
+      compressionLevel: this.compressionLevel,
+    });
   }
 }
 

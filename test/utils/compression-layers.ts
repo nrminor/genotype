@@ -15,8 +15,8 @@
  * ```
  */
 
-import { Context, Effect, Layer } from "effect";
-import { CompressionService } from "../../src/compression";
+import { Effect, Layer } from "effect";
+import { CompressionService, type CompressionServiceShape } from "../../src/compression/service";
 import { CompressionError } from "../../src/errors";
 import type { CompressionFormat } from "../../src/types";
 
@@ -114,7 +114,7 @@ export interface CompressionTracker {
 
 export function createTrackingCompressionService(
   tracker: CompressionTracker,
-  baseService: CompressionService
+  baseService: CompressionServiceShape
 ): Layer.Layer<CompressionService> {
   return Layer.succeed(CompressionService, {
     compress: (data: Uint8Array, format: CompressionFormat, level?: number) => {
@@ -145,7 +145,7 @@ export function createTrackingCompressionService(
  */
 export function createSlowCompressionService(
   delayMs: number = 100,
-  baseService?: CompressionService
+  baseService?: CompressionServiceShape
 ): Layer.Layer<CompressionService> {
   return Layer.succeed(CompressionService, {
     compress: (data: Uint8Array, format: CompressionFormat, level?: number) => {

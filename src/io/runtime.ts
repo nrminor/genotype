@@ -5,8 +5,10 @@
  * appropriate Effect platform layers for cross-platform file I/O.
  */
 
-import { BunContext } from "@effect/platform-bun";
-import { NodeContext } from "@effect/platform-node";
+// Use subpath imports to avoid loading @effect/cluster modules
+// (BunClusterHttp/BunClusterSocket require @effect/cluster peer dependency)
+import * as BunContext from "@effect/platform-bun/BunContext";
+import * as NodeContext from "@effect/platform-node/NodeContext";
 
 /**
  * Supported JavaScript runtimes

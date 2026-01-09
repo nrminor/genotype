@@ -13,7 +13,9 @@
 
 import { type } from "arktype";
 import { SamError, ValidationError } from "../errors";
+import { createStream, exists, getMetadata } from "../io/file-reader";
 import { writeString } from "../io/file-writer";
+import { StreamUtils } from "../io/stream-utils";
 import type {
   CIGARString,
   MAPQScore,
@@ -218,8 +220,6 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
   override async *parse(
     stream: ReadableStream<Uint8Array>
   ): AsyncIterable<SAMHeader | SAMAlignment> {
-    // Extract stream parsing logic from parseFile
-    const { StreamUtils } = await import("../io/stream-utils");
     const lines = StreamUtils.readLines(stream, "utf8");
     yield* this.parseLinesFromAsyncIterable(lines);
   }
@@ -256,10 +256,6 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
     if (options && typeof options !== "object") {
       throw new ValidationError("options must be an object if provided");
     }
-
-    // Import I/O modules dynamically to avoid circular dependencies
-    const { createStream } = await import("../io/file-reader");
-    const { StreamUtils } = await import("../io/stream-utils");
 
     try {
       // Validate file path and create stream
@@ -1076,9 +1072,6 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
     if (filePath.length === 0) {
       throw new ValidationError("filePath must not be empty");
     }
-
-    // Import FileReader functions dynamically to avoid circular dependencies
-    const { exists, getMetadata } = await import("../io/file-reader");
 
     // Check if file exists and is readable
     if (!(await exists(filePath))) {

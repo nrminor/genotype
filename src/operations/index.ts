@@ -52,7 +52,7 @@ import { replace } from "./replace";
 import { RmdupProcessor } from "./rmdup";
 import { SampleProcessor } from "./sample";
 import { SortProcessor } from "./sort";
-import type { SplitResult, SplitSummary } from "./split";
+import { SplitProcessor, type SplitResult, type SplitSummary } from "./split";
 import { type SequenceStats, SequenceStatsCalculator, type StatsOptions } from "./stats";
 import { SubseqExtractor, type SubseqOptions } from "./subseq";
 import { TransformProcessor } from "./transform";
@@ -1483,7 +1483,6 @@ export class SeqOps<T extends AbstractSequence> {
    * ```
    */
   async split(options: SplitOptions): Promise<SplitSummary> {
-    const { SplitProcessor } = await import("./split");
     const processor = new SplitProcessor();
     return processor.split(this.source, options);
   }
@@ -1534,7 +1533,6 @@ export class SeqOps<T extends AbstractSequence> {
    * ```
    */
   async *splitToStream(options: SplitOptions): AsyncIterable<SplitResult> {
-    const { SplitProcessor } = await import("./split");
     const processor = new SplitProcessor();
     yield* processor.process(this.source, options);
   }

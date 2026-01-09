@@ -16,6 +16,7 @@
 import { BamError, CompressionError } from "../../errors";
 import type { BGZFBlock } from "../../types";
 import { readUInt32LE } from "./binary";
+import { GzipDecompressor } from "../../compression";
 
 // Module-level constants for BGZF format
 const BGZF_HEADER_SIZE = 18;
@@ -463,7 +464,6 @@ async function inflateData(compressedData: Uint8Array): Promise<Uint8Array> {
   }
 
   // Fallback: Import compression library dynamically
-  const { GzipDecompressor } = await import("../../compression/gzip");
   return (GzipDecompressor as any).inflateRaw(compressedData);
 }
 

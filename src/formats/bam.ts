@@ -17,7 +17,7 @@
  */
 
 import { BamError, CompressionError, ValidationError } from "../errors";
-import { createStream as createFileStream } from "../io/file-reader";
+import { createStream as createFileStream, exists, getMetadata } from "../io/file-reader";
 // BAIWriter imported but not used in current implementation
 import type {
   BAIChunk,
@@ -872,9 +872,6 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
     if (filePath.length === 0) {
       throw new ValidationError("filePath must not be empty");
     }
-
-    // Import FileReader functions dynamically to avoid circular dependencies
-    const { exists, getMetadata } = await import("../io/file-reader");
 
     // Check if file exists and is readable
     if (!(await exists(filePath))) {

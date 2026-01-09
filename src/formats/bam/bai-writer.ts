@@ -14,6 +14,7 @@
  */
 
 import { BamError } from "../../errors";
+import { BAMParser } from "../bam";
 import type {
   BAIBin,
   BAIBinNumber,
@@ -143,8 +144,6 @@ export class BAIWriter {
     }
 
     try {
-      // Import BAMParser dynamically to avoid circular dependencies
-      const { BAMParser } = await import("../bam");
       const parser = new BAMParser({
         skipValidation: !this.options.validateAlignments,
         onError: (error): void => {

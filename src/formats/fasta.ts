@@ -18,7 +18,8 @@ import {
   SequenceError,
   ValidationError,
 } from "../errors";
-import { exists } from "../io/file-reader";
+import { createStream, exists, getMetadata } from "../io/file-reader";
+import { StreamUtils } from "../io/stream-utils";
 import type { FastaSequence, ParserOptions } from "../types";
 import { FastaSequenceSchema, SequenceIdSchema, SequenceSchema } from "../types";
 import { AbstractParser } from "./abstract-parser";
@@ -181,10 +182,6 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
     if (filePath.length === 0) {
       throw new ValidationError("filePath must not be empty");
     }
-
-    // Import I/O modules dynamically to avoid circular dependencies
-    const { createStream } = await import("../io/file-reader");
-    const { StreamUtils } = await import("../io/stream-utils");
 
     try {
       // Validate file path and create stream
@@ -542,8 +539,6 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
 
     // Additional FASTA-specific checks if needed
     try {
-      // Import FileReader functions dynamically to avoid circular dependencies
-      const { getMetadata } = await import("../io/file-reader");
       const metadata = await getMetadata(validatedPath);
 
       // Warn about very large files

@@ -16,6 +16,7 @@
  * - Native support for BGZF compression
  */
 
+import * as fs from "node:fs";
 import { BamError, CompressionError } from "../../errors";
 import type { SAMAlignment, SAMHeader } from "../../types";
 import { BGZFCompressor } from "./bgzf-compressor";
@@ -855,7 +856,6 @@ export class BAMWriter {
     // Implement streaming file writer for Node.js runtime
     if (typeof process !== "undefined" && process.versions?.node) {
       // Node.js implementation
-      const fs = await import("node:fs");
       const stream = fs.createWriteStream(filePath);
 
       // Write header first and extract references

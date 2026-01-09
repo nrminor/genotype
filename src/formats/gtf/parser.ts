@@ -10,6 +10,8 @@
 
 import { type } from "arktype";
 import { ParseError, ValidationError } from "../../errors";
+import { createStream } from "../../io/file-reader";
+import { StreamUtils } from "../../io/stream-utils";
 import type { Strand } from "../../types";
 import { AbstractParser } from "../abstract-parser";
 import type {
@@ -582,13 +584,11 @@ class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
     }
 
     try {
-      const { createStream } = await import("../../io/file-reader");
       const stream = await createStream(filePath, {
         encoding: (options?.encoding as "utf8") || "utf8",
         maxFileSize: 10_000_000_000, // 10GB max for large annotation files
       });
 
-      const { StreamUtils } = await import("../../io/stream-utils");
       const lines = StreamUtils.readLines(stream, "utf8");
       yield* this.parseLinesFromAsyncIterable(lines);
     } catch (error) {
@@ -645,8 +645,6 @@ class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
    * @returns AsyncIterable of GTF features
    */
   override async *parse(stream: ReadableStream<Uint8Array>): AsyncIterable<GtfFeature> {
-    // Extract stream parsing logic (following proven SAM pattern)
-    const { StreamUtils } = await import("../../io/stream-utils");
     const lines = StreamUtils.readLines(stream, "utf8");
     yield* this.parseLinesFromAsyncIterable(lines);
   }

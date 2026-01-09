@@ -14,6 +14,8 @@
 
 import { type } from "arktype";
 import { BedError, ValidationError } from "../errors";
+import { FileReader } from "../io/file-reader";
+import { StreamUtils } from "../io/stream-utils";
 import {
   parseEndPosition,
   parseStartPosition,
@@ -648,13 +650,11 @@ class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
     }
 
     try {
-      const { FileReader } = await import("../io/file-reader");
       const stream = await FileReader.createStream(filePath, {
         encoding: (options?.encoding as "utf8") || "utf8",
         maxFileSize: 10_000_000_000, // 10GB max to match FileReader default
       });
 
-      const { StreamUtils } = await import("../io/stream-utils");
       const lines = StreamUtils.readLines(stream, "utf8");
       yield* this.parseLinesFromAsyncIterable(lines);
     } catch (error) {

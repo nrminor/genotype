@@ -1,12 +1,17 @@
 {
+  "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
+    "incremental": true,
+    "composite": true,
+    "strict": true,
     "target": "ES2022",
-    "module": "ESNext",
+    "moduleDetection": "force",
     "moduleResolution": "bundler",
+    "verbatimModuleSyntax": true,
+    "rewriteRelativeImportExtensions": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
     "strictFunctionTypes": true,
@@ -29,7 +34,8 @@
     "removeComments": false,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "lib": ["ES2022", "DOM"]
+    "lib": ["ES2022", "DOM"],
+    "plugins": [{ "name": "@effect/language-service" }]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "test", "docs"],

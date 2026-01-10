@@ -1,15 +1,12 @@
 /**
- * File writing operations using Effect Platform
+ * Cross-platform file writing utilities for Node.js, Deno, and Bun
  *
- * Provides runtime-agnostic file writing operations that work across
- * Node.js, Bun, and Deno. All Effect complexity is hidden behind
- * Promise-based APIs for ease of use.
- *
- * @module file-writer
+ * Provides runtime-agnostic file writing operations using Effect Platform.
+ * All Effect complexity is hidden behind Promise-based APIs.
  */
 
 import { FileSystem, Path } from "@effect/platform";
-import { Effect } from "effect";
+import { Effect, Layer } from "effect";
 import {
   CompressionDetector,
   CompressionService,
@@ -18,144 +15,138 @@ import {
 import type { WriteOptions } from "../types";
 import { getPlatform } from "./runtime";
 
+// =============================================================================
+// CONSTANTS
+// =============================================================================
+
+/** Merged layer providing both platform and compression services */
+const FullLayer = Layer.merge(getPlatform(), MultiFormatCompressionService);
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
 /**
  * Handle for writing to a file multiple times within a scope
- *
- * The file is automatically closed when the callback completes or throws.
  */
 export interface FileWriteHandle {
-  /**
-   * Write string content to the file
-   *
-   * @param content - String to write
-   */
+  /** Write string content to the file */
   writeString(content: string): Promise<void>;
-
-  /**
-   * Write binary data to the file
-   *
-   * @param content - Binary data to write
-   */
+  /** Write binary data to the file */
   writeBytes(content: Uint8Array): Promise<void>;
 }
+
+// =============================================================================
+// INTERNAL HELPERS
+// =============================================================================
+
+/**
+ * Effect that compresses data if needed based on options and file extension
+ *
+ * This is the single source of truth for compression logic.
+ */
+function compressEffect(
+  data: Uint8Array,
+  filePath: string,
+  options: WriteOptions = {}
+): Effect.Effect<Uint8Array, unknown, CompressionService> {
+  return Effect.gen(function* () {
+    // Check if auto-compression is disabled
+    if (options.autoCompress === false) {
+      return data;
+    }
+
+    // Determine compression format
+    let format = options.compressionFormat ?? "none";
+    if (format === "none") {
+      format = CompressionDetector.fromExtension(filePath);
+    }
+
+    // No compression needed
+    if (format === "none") {
+      return data;
+    }
+
+    // Compress using injected service
+    const compressionService = yield* CompressionService;
+    return yield* compressionService.compress(
+      data,
+      format,
+      options.compressionLevel ?? 6
+    );
+  });
+}
+
+// =============================================================================
+// PUBLIC API
+// =============================================================================
 
 /**
  * Write string to file (overwrites if exists, creates if not)
  *
- * Automatically compresses based on file extension by default using Effect
- * dependency injection for compression services.
- * Use `.gz` extension for gzip compression.
- *
- * **Implementation Note (Internal):**
- * Compression is handled via `applyCompression()` which uses CompressionService
- * dependency injection, enabling transparent layer swapping for testing or custom
- * compression implementations. See `test/utils/compression-layers.ts` for mock patterns.
+ * Automatically compresses based on file extension (.gz for gzip, .zst for zstd).
  *
  * @param path - File path to write to
  * @param content - String content to write
- * @param options - Write options (compression settings, compression level, etc.)
- * @throws {FileError} When write operation fails or path is invalid
+ * @param options - Write options (compression settings)
  *
  * @example Basic write
  * ```typescript
  * await writeString("output.txt", "Hello, world!");
  * ```
  *
- * @example Automatic gzip compression
+ * @example Auto-compressed gzip
  * ```typescript
- * // Auto-detects .gz extension and compresses
  * await writeString("output.fasta.gz", data);
  * ```
  *
- * @example Disable auto-compression
+ * @example Disable compression
  * ```typescript
- * // Write to .gz file without compression
- * await writeString("output.fasta.gz", data, { autoCompress: false });
+ * await writeString("output.gz", data, { autoCompress: false });
  * ```
- *
- * @example Custom compression level
- * ```typescript
- * // Gzip with compression level 9 (maximum compression)
- * await writeString("output.txt.gz", data, { compressionLevel: 9 });
- * ```
- *
- * @internal Uses CompressionService via Effect DI for compression operations
- * @since v0.1.0
  */
 export async function writeString(
   path: string,
   content: string,
   options?: WriteOptions
 ): Promise<void> {
-  // Convert string to bytes
-  const encoder = new TextEncoder();
-  const data = encoder.encode(content);
+  const data = new TextEncoder().encode(content);
 
-  // Apply compression if needed
-  const finalData = await applyCompression(data, path, options);
-
-  // Write to file
   const program = Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
+    const finalData = yield* compressEffect(data, path, options);
     yield* fs.writeFile(path, finalData);
   });
 
-  await Effect.runPromise(program.pipe(Effect.provide(getPlatform())));
+  await Effect.runPromise(program.pipe(Effect.provide(FullLayer)));
 }
 
 /**
  * Write binary data to file (overwrites if exists, creates if not)
  *
- * Automatically compresses based on file extension by default using Effect
- * dependency injection for compression services.
- * Use `.gz` extension for gzip compression.
- *
- * **Implementation Note (Internal):**
- * Compression is handled via `applyCompression()` which uses CompressionService
- * dependency injection, enabling transparent layer swapping for testing or custom
- * compression implementations. See `test/utils/compression-layers.ts` for mock patterns.
+ * Automatically compresses based on file extension (.gz for gzip, .zst for zstd).
  *
  * @param path - File path to write to
- * @param content - Binary data to write as Uint8Array
- * @param options - Write options (compression settings, compression level, etc.)
- * @throws {FileError} When write operation fails or path is invalid
+ * @param content - Binary data to write
+ * @param options - Write options (compression settings)
  *
  * @example Basic binary write
  * ```typescript
- * const data = new TextEncoder().encode("Hello");
- * await writeBytes("output.bin", data);
+ * await writeBytes("output.bin", new Uint8Array([1, 2, 3]));
  * ```
- *
- * @example Automatic gzip compression
- * ```typescript
- * // Auto-detects .gz extension and compresses
- * await writeBytes("output.bin.gz", data);
- * ```
- *
- * @example Custom compression level
- * ```typescript
- * // Gzip with compression level 9 (maximum compression)
- * await writeBytes("output.bin.gz", data, { compressionLevel: 9 });
- * ```
- *
- * @internal Uses CompressionService via Effect DI for compression operations
- * @since v0.1.0
  */
 export async function writeBytes(
   path: string,
   content: Uint8Array,
   options?: WriteOptions
 ): Promise<void> {
-  // Apply compression if needed
-  const finalData = await applyCompression(content, path, options);
-
-  // Write to file
   const program = Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
+    const finalData = yield* compressEffect(content, path, options);
     yield* fs.writeFile(path, finalData);
   });
 
-  await Effect.runPromise(program.pipe(Effect.provide(getPlatform())));
+  await Effect.runPromise(program.pipe(Effect.provide(FullLayer)));
 }
 
 /**
@@ -163,7 +154,6 @@ export async function writeBytes(
  *
  * @param path - File path to append to
  * @param content - String content to append
- * @throws {FileError} When append operation fails
  *
  * @example
  * ```typescript
@@ -188,168 +178,106 @@ export async function appendString(path: string, content: string): Promise<void>
       yield* fs.writeFile(path, new Uint8Array(0));
     }
 
-    // Open file in append mode
+    // Open file in append mode and write
     const file = yield* fs.open(path, { flag: "a" });
-
-    // Encode content to bytes
-    const encoder = new TextEncoder();
-    const data = encoder.encode(content);
-
-    // Write (append) data to file
+    const data = new TextEncoder().encode(content);
     yield* file.writeAll(data);
-
-    // File automatically closes when scope exits
   });
 
   await Effect.runPromise(
-    program.pipe(
-      Effect.scoped, // Required for automatic file handle cleanup
-      Effect.provide(getPlatform())
-    )
+    program.pipe(Effect.scoped, Effect.provide(getPlatform()))
   );
 }
 
 /**
  * Open file for writing and execute callback with write handle
  *
- * The file is automatically closed when the callback completes via Effect's
- * scoped resource management. This is the recommended way to write multiple
- * pieces of data to the same file efficiently.
+ * File is automatically closed when callback completes.
+ * Each write is compressed incrementally if compression is enabled.
  *
- * Automatically compresses based on file extension by default using Effect
- * dependency injection for compression services.
- * For streaming compression, each write is compressed incrementally.
+ * @param path - File path to open
+ * @param callback - Function that receives write handle
+ * @param options - Write options (compression settings)
+ * @returns Callback's return value
  *
- * **Implementation Note (Internal):**
- * Uses CompressionService dependency injection via Effect, enabling transparent
- * layer swapping for testing or custom compression implementations.
- * Write handle methods (writeString, writeBytes) use applyCompression internally.
- * See test/utils/compression-layers.ts for mock service patterns.
- *
- * **Resource Management:**
- * File is automatically opened with 644 permissions and closed when:
- * - Callback completes successfully
- * - Callback throws an error
- * - Any write operation fails
- *
- * @param path - File path to open (creates if not exists, overwrites if exists)
- * @param callback - Function that receives write handle and returns result
- * @param options - Write options (compression settings, compression level, etc.)
- * @returns Promise resolving to callback's return value
- * @throws {FileError} When file operations fail or path is invalid
- *
- * @example Basic sequential writes
+ * @example Sequential writes
  * ```typescript
  * await openForWriting("output.txt", async (handle) => {
  *   await handle.writeString("Line 1\n");
  *   await handle.writeString("Line 2\n");
- *   await handle.writeString("Line 3\n");
  * });
- * // File is automatically closed here
  * ```
  *
- * @example Streaming with automatic gzip compression
+ * @example Streaming with compression
  * ```typescript
  * await openForWriting("sequences.fasta.gz", async (handle) => {
- *   for (const sequence of sequences) {
- *     await handle.writeString(`>${sequence.id}\n${sequence.sequence}\n`);
+ *   for (const seq of sequences) {
+ *     await handle.writeString(`>${seq.id}\n${seq.sequence}\n`);
  *   }
- * }); // Each write is incrementally compressed
+ * });
  * ```
- *
- * @example Custom compression level
- * ```typescript
- * await openForWriting("output.txt.gz", async (handle) => {
- *   await handle.writeString("High compression");
- * }, { compressionLevel: 9 });
- * ```
- *
- * @internal Uses CompressionService via Effect DI for compression operations
- * @since v0.1.0
  */
 export async function openForWriting<T>(
   path: string,
   callback: (handle: FileWriteHandle) => Promise<T>,
   options?: WriteOptions
 ): Promise<T> {
-  // Type allows for composition of compression and file write errors
-  const writeQueue: Array<Effect.Effect<void, unknown, unknown>> = [];
+  // Queue of write operations to execute within Effect scope
+  const writeQueue: Array<Effect.Effect<void, unknown, FileSystem.FileSystem | CompressionService>> = [];
 
-  // Build the program - type allows unknown in requirements/error channels since
-  // callback can introduce arbitrary Effects
   const program = Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
 
-    // Open file for writing (creates if not exists)
-    const file = yield* fs.open(path, {
-      flag: "w",
-      mode: 0o644,
-    });
+    // Open file for writing
+    const file = yield* fs.open(path, { flag: "w", mode: 0o644 });
 
-    // Operations are executed after callback completes, within Effect scope
+    // Create handle that queues operations
     const handle: FileWriteHandle = {
       writeString: (content: string) => {
-        const encoder = new TextEncoder();
-        const data = encoder.encode(content);
-
-        // Record operation to queue (don't execute yet)
-        // Create Effect directly (no callback wrapper needed - Effects are lazy)
+        const data = new TextEncoder().encode(content);
         writeQueue.push(
-          applyCompressionEffect(data, path, options).pipe(
+          compressEffect(data, path, options).pipe(
             Effect.flatMap((compressed) => file.writeAll(compressed))
           )
         );
-
-        // Return resolved promise immediately - actual write happens during queue flush
         return Promise.resolve();
       },
 
       writeBytes: (content: Uint8Array) => {
-        // Record operation to queue (don't execute yet)
-        // Create Effect directly (no callback wrapper needed - Effects are lazy)
         writeQueue.push(
-          applyCompressionEffect(content, path, options).pipe(
+          compressEffect(content, path, options).pipe(
             Effect.flatMap((compressed) => file.writeAll(compressed))
           )
         );
-
-        // Return resolved promise immediately - actual write happens during queue flush
         return Promise.resolve();
       },
     };
 
-    // Execute callback with handle
-    // This records all operations in the queue
-    const callbackResult = yield* Effect.promise(() => callback(handle));
+    // Execute callback (queues operations)
+    const result = yield* Effect.promise(() => callback(handle));
 
+    // Execute all queued writes
     for (const operation of writeQueue) {
       yield* operation;
     }
 
-    return callbackResult;
+    return result;
   });
 
   return await Effect.runPromise(
-    program.pipe(
-      Effect.scoped, // Enable scope for automatic file cleanup
-      Effect.provide(getPlatform()),
-      Effect.provide(MultiFormatCompressionService)
-    ) as Effect.Effect<T, unknown, never>
+    program.pipe(Effect.scoped, Effect.provide(FullLayer))
   );
 }
 
 /**
  * Delete file from filesystem
  *
- * Removes a file if it exists. Does not throw if file doesn't exist.
- * Useful for cleanup operations like removing temporary files.
+ * Does not throw if file doesn't exist.
  *
  * @param path - File path to delete
- * @throws {FileError} When deletion fails (other than file not existing)
  *
  * @example
  * ```typescript
- * // Clean up temporary file
  * await deleteFile("/tmp/sort_12345.tmp");
  * ```
  */
@@ -360,117 +288,4 @@ export async function deleteFile(path: string): Promise<void> {
   });
 
   await Effect.runPromise(program.pipe(Effect.provide(getPlatform())));
-}
-
-/**
- * Apply compression to data returning an Effect
- *
- * Effect-returning version of applyCompression for composition within Effect contexts.
- * This is used by openForWriting to compose compression operations within the scoped
- * Effect context, ensuring operations execute safely within the file's resource lifetime.
- *
- * @param data - Uncompressed data to potentially compress
- * @param filePath - File path (used for extension detection)
- * @param options - Write options with compression settings
- * @returns Effect describing the compression operation
- * @internal Used internally for Effect composition in openForWriting
- */
-function applyCompressionEffect(data: Uint8Array, filePath: string, options: WriteOptions = {}) {
-  return Effect.gen(function* () {
-    // Check if auto-compression is disabled
-    const autoCompress = options.autoCompress ?? true; // Default true
-    if (!autoCompress) {
-      return data; // Return original data uncompressed
-    }
-
-    // Determine compression format
-    let compressionFormat = options.compressionFormat ?? "none";
-
-    if (compressionFormat === "none") {
-      // Auto-detect compression from file extension
-      compressionFormat = CompressionDetector.fromExtension(filePath);
-    }
-
-    // If no compression detected, return original data
-    if (compressionFormat === "none") {
-      return data;
-    }
-
-    // Declare dependency: "I need a CompressionService"
-    const compressionService = yield* CompressionService;
-
-    // Compress using injected service with configured level
-    const compressed = yield* compressionService.compress(
-      data,
-      compressionFormat,
-      options.compressionLevel ?? 6
-    );
-
-    return compressed;
-  });
-}
-
-/**
- * Apply compression to data if needed based on options and file extension
- *
- * Internal helper used by writeString, writeBytes, and openForWriting.
- * Mirrors the applyDecompression pattern from file-reader.ts for API symmetry.
- *
- * **Implementation Note (Internal):**
- * Uses CompressionService dependency injection via Effect, enabling transparent
- * layer swapping for testing or custom compression implementations.
- * See test/utils/compression-layers.ts for mock service patterns.
- *
- * **Format Detection:**
- * - Auto-detects format from file extension (e.g., ".gz" → gzip)
- * - Respects explicit compressionFormat option if provided
- * - Can be disabled via autoCompress: false option
- *
- * @param data - Uncompressed data to potentially compress
- * @param filePath - File path (used for extension detection)
- * @param options - Write options with compression settings
- * @returns Promise resolving to compressed or original data depending on options
- * @internal Used internally by writeString, writeBytes, and openForWriting
- */
-async function applyCompression(
-  data: Uint8Array,
-  filePath: string,
-  options: WriteOptions = {}
-): Promise<Uint8Array> {
-  // Check if auto-compression is disabled
-  const autoCompress = options.autoCompress ?? true; // Default true
-  if (!autoCompress) {
-    return data; // Return original data uncompressed
-  }
-
-  // Determine compression format
-  let compressionFormat = options.compressionFormat ?? "none";
-
-  if (compressionFormat === "none") {
-    // Auto-detect compression from file extension
-    compressionFormat = CompressionDetector.fromExtension(filePath);
-  }
-
-  // If no compression detected, return original data
-  if (compressionFormat === "none") {
-    return data;
-  }
-
-  // Build the Effect program that describes the compression
-  const program = Effect.gen(function* () {
-    // Declare dependency: "I need a CompressionService"
-    const compressionService = yield* CompressionService;
-
-    // Compress using injected service with configured level
-    const compressed = yield* compressionService.compress(
-      data,
-      compressionFormat,
-      options.compressionLevel ?? 6
-    );
-
-    return compressed;
-  });
-
-  // Run the Effect with the compression service layer provided
-  return Effect.runPromise(program.pipe(Effect.provide(MultiFormatCompressionService)));
 }

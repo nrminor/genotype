@@ -443,7 +443,7 @@ describe("SeqOps.pair() integration", () => {
       const fastaResult = results[0] as FastaSequence;
       expect(fastaResult.format).toBe("fasta");
       expect(fastaResult.sequence).toBeDefined();
-      expect((fastaResult as any).quality).toBeUndefined();
+      expect("quality" in fastaResult).toBe(false);
     });
 
     test("enforces generic type constraint", async () => {

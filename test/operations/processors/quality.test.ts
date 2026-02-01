@@ -174,8 +174,8 @@ describe("QualityProcessor", () => {
         await collect(
           processor.process(source(sequences), {
             bins: 3,
-            // biome-ignore lint/suspicious/noExplicitAny: Testing invalid preset
-            preset: "invalid" as any,
+            // @ts-expect-error Testing invalid preset
+            preset: "invalid",
           })
         );
       }).toThrow(/No preset found/);
@@ -188,8 +188,8 @@ describe("QualityProcessor", () => {
         await collect(
           processor.process(source(sequences), {
             bins: 3,
-            // biome-ignore lint/suspicious/noExplicitAny: Testing error handling
-            preset: "nonexistent" as any,
+            // @ts-expect-error Testing error handling
+            preset: "nonexistent",
           })
         );
         expect(true).toBe(false); // Should not reach here

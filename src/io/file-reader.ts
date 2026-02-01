@@ -177,10 +177,7 @@ export async function getMetadata(path: string): Promise<FileMetadata> {
  * @param options - Reading options
  * @returns File content as string
  */
-export async function readToString(
-  path: string,
-  options: FileReaderOptions = {}
-): Promise<string> {
+export async function readToString(path: string, options: FileReaderOptions = {}): Promise<string> {
   const validatedPath = validatePath(path);
   const mergedOptions = mergeOptions(options);
 
@@ -234,11 +231,7 @@ export async function readToString(
  * @param end - Ending byte offset (exclusive)
  * @returns Byte array of requested range
  */
-export async function readByteRange(
-  path: string,
-  start: number,
-  end: number
-): Promise<Uint8Array> {
+export async function readByteRange(path: string, start: number, end: number): Promise<Uint8Array> {
   const validatedPath = validatePath(path);
 
   if (start < 0 || end < 0) {
@@ -300,9 +293,7 @@ export async function createStream(
     // Validate file exists and check size
     const pathExists = yield* fs.exists(validatedPath);
     if (!pathExists) {
-      return yield* Effect.fail(
-        new FileError("File does not exist", validatedPath, "read")
-      );
+      return yield* Effect.fail(new FileError("File does not exist", validatedPath, "read"));
     }
 
     const info = yield* fs.stat(validatedPath);

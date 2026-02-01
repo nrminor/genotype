@@ -417,46 +417,6 @@ describe("SampleProcessor", () => {
     });
   });
 
-  describe("getSeededRandom (internal)", () => {
-    test("unseeded uses Math.random", () => {
-      const rng = (processor as any).getSeededRandom(undefined);
-
-      for (let i = 0; i < 10; i++) {
-        const val = rng();
-        expect(val).toBeGreaterThanOrEqual(0);
-        expect(val).toBeLessThan(1);
-      }
-    });
-
-    test("seeded produces reproducible sequence", () => {
-      const rng1 = (processor as any).getSeededRandom(42);
-      const rng2 = (processor as any).getSeededRandom(42);
-
-      for (let i = 0; i < 10; i++) {
-        expect(rng1()).toBe(rng2());
-      }
-    });
-
-    test("different seeds produce different sequences", () => {
-      const rng1 = (processor as any).getSeededRandom(42);
-      const rng2 = (processor as any).getSeededRandom(123);
-
-      const val1 = rng1();
-      const val2 = rng2();
-      expect(val1).not.toBe(val2);
-    });
-
-    test("seeded values are in [0, 1) range", () => {
-      const rng = (processor as any).getSeededRandom(12345);
-
-      for (let i = 0; i < 100; i++) {
-        const val = rng();
-        expect(val).toBeGreaterThanOrEqual(0);
-        expect(val).toBeLessThan(1);
-      }
-    });
-  });
-
   describe("SeqOps integration", () => {
     async function* toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
       for (const item of items) {

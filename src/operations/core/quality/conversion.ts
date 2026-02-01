@@ -8,6 +8,7 @@
 
 import type { QualityEncoding } from "../../../types";
 import { getEncodingInfo } from "./encoding-info";
+import { errorProbabilityToScore, scoreToErrorProbability } from "./statistics";
 import type { QualityScore, SolexaScore } from "./types";
 import { isValidQualityScore, isValidSolexaScore } from "./types";
 
@@ -171,7 +172,7 @@ export function qualityToScores(
     if (!isValidQualityScore(score)) {
       throw new Error(
         `Invalid quality score ${score} at position ${i} in quality string. ` +
-          `Character '${char}' (ASCII ${char.charCodeAt(0)}) produces out-of-range score for ${encoding} encoding.`
+          `Character '${char}' (ASCII ${char.charCodeAt(0)}) is outside valid ASCII range for ${encoding} encoding.`
       );
     }
     return score as QualityScore;
@@ -218,7 +219,115 @@ export function scoresToQuality(
 }
 
 /**
+ * Convert Solexa quality score to Phred quality score
+ *
+ * Solexa uses a different probability formula than Phred:
+ * - Phred: Q = -10 * log10(P_error)
+ * - Solexa: Q = -10 * log10(P_error / (1 - P_error))
+ *
+ * This function converts through error probability to get the correct Phred score.
+ *
+ * @param solexaScore - Solexa quality score (-5 to 62)
+ * @returns Equivalent Phred quality score
+ *
+ * @example
+ * ```typescript
+ * convertSolexaToPhred(-5); // Returns ~1 (Solexa minimum → low Phred)
+ * convertSolexaToPhred(0);  // Returns ~3
+ * convertSolexaToPhred(40); // Returns ~40 (high scores converge)
+ * ```
+ */
+function convertSolexaToPhred(solexaScore: number): number {
+  // Solexa formula: P_error = 10^(-Q/10) / (1 + 10^(-Q/10))
+  const temp = 10 ** (-solexaScore / 10);
+  const errorProb = temp / (1 + temp);
+  return errorProbabilityToScore(errorProb);
+}
+
+/**
+ * Convert Phred quality score to Solexa quality score
+ *
+ * @param phredScore - Phred quality score (0 to 93)
+ * @returns Equivalent Solexa quality score
+ *
+ * @example
+ * ```typescript
+ * convertPhredToSolexa(0);  // Returns -5 (Phred Q0 → Solexa minimum)
+ * convertPhredToSolexa(10); // Returns ~10
+ * convertPhredToSolexa(40); // Returns ~40 (high scores converge)
+ * ```
+ */
+function convertPhredToSolexa(phredScore: number): number {
+  const errorProb = scoreToErrorProbability(phredScore);
+
+  // Handle edge case: Q0 (error prob = 1.0) cannot be converted directly
+  // due to division by zero in the Solexa formula
+  if (errorProb >= 0.999) {
+    return -5; // Solexa minimum, represents very poor quality
+  }
+
+  // Solexa formula: Q = -10 * log10(P / (1-P))
+  return -10 * Math.log10(errorProb / (1 - errorProb));
+}
+
+/**
+ * Convert quality string involving Solexa encoding
+ *
+ * Handles the non-linear mathematical conversion between Solexa and Phred encodings.
+ *
+ * @param quality - Quality string to convert
+ * @param from - Source encoding
+ * @param to - Target encoding
+ * @returns Converted quality string
+ */
+function convertSolexaQuality(quality: string, from: QualityEncoding, to: QualityEncoding): string {
+  const fromOffset = from === "phred33" ? 33 : 64;
+  const toOffset = to === "phred33" ? 33 : 64;
+
+  const result = new Array<string>(quality.length);
+
+  for (let i = 0; i < quality.length; i++) {
+    const charCode = quality.charCodeAt(i);
+    let score: number;
+
+    // Convert ASCII to quality score in source encoding
+    if (from === "solexa") {
+      const solexaScore = charCode - 64; // Solexa uses offset 64
+      // Convert Solexa to Phred
+      score = convertSolexaToPhred(solexaScore);
+    } else {
+      // Source is Phred (33 or 64)
+      const phredScore = charCode - fromOffset;
+      // Convert Phred to Solexa if target is Solexa
+      if (to === "solexa") {
+        score = convertPhredToSolexa(phredScore);
+      } else {
+        score = phredScore;
+      }
+    }
+
+    // Convert quality score to ASCII in target encoding
+    const targetOffset = to === "solexa" ? 64 : toOffset;
+    const targetChar = Math.round(score) + targetOffset;
+
+    // Validate resulting character is in valid ASCII range
+    if (targetChar < 33 || targetChar > 126) {
+      throw new Error(
+        `Solexa conversion resulted in invalid character code: ${targetChar}. ` +
+          `ASCII range must be 33-126.`
+      );
+    }
+
+    result[i] = String.fromCharCode(targetChar);
+  }
+
+  return result.join("");
+}
+
+/**
  * Convert quality string between different encodings
+ *
+ * Handles all encoding conversions including the non-linear Solexa math.
  *
  * @param quality - Quality string in source encoding
  * @param from - Source encoding
@@ -229,6 +338,7 @@ export function scoresToQuality(
  * ```typescript
  * convertQuality('IIII', 'phred33', 'phred64'); // Returns 'hhhh'
  * convertQuality('hhhh', 'phred64', 'phred33'); // Returns 'IIII'
+ * convertQuality('!!!!', 'phred33', 'solexa');  // Returns ';;;;' (Q0 → Q-5)
  * ```
  */
 export function convertQuality(
@@ -241,6 +351,12 @@ export function convertQuality(
     return quality;
   }
 
+  // Solexa requires non-linear mathematical conversion
+  if (from === "solexa" || to === "solexa") {
+    return convertSolexaQuality(quality, from, to);
+  }
+
+  // Simple offset conversion for Phred33 ↔ Phred64
   const fromInfo = getEncodingInfo(from);
   const toInfo = getEncodingInfo(to);
   const offsetDiff = fromInfo.offset - toInfo.offset;

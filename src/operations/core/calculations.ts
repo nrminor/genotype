@@ -8,8 +8,8 @@
  * @since v0.1.0
  */
 
-import * as QualityUtils from "./encoding";
 import { getGeneticCode } from "./genetic-codes";
+import { calculateAverageQuality } from "./quality";
 
 // =============================================================================
 // EXPORTED FUNCTIONS
@@ -249,7 +249,7 @@ export function findQualityTrimStart(
   // 🔥 NATIVE: Sliding window analysis with quality score conversion
   for (let i = 0; i <= quality.length - windowSize; i++) {
     const window = quality.slice(i, i + windowSize);
-    const avgQual = QualityUtils.averageQuality(window, encoding);
+    const avgQual = calculateAverageQuality(window, encoding);
 
     if (avgQual >= threshold) {
       return i;
@@ -298,7 +298,7 @@ export function findQualityTrimEnd(
   // 🔥 NATIVE: Sliding window analysis from end
   for (let i = quality.length - windowSize; i >= start; i--) {
     const window = quality.slice(i, i + windowSize);
-    const avgQual = QualityUtils.averageQuality(window, encoding);
+    const avgQual = calculateAverageQuality(window, encoding);
 
     if (avgQual >= threshold) {
       return i + windowSize;

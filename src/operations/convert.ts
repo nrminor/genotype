@@ -16,9 +16,14 @@ import { type } from "arktype";
 import { ValidationError } from "../errors";
 import type { AbstractSequence, FastaSequence, FastqSequence, QualityEncoding } from "../types";
 import { calculateQualityStats } from "./core";
-import { convertScore, detectEncodingWithConfidence, scoreToChar } from "./core/encoding";
 import type { ValidPhred33Char, ValidPhred64Char, ValidSolexaChar } from "./core/quality";
-import { charToScore, qualityToScores } from "./core/quality/conversion";
+import {
+  charToScore,
+  convertQuality,
+  qualityToScores,
+  scoreToChar,
+} from "./core/quality/conversion";
+import { detectEncodingWithConfidence } from "./core/quality/detection";
 import type { ConvertOptions, Processor } from "./types";
 
 // Helper type to allow both literal validation and dynamic strings
@@ -187,7 +192,7 @@ export class ConvertProcessor implements Processor<ConvertOptions> {
     }
 
     // Perform conversion
-    const convertedQuality = convertScore(
+    const convertedQuality = convertQuality(
       fastqSeq.quality,
       detectionResult.encoding,
       options.targetEncoding
@@ -210,18 +215,25 @@ export class ConvertProcessor implements Processor<ConvertOptions> {
     seq: FastqSequence,
     options: ConvertOptions
   ): EncodingDetectionResult {
+    // Priority 1: Explicit option overrides everything
     if (options.sourceEncoding) {
       return { encoding: options.sourceEncoding };
     }
 
+    // Priority 2: Trust the sequence's declared encoding if present
+    if (seq.qualityEncoding) {
+      return { encoding: seq.qualityEncoding };
+    }
+
+    // Priority 3: Auto-detect from quality string
     const detectionResult = detectEncodingWithConfidence(seq.quality);
 
-    if (detectionResult.confidence < 0.8 || detectionResult.ambiguous) {
+    if (detectionResult.confidence < 0.8) {
       return {
         encoding: detectionResult.encoding,
         warning:
           `Uncertain quality encoding detection for sequence '${seq.id}': ` +
-          `${detectionResult.reasoning} ` +
+          `${detectionResult.evidence.join("; ")} ` +
           `(confidence: ${(detectionResult.confidence * 100).toFixed(1)}%). ` +
           `Consider specifying sourceEncoding explicitly if conversion results seem incorrect.`,
       };

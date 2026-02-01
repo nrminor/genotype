@@ -617,16 +617,6 @@ export interface FormatDetection {
 // Arktype validation schemas for runtime type checking with advanced patterns
 
 /**
- * Advanced sequence validation with IUPAC codes and transformations
- */
-export const NucleotideBase = type("'A'|'C'|'G'|'T'|'U'");
-export const AmbiguityCode = type("'R'|'Y'|'S'|'W'|'K'|'M'|'B'|'D'|'H'|'V'|'N'");
-export const GapCharacter = type("'-'|'.'|'*'");
-export const ValidSequenceChar = type(
-  "'A'|'C'|'G'|'T'|'U'|'R'|'Y'|'S'|'W'|'K'|'M'|'B'|'D'|'H'|'V'|'N'|'-'|'.'|'*'|'a'|'c'|'g'|'t'|'u'|'r'|'y'|'s'|'w'|'k'|'m'|'b'|'d'|'h'|'v'|'n'"
-);
-
-/**
  * Sophisticated sequence ID validation with bioinformatics patterns
  */
 export const SequenceIdSchema = type("string>0").pipe((id: string) => {
@@ -1145,35 +1135,6 @@ export const SAMAlignmentSchema = type({
 
   return alignment;
 });
-
-/**
- * Legacy SAM record validation schema (deprecated)
- * @deprecated Use SAMAlignmentSchema instead
- */
-export const SamFlagSchema = type("number>=0"); // 11-bit flag (will validate range in pipe)
-export const SamCigarSchema = type(/^(\d+[MIDNSHPX=])*$/);
-export const SamMapQSchema = type("number>=0"); // Will validate <=255 in pipe
-
-/**
- * Genomic range operations using ArkType's morphing capabilities
- */
-export const GenomicRange = type({
-  chromosome: ChromosomeSchema,
-  start: GenomicCoordinate,
-  end: GenomicCoordinate,
-}).pipe((range) => ({
-  ...range,
-  length: range.end - range.start,
-  contains: (pos: number): boolean => pos >= range.start && pos < range.end,
-  overlaps: (other: typeof range): boolean =>
-    range.chromosome === other.chromosome && range.start < other.end && range.end > other.start,
-  toString: (): string => `${range.chromosome}:${range.start}-${range.end}`,
-}));
-
-/**
- * Helper type for extracting the validated type from an Arktype schema
- */
-export type InferSchema<T> = T extends { infer: infer U } ? U : never;
 
 // =============================================================================
 // FILE I/O TYPES - Cross-platform file operations with compile-time safety

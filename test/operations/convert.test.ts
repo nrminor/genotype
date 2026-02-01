@@ -48,6 +48,26 @@ function createFastaSequence(id: string, sequence: string): AbstractSequence {
   };
 }
 
+/**
+ * Create FASTQ sequence WITHOUT qualityEncoding to trigger auto-detection
+ */
+function createFastqSequenceForAutoDetection(
+  id: string,
+  sequence: string,
+  quality: string,
+  description?: string
+): FastqSequence {
+  return {
+    format: "fastq",
+    id,
+    sequence,
+    quality,
+    qualityEncoding: undefined as unknown as "phred33", // Force undefined to trigger detection
+    length: sequence.length,
+    description,
+  };
+}
+
 async function* singleSequence(seq: AbstractSequence): AsyncIterable<AbstractSequence> {
   yield seq;
 }
@@ -369,11 +389,12 @@ describe("ConvertProcessor", () => {
 
     test("provides uncertainty warnings for ambiguous patterns", async () => {
       // Test low-confidence detection (overlap zone)
-      const ambiguousSeq = createFastqSequence(
+      // Use sequence WITHOUT qualityEncoding to trigger auto-detection
+      // Pattern "@PPPP" (ASCII 64-80) hits the ambiguous overlap zone with 0.6 confidence
+      const ambiguousSeq = createFastqSequenceForAutoDetection(
         "ambiguous_pattern",
-        "ATCG",
-        "@@@@", // ASCII 64 - could be phred64 Q0 or phred33 Q31
-        "phred64"
+        "ATCGA",
+        "@PPPP" // ASCII 64-80, range 16 - triggers overlap zone detection
       );
 
       // Capture console warnings
@@ -385,25 +406,27 @@ describe("ConvertProcessor", () => {
 
       const results = await collectResults(
         processor.process(singleSequence(ambiguousSeq), {
-          targetEncoding: "phred33",
+          targetEncoding: "phred64",
         })
       );
 
       console.warn = originalWarn;
 
       expect(results).toHaveLength(1);
+      // New detection provides warnings when confidence < 0.8
       expect(warningMessage).toContain("Uncertain quality encoding detection");
       expect(warningMessage).toContain("confidence:");
       expect(warningMessage).toContain("Consider specifying sourceEncoding explicitly");
     });
 
-    test("provides biological reasoning in uncertainty warnings", async () => {
-      // Test that warnings include biological context
-      const historicalSeq = createFastqSequence(
-        "historical_data",
-        "ATCG",
-        ";;;;", // ASCII 59 - Solexa range, very rare
-        "solexa"
+    test("provides evidence in uncertainty warnings", async () => {
+      // Test that warnings include detection evidence
+      // Use sequence WITHOUT qualityEncoding to trigger auto-detection
+      // Pattern "@PPPP" (ASCII 64-80) hits the ambiguous overlap zone
+      const ambiguousSeq = createFastqSequenceForAutoDetection(
+        "ambiguous_data",
+        "ATCGA",
+        "@PPPP" // ASCII 64-80 - triggers overlap zone with 0.6 confidence
       );
 
       const originalWarn = console.warn;
@@ -413,17 +436,17 @@ describe("ConvertProcessor", () => {
       };
 
       const results = await collectResults(
-        processor.process(singleSequence(historicalSeq), {
-          targetEncoding: "phred33",
+        processor.process(singleSequence(ambiguousSeq), {
+          targetEncoding: "phred64",
         })
       );
 
       console.warn = originalWarn;
 
       expect(results).toHaveLength(1);
-      expect(warningMessage).toContain("Historical Solexa range detected");
-      expect(warningMessage).toContain("very rare in modern data");
-      expect(warningMessage).toContain("75.0%"); // Expected confidence for Solexa
+      // New detection provides evidence array joined with "; "
+      expect(warningMessage).toContain("ASCII range:");
+      expect(warningMessage).toContain("confidence:");
     });
 
     test("suppresses warnings when sourceEncoding explicitly specified", async () => {

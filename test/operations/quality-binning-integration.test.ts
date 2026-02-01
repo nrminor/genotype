@@ -201,8 +201,7 @@ describe("binQuality - Non-FASTQ Sequences", () => {
     ];
 
     const binned = await collectSequences(
-      // biome-ignore lint/suspicious/noExplicitAny: Testing non-FASTQ input
-      binQuality(sequences as any, {
+      binQuality(toAsyncIterable(sequences), {
         bins: 3,
         preset: "illumina",
       })
@@ -223,8 +222,7 @@ describe("binQuality - Non-FASTQ Sequences", () => {
     ];
 
     const binned = await collectSequences(
-      // biome-ignore lint/suspicious/noExplicitAny: Testing mixed FASTA/FASTQ input
-      binQuality(sequences as any, {
+      binQuality(toAsyncIterable(sequences), {
         bins: 2,
         preset: "illumina",
       })
@@ -291,8 +289,8 @@ describe("binQuality - Error Handling", () => {
       await collectSequences(
         binQuality(toAsyncIterable(sequences), {
           bins: 3,
-          // biome-ignore lint/suspicious/noExplicitAny: Testing invalid preset error
-          preset: "invalid" as any,
+          // @ts-expect-error Testing invalid preset error
+          preset: "invalid",
         })
       );
     }).toThrow();
@@ -304,8 +302,8 @@ describe("binQuality - Error Handling", () => {
     await expect(async () => {
       await collectSequences(
         binQuality(toAsyncIterable(sequences), {
-          // biome-ignore lint/suspicious/noExplicitAny: Testing invalid bins count error
-          bins: 4 as any, // Invalid - not 2, 3, or 5
+          // @ts-expect-error Testing invalid bins count error
+          bins: 4, // Invalid - not 2, 3, or 5
           preset: "illumina",
         })
       );
@@ -319,8 +317,8 @@ describe("binQuality - Error Handling", () => {
       await collectSequences(
         binQuality(toAsyncIterable(sequences), {
           bins: 3,
-          // biome-ignore lint/suspicious/noExplicitAny: Testing error message with invalid preset
-          preset: "nonexistent" as any,
+          // @ts-expect-error Testing error message with invalid preset
+          preset: "nonexistent",
         })
       );
       expect(true).toBe(false); // Should not reach here

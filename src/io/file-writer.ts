@@ -69,11 +69,7 @@ function compressEffect(
 
     // Compress using injected service
     const compressionService = yield* CompressionService;
-    return yield* compressionService.compress(
-      data,
-      format,
-      options.compressionLevel ?? 6
-    );
+    return yield* compressionService.compress(data, format, options.compressionLevel ?? 6);
   });
 }
 
@@ -184,9 +180,7 @@ export async function appendString(path: string, content: string): Promise<void>
     yield* file.writeAll(data);
   });
 
-  await Effect.runPromise(
-    program.pipe(Effect.scoped, Effect.provide(getPlatform()))
-  );
+  await Effect.runPromise(program.pipe(Effect.scoped, Effect.provide(getPlatform())));
 }
 
 /**
@@ -223,7 +217,9 @@ export async function openForWriting<T>(
   options?: WriteOptions
 ): Promise<T> {
   // Queue of write operations to execute within Effect scope
-  const writeQueue: Array<Effect.Effect<void, unknown, FileSystem.FileSystem | CompressionService>> = [];
+  const writeQueue: Array<
+    Effect.Effect<void, unknown, FileSystem.FileSystem | CompressionService>
+  > = [];
 
   const program = Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
@@ -264,9 +260,7 @@ export async function openForWriting<T>(
     return result;
   });
 
-  return await Effect.runPromise(
-    program.pipe(Effect.scoped, Effect.provide(FullLayer))
-  );
+  return await Effect.runPromise(program.pipe(Effect.scoped, Effect.provide(FullLayer)));
 }
 
 /**

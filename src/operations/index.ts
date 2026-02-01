@@ -12,7 +12,7 @@
  * @since v0.1.0
  */
 
-import { FastaParser, FastaWriter, FastqWriter } from "../formats";
+import { FastaWriter, FastqWriter } from "../formats";
 import {
   JSONLParser,
   type JSONParseOptions,
@@ -112,10 +112,6 @@ export class SeqOps<T extends AbstractSequence> {
    * @param source - Input sequences (async iterable)
    */
   constructor(private readonly source: AsyncIterable<T>) {}
-
-  // =============================================================================
-  // STATIC FACTORY METHODS
-  // =============================================================================
 
   /**
    * Create SeqOps pipeline from delimiter-separated file
@@ -295,10 +291,6 @@ export class SeqOps<T extends AbstractSequence> {
     }
     return new SeqOps(arrayToAsyncIterable());
   }
-
-  // =============================================================================
-  // SEMANTIC API METHODS
-  // =============================================================================
 
   /**
    * Filter sequences based on criteria
@@ -814,32 +806,26 @@ export class SeqOps<T extends AbstractSequence> {
     filePaths: string[],
     handleDuplicateIds: "suffix" | "ignore" = "ignore"
   ): SeqOps<FastaSequence> {
-    async function* concatenateFiles(): AsyncIterable<FastaSequence> {
-      const seenIds = new Set<string>();
+    // Use ConcatProcessor with an empty base source
+    const processor = new ConcatProcessor();
 
-      for (let sourceIndex = 0; sourceIndex < filePaths.length; sourceIndex++) {
-        const filePath = filePaths[sourceIndex];
-        if (!filePath) continue;
+    // Map simple duplicate handling to ConcatProcessor's idConflictResolution
+    const idConflictResolution: "suffix" | "ignore" =
+      handleDuplicateIds === "suffix" ? "suffix" : "ignore";
 
-        // Simple format detection and parsing
-        const parser = new FastaParser();
-        const sequences = parser.parseFile(filePath);
-
-        for await (const seq of sequences) {
-          let finalSeq = seq;
-
-          // Handle duplicate IDs simply
-          if (seenIds.has(seq.id) && handleDuplicateIds === "suffix") {
-            finalSeq = { ...seq, id: `${seq.id}_${sourceIndex}` };
-          }
-
-          seenIds.add(finalSeq.id);
-          yield finalSeq;
-        }
-      }
+    // Create empty async iterable as base source
+    async function* emptySource(): AsyncIterable<FastaSequence> {
+      // Yields nothing - all sequences come from filePaths
     }
 
-    return new SeqOps(concatenateFiles());
+    const options: ConcatOptions = {
+      sources: filePaths,
+      idConflictResolution,
+    };
+
+    return new SeqOps<FastaSequence>(
+      processor.process(emptySource(), options) as AsyncIterable<FastaSequence>
+    );
   }
 
   /**
@@ -1004,7 +990,17 @@ export class SeqOps<T extends AbstractSequence> {
     sizeOrOptions: K | WindowOptions<K>,
     maybeOptions?: Omit<WindowOptions<K>, "size">
   ): SeqOps<KmerSequence<K>> {
-    return this.windows(sizeOrOptions as any, maybeOptions as any);
+    const processor = new WindowsProcessor<K>();
+
+    let fullOptions: WindowOptions<K>;
+    if (typeof sizeOrOptions === "number") {
+      fullOptions = { ...maybeOptions, size: sizeOrOptions } as WindowOptions<K>;
+    } else {
+      fullOptions = sizeOrOptions;
+    }
+
+    const result = processor.process(this.source, fullOptions);
+    return new SeqOps<KmerSequence<K>>(result);
   }
 
   /**
@@ -1023,7 +1019,17 @@ export class SeqOps<T extends AbstractSequence> {
     sizeOrOptions: K | WindowOptions<K>,
     maybeOptions?: Omit<WindowOptions<K>, "size">
   ): SeqOps<KmerSequence<K>> {
-    return this.windows(sizeOrOptions as any, maybeOptions as any);
+    const processor = new WindowsProcessor<K>();
+
+    let fullOptions: WindowOptions<K>;
+    if (typeof sizeOrOptions === "number") {
+      fullOptions = { ...maybeOptions, size: sizeOrOptions } as WindowOptions<K>;
+    } else {
+      fullOptions = sizeOrOptions;
+    }
+
+    const result = processor.process(this.source, fullOptions);
+    return new SeqOps<KmerSequence<K>>(result);
   }
 
   /**
@@ -1437,10 +1443,6 @@ export class SeqOps<T extends AbstractSequence> {
     });
   }
 
-  // =============================================================================
-  // FILE OPERATIONS (Terminal Operations)
-  // =============================================================================
-
   /**
    * Split sequences into multiple files
    *
@@ -1681,10 +1683,6 @@ export class SeqOps<T extends AbstractSequence> {
   ): Promise<SplitSummary> {
     return this.split({ mode: "by-region", region, outputDir });
   }
-
-  // =============================================================================
-  // TERMINAL OPERATIONS (trigger execution)
-  // =============================================================================
 
   /**
    * Calculate sequence statistics
@@ -2152,8 +2150,10 @@ export class SeqOps<T extends AbstractSequence> {
 
     // Runtime check: Is this a KmerSequence?
     if (sequences.length > 0 && sequences[0] && "kmerSize" in sequences[0]) {
-      // Return KmerSet for k-mers (preserves K type)
-      return new KmerSet(sequences as any);
+      // Return KmerSet for k-mers
+      // Note: K type cannot be preserved at compile time since T is generic,
+      // but runtime behavior is correct. The return type KmerSet<any> reflects this.
+      return new KmerSet(sequences as unknown as KmerSequence<number>[]);
     }
 
     // Return generic SequenceSet for other types
@@ -3029,10 +3029,6 @@ export class SeqOps<T extends AbstractSequence> {
   [Symbol.asyncIterator](): AsyncIterator<AbstractSequence> {
     return this.source[Symbol.asyncIterator]();
   }
-
-  // =============================================================================
-  // PRIVATE HELPERS
-  // =============================================================================
 
   /**
    * Type guard to check if sequence is FASTQ

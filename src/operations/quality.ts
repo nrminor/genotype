@@ -11,7 +11,6 @@
 
 import type { AbstractSequence, FastqSequence, QualityEncoding } from "../types";
 import { findQualityTrimEnd, findQualityTrimStart } from "./core/calculations";
-import * as qualityUtils from "./core/encoding";
 import {
   type BinningStrategy,
   calculateRepresentatives,
@@ -19,6 +18,7 @@ import {
   PRESETS,
 } from "./core/quality/binning";
 import { detectEncoding } from "./core/quality/detection";
+import { calculateAverageQuality } from "./core/quality/statistics";
 import type { Processor, QualityOptions } from "./types";
 
 /**
@@ -111,7 +111,7 @@ export class QualityProcessor implements Processor<QualityOptions> {
     if (options.minScore !== undefined || options.maxScore !== undefined) {
       // NATIVE_CANDIDATE: Quality score conversion and averaging
       // Native implementation would be more efficient
-      const avgQuality = qualityUtils.averageQuality(quality, encoding);
+      const avgQuality = calculateAverageQuality(quality, encoding);
 
       if (options.minScore !== undefined && avgQuality < options.minScore) {
         return null;

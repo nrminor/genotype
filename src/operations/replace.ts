@@ -20,6 +20,7 @@ import { type } from "arktype";
 import { ValidationError } from "../errors";
 import { readToString } from "../io/file-reader";
 import type { AbstractSequence } from "../types";
+import { escapeRegex } from "./core/string-utils";
 import type { ReplaceOptions } from "./types";
 
 const TAB_DELIMITER = "\t" as const;
@@ -773,25 +774,6 @@ function compilePattern(pattern: string, ignoreCase: boolean): RegExp {
       `Invalid regular expression pattern: "${pattern}". Error: ${errorMessage}`
     );
   }
-}
-
-/**
- * Escape special regex characters for literal string matching
- *
- * Converts a literal string into a regex-safe pattern by escaping
- * all special regex metacharacters. Used when filterUseRegexp is false.
- *
- * @param str - Literal string to escape
- * @returns Regex-safe escaped string
- *
- * @example
- * ```typescript
- * escapeRegex('gene.1')  // Returns: 'gene\\.1'
- * escapeRegex('sample[A-Z]')  // Returns: 'sample\\[A-Z\\]'
- * ```
- */
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /**

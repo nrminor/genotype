@@ -47,15 +47,6 @@ export {
   validateRegionParts,
   validateRegionString,
 } from "./coordinates";
-// Deprecated exports for backward compatibility
-export {
-  averageQuality,
-  convertScore,
-  detectEncodingImmediate, // Maps to detectEncoding
-  getEncodingRange,
-  QualityEncodingDetector,
-  validateQualityString,
-} from "./encoding";
 // NCBI genetic code tables (tree-shakeable functions)
 export {
   findORFs,
@@ -185,6 +176,8 @@ export {
   type SortOptions,
   sortSequences,
 } from "./sequence-sorter";
+// String utilities
+export { escapeRegex } from "./string-utils";
 // Sequence validation with IUPAC handling
 export {
   expandAmbiguous,

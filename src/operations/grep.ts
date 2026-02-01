@@ -13,6 +13,7 @@ import { type } from "arktype";
 import { GrepError, ValidationError } from "../errors";
 import type { AbstractSequence } from "../types";
 import { hasPatternWithMismatches } from "./core/pattern-matching";
+import { escapeRegex } from "./core/string-utils";
 import type { GrepOptions } from "./types";
 
 /**
@@ -163,7 +164,7 @@ export class GrepProcessor {
     // Handle whole word matching
     if (wholeWord === true) {
       const wordRegex = new RegExp(
-        `\\b${this.escapeRegex(searchPattern)}\\b`,
+        `\\b${escapeRegex(searchPattern)}\\b`,
         ignoreCase === true ? "i" : ""
       );
       return wordRegex.test(target);
@@ -184,12 +185,5 @@ export class GrepProcessor {
       return caseInsensitivePattern.test(target);
     }
     return pattern.test(target);
-  }
-
-  /**
-   * Escape special regex characters in string
-   */
-  private escapeRegex(str: string): string {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
 }

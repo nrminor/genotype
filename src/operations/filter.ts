@@ -9,9 +9,57 @@
  * @since v0.1.0
  */
 
+import { type } from "arktype";
+import { ValidationError } from "../errors";
 import type { AbstractSequence } from "../types";
 import { gcContent } from "./core/calculations";
 import type { FilterOptions, Processor } from "./types";
+
+/**
+ * ArkType schema for FilterOptions validation
+ *
+ * Validates:
+ * - minLength and maxLength must be > 0
+ * - minGC and maxGC must be in range [0, 100]
+ * - Cross-field constraints: minLength <= maxLength, minGC <= maxGC
+ */
+const FilterOptionsSchema = type({
+  "minLength?": "number>0",
+  "maxLength?": "number>0",
+  "minGC?": "0 <= number <= 100",
+  "maxGC?": "0 <= number <= 100",
+  "pattern?": "RegExp",
+  "ids?": "string[]",
+  "excludeIds?": "string[]",
+  "hasAmbiguous?": "boolean",
+  "custom?": "Function",
+}).narrow((options, ctx) => {
+  // Cross-field validation: minLength <= maxLength
+  if (
+    options.minLength !== undefined &&
+    options.maxLength !== undefined &&
+    options.minLength > options.maxLength
+  ) {
+    return ctx.reject({
+      expected: `minLength (${options.minLength}) <= maxLength (${options.maxLength})`,
+      path: ["minLength", "maxLength"],
+    });
+  }
+
+  // Cross-field validation: minGC <= maxGC
+  if (
+    options.minGC !== undefined &&
+    options.maxGC !== undefined &&
+    options.minGC > options.maxGC
+  ) {
+    return ctx.reject({
+      expected: `minGC (${options.minGC}) <= maxGC (${options.maxGC})`,
+      path: ["minGC", "maxGC"],
+    });
+  }
+
+  return true;
+});
 
 /**
  * Processor for filtering sequences based on various criteria
@@ -38,6 +86,12 @@ export class FilterProcessor implements Processor<FilterOptions> {
     source: AsyncIterable<AbstractSequence>,
     options: FilterOptions
   ): AsyncIterable<AbstractSequence> {
+    // Validate options with ArkType schema
+    const validationResult = FilterOptionsSchema(options);
+    if (validationResult instanceof type.errors) {
+      throw new ValidationError(`Invalid filter options: ${validationResult.summary}`);
+    }
+
     // NATIVE_CANDIDATE: Hot loop - processes every sequence
     // Native filtering could batch process sequences
     for await (const seq of source) {

@@ -18,7 +18,7 @@ import { ValidationError } from "../errors";
 import type { AbstractSequence } from "../types";
 import type { DeduplicationStrategy } from "./core/sequence-deduplicator";
 import { ExactDeduplicator, SequenceDeduplicator } from "./core/sequence-deduplicator";
-import type { RmdupOptions } from "./types";
+import type { Processor, RmdupOptions } from "./types";
 
 /**
  * ArkType schema for RmdupOptions validation
@@ -48,7 +48,7 @@ const RmdupOptionsSchema = type({
  * });
  * ```
  */
-export class RmdupProcessor {
+export class RmdupProcessor implements Processor<RmdupOptions> {
   /**
    * Process sequences with deduplication
    *

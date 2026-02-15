@@ -14,7 +14,7 @@ import { GrepError, ValidationError } from "../errors";
 import type { AbstractSequence } from "../types";
 import { hasPatternWithMismatches } from "./core/pattern-matching";
 import { escapeRegex } from "./core/string-utils";
-import type { GrepOptions } from "./types";
+import type { GrepOptions, Processor } from "./types";
 
 /**
  * ArkType schema for GrepOptions validation
@@ -65,7 +65,7 @@ const GrepOptionsSchema = type({
  * });
  * ```
  */
-export class GrepProcessor {
+export class GrepProcessor implements Processor<GrepOptions> {
   /**
    * Process sequences with pattern matching
    *

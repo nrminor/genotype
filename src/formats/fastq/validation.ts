@@ -19,6 +19,7 @@
 
 import { type } from "arktype";
 import type { FastqSequence } from "../../types";
+import { qualityToScores } from "../../operations/core/quality";
 
 // =============================================================================
 // TYPE DEFINITIONS
@@ -120,8 +121,9 @@ function detectIlluminaPlatform(record: { id: string; quality?: string }): Platf
     };
 
     // Check for NovaSeq quality pattern if quality provided
+    // Note: Illumina uses phred33 encoding
     if (record.quality) {
-      const qualities = record.quality.split("").map((c) => c.charCodeAt(0) - 33);
+      const qualities = qualityToScores(record.quality, "phred33");
       const avgQual = qualities.reduce((a, b) => a + b, 0) / qualities.length;
       if (avgQual > 37 && Math.max(...qualities) - Math.min(...qualities) < 5) {
         if (info.characteristics) {

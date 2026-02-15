@@ -57,8 +57,9 @@
  * @since v0.1.0
  */
 
-import type { AbstractSequence, FastqSequence } from "../../types";
+import type { AbstractSequence, FastqSequence, QualityEncoding } from "../../types";
 import { ExternalSorter } from "./memory";
+import { calculateAverageQuality } from "./quality";
 
 /**
  * Sorting strategy for sequences.
@@ -469,14 +470,9 @@ export class SequenceSorter {
     }
 
     const fastq = seq as FastqSequence;
-    const offset = this.options.qualityEncoding === "phred33" ? 33 : 64;
-    let sum = 0;
-
-    for (let i = 0; i < fastq.quality.length; i++) {
-      sum += fastq.quality.charCodeAt(i) - offset;
-    }
-
-    return sum / fastq.quality.length;
+    // Prefer sequence's own qualityEncoding, fall back to options
+    const encoding: QualityEncoding = fastq.qualityEncoding ?? this.options.qualityEncoding ?? "phred33";
+    return calculateAverageQuality(fastq.quality, encoding);
   }
 
   private serializeSequence(seq: AbstractSequence): string {

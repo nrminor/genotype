@@ -4,8 +4,9 @@
  * @module operations/unique
  */
 
-import type { AbstractSequence } from "../types";
+import type { AbstractSequence, QualityEncoding } from "../types";
 import type { Processor } from "./types";
+import { calculateAverageQuality } from "./core/quality";
 
 /**
  * Options for sequence deduplication
@@ -195,12 +196,12 @@ export class UniqueProcessor<
     // Check if this is a FASTQ sequence with quality field
     if ("quality" in seq && typeof seq.quality === "string") {
       const quality = seq.quality as string;
-      let sum = 0;
-      for (let i = 0; i < quality.length; i++) {
-        // Assume Phred+33 encoding (most common)
-        sum += quality.charCodeAt(i) - 33;
-      }
-      return sum / quality.length;
+      // Respect the sequence's qualityEncoding if present, default to phred33
+      const encoding: QualityEncoding =
+        "qualityEncoding" in seq && typeof seq.qualityEncoding === "string"
+          ? (seq.qualityEncoding as QualityEncoding)
+          : "phred33";
+      return calculateAverageQuality(quality, encoding);
     }
     return null;
   }

@@ -5,7 +5,8 @@
  * Uses Welford's algorithm for numerical stability in variance calculations
  */
 
-import type { AbstractSequence } from "../../types";
+import type { AbstractSequence, QualityEncoding } from "../../types";
+import { charToScore } from "./quality";
 
 /**
  * Sequence statistics result
@@ -115,19 +116,21 @@ export class SequenceStatsAccumulator {
     }
 
     // Update quality statistics if available (FASTQ)
-    if (
-      "quality" in sequence &&
-      (sequence as any).quality !== undefined &&
-      (sequence as any).quality !== null &&
-      (sequence as any).quality !== ""
-    ) {
-      const quality = (sequence as any).quality;
-      for (let i = 0; i < quality.length; i++) {
-        const qual = quality.charCodeAt(i) - 33; // Assume Phred33
-        this.qualitySum += qual;
-        this.qualityCount++;
-        this.minQuality = Math.min(this.minQuality, qual);
-        this.maxQuality = Math.max(this.maxQuality, qual);
+    if ("quality" in sequence) {
+      const seqWithQuality = sequence as { quality?: string; qualityEncoding?: QualityEncoding };
+      const quality = seqWithQuality.quality;
+
+      if (quality !== undefined && quality !== null && quality !== "") {
+        // Respect the sequence's qualityEncoding if present, default to phred33
+        const encoding: QualityEncoding = seqWithQuality.qualityEncoding ?? "phred33";
+
+        for (const char of quality) {
+          const qual = charToScore(char, encoding);
+          this.qualitySum += qual;
+          this.qualityCount++;
+          this.minQuality = Math.min(this.minQuality, qual);
+          this.maxQuality = Math.max(this.maxQuality, qual);
+        }
       }
     }
   }

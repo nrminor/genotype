@@ -24,10 +24,6 @@
  * ```
  */
 
-// ============================================================================
-// TYPE EXPORTS
-// ============================================================================
-
 export type {
   AsciiOffset,
   DetectionResult,
@@ -51,10 +47,6 @@ export {
   isValidSolexaScore,
 } from "./types";
 
-// ============================================================================
-// CORE CONVERSIONS
-// ============================================================================
-
 export {
   charToScore,
   convertQuality,
@@ -63,25 +55,13 @@ export {
   scoreToChar,
 } from "./conversion";
 
-// ============================================================================
-// ENCODING INFORMATION
-// ============================================================================
-
 export { getEncodingInfo, getSupportedEncodings, isValidEncoding } from "./encoding-info";
-
-// ============================================================================
-// DETECTION
-// ============================================================================
 
 export {
   detectEncoding,
   detectEncodingStatistical,
   detectEncodingWithConfidence,
 } from "./detection";
-
-// ============================================================================
-// STATISTICS & ANALYSIS
-// ============================================================================
 
 export {
   calculateAverageQuality,
@@ -91,10 +71,6 @@ export {
   percentAboveThreshold,
   scoreToErrorProbability,
 } from "./statistics";
-
-// ============================================================================
-// BINNING
-// ============================================================================
 
 export type { BinnedResult, BinningStrategy, Platform } from "./binning";
 

@@ -30,10 +30,6 @@ import {
 } from "./core/coordinates";
 import { reverseComplement } from "./core/sequence-manipulation";
 
-// =============================================================================
-// TYPES AND INTERFACES
-// =============================================================================
-
 /**
  * Configuration options for subsequence extraction
  *
@@ -223,10 +219,6 @@ export interface ExtractedSubsequence<T extends AbstractSequence> extends Abstra
   /** Original sequence type information */
   _originalType?: T;
 }
-
-// =============================================================================
-// MAIN EXTRACTOR CLASS
-// =============================================================================
 
 /**
  * High-performance subsequence extractor with flexible region specification
@@ -458,10 +450,6 @@ export class SubseqExtractor {
       hasNegativeIndices,
     };
   }
-
-  // =============================================================================
-  // PRIVATE IMPLEMENTATION
-  // =============================================================================
 
   /**
    * Extract a specific region from a sequence
@@ -1051,10 +1039,6 @@ export class SubseqExtractor {
   }
 }
 
-// =============================================================================
-// UTILITY FUNCTIONS
-// =============================================================================
-
 /**
  * Create a subsequence extractor with convenient defaults
  *
@@ -1136,10 +1120,6 @@ export async function extractSingleRegion<T extends AbstractSequence>(
   // Return the extracted value or null
   return result.done === true ? null : result.value;
 }
-
-// =============================================================================
-// UTILITY FUNCTIONS (Module-level pure functions)
-// =============================================================================
 
 /**
  * Check if sequence should be processed based on ID filtering

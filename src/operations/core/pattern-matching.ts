@@ -29,10 +29,6 @@ import type { AbstractSequence } from "../../types";
 import { reverseComplement } from "./sequence-manipulation";
 import { expandAmbiguous } from "./sequence-validation";
 
-// =============================================================================
-// TYPES AND INTERFACES
-// =============================================================================
-
 /**
  * Simple match result with position and mismatch information
  * Used by low-level algorithm functions
@@ -184,10 +180,6 @@ export interface MatcherOptions {
    */
   bufferSize?: number;
 }
-
-// =============================================================================
-// LOW-LEVEL ALGORITHM FUNCTIONS (Named Exports)
-// =============================================================================
 
 /**
  * Boyer-Moore string search algorithm for exact pattern matching
@@ -1158,10 +1150,6 @@ export function findTandemRepeats(
 
   return repeats;
 }
-
-// =============================================================================
-// HIGH-LEVEL SEQUENCE MATCHER CLASS
-// =============================================================================
 
 /**
  * High-performance pattern matcher for genomic sequences.

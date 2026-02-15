@@ -10,10 +10,6 @@
  * @since v0.1.0
  */
 
-// =============================================================================
-// IMPORTS
-// =============================================================================
-
 import { type } from "arktype";
 import { FileError, ParseError } from "../errors";
 import {
@@ -48,10 +44,6 @@ import {
 import { hashMD5 } from "./core/hashing";
 import { calculateAverageQuality } from "./core/quality";
 import { charToScore } from "./core/quality/conversion";
-
-// =============================================================================
-// CONSTANTS
-// =============================================================================
 
 /** Default columns if none specified */
 const DEFAULT_COLUMNS = ["id", "sequence", "length"] as const;
@@ -101,10 +93,6 @@ const COLUMN_HEADERS: Record<string, string> = {
   seq_hash: "MD5_Hash",
 };
 
-// =============================================================================
-// SCHEMAS
-// =============================================================================
-
 /**
  * ArkType validation schema for tab2fx options
  * Ensures runtime validation of delimiter-separated to sequence conversion options
@@ -116,10 +104,6 @@ export const Tab2FxOptionsSchema = type({
   "format?": '"fasta"|"fastq"',
   "qualityEncoding?": '"phred33"|"phred64"|"solexa"',
 });
-
-// =============================================================================
-// TYPES
-// =============================================================================
 
 /**
  * Built-in column identifiers for fx2tab output
@@ -201,10 +185,6 @@ export type Fx2TabRow<Columns extends readonly ColumnId[] = readonly ColumnId[]>
   readonly __delimiter: string;
 };
 
-// =============================================================================
-// INTERFACES
-// =============================================================================
-
 /**
  * Custom column definition
  */
@@ -270,10 +250,6 @@ export interface Fx2TabOptions<Columns extends readonly ColumnId[] = readonly Co
  * Derived from ArkType schema for runtime validation
  */
 export type Tab2FxOptions = typeof Tab2FxOptionsSchema.infer;
-
-// =============================================================================
-// CLASSES
-// =============================================================================
 
 /**
  * TabularOps - Chainable operations on tabular sequence data
@@ -647,10 +623,6 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
   }
 }
 
-// =============================================================================
-// EXPORTED FUNCTIONS
-// =============================================================================
-
 /**
  * Convert sequences to type-safe tabular rows
  *
@@ -1015,10 +987,6 @@ export function convertRecordToSequence(
 
   return seq;
 }
-
-// =============================================================================
-// HELPER FUNCTIONS (INTERNAL)
-// =============================================================================
 
 /**
  * Type-safe row value extractor

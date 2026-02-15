@@ -89,7 +89,6 @@ export {
   findOverlapping,
   findPalindromes,
   findPattern,
-  findPattern as findPatternTransform,
   findPatternWithMismatches,
   findSimplePattern,
   findTandemRepeats,
@@ -203,7 +202,13 @@ import { findSimplePattern as findPat, isPalindromic as isPalin } from "./patter
 // Import all items needed for backward compatibility object
 import * as seqManip from "./sequence-manipulation";
 
-// Backward compatibility: SequenceTransforms combined from new modules
+/**
+ * @deprecated Use individual function imports instead of this combined object.
+ * Import directly from the specific modules for better tree-shaking:
+ * - `complement`, `reverse`, `reverseComplement`, etc. from "./sequence-manipulation"
+ * - `gcContent`, `atContent`, `baseComposition`, etc. from "./calculations"
+ * - `isPalindromic`, `findPattern` from "./pattern-matching"
+ */
 export const SequenceTransforms = {
   complement: seqManip.complement,
   reverse: seqManip.reverse,

@@ -3,8 +3,6 @@
  *
  * Provides GTF format writing capabilities with proper field formatting,
  * attribute quoting, and specification compliance.
- *
- * @module gtf/writer
  */
 
 import type { GtfFeature } from "./types";
@@ -109,9 +107,5 @@ class GtfWriter {
     }
   }
 }
-
-// =============================================================================
-// EXPORTS
-// =============================================================================
 
 export { GtfWriter };

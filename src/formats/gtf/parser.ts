@@ -4,8 +4,6 @@
  * Provides fundamental GTF parsing capabilities with exceptional error quality,
  * streaming architecture, and comprehensive validation. Forms the foundation
  * for enhanced GTF processing capabilities.
- *
- * @module gtf/parser
  */
 
 import { type } from "arktype";
@@ -990,10 +988,6 @@ function queryGtf(parser: GtfParser): {
     },
   };
 }
-
-// =============================================================================
-// EXPORTS
-// =============================================================================
 
 export {
   detectDatabaseVariant,

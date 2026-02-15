@@ -5,9 +5,6 @@
  * in the Genotype library. It consolidates functionality previously scattered
  * across multiple modules into a clean, consistent API.
  *
- * @module operations/core/quality
- * @since v0.2.0
- *
  * @example Basic conversion
  * ```typescript
  * import { charToScore, scoreToChar } from '@/operations/core/quality';

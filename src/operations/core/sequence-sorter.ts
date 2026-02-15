@@ -53,8 +53,6 @@
  * - **Cache efficiency**: Memory layout optimized for modern processors
  * - **Parallel processing**: Multi-threaded chunk sorting and merging
  *
- * @module sequence-sorter
- * @since v0.1.0
  */
 
 import type { AbstractSequence, FastqSequence, QualityEncoding } from "../../types";
@@ -76,7 +74,6 @@ import { calculateAverageQuality } from "./quality";
  * - Custom function: (a, b) => number for custom comparison
  *
  * @typedef {string | Function} SortBy
- * @since v0.1.0
  *
  * @example
  * ```typescript
@@ -103,7 +100,6 @@ export type SortBy =
  * Configuration options for sequence sorting.
  *
  * @interface SortOptions
- * @since v0.1.0
  *
  * @example
  * ```typescript
@@ -206,7 +202,6 @@ export interface SortOptions {
  * - **Variant calling**: Sort reads by position for efficient variant detection
  *
  * @class SequenceSorter
- * @since v0.1.0
  *
  * @example Large dataset external sorting
  * ```typescript
@@ -590,8 +585,6 @@ export async function sortSequences(
  *   console.log(`${seq.id}: ${(gc * 100).toFixed(1)}% GC`);
  * });
  * ```
- *
- * @since v0.1.0
  */
 export async function getTopSequences(
   sequences: AsyncIterable<AbstractSequence>,
@@ -607,10 +600,6 @@ export async function getTopSequences(
 
   return result;
 }
-
-// =============================================================================
-// PRIVATE HELPER CLASSES
-// =============================================================================
 
 class MinHeap<T> {
   private heap: T[] = [];
@@ -741,6 +730,4 @@ class MinHeap<T> {
  * const sorted = await sortSequences(sequences, { sortBy: 'gc' });
  * console.log(`Highest GC: ${sorted[0].id}`);
  * ```
- *
- * @since v0.1.0
  */

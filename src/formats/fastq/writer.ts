@@ -25,23 +25,11 @@ import {
 import type { FastqWriterOptions, OutputStrategy } from "./types";
 import { type PlatformInfo, type ValidationLevel, validateFastqRecord } from "./validation";
 
-// ============================================================================
-// CONSTANTS
-// ============================================================================
-
 /** Threshold for considering a sequence "long" for auto-wrapping decisions */
 const DEFAULT_LONG_SEQUENCE_THRESHOLD = 100;
 
-// ============================================================================
-// TYPES
-// ============================================================================
-
 /** Supported sequencing platforms for format-specific handling - uses validation module's type */
 type Platform = PlatformInfo["platform"];
-
-// ============================================================================
-// ARKTYPE VALIDATION SCHEMAS
-// ============================================================================
 
 /**
  * ArkType schema for FASTQ writer options validation

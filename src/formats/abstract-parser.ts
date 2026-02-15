@@ -5,8 +5,7 @@
  * BED, SAM, BAM, GTF) without imposing parsing implementation details.
  * Each format maintains its own parsing logic while gaining interrupt capabilities.
  *
- * @version v0.1.0
- * @since v0.1.0
+
  */
 
 import { ParseError } from "../errors";
@@ -61,9 +60,7 @@ export abstract class AbstractParser<T, TOptions extends ParserOptions = ParserO
    */
   protected abstract getDefaultOptions(): Partial<TOptions>;
 
-  // ============================================================================
-  // SHARED INTERRUPT HANDLING ONLY (Concrete Implementation)
-  // ============================================================================
+
 
   /**
    * Check if parsing operation should be aborted
@@ -81,9 +78,7 @@ export abstract class AbstractParser<T, TOptions extends ParserOptions = ParserO
     this.interruptHandler.throwIfAborted(`${this.getFormatName()} ${context}`);
   }
 
-  // ============================================================================
-  // ABSTRACT METHODS (Each format implements its own way)
-  // ============================================================================
+
 
   /**
    * Parse genomic data from string with interrupt support

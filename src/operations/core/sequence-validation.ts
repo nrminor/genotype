@@ -13,15 +13,9 @@
  * - Zero external dependencies except arktype
  * - Tiger Style compliance with explicit error handling
  *
- * @version v0.1.0
- * @since v0.1.0
  */
 
 import { type } from "arktype";
-
-// =============================================================================
-// IUPAC PATTERN CONSTANTS
-// =============================================================================
 
 /**
  * IUPAC DNA pattern including all standard bases and ambiguity codes
@@ -56,10 +50,6 @@ export const IUPAC_RNA: RegExp = /^[ACGURYSWKMBDHVNacguryswkmbdhvn.\-*]*$/i;
  * for STRICT mode compatibility.
  */
 export const IUPAC_PROTEIN: RegExp = /^[ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy\-*]*$/;
-
-// =============================================================================
-// FUNDAMENTAL VALIDATION CONSTANTS (Core library primitives)
-// =============================================================================
 
 /**
  * Validation modes for different levels of sequence strictness
@@ -112,10 +102,6 @@ export const SequenceType = {
  */
 export type SequenceType = (typeof SequenceType)[keyof typeof SequenceType];
 
-// =============================================================================
-// SEQUENCE VALIDATOR CLASS
-// =============================================================================
-
 /**
  * Instance-based validator for genomic sequence validation and processing
  *
@@ -129,7 +115,6 @@ export type SequenceType = (typeof SequenceType)[keyof typeof SequenceType];
  * every method call.
  *
  * @class SequenceValidator
- * @since v0.1.0
  *
  * @example
  * ```typescript
@@ -150,10 +135,6 @@ export type SequenceType = (typeof SequenceType)[keyof typeof SequenceType];
  * console.log(isStrictValid); // true
  * ```
  */
-
-// =============================================================================
-// VALIDATION SCHEMAS
-// =============================================================================
 
 /**
  * Validation mode schema for runtime type checking
@@ -345,9 +326,8 @@ export class SequenceValidator {
    * console.log(isInvalid); // false
    * ```
    *
-   * @performance O(n) time complexity where n is sequence length
-   * @since v0.1.0
-   */
+ * @performance O(n) time complexity where n is sequence length
+ */
   validate(sequence: string): boolean {
     // Tiger Style: Assert preconditions
     if (typeof sequence !== "string") {
@@ -391,9 +371,8 @@ export class SequenceValidator {
    * console.log(withDash); // 'ATCG------'
    * ```
    *
-   * @performance O(n) time complexity where n is sequence length
-   * @since v0.1.0
-   */
+ * @performance O(n) time complexity where n is sequence length
+ */
   clean(sequence: string, replaceChar: string = "N"): string {
     // Tiger Style: Assert preconditions
     if (typeof sequence !== "string") {
@@ -445,11 +424,9 @@ export class SequenceValidator {
    *
    * console.log(result.isValid); // false
    * console.log(result.cleanedSequence); // 'ATCGNNNNNN'
-   * console.log(result.errors); // ['Sequence contains invalid characters']
-   * ```
-   *
-   * @since v0.1.0
-   */
+ * console.log(result.errors); // ['Sequence contains invalid characters']
+ * ```
+ */
   validateAndClean(
     sequence: string,
     options: { replaceChar?: string; returnCleaned?: boolean } = {}
@@ -529,11 +506,9 @@ export class SequenceValidator {
    * ```typescript
    * const normalDNA = new SequenceValidator(ValidationMode.NORMAL, SequenceType.DNA);
    * const strictDNA = normalDNA.withSettings(ValidationMode.STRICT);
-   * const strictRNA = normalDNA.withSettings(ValidationMode.STRICT, SequenceType.RNA);
-   * ```
-   *
-   * @since v0.1.0
-   */
+ * const strictRNA = normalDNA.withSettings(ValidationMode.STRICT, SequenceType.RNA);
+ * ```
+ */
   withSettings(mode?: ValidationMode, type?: SequenceType): SequenceValidator {
     return new SequenceValidator(mode ?? this.mode, type ?? this.type);
   }
@@ -575,9 +550,8 @@ export class SequenceValidator {
    * console.log(standard); // ['A']
    * ```
    *
-   * @performance O(1) constant time for single character lookup
-   * @since v0.1.0
-   */
+ * @performance O(1) constant time for single character lookup
+ */
   static expandAmbiguous(base: string): string[] {
     // Tiger Style: Assert preconditions
     if (typeof base !== "string") {
@@ -617,10 +591,6 @@ export class SequenceValidator {
     return expansionMap[upperBase] || [upperBase];
   }
 }
-
-// =============================================================================
-// UTILITY FUNCTIONS
-// =============================================================================
 
 /**
  * Convenience function to validate and clean a sequence in one operation
@@ -720,8 +690,6 @@ export function detectSequenceType(sequence: string): SequenceType {
  * const anyBase = expandAmbiguous('N');
  * console.log(anyBase); // ['A', 'C', 'G', 'T']
  * ```
- *
- * @since v0.1.0
  */
 export function expandAmbiguous(base: string): string[] {
   // Tiger Style: Assert meaningful constraints

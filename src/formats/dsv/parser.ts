@@ -1,5 +1,5 @@
 /**
- * @module formats/dsv/parser
+
  * @description Core DSV (Delimiter-Separated Values) parser implementation
  *
  * Provides streaming CSV/TSV parsing with:
@@ -11,9 +11,7 @@
  * - Configurable error recovery
  */
 
-// =============================================================================
-// IMPORTS
-// =============================================================================
+
 
 import { type } from "arktype";
 import { CompressionDetector } from "../../compression/detector";
@@ -44,9 +42,7 @@ import {
 } from "./utils";
 import { DSVParserOptionsSchema, validateFieldSize } from "./validation";
 
-// =============================================================================
-// CLASSES - HELPER CLASSES
-// =============================================================================
+
 
 /**
  * BufferedStreamReader - Allows peeking at stream bytes without consuming
@@ -94,9 +90,7 @@ class BufferedStreamReader {
   }
 }
 
-// =============================================================================
-// CLASSES - MAIN PARSER
-// =============================================================================
+
 
 /**
  * DSVParser - Core CSV/TSV parser implementation
@@ -728,9 +722,7 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
   }
 }
 
-// =============================================================================
-// WRITER IMPLEMENTATION
-// =============================================================================
+
 
 /**
  * DSV writer for outputting genomic data
@@ -753,9 +745,7 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
  * await safeWriter.writeFile("expression.tsv.gz", data); // Protects gene names
 }
 
-// =============================================================================
-// CLASSES - CONVENIENCE PARSERS
-// =============================================================================
+
 
 /**
  * CSVParser - Convenience class for CSV files

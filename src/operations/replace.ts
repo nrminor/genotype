@@ -11,8 +11,6 @@
  * cases include reference standardization (e.g., NCBI → Ensembl format), gap
  * removal from alignments, and ID prefix/suffix operations.
  *
- * @version v0.1.0
- * @since v0.1.0
  */
 
 import { basename, extname } from "node:path";
@@ -901,7 +899,6 @@ function shouldProcess<T extends AbstractSequence>(
  * @throws {ValidationError} When options are invalid or pattern doesn't compile
  * @throws {ValidationError} When bySeq is used with FASTQ format
  * @performance O(N*M) time where N = sequence count, M = pattern complexity
- * @since v0.1.0
  */
 export async function* replace<T extends AbstractSequence>(
   sequences: AsyncIterable<T>,

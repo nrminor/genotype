@@ -4,7 +4,6 @@
  * Similar to samtools/seqkit faidx but with TypeScript type safety
  * and integration with our DSV modules.
  *
- * @module operations/faidx
  */
 
 import { FileSystem } from "@effect/platform";
@@ -82,7 +81,6 @@ const ExtractOptionsSchema = type({
  * }
  * ```
  *
- * @since v0.1.0
  * @category Types
  */
 type ParseResult<T, E = Error> =
@@ -116,7 +114,6 @@ type ParseResult<T, E = Error> =
  * }
  * ```
  *
- * @since v0.1.0
  * @category Types
  */
 type CoordinateRange =
@@ -139,7 +136,6 @@ type CoordinateRange =
  * );
  * ```
  *
- * @since v0.1.0
  * @category Errors
  */
 class CoordinateParseError extends Error {
@@ -186,7 +182,6 @@ class CoordinateParseError extends Error {
  * }
  * ```
  *
- * @since v0.1.0
  * @category Parsing
  */
 function parseCoordinateRange(input: string): ParseResult<CoordinateRange, CoordinateParseError> {

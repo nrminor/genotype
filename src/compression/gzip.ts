@@ -20,10 +20,6 @@ function clampLevel(level: number | undefined): GzipLevel {
   return Math.min(9, Math.max(0, Math.floor(raw))) as GzipLevel;
 }
 
-// =============================================================================
-// VALIDATION
-// =============================================================================
-
 function validateInput(data: Uint8Array, operation: "compress" | "decompress"): void {
   if (!(data instanceof Uint8Array)) {
     throw new CompressionError(`Data must be Uint8Array`, "gzip", operation);
@@ -62,10 +58,6 @@ function validateGzipMagic(data: Uint8Array): void {
     }
   }
 }
-
-// =============================================================================
-// ONE-SHOT COMPRESSION/DECOMPRESSION
-// =============================================================================
 
 /**
  * Decompress gzip data
@@ -134,10 +126,6 @@ export async function compress(
     );
   }
 }
-
-// =============================================================================
-// STREAMING COMPRESSION/DECOMPRESSION
-// =============================================================================
 
 /**
  * Create gzip decompression transform stream
@@ -257,10 +245,6 @@ export function wrapStream(
   }
   return input.pipeThrough(createStream(options));
 }
-
-// =============================================================================
-// NAMESPACE EXPORT
-// =============================================================================
 
 /**
  * Gzip decompressor namespace for API compatibility

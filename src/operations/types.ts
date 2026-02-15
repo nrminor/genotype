@@ -5,8 +5,6 @@
  * in the new semantic API design. Each interface represents options for
  * a single-purpose operation.
  *
- * @version v0.1.0
- * @since v0.1.0
  */
 
 import type { AbstractSequence, KmerSequence, PrimerSequence } from "../types";

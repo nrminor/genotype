@@ -5,7 +5,7 @@
  * These functions help determine FASTQ format complexity, quality encoding,
  * and sequencing platform characteristics.
  *
- * @module fastq/detection
+
  */
 
 import { detectEncoding } from "../../operations/core/quality";
@@ -15,9 +15,7 @@ import { isSimpleFourLineFastq } from "./primitives";
 import type { PlatformInfo } from "./validation";
 import { detectIlluminaPlatform, detectNanoporePlatform, detectPacBioPlatform } from "./validation";
 
-// ============================================================================
-// CONSTANTS
-// ============================================================================
+
 
 /**
  * Confidence zone rules for quality encoding detection
@@ -47,9 +45,7 @@ const CONFIDENCE_ZONES = [
   },
 ] as const;
 
-// ============================================================================
-// FORMAT COMPLEXITY DETECTION
-// ============================================================================
+
 
 /**
  * Detect FASTQ format complexity by sampling input
@@ -104,9 +100,7 @@ export function detectFastqComplexity(
   };
 }
 
-// ============================================================================
-// QUALITY ENCODING DETECTION
-// ============================================================================
+
 
 /**
  * Determine confidence level based on character range
@@ -227,9 +221,7 @@ export function detectQualityEncoding(records: Array<{ quality: string }>): {
   };
 }
 
-// ============================================================================
-// PLATFORM DETECTION
-// ============================================================================
+
 
 /**
  * Detect sequencing platform from FASTQ record characteristics
@@ -270,9 +262,7 @@ export function detectSequencingPlatform(record: FastqSequence): PlatformInfo {
   return best.info;
 }
 
-// ============================================================================
-// FASTQ FORMAT DETECTION (from utils)
-// ============================================================================
+
 
 /**
  * Detect if string contains FASTQ format data
@@ -315,9 +305,7 @@ export function detectFastqFormat(data: string): boolean {
   return header.startsWith("@") && separator.startsWith("+") && sequence.length === quality.length;
 }
 
-// ============================================================================
-// AUTO-DETECTION ORCHESTRATOR
-// ============================================================================
+
 
 /**
  * Comprehensive FASTQ format auto-detection

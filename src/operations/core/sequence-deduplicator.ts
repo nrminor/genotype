@@ -52,8 +52,6 @@
  * - **Quality control**: Identify and quantify duplication rates for library assessment
  * - **Archive preparation**: Reduce storage requirements by eliminating redundancy
  *
- * @module sequence-deduplicator
- * @since v0.1.0
  */
 
 import type { AbstractSequence } from "../../types";
@@ -70,7 +68,6 @@ import { BloomFilter, ScalableBloomFilter } from "./bloom-filter";
  * - Custom function: (seq) => string for custom uniqueness
  *
  * @typedef {string | Function} DeduplicationStrategy
- * @since v0.1.0
  *
  * @example
  * ```typescript
@@ -94,7 +91,6 @@ export type DeduplicationStrategy =
  * Configuration options for sequence deduplication.
  *
  * @interface DeduplicationOptions
- * @since v0.1.0
  *
  * @example
  * ```typescript
@@ -159,7 +155,6 @@ export interface DeduplicationOptions {
  * Statistics about the deduplication process.
  *
  * @interface DeduplicationStats
- * @since v0.1.0
  *
  * @example
  * ```typescript
@@ -270,7 +265,6 @@ export interface DeduplicationStats {
  * - **Hybrid approach**: Probabilistic filtering followed by exact verification
  *
  * @class SequenceDeduplicator
- * @since v0.1.0
  *
  * @example Large-scale PCR duplicate removal
  * ```typescript
@@ -642,7 +636,6 @@ export class SequenceDeduplicator {
  * is critical.
  *
  * @class ExactDeduplicator
- * @since v0.1.0
  *
  * @example
  * ```typescript
@@ -787,8 +780,6 @@ export class ExactDeduplicator {
  * });
  * console.log(`Found ${unique.length} unique sequences`);
  * ```
- *
- * @since v0.1.0
  */
 export async function deduplicateSequences(
   sequences: AsyncIterable<AbstractSequence>,
@@ -826,8 +817,6 @@ export async function deduplicateSequences(
  *   console.log(`${dup.id} appears ${dup.count + 1} times`);
  * });
  * ```
- *
- * @since v0.1.0
  */
 export async function findDuplicates(
   sequences: AsyncIterable<AbstractSequence>,

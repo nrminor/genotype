@@ -8,9 +8,7 @@
  * This module primarily provides parsing helpers and deprecated compatibility.
  */
 
-// =============================================================================
-// IMPORTS
-// =============================================================================
+
 
 import { ParseError, QualityError, SequenceError } from "../../errors";
 import { qualityToScores, scoresToQuality } from "../../operations/core/quality";
@@ -18,27 +16,19 @@ import type { QualityEncoding } from "../../types";
 import { validateFastaSequence } from "../fasta";
 import { detectFastqFormat } from "./detection";
 
-// =============================================================================
-// CONSTANTS
-// =============================================================================
+
 
 // No module-level constants needed
 
-// =============================================================================
-// TYPES
-// =============================================================================
+
 
 // No module-level types needed
 
-// =============================================================================
-// INTERFACES
-// =============================================================================
+
 
 // No module-level interfaces needed
 
-// =============================================================================
-// FUNCTIONS
-// =============================================================================
+
 
 /**
  * Parse FASTQ header line and extract ID and description
@@ -300,9 +290,7 @@ export const FastqUtils = {
   },
 } as const;
 
-// =============================================================================
-// EXPORTS
-// =============================================================================
+
 
 // Re-export detectFastqFormat for backward compatibility
 export { detectFastqFormat };

@@ -5,8 +5,6 @@
  * specifically for FASTQ sequences. Operations are no-ops for
  * non-FASTQ sequences.
  *
- * @version v0.1.0
- * @since v0.1.0
  */
 
 import type { AbstractSequence, FastqSequence, QualityEncoding } from "../types";
@@ -215,10 +213,6 @@ export class QualityProcessor implements Processor<QualityOptions> {
     return coreBinQualityString(quality, strategy);
   }
 }
-
-// ============================================================================
-// QUALITY BINNING OPERATIONS
-// ============================================================================
 
 /**
  * Type-safe boundary arrays for compile-time validation

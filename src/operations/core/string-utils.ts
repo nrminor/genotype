@@ -4,8 +4,6 @@
  * Provides common string manipulation functions used across
  * multiple sequence operation modules.
  *
- * @version v0.1.0
- * @since v0.1.0
  */
 
 /**

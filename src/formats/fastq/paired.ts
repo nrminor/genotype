@@ -30,8 +30,7 @@
  * - Parallel file reading: Both files processed simultaneously
  * - Optional validation overhead: ~5-10% when checkPairSync enabled
  *
- * @module paired
- * @since 0.2.0
+
  *
  * @example Basic paired-end parsing (90% use case)
  * ```typescript
@@ -74,18 +73,14 @@
  * ```
  */
 
-// =============================================================================
-// IMPORTS
-// =============================================================================
+
 
 import { PairSyncError } from "../../errors";
 import type { FastqSequence, FileReaderOptions } from "../../types";
 import { FastqParser } from "./parser";
 import type { PairedFastqParserOptions, PairedFastqRead } from "./types";
 
-// =============================================================================
-// HELPER FUNCTIONS
-// =============================================================================
+
 
 /**
  * Default paired-end ID extractor
@@ -138,9 +133,7 @@ export function defaultExtractPairId(id: string): string {
   return id.replace(/[/._][12]$|[/._][Rr][12]$/i, "");
 }
 
-// =============================================================================
-// CLASSES
-// =============================================================================
+
 
 /**
  * Paired-end FASTQ format parser with intelligent read synchronization
@@ -189,8 +182,6 @@ export function defaultExtractPairId(id: string): string {
  *   extractPairId: (id) => id.split(':')[0], // Custom naming scheme
  * });
  * ```
- *
- * @since 0.2.0
  */
 export class PairedFastqParser {
   private readonly options: Required<PairedFastqParserOptions>;
@@ -453,8 +444,6 @@ export class PairedFastqParser {
   }
 }
 
-// =============================================================================
-// EXPORTS
-// =============================================================================
+
 
 // PairSyncError and PairedFastqParser are already exported via class declarations above

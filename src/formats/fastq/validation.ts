@@ -12,18 +12,11 @@
  * - Rich biological context in error messages
  * - Performance-aware validation strategies
  * - Compatibility warnings for downstream tools
- *
- * @module fastq/validation
- * @since v0.1.0
  */
 
 import { type } from "arktype";
 import type { FastqSequence } from "../../types";
 import { qualityToScores } from "../../operations/core/quality";
-
-// =============================================================================
-// TYPE DEFINITIONS
-// =============================================================================
 
 /**
  * Validation levels for performance/safety tradeoffs
@@ -60,10 +53,6 @@ interface ValidationResult {
   errors?: string[];
 }
 
-// =============================================================================
-// QUICK VALIDATOR (Hot Path - ~14ns per record)
-// =============================================================================
-
 /**
  * Lightweight validation for hot path (per-record during parsing)
  * Only critical structural checks, no expensive operations
@@ -92,10 +81,6 @@ const FastqRecordQuickValidator = type({
 
 // Type inference for quick validation
 type QuickValidatedRecord = typeof FastqRecordQuickValidator.infer;
-
-// =============================================================================
-// PLATFORM DETECTION FUNCTIONS
-// =============================================================================
 
 /**
  * Detect Illumina platform characteristics
@@ -249,10 +234,6 @@ function detectPlatform(record: {
     characteristics: {},
   };
 }
-
-// =============================================================================
-// VALIDATION WARNING GENERATORS
-// =============================================================================
 
 /**
  * Generate warnings for FASTQ record issues
@@ -421,10 +402,6 @@ function generateValidationWarnings(record: {
   return warnings;
 }
 
-// =============================================================================
-// FULL VALIDATOR (Complete Validation - ~100ns per record)
-// =============================================================================
-
 /**
  * Full validation with comprehensive checks
  *
@@ -483,10 +460,6 @@ const FastqRecordFullValidator = type({
 // Type inference for full validation
 type FullValidatedRecord = typeof FastqRecordFullValidator.infer;
 
-// =============================================================================
-// PERFORMANCE BENCHMARKING
-// =============================================================================
-
 /**
  * Performance characteristics and recommendations for validation levels
  */
@@ -530,10 +503,6 @@ const ValidationBenchmark = {
     full: 512, // Additional memory for warnings and annotations
   },
 };
-
-// =============================================================================
-// VALIDATION FUNCTIONS
-// =============================================================================
 
 /**
  * Validate a FASTQ record at the specified level
@@ -654,10 +623,6 @@ function createValidationContext(level: ValidationLevel = "quick"): {
 
   return context;
 }
-
-// =============================================================================
-// EXPORTS
-// =============================================================================
 
 export type {
   ValidationLevel,

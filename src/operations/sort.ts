@@ -9,8 +9,6 @@
  * ratios for large datasets by grouping similar sequences together, which is
  * critical for managing storage costs in genomics workflows.
  *
- * @version v0.1.0
- * @since v0.1.0
  */
 
 import { type } from "arktype";

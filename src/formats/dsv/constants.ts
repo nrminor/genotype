@@ -5,9 +5,7 @@
  * Includes delimiters, limits, patterns, and configuration values.
  */
 
-// =============================================================================
-// CONSTANTS
-// =============================================================================
+
 
 /**
  * Default delimiter for different formats

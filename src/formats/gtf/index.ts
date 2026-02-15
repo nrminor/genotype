@@ -25,8 +25,6 @@
  *   console.log(`Gene type: ${feature.normalized?.geneType}`); // Works for both!
  * }
  * ```
- *
- * @module gtf
  */
 
 // Imports for namespace creation
@@ -54,10 +52,6 @@ const GtfUtils = {
   countGtfFeatures,
   filterFeaturesByType,
 } as const;
-
-// =============================================================================
-// EXPORTS
-// =============================================================================
 
 // Core parsing functionality
 export {

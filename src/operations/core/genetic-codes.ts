@@ -102,8 +102,6 @@
  * - DiMauro & Schon (2003) "Mitochondrial respiratory-chain diseases" NEJM
  * - Schaefer et al. (2008) "Mitochondrial disease in adults" J Neurol Neurosurg
  *
- * @module genetic-codes
- * @since v0.1.0
  */
 
 import { reverseComplement } from "./sequence-manipulation";
@@ -158,10 +156,6 @@ interface GeneticCodeDefinition {
   readonly codons: CodonTable;
   readonly startCodons: readonly string[];
 }
-
-// =============================================================================
-// GENETIC CODE DATA (Module-level constants for tree-shaking)
-// =============================================================================
 
 /**
  * Base codon mappings (shared by many codes)
@@ -677,10 +671,6 @@ const GENETIC_CODES: Map<number, GeneticCodeDefinition> = new Map([
     },
   ],
 ]);
-
-// =============================================================================
-// TREE-SHAKEABLE FUNCTION EXPORTS
-// =============================================================================
 
 /**
  * Translate DNA/RNA sequence to amino acids using specified genetic code
@@ -1286,10 +1276,6 @@ export function translateCodon(
   return "X";
 }
 
-// =============================================================================
-// CONVENIENCE NAMESPACE (Tree-shakeable)
-// =============================================================================
-
 /**
  * Convenience namespace for object-style access to genetic code functions
  *
@@ -1315,10 +1301,6 @@ export const GeneticCodes = {
   isStartCodon,
   isStopCodon,
 } as const;
-
-// =============================================================================
-// EDUCATIONAL NOTES: CODON USAGE BIAS AND OPTIMIZATION
-// =============================================================================
 
 /**
  * ## Codon Usage Bias: The Hidden Layer of the Genetic Code
@@ -1353,10 +1335,6 @@ export const GeneticCodes = {
  * - Hanson & Coller (2018) Codon optimality, bias and usage
  */
 
-// =============================================================================
-// PERFORMANCE OPTIMIZATION OPPORTUNITIES
-// =============================================================================
-
 /**
  * ## Native Implementation Targets for Genetic Code Operations
  *
@@ -1387,10 +1365,6 @@ export const GeneticCodes = {
  * - Zero-copy codon extraction
  * - Bit-packed amino acid encoding (5 bits per AA)
  */
-
-// =============================================================================
-// ADVANCED USAGE PATTERNS
-// =============================================================================
 
 /**
  * ## Advanced Usage Examples

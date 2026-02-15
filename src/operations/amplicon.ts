@@ -28,8 +28,6 @@
  * - **Canonical matching**: BED-extracted primer validation and normalization
  * - **Biological validation**: Primer length and composition constraints
  *
- * @module amplicon
- * @since v0.1.0
  */
 
 import { type } from "arktype";
@@ -41,10 +39,6 @@ import { findPatternWithMismatches, type PatternMatch } from "./core/pattern-mat
 import { reverseComplement } from "./core/sequence-manipulation";
 import { IUPAC_DNA } from "./core/sequence-validation";
 import type { AmpliconOptions, Processor } from "./types";
-
-// =============================================================================
-// ARKTYPE SCHEMA WITH TYPE SAFETY INTEGRATION
-// =============================================================================
 
 /**
  * ArkType schema for amplicon options with primer validation and branding
@@ -118,10 +112,6 @@ const AmpliconOptionsSchema = type({
   };
 });
 
-// =============================================================================
-// AMPLICON MATCH TYPES
-// =============================================================================
-
 /**
  * Result of matching a primer pair within a sequence
  */
@@ -144,10 +134,6 @@ interface CanonicalPatternMatch<T extends string = string> extends PatternMatch<
   matchedOrientation: "forward" | "canonical";
   actualMatchedSequence?: string; // What actually matched (for RC matches)
 }
-
-// =============================================================================
-// AMPLICON PROCESSOR IMPLEMENTATION
-// =============================================================================
 
 /**
  * Processor for extracting amplicons via primer sequences

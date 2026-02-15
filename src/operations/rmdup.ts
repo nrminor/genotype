@@ -9,8 +9,6 @@
  * duplicates from sequencing data and redundant sequences from assemblies,
  * significantly improving downstream analysis quality and reducing storage costs.
  *
- * @version v0.1.0
- * @since v0.1.0
  */
 
 import { type } from "arktype";

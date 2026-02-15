@@ -39,9 +39,6 @@ import { isValidQualityScore, isValidSolexaScore } from "./types";
  * const score6 = charToScore(';', 'solexa'); // Returns SolexaScore -5
  * const score7 = charToScore('h', 'solexa'); // Returns SolexaScore 40
  * ```
- *
- * @performance O(1) - Single character lookup with constant time validation
- * @since v0.1.0
  */
 export function charToScore(char: string, encoding: QualityEncoding): QualityScore | SolexaScore {
   const info = getEncodingInfo(encoding);
@@ -100,9 +97,6 @@ export function charToScore(char: string, encoding: QualityEncoding): QualitySco
  * const validated = 40 as QualityScore;
  * scoreToChar(validated, 'phred33'); // Type-safe, no runtime validation needed
  * ```
- *
- * @performance O(1) - Direct calculation with constant time validation
- * @since v0.1.0
  */
 export function scoreToChar(
   score: QualityScore | SolexaScore | number,

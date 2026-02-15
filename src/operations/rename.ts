@@ -8,8 +8,6 @@
  * from multiple sources or processing PCR replicates. Unique identifiers are
  * essential for downstream analysis tools and database integrity.
  *
- * @version v0.1.0
- * @since v0.1.0
  */
 
 import { type } from "arktype";
@@ -156,7 +154,6 @@ const RenameOptionsSchema = type({
  *
  * @throws {ValidationError} When options are invalid (empty separator, negative startNum)
  * @performance O(N) time, O(U) memory where U = unique IDs
- * @since v0.1.0
  */
 export async function* rename<T extends AbstractSequence>(
   source: AsyncIterable<T>,

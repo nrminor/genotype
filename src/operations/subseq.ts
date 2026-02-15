@@ -12,8 +12,6 @@
  * - Strand-aware extraction with reverse complement
  * - Support for both 0-based and 1-based coordinate systems
  *
- * @version v0.1.0
- * @since v0.1.0
  */
 
 import { type } from "arktype";

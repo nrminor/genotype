@@ -3,8 +3,6 @@
  *
  * Provides utility functions for GTF format detection, feature counting,
  * and filtering operations with streaming architecture support.
- *
- * @module gtf/utils
  */
 
 import { validateGtfStrand } from "./parser";
@@ -126,9 +124,5 @@ function filterFeaturesByType(
     },
   };
 }
-
-// =============================================================================
-// EXPORTS
-// =============================================================================
 
 export { detectGtfFormat, countGtfFeatures, filterFeaturesByType };

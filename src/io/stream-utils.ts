@@ -400,10 +400,6 @@ export const StreamUtils = {
   batchLines,
 } as const;
 
-// =============================================================================
-// PRIVATE HELPER FUNCTIONS
-// =============================================================================
-
 function checkMemoryUsage(bufferSize: number, totalProcessed: number): void {
   // TypeScript guarantees types - check meaningful invariants only
 

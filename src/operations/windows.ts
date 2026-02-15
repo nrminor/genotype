@@ -1,7 +1,5 @@
 /**
  * Sliding window extraction (k-mer generation)
- *
- * @module operations/windows
  */
 
 import { type } from "arktype";

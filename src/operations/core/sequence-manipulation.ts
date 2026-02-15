@@ -5,13 +5,7 @@
  * reverse, reverse-complement, and RNA/DNA conversions with full
  * IUPAC ambiguity code support.
  *
- * @module sequence-manipulation
- * @since v0.1.0
  */
-
-// =============================================================================
-// CONSTANTS
-// =============================================================================
 
 /**
  * DNA complement mapping including IUPAC ambiguity codes
@@ -63,10 +57,6 @@ const RNA_COMPLEMENT_MAP: Record<string, string> = {
   ".": ".",
   "*": "*",
 };
-
-// =============================================================================
-// EXPORTED FUNCTIONS
-// =============================================================================
 
 /**
  * Generate complement of DNA/RNA sequence
@@ -301,10 +291,6 @@ export function replaceAmbiguousBases(sequence: string, replaceChar: string = "N
   // Everything else (including IUPAC codes) gets replaced
   return sequence.replace(/[^ACGTU]/gi, replaceChar);
 }
-
-// =============================================================================
-// GROUPED EXPORT
-// =============================================================================
 
 /**
  * Grouped export of all sequence manipulation functions

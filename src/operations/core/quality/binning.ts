@@ -10,8 +10,6 @@
  * - Nanopore: Lower thresholds reflecting platform characteristics
  *
  * Maintains O(1) memory streaming architecture - suitable for 100GB+ files.
- *
- * @module operations/core/quality/binning
  */
 
 import { QualityError } from "../../../errors";

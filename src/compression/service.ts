@@ -50,7 +50,6 @@
  * await Effect.runPromise(program.pipe(Effect.provide(CompressionService.WithZstd)));
  * ```
  *
- * @module compression/service
  */
 
 import { Context, Effect, Layer } from "effect";
@@ -67,10 +66,6 @@ import {
   createCompressionStream as createZstdCompressionStream,
   createStream as createZstdDecompressionStream,
 } from "./zstd";
-
-// =============================================================================
-// SERVICE SHAPE (Interface)
-// =============================================================================
 
 /**
  * Shape of the compression service - defines the available operations.
@@ -127,10 +122,6 @@ export interface CompressionServiceShape {
     format: CompressionFormat
   ) => TransformStream<Uint8Array, Uint8Array>;
 }
-
-// =============================================================================
-// SERVICE TAG (Effect 3.x Class-Based Pattern)
-// =============================================================================
 
 /**
  * Compression service for Effect-based dependency injection
@@ -199,10 +190,6 @@ export class CompressionService extends Context.Tag("@genotype/CompressionServic
   );
 }
 
-// =============================================================================
-// FORMAT VALIDATION
-// =============================================================================
-
 /**
  * Supported formats for the multi-format service
  */
@@ -255,10 +242,6 @@ function validateGzipOnlyFormat(
 function runValidation<A>(effect: Effect.Effect<A, CompressionError>): A {
   return Effect.runSync(effect);
 }
-
-// =============================================================================
-// SERVICE IMPLEMENTATIONS
-// =============================================================================
 
 /**
  * Create a gzip-only compression service implementation
@@ -408,10 +391,6 @@ function createPassthroughStream(): TransformStream<Uint8Array, Uint8Array> {
     },
   });
 }
-
-// =============================================================================
-// BACKWARD COMPATIBILITY EXPORTS
-// =============================================================================
 
 /**
  * @deprecated Use `CompressionService.Live` instead

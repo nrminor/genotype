@@ -8,8 +8,6 @@
  * - Dual-stream: Match reads from two separate streams (R1 and R2 files)
  * - Single-stream: Repair pairing within one mixed stream
  *
- * @module operations/pair
- * @since v0.1.0
  */
 
 import { MemoryError, PairSyncError } from "../errors";
@@ -266,8 +264,6 @@ export interface PairOptions {
  *   onUnpaired: 'error'
  * });
  * ```
- *
- * @since v0.1.0
  */
 export class PairProcessor {
   private hasWarned80Percent = false;

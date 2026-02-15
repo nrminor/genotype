@@ -33,9 +33,7 @@
  * - Streaming architecture maintains constant memory usage
  */
 
-// =============================================================================
-// IMPORTS
-// =============================================================================
+
 
 import { type } from "arktype";
 import {
@@ -73,27 +71,19 @@ import {
 import { type ValidationLevel, validateFastqRecord } from "./validation";
 import { FastqWriter } from "./writer";
 
-// =============================================================================
-// CONSTANTS
-// =============================================================================
+
 
 // No module-level constants needed here
 
-// =============================================================================
-// TYPES
-// =============================================================================
+
 
 // Types are imported from ./types module
 
-// =============================================================================
-// INTERFACES
-// =============================================================================
+
 
 // Interfaces are imported from ./types module
 
-// =============================================================================
-// ARKTYPE SCHEMAS
-// =============================================================================
+
 
 /**
  * ArkType schema for FASTQ parser options validation
@@ -152,9 +142,7 @@ const FastqParserOptionsSchema = type({
   return true;
 });
 
-// =============================================================================
-// CLASSES
-// =============================================================================
+
 
 /**
  * FASTQ format parser with intelligent path selection and quality score handling
@@ -187,7 +175,6 @@ const FastqParserOptionsSchema = type({
  * console.log(`Used state machine: ${metrics.stateMachineCount} times`);
  * ```
  *
- * @since v0.1.0
  */
 export class FastqParser extends AbstractParser<FastqSequence, FastqParserOptions> {
   /**
@@ -1091,9 +1078,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
     }
   }
 
-  // ============================================================================
-  // VALIDATION LOGIC CONSOLIDATION
-  // ============================================================================
+
 
   /**
    * Validate FASTQ sequence if required by parser options
@@ -1194,9 +1179,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
   }
 }
 
-// =============================================================================
-// HELPER FUNCTIONS
-// =============================================================================
+
 
 /**
  * Generate context-aware suggestions for quality-related errors
@@ -1499,10 +1482,6 @@ export async function* parseFastPath(
     );
   }
 }
-
-// =============================================================================
-// EXPORTS
-// =============================================================================
 
 // Re-export for backward compatibility
 export { FastqWriter };

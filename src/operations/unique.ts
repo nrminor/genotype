@@ -1,7 +1,5 @@
 /**
  * Sequence deduplication processor
- *
- * @module operations/unique
  */
 
 import type { AbstractSequence, QualityEncoding } from "../types";

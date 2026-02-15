@@ -275,9 +275,7 @@ export const BGZFReader = {
   findBlocks,
 } as const;
 
-// =============================================================================
-// PRIVATE HELPER FUNCTIONS
-// =============================================================================
+
 
 function validateBuffer(buffer: Uint8Array, offset: number): void {
   if (buffer.length < offset + BGZF_HEADER_SIZE) {

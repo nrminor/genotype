@@ -1,5 +1,5 @@
 /**
- * @module formats/dsv/validation
+
  * @description Validation utilities for DSV parsing and writing
  *
  * This module contains:
@@ -12,9 +12,7 @@ import { type } from "arktype";
 import { DSVParseError, ValidationError } from "../../errors";
 import { MAX_FIELD_SIZE } from "./constants";
 
-// =============================================================================
-// FIELD SIZE VALIDATION
-// =============================================================================
+
 
 /**
  * Validate that a field doesn't exceed the maximum allowed size
@@ -33,9 +31,7 @@ export function validateFieldSize(field: string, maxSize: number = MAX_FIELD_SIZ
   }
 }
 
-// =============================================================================
-// ARKTYPE VALIDATION SCHEMAS
-// =============================================================================
+
 
 /**
  * ArkType validation schema for DSV parser options
@@ -135,9 +131,7 @@ export const DSVWriterOptionsSchema = type({
   return true;
 });
 
-// =============================================================================
-// FIELD VALIDATOR CLASS
-// =============================================================================
+
 
 /**
  * FieldValidator class for encapsulating field validation logic

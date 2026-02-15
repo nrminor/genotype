@@ -6,9 +6,7 @@
  * code more maintainable and self-documenting.
  */
 
-// ============================================================================
-// QUALITY SCORE THRESHOLDS
-// ============================================================================
+
 
 /**
  * Quality score thresholds for assessment and filtering
@@ -27,9 +25,7 @@ export const QUALITY_THRESHOLDS = {
   MIN_ACCEPTABLE: 20,
 } as const;
 
-// ============================================================================
-// ASCII VALUE BOUNDARIES
-// ============================================================================
+
 
 /**
  * ASCII character code boundaries for different quality encoding schemes
@@ -58,9 +54,7 @@ export const ASCII_BOUNDARIES = {
   HIGH_ASCII_BOUNDARY: 73,
 } as const;
 
-// ============================================================================
-// PARSING CONFIGURATION
-// ============================================================================
+
 
 /**
  * Default configuration values for FASTQ parsing
@@ -80,9 +74,7 @@ export const PARSING_DEFAULTS = {
   MAX_WINDOW_SIZE: 100,
 } as const;
 
-// ============================================================================
-// CONFIDENCE LEVELS
-// ============================================================================
+
 
 /**
  * Confidence levels for quality encoding detection
@@ -98,9 +90,7 @@ export const CONFIDENCE_LEVELS = {
   MINIMUM: 0.3,
 } as const;
 
-// ============================================================================
-// PLATFORM DETECTION
-// ============================================================================
+
 
 /**
  * Platform-specific patterns and characteristics
@@ -116,9 +106,7 @@ export const PLATFORM_PATTERNS = {
   NANOPORE_MIN_LENGTH: 500,
 } as const;
 
-// ============================================================================
-// QUALITY ANALYSIS
-// ============================================================================
+
 
 /**
  * Configuration for quality window analysis
@@ -142,9 +130,7 @@ export const TRIMMING_DEFAULTS = {
   MIN_QUALITY: 20,
 } as const;
 
-// ============================================================================
-// TYPE EXPORTS
-// ============================================================================
+
 
 /** Type for quality threshold values */
 export type QualityThreshold = (typeof QUALITY_THRESHOLDS)[keyof typeof QUALITY_THRESHOLDS];

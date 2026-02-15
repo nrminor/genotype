@@ -4,7 +4,7 @@
  * Consolidates quality score conversion, validation, and statistics functions.
  * Provides tree-shakeable functions for working with various quality encodings.
  *
- * @module fastq/quality
+
  */
 
 import { ValidationError } from "../../errors";
@@ -16,9 +16,7 @@ import {
 import type { QualityEncoding } from "../../types";
 import { QUALITY_THRESHOLDS, QUALITY_WINDOWS, TRIMMING_DEFAULTS } from "./constants";
 
-// ============================================================================
-// CONSTANTS
-// ============================================================================
+
 
 /**
  * Quality encoding ASCII offsets
@@ -67,17 +65,13 @@ const QUALITY_LEVELS = [
   },
 ] as const;
 
-// ============================================================================
-// TYPES
-// ============================================================================
+
 
 // Type aliases for clarity and type safety
 type QualityString = string;
 type AsciiOffset = 33 | 64 | 59;
 
-// ============================================================================
-// QUALITY STRING VALIDATION
-// ============================================================================
+
 
 /**
  * Validate quality string for specific encoding
@@ -142,9 +136,7 @@ function validateQualityString(
   return result;
 }
 
-// ============================================================================
-// QUALITY CONVERSION
-// ============================================================================
+
 
 /**
  * Convert quality string between encodings
@@ -169,9 +161,7 @@ function convertQualityEncoding(
   return convertQuality(quality, fromEncoding, toEncoding);
 }
 
-// ============================================================================
-// QUALITY STATISTICS
-// ============================================================================
+
 
 /**
  * Calculate statistics for quality scores
@@ -185,9 +175,7 @@ function getQualityStatistics(quality: QualityString, encoding: QualityEncoding)
   return calculateQualityStats(scores);
 }
 
-// ============================================================================
-// QUALITY ASSESSMENT
-// ============================================================================
+
 
 /**
  * Assess overall quality of a sequence
@@ -229,9 +217,7 @@ function assessQuality(
   };
 }
 
-// ============================================================================
-// QUALITY WINDOW ANALYSIS
-// ============================================================================
+
 
 /**
  * Analyze a single quality window
@@ -301,9 +287,7 @@ function analyzeQualityWindows(
   ).filter((w): w is NonNullable<typeof w> => w !== null);
 }
 
-// ============================================================================
-// QUALITY FILTERING
-// ============================================================================
+
 
 /**
  * Find positions where quality drops below threshold
@@ -386,9 +370,7 @@ function suggestQualityTrimming(
   };
 }
 
-// ============================================================================
-// EXPORTS
-// ============================================================================
+
 
 // Export constants
 export { QUALITY_OFFSETS, QUALITY_RANGES };

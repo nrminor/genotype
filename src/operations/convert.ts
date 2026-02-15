@@ -4,13 +4,7 @@
  * This module provides conversion between FASTQ quality encodings and
  * bidirectional FASTA/FASTQ format conversion.
  *
- * @version v0.1.0
- * @since v0.1.0
  */
-
-// ============================================================================
-// Imports
-// ============================================================================
 
 import { type } from "arktype";
 import { ValidationError } from "../errors";
@@ -77,10 +71,6 @@ interface EncodingDetectionResult {
   warning?: string;
 }
 
-// ============================================================================
-// Validation Schemas
-// ============================================================================
-
 /**
  * ArkType schema for ConvertOptions
  */
@@ -137,10 +127,6 @@ export const Fa2FqOptionsSchema = type({
 
   return true;
 });
-
-// ============================================================================
-// Classes
-// ============================================================================
 
 /**
  * Processor for FASTQ quality score encoding conversion
@@ -262,10 +248,6 @@ export class ConvertProcessor implements Processor<ConvertOptions> {
     return converted;
   }
 }
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
 
 /**
  * Build a FASTA description with optional quality statistics

@@ -5,8 +5,6 @@
  * length, GC content, patterns, and custom functions. All criteria
  * within a single filter call are combined with AND logic.
  *
- * @version v0.1.0
- * @since v0.1.0
  */
 
 import { type } from "arktype";

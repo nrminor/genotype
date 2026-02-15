@@ -5,9 +5,6 @@
  * streaming pattern matching for genomic data. Supports exact matching, fuzzy
  * matching, IUPAC ambiguity codes, and streaming processing of large sequence files.
  *
- * @module pattern-matching
- * @since v0.1.0
- *
  * @remarks
  * Key features:
  * - Low-level algorithms available as named exports for direct use
@@ -48,7 +45,6 @@ export interface PatternMatch<TPattern extends string = string> {
  * Used by high-level SequenceMatcher class
  *
  * @interface SequenceMatch
- * @since v0.1.0
  */
 export interface SequenceMatch {
   /**
@@ -129,7 +125,6 @@ export interface SequenceMatch {
  * Configuration options for pattern matching behavior.
  *
  * @interface MatcherOptions
- * @since v0.1.0
  */
 export interface MatcherOptions {
   /**
@@ -1159,7 +1154,6 @@ export function findTandemRepeats(
  * and production bioinformatics pipelines.
  *
  * @class SequenceMatcher
- * @since v0.1.0
  *
  * @example
  * ```typescript
@@ -1563,10 +1557,6 @@ export class SequenceMatcher {
   }
 }
 
-// =============================================================================
-// CONVENIENCE FUNCTIONS
-// =============================================================================
-
 /**
  * Find all occurrences of a pattern in a sequence.
  *
@@ -1574,8 +1564,6 @@ export class SequenceMatcher {
  * @param sequence - Sequence to search in
  * @param options - Optional matching configuration
  * @returns Array of all matches found
- *
- * @since v0.1.0
  */
 export function findPattern(
   pattern: string,
@@ -1593,8 +1581,6 @@ export function findPattern(
  * @param sequence - Sequence to search in
  * @param options - Optional matching configuration
  * @returns True if pattern exists in sequence
- *
- * @since v0.1.0
  */
 export function hasPattern(
   pattern: string,
@@ -1639,10 +1625,6 @@ export function hasPatternWithMismatches(
 
   return false;
 }
-
-// =============================================================================
-// ADDITIONAL PATTERN UTILITIES (moved from transforms.ts)
-// =============================================================================
 
 /**
  * Test if a DNA sequence is palindromic (equals its reverse complement)
@@ -1788,8 +1770,6 @@ export function findSimplePattern(sequence: string, pattern: string): number[] {
  * // IUPAC degenerate bases (handled automatically)
  * const degenerate = findPatternWithMismatches('ATCGATCGTT', 'ATCR', 0); // R = A|G
  * ```
- *
- * @since v0.1.0
  */
 export function findPatternWithMismatches<T extends string>(
   sequence: string,
@@ -1820,10 +1800,6 @@ export function findPatternWithMismatches<T extends string>(
   }
 }
 
-// =============================================================================
-// LEGACY COMPATIBILITY EXPORT
-// =============================================================================
-
 /**
  * @deprecated Use individual function exports instead
  * Grouped object for backwards compatibility
@@ -1841,10 +1817,6 @@ export const PatternMatcher = {
   isPalindromic,
   findSimplePattern,
 } as const;
-
-// =============================================================================
-// PRIVATE HELPER FUNCTIONS
-// =============================================================================
 
 function buildBadCharTable(pattern: string): Map<number, number> {
   const table = new Map<number, number>();

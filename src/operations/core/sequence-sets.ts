@@ -5,8 +5,6 @@
  * These functions use sequence content as the deduplication key (no other options).
  *
  * Used internally by both SequenceSet<T> and KmerSet<K> classes as thin wrappers.
- *
- * @module operations/core/sequence-sets
  */
 
 import type { AbstractSequence } from "../../types";

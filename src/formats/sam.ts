@@ -72,7 +72,6 @@ interface SamParserOptions extends ParserOptions {
  * }
  * ```
  *
- * @since v0.1.0
  * @category Types
  */
 type ParseResult<T, E = Error> =
@@ -100,7 +99,6 @@ type ParseResult<T, E = Error> =
  * }
  * ```
  *
- * @since v0.1.0
  * @category Types
  */
 interface SamMandatoryFields {
@@ -554,7 +552,6 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
    * }
    * ```
    *
-   * @since v0.1.0
    * @category Parsing
    */
   /**
@@ -592,7 +589,6 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
    * }
    * ```
    *
-   * @since v0.1.0
    * @category Parsing
    */
   private parseMandatoryFields(

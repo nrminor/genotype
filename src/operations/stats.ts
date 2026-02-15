@@ -12,18 +12,12 @@
  * - Streaming computation for memory efficiency
  * - Real-time statistics updates during processing
  *
- * @version v0.1.0
- * @since v0.1.0
  */
 
 import { type } from "arktype";
 import { SequenceError, ValidationError } from "../errors";
 import type { AbstractSequence, FASTXSequence, FastqSequence, QualityEncoding } from "../types";
 import { charToScore } from "./core/quality";
-
-// =============================================================================
-// TYPES AND INTERFACES
-// =============================================================================
 
 /**
  * Comprehensive sequence statistics result
@@ -158,10 +152,6 @@ interface StatsAccumulator {
   qualityEncoding?: QualityEncoding | undefined;
 }
 
-// =============================================================================
-// VALIDATION SCHEMA
-// =============================================================================
-
 /**
  * ArkType schema for StatsOptions validation with genomics-specific constraints
  */
@@ -195,10 +185,6 @@ const StatsOptionsSchema = type({
 
   return true;
 });
-
-// =============================================================================
-// MAIN CALCULATOR CLASS
-// =============================================================================
 
 /**
  * High-performance sequence statistics calculator with streaming support
@@ -393,10 +379,6 @@ export class SequenceStatsCalculator {
       q30Percentage: totalBases > 0 ? (q30Count / totalBases) * 100 : 0,
     };
   }
-
-  // =============================================================================
-  // PRIVATE IMPLEMENTATION
-  // =============================================================================
 
   /**
    * Create a new statistics accumulator
@@ -730,10 +712,6 @@ export class SequenceStatsCalculator {
     );
   }
 }
-
-// =============================================================================
-// UTILITY FUNCTIONS
-// =============================================================================
 
 /**
  * Create a statistics calculator with convenient defaults

@@ -3,15 +3,9 @@
  *
  * Provides essential type definitions for GTF (Gene Transfer Format) parsing
  * with focus on core functionality and Tiger Style compliance.
- *
- * @module gtf/types
  */
 
 import type { ParserOptions, Strand } from "../../types";
-
-// =============================================================================
-// CONSTANTS
-// =============================================================================
 
 /**
  * Standard GTF feature types from specification
@@ -41,10 +35,6 @@ const GTF_LIMITS = {
   /** Minimum coordinate value - GTF is 1-based */
   MIN_COORDINATE: 1,
 } as const;
-
-// =============================================================================
-// TYPES
-// =============================================================================
 
 /**
  * Database variant types for GTF format sources
@@ -121,10 +111,6 @@ type StandardGeneType =
   | "misc_RNA"
   | "processed_pseudogene"
   | "unprocessed_pseudogene";
-
-// =============================================================================
-// INTERFACES
-// =============================================================================
 
 /**
  * GTF feature annotation
@@ -329,10 +315,6 @@ type AlternativeSplicingGeneModel = GeneModel & {
   transcripts: [TranscriptModel, TranscriptModel, ...TranscriptModel[]]; // At least 2
   metadata: GeneModelMetadata & { hasAlternativeSplicing: true; transcriptCount: number };
 };
-
-// =============================================================================
-// EXPORTS
-// =============================================================================
 
 export { STANDARD_GTF_FEATURES, GTF_LIMITS };
 

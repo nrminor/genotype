@@ -5,8 +5,6 @@
  * allowing searches across sequence content, IDs, and descriptions with support
  * for regex patterns, case-insensitive matching, and fuzzy matching with mismatches.
  *
- * @version v0.1.0
- * @since v0.1.0
  */
 
 import { type } from "arktype";

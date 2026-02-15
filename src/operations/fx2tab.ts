@@ -6,8 +6,6 @@
  * bioinformatics pipelines. Provides Excel corruption protection and flexible
  * column selection with computed statistics.
  *
- * @version 2.0.0
- * @since v0.1.0
  */
 
 import { type } from "arktype";
@@ -310,7 +308,6 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
    * await tabularOps.writeTSV('output.tsv');
    * ```
    * @performance O(n) time, O(1) memory per row - streams without buffering
-   * @since v0.1.0
    */
   async writeTSV(path: string): Promise<void> {
     const writer = new TSVWriter({
@@ -333,7 +330,6 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
    * await tabularOps.writeCSV('output.csv');
    * ```
    * @performance O(n) time, O(1) memory per row - streams without buffering
-   * @since v0.1.0
    */
   async writeCSV(path: string): Promise<void> {
     const writer = new CSVWriter({
@@ -358,7 +354,6 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
    * await tabularOps.writeDSV('output.psv', '|');
    * ```
    * @performance O(n) time, O(1) memory per row - streams without buffering
-   * @since v0.1.0
    */
   async writeDSV(path: string, delimiter: string): Promise<void> {
     const writer = new DSVWriter({
@@ -384,7 +379,6 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
    * await tabularOps.writeJSON('data.json', { includeMetadata: true });
    * ```
    * @performance O(n) time, O(n) memory - buffers entire dataset
-   * @since v0.1.0
    */
   async writeJSON(path: string, options?: JSONWriteOptions): Promise<void> {
     try {
@@ -460,7 +454,6 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
    * await tabularOps.writeJSONL('data.jsonl', { nullValue: 'NA' });
    * ```
    * @performance O(n) time, O(1) memory - streams one row at a time
-   * @since v0.1.0
    */
   async writeJSONL(path: string): Promise<void> {
     try {
@@ -498,7 +491,6 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
    * const highGC = tabularOps.filter(row => row.gc > 50);
    * ```
    * @performance O(n) time, O(1) memory - streams without buffering
-   * @since v0.1.0
    */
   filter(predicate: (row: Fx2TabRow<Columns>) => boolean): TabularOps<Columns> {
     async function* filterRows(source: AsyncIterable<Fx2TabRow<Columns>>) {
@@ -525,7 +517,6 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
    * const renamed = tabularOps.map(row => ({ ...row, gene_id: row.id }));
    * ```
    * @performance O(n) time, O(1) memory - streams without buffering
-   * @since v0.1.0
    */
   map<NewColumns extends readonly ColumnId[]>(
     fn: (row: Fx2TabRow<Columns>) => Fx2TabRow<NewColumns>
@@ -553,7 +544,6 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
    * const sequences = tabularOps.toSequences({ format: 'fastq' });
    * ```
    * @performance O(n) time, O(1) memory - streams without buffering
-   * @since v0.1.0
    */
   async *toSequences(options: Tab2FxOptions = {}): AsyncIterable<AbstractSequence> {
     const { format = "fasta", qualityEncoding = "phred33" } = options;
@@ -605,7 +595,6 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
    * console.log(`Processed ${allRows.length} sequences`);
    * ```
    * @performance O(n) time, O(n) memory - loads entire dataset
-   * @since v0.1.0
    */
   async toArray(): Promise<Fx2TabRow<Columns>[]> {
     const rows: Fx2TabRow<Columns>[] = [];
@@ -653,7 +642,6 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
  * ```
  *
  * @performance O(n*m) where n=sequences, m=columns. Streams without buffering.
- * @since v0.1.0
  */
 export async function* fx2tab<Columns extends readonly ColumnId[]>(
   source: AsyncIterable<AbstractSequence>,
@@ -809,7 +797,6 @@ export async function* rowsToStrings<Columns extends readonly ColumnId[]>(
  * ```
  *
  * @performance O(n) time, O(1) memory - streams without loading entire file
- * @since v0.1.0
  */
 export async function* tab2fx(
   path: string,

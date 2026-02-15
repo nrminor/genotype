@@ -5,8 +5,6 @@
  * supporting all 31 NCBI genetic codes, multiple reading frames, and
  * sophisticated handling of start codons, stop codons, and ambiguous bases.
  *
- * @version v0.1.0
- * @since v0.1.0
  */
 
 import { type } from "arktype";

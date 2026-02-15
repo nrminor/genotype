@@ -5,8 +5,6 @@
  * random sampling, systematic sampling, and reservoir sampling for
  * streaming data with unknown size.
  *
- * @version v0.1.0
- * @since v0.1.0
  */
 
 import { type } from "arktype";

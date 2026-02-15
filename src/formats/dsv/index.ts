@@ -1,5 +1,5 @@
 /**
- * @module formats/dsv
+
  * @description DSV (Delimiter-Separated Values) format support
  *
  * This module provides comprehensive support for parsing and writing CSV, TSV,
@@ -41,9 +41,7 @@
  * ```
  */
 
-// =============================================================================
-// RE-EXPORTS - TYPES
-// =============================================================================
+
 
 export type {
   DelimiterType,
@@ -56,17 +54,13 @@ export type {
 
 export { CSVParseState } from "./types";
 
-// =============================================================================
-// RE-EXPORTS - MAIN CLASSES
-// =============================================================================
+
 
 export { CSVParser, DSVParser, TSVParser } from "./parser";
 
 export { CSVWriter, DSVWriter, TSVWriter } from "./writer";
 
-// =============================================================================
-// RE-EXPORTS - DETECTION
-// =============================================================================
+
 
 export {
   detectDelimiter,
@@ -77,9 +71,7 @@ export {
   sniff,
 } from "./detection";
 
-// =============================================================================
-// RE-EXPORTS - VALIDATION
-// =============================================================================
+
 
 export {
   DSVParserOptionsSchema,
@@ -89,9 +81,7 @@ export {
   validateFieldSize,
 } from "./validation";
 
-// =============================================================================
-// RE-EXPORTS - UTILITIES
-// =============================================================================
+
 
 export {
   calculateBaseCount,
@@ -105,15 +95,11 @@ export {
   summarizeDSV,
 } from "./utils";
 
-// =============================================================================
-// RE-EXPORTS - EXCEL PROTECTION
-// =============================================================================
+
 
 export { ExcelProtector, protectFromExcel } from "./excel-protection";
 
-// =============================================================================
-// RE-EXPORTS - STATE MACHINE (Low-level CSV parsing)
-// =============================================================================
+
 
 export {
   CSVFieldParser,
@@ -122,9 +108,7 @@ export {
   parseCSVRow,
 } from "./state-machine";
 
-// =============================================================================
-// RE-EXPORTS - CONSTANTS
-// =============================================================================
+
 
 export {
   COMMENT_PREFIXES,

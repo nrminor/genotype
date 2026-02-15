@@ -1136,10 +1136,6 @@ export const SAMAlignmentSchema = type({
   return alignment;
 });
 
-// =============================================================================
-// FILE I/O TYPES - Cross-platform file operations with compile-time safety
-// =============================================================================
-
 /**
  * Branded type for validated file paths with compile-time safety
  * Ensures file paths have been validated before use in I/O operations
@@ -1191,8 +1187,6 @@ export interface FileReaderOptions {
  *
  * Provides control over compression behavior for file writing operations.
  * Mirrors FileReaderOptions for symmetric read/write API design.
- *
- * @since v0.1.0
  */
 export interface WriteOptions {
   /** Automatically compress based on file extension (default: true) */
@@ -1445,8 +1439,6 @@ export const FileReaderOptionsSchema = type({
  *
  * Validates compression options for file writing operations.
  * Ensures compression level is within valid range (1-9).
- *
- * @since v0.1.0
  */
 export const WriteOptionsSchema = type({
   "autoCompress?": "boolean",
@@ -1526,10 +1518,6 @@ export const FileMetadataSchema = type({
 
   return metadata;
 });
-
-// =============================================================================
-// BAI INDEX TYPES - BAM Index format support with comprehensive validation
-// =============================================================================
 
 /**
  * Virtual file offset used in BAI indexes for BGZF-compressed BAM files
@@ -1719,10 +1707,6 @@ export interface BinningUtils {
   readonly isValidBin: (binNumber: number) => boolean;
 }
 
-// =============================================================================
-// COMPRESSION TYPES - Validation schemas for compression operations
-// =============================================================================
-
 /**
  * Compression format validation schema
  */
@@ -1809,10 +1793,6 @@ export const DecompressorOptionsSchema = type({
 
   return options;
 });
-
-// =============================================================================
-// BAI INDEX VALIDATION SCHEMAS - Runtime validation for BAI types
-// =============================================================================
 
 /**
  * Virtual offset validation schema with BGZF constraints
@@ -2252,10 +2232,6 @@ export const BAIReaderOptionsSchema = type({
   return options;
 });
 
-// =============================================================================
-// ALPHABET VALIDATION EXPORTS
-// =============================================================================
-
 export type {
   DNASequence,
   IUPACSequence,
@@ -2273,10 +2249,6 @@ export {
   primer,
   rna,
 } from "./operations/core/alphabet";
-
-// =============================================================================
-// PRIVATE HELPER FUNCTIONS
-// =============================================================================
 
 function validateCigarSequenceConsistency(cigar: string, sequence: string): void {
   if (cigar === "*" || sequence === "*") {

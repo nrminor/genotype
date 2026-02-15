@@ -4,8 +4,6 @@
  * This module provides memory management strategies and common types for
  * streaming genomic data processing. The fluent API is provided by SeqOps class.
  *
- * @version v0.1.0
- * @since v0.1.0
  */
 
 /**

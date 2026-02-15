@@ -9,8 +9,7 @@
  * - Robust parsing with '@' and '+' contamination in quality data
  * - Paired-end FASTQ parsing with optional read synchronization
  *
- * @module fastq
- * @since v0.1.0
+
  *
  * @example Basic FASTQ parsing
  * ```typescript
@@ -69,9 +68,7 @@
  * ```
  */
 
-// ============================================================================
-// EXPORTS
-// ============================================================================
+
 
 /**
  * Error thrown when paired reads are out of sync

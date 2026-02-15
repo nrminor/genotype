@@ -19,10 +19,6 @@ import type { FileMetadata, FilePath, FileReaderOptions } from "../types";
 import { FilePathSchema, FileReaderOptionsSchema } from "../types";
 import { getPlatform } from "./runtime";
 
-// =============================================================================
-// CONSTANTS
-// =============================================================================
-
 const DEFAULT_OPTIONS: Required<FileReaderOptions> = {
   bufferSize: 65536,
   encoding: "utf8",
@@ -37,10 +33,6 @@ const DEFAULT_OPTIONS: Required<FileReaderOptions> = {
 
 /** Merged layer providing both platform and compression services */
 const FullLayer = Layer.merge(getPlatform(), MultiFormatCompressionService);
-
-// =============================================================================
-// INTERNAL HELPERS
-// =============================================================================
 
 /** Validate file path using ArkType */
 function validatePath(path: string): FilePath {
@@ -98,10 +90,6 @@ async function runWithPlatform<A>(
     throw FileError.fromSystemError(operation, path, error);
   }
 }
-
-// =============================================================================
-// PUBLIC API
-// =============================================================================
 
 /**
  * Check if a file exists and is accessible
@@ -341,10 +329,6 @@ export async function createStream(
     throw FileError.fromSystemError("read", validatedPath, error);
   }
 }
-
-// =============================================================================
-// NAMESPACE EXPORT
-// =============================================================================
 
 /** Backward compatibility namespace export */
 export const FileReader = {

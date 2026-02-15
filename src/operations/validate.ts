@@ -4,8 +4,6 @@
  * This processor validates sequences against various criteria and
  * can reject, fix, or warn about invalid sequences.
  *
- * @version v0.1.0
- * @since v0.1.0
  */
 
 import type { AbstractSequence } from "../types";
@@ -21,10 +19,6 @@ import type { Processor, ValidateOptions } from "./types";
 
 // Re-export core validation primitives for convenient access
 export { expandAmbiguous, SequenceType, ValidationMode } from "./core/sequence-validation";
-
-// =============================================================================
-// SEQUENCE VALIDATOR CLASS (moved from core/validation.ts)
-// =============================================================================
 
 /**
  * Sequence validator with mode and type configuration

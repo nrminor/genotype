@@ -7,8 +7,6 @@
  *
  * Zstd offers superior compression ratios and speed compared to gzip,
  * making it increasingly popular for large-scale genomic data storage.
- *
- * @module compression/zstd
  */
 
 import { Zstd } from "@hpcc-js/wasm-zstd";

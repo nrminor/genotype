@@ -15,16 +15,8 @@ import {
 import type { WriteOptions } from "../types";
 import { getPlatform } from "./runtime";
 
-// =============================================================================
-// CONSTANTS
-// =============================================================================
-
 /** Merged layer providing both platform and compression services */
 const FullLayer = Layer.merge(getPlatform(), MultiFormatCompressionService);
-
-// =============================================================================
-// TYPES
-// =============================================================================
 
 /**
  * Handle for writing to a file multiple times within a scope
@@ -35,10 +27,6 @@ export interface FileWriteHandle {
   /** Write binary data to the file */
   writeBytes(content: Uint8Array): Promise<void>;
 }
-
-// =============================================================================
-// INTERNAL HELPERS
-// =============================================================================
 
 /**
  * Effect that compresses data if needed based on options and file extension
@@ -72,10 +60,6 @@ function compressEffect(
     return yield* compressionService.compress(data, format, options.compressionLevel ?? 6);
   });
 }
-
-// =============================================================================
-// PUBLIC API
-// =============================================================================
 
 /**
  * Write string to file (overwrites if exists, creates if not)

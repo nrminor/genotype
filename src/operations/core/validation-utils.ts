@@ -7,8 +7,6 @@
  * Following Tiger Style and zero-dependency philosophy, this provides a centralized
  * validation pattern that can be used by all operations processors.
  *
- * @version v0.1.0
- * @since v0.1.0
  */
 
 import type { type } from "arktype";

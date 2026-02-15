@@ -4,8 +4,6 @@
  * Provides utility functions for splitting sequence files and a processor
  * class for integration with the SeqOps pipeline system.
  *
- * @version v0.1.0
- * @since v0.1.0
  */
 
 import { type } from "arktype";

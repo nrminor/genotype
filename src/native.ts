@@ -157,10 +157,6 @@ export function getCurrentPlatformTarget(): string {
   return getPlatformTarget();
 }
 
-// =============================================================================
-// PRIVATE HELPER FUNCTIONS
-// =============================================================================
-
 function getPlatformTarget(): string {
   const platform = os.platform();
   const arch = os.arch();

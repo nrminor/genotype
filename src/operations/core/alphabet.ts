@@ -5,9 +5,6 @@
  * template literal types and branded types. Enables beautiful syntax like
  * `dna`ATCG`` with runtime validation and string compatibility.
  *
- * @module alphabet
- * @since v0.1.0
- *
  * @example
  * ```typescript
  * const sequence = dna`ATCGATCG`;           // ✅ Valid DNA
@@ -21,10 +18,6 @@
  */
 
 import { IUPAC_DNA, IUPAC_RNA } from "./sequence-validation";
-
-// =============================================================================
-// CHARACTER-LEVEL ALPHABET DEFINITIONS
-// =============================================================================
 
 /**
  * Standard DNA nucleotides (case-insensitive)
@@ -72,10 +65,6 @@ type IUPACDNAChar = StandardDNAChar | IUPACChar;
  * Complete IUPAC RNA alphabet (standard + ambiguity codes)
  */
 type IUPACRNAChar = StandardRNAChar | IUPACChar;
-
-// =============================================================================
-// TEMPLATE LITERAL TYPE VALIDATION
-// =============================================================================
 
 /**
  * Recursive template literal validation for standard DNA sequences
@@ -125,10 +114,6 @@ type ValidPrimerLength<T extends string> = T["length"] extends 0 | 1 | 2 | 3 | 4
     ? never // Too long (>50bp)
     : T;
 
-// =============================================================================
-// BRANDED TYPES FOR SEQUENCE VALIDATION
-// =============================================================================
-
 /**
  * Branded type for runtime validated standard DNA sequences
  */
@@ -161,10 +146,6 @@ export type PrimerSequence<T extends string = string> = T & {
   readonly __minLength: 10;
   readonly __maxLength: 50;
 };
-
-// =============================================================================
-// TEMPLATE LITERAL TAG FUNCTIONS
-// =============================================================================
 
 /**
  * Template literal tag for standard DNA sequences
@@ -334,10 +315,6 @@ export function primer<T extends string>(
   return sequence as any; // TypeScript limitation - cast required for branded types
 }
 
-// =============================================================================
-// TYPE UTILITIES AND HELPERS
-// =============================================================================
-
 /**
  * Type guard to check if a string is a valid DNA sequence at runtime
  */
@@ -367,10 +344,6 @@ export function isPrimerSequence(seq: string): boolean {
 }
 
 // Note: Usage examples are demonstrated in the comprehensive test suite
-
-// =============================================================================
-// INTEGRATION UTILITIES
-// =============================================================================
 
 /**
  * Convert any validated sequence back to plain string

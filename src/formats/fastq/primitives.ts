@@ -12,9 +12,7 @@
  * and state machine parsers, as well as the FASTQ writer.
  */
 
-// ============================================================================
-// RECORD DETECTION PRIMITIVES
-// ============================================================================
+
 
 /**
  * Detect if input appears to be simple 4-line FASTQ format
@@ -81,9 +79,7 @@ export function findRecordBoundary(lines: string[], startIdx: number): number {
   return -1;
 }
 
-// ============================================================================
-// VALIDATION PRIMITIVES
-// ============================================================================
+
 
 /**
  * Check if a line is a valid FASTQ header
@@ -131,9 +127,7 @@ export function lengthsMatch(sequence: string, quality: string): boolean {
   return sequence.length === quality.length;
 }
 
-// ============================================================================
-// EXTRACTION PRIMITIVES
-// ============================================================================
+
 
 /**
  * Extract record ID from FASTQ header line
@@ -194,9 +188,7 @@ export function extractPlatformInfo(
   return undefined;
 }
 
-// ============================================================================
-// ACCUMULATION PRIMITIVES
-// ============================================================================
+
 
 /**
  * Efficiently accumulate multi-line sequence
@@ -236,9 +228,7 @@ export function accumulateQuality(lines: string[], targetLength: number): string
   return accumulated.length === targetLength ? accumulated : null;
 }
 
-// ============================================================================
-// CHUNKING PRIMITIVES (for writer)
-// ============================================================================
+
 
 /**
  * Split sequence into fixed-width chunks
@@ -276,9 +266,7 @@ export function chunkQuality(quality: string, width = 80): string[] {
   return chunkSequence(quality, width);
 }
 
-// ============================================================================
-// FORMATTING PRIMITIVES (for writer)
-// ============================================================================
+
 
 /**
  * Format a FASTQ header line from ID and optional description

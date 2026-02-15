@@ -5,8 +5,6 @@
  * sequence string, including reverse complement, case changes, and
  * RNA/DNA conversions.
  *
- * @version v0.1.0
- * @since v0.1.0
  */
 
 import type { AbstractSequence } from "../types";

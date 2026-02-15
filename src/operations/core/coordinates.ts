@@ -5,13 +5,7 @@
  * handling different coordinate systems (0-based vs 1-based),
  * and validating coordinate ranges.
  *
- * @module coordinates
- * @since v0.1.0
  */
-
-// =============================================================================
-// TYPES
-// =============================================================================
 
 /**
  * Parsed genomic coordinates with metadata
@@ -26,10 +20,6 @@ export interface ParsedCoordinates {
   /** Whether coordinates contained negative indices */
   hasNegativeIndices: boolean;
 }
-
-// =============================================================================
-// VALIDATION FUNCTIONS
-// =============================================================================
 
 /**
  * Validate that a region string has the required format
@@ -94,10 +84,6 @@ export function validateFinalCoordinates(
     throw new Error(`Invalid coordinates: start ${start} >= end ${end} in region ${region}`);
   }
 }
-
-// =============================================================================
-// PARSING FUNCTIONS
-// =============================================================================
 
 /**
  * Parse start position with negative index handling

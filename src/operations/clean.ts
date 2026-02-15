@@ -5,8 +5,6 @@
  * issues in sequence data, such as removing gaps, replacing
  * ambiguous bases, and trimming whitespace.
  *
- * @version v0.1.0
- * @since v0.1.0
  */
 
 import { type } from "arktype";

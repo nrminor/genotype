@@ -5,8 +5,6 @@
  * multiple file paths and AsyncIterables with comprehensive ID conflict
  * resolution and memory-efficient streaming processing.
  *
- * @version v0.1.0
- * @since v0.1.0
  */
 
 import { ConcatError, FileError } from "../errors";

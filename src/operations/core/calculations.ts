@@ -4,16 +4,10 @@
  * Provides functions for calculating GC content, AT content,
  * base composition, and simple translation operations.
  *
- * @module calculations
- * @since v0.1.0
  */
 
 import { getGeneticCode } from "./genetic-codes";
 import { calculateAverageQuality } from "./quality";
-
-// =============================================================================
-// EXPORTED FUNCTIONS
-// =============================================================================
 
 /**
  * Calculate GC content percentage of a sequence
@@ -307,10 +301,6 @@ export function findQualityTrimEnd(
 
   return start; // No good quality found
 }
-
-// =============================================================================
-// GROUPED EXPORT
-// =============================================================================
 
 /**
  * Calculate content percentage of specified bases in a sequence

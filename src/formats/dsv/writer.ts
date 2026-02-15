@@ -1,5 +1,5 @@
 /**
- * @module formats/dsv/writer
+
  * @description DSV (Delimiter-Separated Values) writer implementation
  *
  * Provides CSV/TSV writing with:
@@ -11,9 +11,7 @@
  * - Statistics computation
  */
 
-// =============================================================================
-// IMPORTS
-// =============================================================================
+
 
 import { type } from "arktype";
 import { ValidationError } from "../../errors";
@@ -26,9 +24,7 @@ import type { DSVRecord, DSVWriterOptions } from "./types";
 import { calculateBaseCount, calculateGC } from "./utils";
 import { DSVWriterOptionsSchema } from "./validation";
 
-// =============================================================================
-// CLASSES - MAIN WRITER
-// =============================================================================
+
 
 /**
  * DSVWriter - Core CSV/TSV writer implementation
@@ -222,17 +218,13 @@ export class DSVWriter {
   }
 }
 
-// =============================================================================
-// CONVENIENCE CLASSES
-// =============================================================================
+
 
 /**
  * CSV Parser - convenience wrapper with comma delimiter
  */
 
-// =============================================================================
-// CLASSES - CONVENIENCE WRITERS
-// =============================================================================
+
 
 /**
  * CSVWriter - Convenience class for CSV files

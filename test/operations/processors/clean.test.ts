@@ -6,6 +6,7 @@
 
 import { describe, expect, test } from "bun:test";
 import { CleanProcessor } from "../../../src/operations/clean";
+import { ValidationError } from "../../../src/errors";
 import type { CleanOptions } from "../../../src/operations/types";
 import type { AbstractSequence } from "../../../src/types";
 
@@ -77,9 +78,10 @@ describe("CleanProcessor", () => {
     test("replaces ambiguous bases with custom character", async () => {
       const result = await processOne("ATCNRYSWKM", {
         replaceAmbiguous: true,
-        replaceChar: "X",
+        replaceChar: "T",
       });
-      expect(result).toBe("ATCXXXXXXX");
+      // N and RYSWKM are all non-standard bases (not A, C, G, T, U) so all get replaced
+      expect(result).toBe("ATCTTTTTTT");
     });
 
     test("preserves standard bases", async () => {
@@ -169,10 +171,10 @@ describe("CleanProcessor", () => {
         trimWhitespace: true,
         removeGaps: true,
         replaceAmbiguous: true,
-        replaceChar: "X",
+        replaceChar: "A",
       });
-      // Should be: "  -NRYAT-  " -> "-NRYAT-" -> "NRYAT" -> "XXXAT"
-      expect(result).toBe("XXXAT");
+      // Should be: "  -NRYAT-  " -> "-NRYAT-" -> "NRYAT" -> "AAAAT" (NRY all replaced with A, AT preserved)
+      expect(result).toBe("AAAAT");
     });
   });
 
@@ -200,6 +202,75 @@ describe("CleanProcessor", () => {
         expect(result).not.toBe(input); // Different reference
         expect(result.sequence).toBe("ATCG");
       }
+    });
+  });
+
+  describe("validation", () => {
+    test("rejects replaceChar that is not a single character", async () => {
+      const input = createSequence("ATCN");
+      const source = async function* () {
+        yield input;
+      };
+
+      await expect(async () => {
+        for await (const _ of processor.process(source(), {
+          replaceAmbiguous: true,
+          replaceChar: "NN",
+        })) {
+          // Should throw before yielding
+        }
+      }).toThrow(ValidationError);
+    });
+
+    test("rejects replaceChar that is not a valid nucleotide when replaceAmbiguous is true", async () => {
+      const input = createSequence("ATCN");
+      const source = async function* () {
+        yield input;
+      };
+
+      await expect(async () => {
+        for await (const _ of processor.process(source(), {
+          replaceAmbiguous: true,
+          replaceChar: "X",
+        })) {
+          // Should throw before yielding
+        }
+      }).toThrow(ValidationError);
+    });
+
+    test("accepts valid nucleotide characters for replaceChar", async () => {
+      const validChars = ["A", "C", "G", "T", "U", "N", "a", "c", "g", "t", "u", "n"];
+
+      for (const char of validChars) {
+        const input = createSequence("ATCN");
+        const source = async function* () {
+          yield input;
+        };
+
+        // Should not throw
+        for await (const _ of processor.process(source(), {
+          replaceAmbiguous: true,
+          replaceChar: char,
+        })) {
+          // Success - no error thrown
+        }
+      }
+    });
+
+    test("rejects empty gapChars", async () => {
+      const input = createSequence("AT-CG");
+      const source = async function* () {
+        yield input;
+      };
+
+      await expect(async () => {
+        for await (const _ of processor.process(source(), {
+          removeGaps: true,
+          gapChars: "",
+        })) {
+          // Should throw before yielding
+        }
+      }).toThrow(ValidationError);
     });
   });
 });

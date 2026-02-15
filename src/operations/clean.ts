@@ -9,9 +9,48 @@
  * @since v0.1.0
  */
 
+import { type } from "arktype";
+import { ValidationError } from "../errors";
 import type { AbstractSequence } from "../types";
 import { removeGaps, replaceAmbiguousBases } from "./core/sequence-manipulation";
 import type { CleanOptions, Processor } from "./types";
+
+/**
+ * Valid nucleotide characters for replaceChar validation
+ */
+const VALID_REPLACE_CHARS = new Set(["A", "C", "G", "T", "U", "N"]);
+
+/**
+ * ArkType schema for CleanOptions validation
+ *
+ * Validates cleaning operation options with semantic constraints:
+ * - gapChars must be non-empty if provided
+ * - replaceChar must be exactly 1 character
+ * - replaceChar must be a valid nucleotide when replaceAmbiguous is true
+ */
+const CleanOptionsSchema = type({
+  "removeGaps?": "boolean",
+  "gapChars?": "string>=1",
+  "replaceAmbiguous?": "boolean",
+  "replaceChar?": "string==1",
+  "trimWhitespace?": "boolean",
+  "removeEmpty?": "boolean",
+}).narrow((options, ctx) => {
+  // Semantic validation: replaceChar must be a valid nucleotide when replaceAmbiguous is true
+  if (
+    options.replaceAmbiguous === true &&
+    options.replaceChar !== undefined &&
+    !VALID_REPLACE_CHARS.has(options.replaceChar.toUpperCase())
+  ) {
+    return ctx.reject({
+      expected: "a valid nucleotide (A, C, G, T, U, or N)",
+      actual: `'${options.replaceChar}'`,
+      path: ["replaceChar"],
+    });
+  }
+
+  return true;
+});
 
 /**
  * Processor for cleaning and sanitizing sequences
@@ -38,6 +77,12 @@ export class CleanProcessor implements Processor<CleanOptions> {
     source: AsyncIterable<AbstractSequence>,
     options: CleanOptions
   ): AsyncIterable<AbstractSequence> {
+    // Validate options using ArkType schema
+    const validationResult = CleanOptionsSchema(options);
+    if (validationResult instanceof type.errors) {
+      throw new ValidationError(`Invalid clean options: ${validationResult.summary}`);
+    }
+
     // NATIVE_CANDIDATE: Hot loop processing every sequence
     // Native batch processing would improve performance
     for await (const seq of source) {

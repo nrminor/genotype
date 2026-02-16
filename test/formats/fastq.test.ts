@@ -4,11 +4,10 @@
 
 import { describe, expect, test } from "bun:test";
 import { parseFastPath } from "../../src/formats/fastq/";
-import { FastqParser, type FastqSequence, FastqUtils, FastqWriter } from "../../src/index.ts";
+import { FastqParser, type FastqSequence, FastqUtils, FastqWriter } from "../../src/index";
 import {
   calculateQualityStats,
   detectEncoding,
-  getEncodingInfo,
   qualityToScores,
   scoresToQuality,
 } from "../../src/operations/core/quality";
@@ -17,13 +16,13 @@ describe("QualityScores", () => {
   test("should convert Phred+33 to numbers", () => {
     const quality = '!!!"#$%';
     const scores = qualityToScores(quality, "phred33");
-    expect(scores).toEqual([0, 0, 0, 1, 2, 3, 4]);
+    expect(scores as number[]).toEqual([0, 0, 0, 1, 2, 3, 4]);
   });
 
   test("should convert Phred+64 to numbers", () => {
     const quality = "@@@@ABCD";
     const scores = qualityToScores(quality, "phred64");
-    expect(scores).toEqual([0, 0, 0, 0, 1, 2, 3, 4]);
+    expect(scores as number[]).toEqual([0, 0, 0, 0, 1, 2, 3, 4]);
   });
 
   test("should convert numbers to Phred+33", () => {
@@ -105,8 +104,8 @@ ATCGATCG
       const sequences = parser.parseMultiLineString(contaminatedQuality);
 
       expect(sequences).toHaveLength(1);
-      expect(sequences[0].quality).toBe("@@@@IIII");
-      expect(sequences[0].sequence).toBe("ATCGATCG");
+      expect(sequences[0]!.quality).toBe("@@@@IIII");
+      expect(sequences[0]!.sequence).toBe("ATCGATCG");
     });
 
     test("should handle multi-line quality contaminated with + marker", async () => {
@@ -120,8 +119,8 @@ ATCGATCG
       const sequences = parser.parseMultiLineString(contaminatedPlus);
 
       expect(sequences).toHaveLength(1);
-      expect(sequences[0].quality).toBe("+++IIIII");
-      expect(sequences[0].sequence).toBe("ATCGATCG");
+      expect(sequences[0]!.quality).toBe("+++IIIII");
+      expect(sequences[0]!.sequence).toBe("ATCGATCG");
     });
   });
 
@@ -144,8 +143,8 @@ ATCGATCG
       const sequences = await Array.fromAsync(parser.parseString(overlapZoneFastq));
 
       expect(sequences).toHaveLength(1);
-      expect(sequences[0].qualityEncoding).toBe("phred64"); // Should detect as Phred+64
-      expect(sequences[0].quality).toBe("@ABCDEFG");
+      expect(sequences[0]!.qualityEncoding).toBe("phred64"); // Should detect as Phred+64
+      expect(sequences[0]!.quality).toBe("@ABCDEFG");
     });
 
     test("should detect modern high-quality Illumina pattern", async () => {
@@ -159,8 +158,8 @@ IIIIIIII`; // ASCII 73 = Q40, modern high quality
       const sequences = await Array.fromAsync(parser.parseString(modernHighQuality));
 
       expect(sequences).toHaveLength(1);
-      expect(sequences[0].qualityEncoding).toBe("phred33");
-      expect(sequences[0].quality).toBe("IIIIIIII");
+      expect(sequences[0]!.qualityEncoding).toBe("phred33");
+      expect(sequences[0]!.quality).toBe("IIIIIIII");
     });
 
     test("should detect legacy Solexa quality pattern", async () => {
@@ -174,8 +173,8 @@ ATCGATCG
       const sequences = await Array.fromAsync(parser.parseString(solexaPattern));
 
       expect(sequences).toHaveLength(1);
-      expect(sequences[0].qualityEncoding).toBe("solexa");
-      expect(sequences[0].quality).toBe(";;;;;;;;");
+      expect(sequences[0]!.qualityEncoding).toBe("solexa");
+      expect(sequences[0]!.quality).toBe(";;;;;;;;");
     });
 
     // TODO: Implement confidence warning test - need to determine exact trigger conditions
@@ -204,8 +203,8 @@ ATCGATCGATCGATCGATCGATCGATCG
       const sequences = await Array.fromAsync(parser.parseString(novaSeqQuality));
 
       expect(sequences).toHaveLength(1);
-      expect(sequences[0].qualityEncoding).toBe("solexa"); // Algorithm detects as Solexa based on pattern
-      expect(sequences[0].quality).toBe("????????????????????????????");
+      expect(sequences[0]!.qualityEncoding).toBe("solexa"); // Algorithm detects as Solexa based on pattern
+      expect(sequences[0]!.quality).toBe("????????????????????????????");
     });
 
     test("should handle PacBio CCS high-accuracy reads", async () => {
@@ -219,8 +218,8 @@ ATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCG
       const sequences = await Array.fromAsync(parser.parseString(pacBioQuality));
 
       expect(sequences).toHaveLength(1);
-      expect(sequences[0].qualityEncoding).toBe("phred64"); // Algorithm detects as Phred+64 due to @ characters
-      expect(sequences[0].sequence.length).toBe(64); // Long read characteristic
+      expect(sequences[0]!.qualityEncoding).toBe("phred64"); // Algorithm detects as Phred+64 due to @ characters
+      expect(sequences[0]!.sequence.length).toBe(64); // Long read characteristic
     });
 
     test("should handle Nanopore R10.4.1 quality patterns", async () => {
@@ -234,9 +233,9 @@ ATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCG
       const sequences = await Array.fromAsync(parser.parseString(nanoporeQuality));
 
       expect(sequences).toHaveLength(1);
-      expect(sequences[0].qualityEncoding).toBe("phred33");
-      expect(sequences[0].sequence.length).toBe(76); // Long read characteristic
-      expect(sequences[0].quality.length).toBe(76); // Quality matches sequence length
+      expect(sequences[0]!.qualityEncoding).toBe("phred33");
+      expect(sequences[0]!.sequence.length).toBe(76); // Long read characteristic
+      expect(sequences[0]!.quality.length).toBe(76); // Quality matches sequence length
     });
   });
 
@@ -261,7 +260,7 @@ ATCGATCG
       const parser = new FastqParser();
 
       await expect(async () => {
-        for await (const seq of parser.parseString(truncatedFastq)) {
+        for await (const _seq of parser.parseString(truncatedFastq)) {
           // Should fail on truncated record
         }
       }).toThrow("Incomplete FASTQ record");
@@ -277,7 +276,7 @@ III`; // Quality too short (3 vs 12 bases)
       const parser = new FastqParser();
 
       await expect(async () => {
-        for await (const seq of parser.parseString(mismatchedLengths)) {
+        for await (const _seq of parser.parseString(mismatchedLengths)) {
           // Should fail on length mismatch
         }
       }).toThrow("Incomplete FASTQ record: started at line 1");
@@ -290,8 +289,10 @@ ATCGATCG
 +
 III\x00III\x01`; // Non-printable characters in quality
 
+      // eslint-disable-next-line no-console
       const originalWarn = console.warn;
       const warnings: string[] = [];
+      // eslint-disable-next-line no-console
       console.warn = (msg: string) => {
         warnings.push(msg);
       };
@@ -302,6 +303,7 @@ III\x00III\x01`; // Non-printable characters in quality
       expect(sequences).toHaveLength(1); // Parser handles gracefully with warnings
       expect(warnings.some((w) => w.includes("Could not detect quality encoding"))).toBe(true);
 
+      // eslint-disable-next-line no-console
       console.warn = originalWarn;
     });
 
@@ -315,7 +317,7 @@ IIIIIIII`; // Missing @ prefix
       const parser = new FastqParser();
 
       await expect(async () => {
-        for await (const seq of parser.parseString(malformedHeader)) {
+        for await (const _seq of parser.parseString(malformedHeader)) {
           // Should fail on malformed header
         }
       }).toThrow("Expected FASTQ header starting with @, got: missing_at_symbol");
@@ -335,7 +337,7 @@ IIII`; // Binary corruption in sequence
       const parser = new FastqParser();
 
       await expect(async () => {
-        for await (const seq of parser.parseString(corruptedData)) {
+        for await (const _seq of parser.parseString(corruptedData)) {
           // Should handle or fail gracefully on corruption
         }
       }).toThrow();
@@ -354,8 +356,8 @@ IIIIIIII`;
       const sequences = await Array.fromAsync(parser.parseString(casavaHeader));
 
       expect(sequences).toHaveLength(1);
-      expect(sequences[0].id).toBe("EAS139:136:FC706VJ:2:2104:15343:197393");
-      expect(sequences[0].description).toBe("1:Y:18:ATCACG");
+      expect(sequences[0]!.id).toBe("EAS139:136:FC706VJ:2:2104:15343:197393");
+      expect(sequences[0]!.description).toBe("1:Y:18:ATCACG");
     });
 
     test("should handle legacy paired-end indicators (/1, /2)", async () => {
@@ -373,10 +375,10 @@ IIIIIIII`;
       const sequences = await Array.fromAsync(parser.parseString(legacyPairedEnd));
 
       expect(sequences).toHaveLength(2);
-      expect(sequences[0].id).toBe("read_name/1");
-      expect(sequences[1].id).toBe("read_name/2");
-      expect(sequences[0].description).toBe("paired-end read 1");
-      expect(sequences[1].description).toBe("paired-end read 2");
+      expect(sequences[0]!.id).toBe("read_name/1");
+      expect(sequences[1]!.id).toBe("read_name/2");
+      expect(sequences[0]!.description).toBe("paired-end read 1");
+      expect(sequences[1]!.description).toBe("paired-end read 2");
     });
 
     test("should handle SRA submission standard format", async () => {
@@ -390,9 +392,9 @@ IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII`;
       const sequences = await Array.fromAsync(parser.parseString(sraFormat));
 
       expect(sequences).toHaveLength(1);
-      expect(sequences[0].id).toBe("SRR123456.1");
-      expect(sequences[0].description).toContain("HWI-ST766:125:D0TEDACXX");
-      expect(sequences[0].sequence.length).toBe(76); // SRA standard read length
+      expect(sequences[0]!.id).toBe("SRR123456.1");
+      expect(sequences[0]!.description).toContain("HWI-ST766:125:D0TEDACXX");
+      expect(sequences[0]!.sequence.length).toBe(76); // SRA standard read length
     });
 
     test("should handle empty description headers", async () => {
@@ -406,8 +408,8 @@ IIIIIIII`;
       const sequences = await Array.fromAsync(parser.parseString(minimalSeparator));
 
       expect(sequences).toHaveLength(1);
-      expect(sequences[0].id).toBe("minimal_separator_test");
-      expect(sequences[0].description).toBeUndefined();
+      expect(sequences[0]!.id).toBe("minimal_separator_test");
+      expect(sequences[0]!.description).toBeUndefined();
     });
 
     test("should handle long sequence IDs with warnings", async () => {
@@ -417,8 +419,10 @@ ATCGATCG
 +
 IIIIIIII`;
 
+      // eslint-disable-next-line no-console
       const originalWarn = console.warn;
       const warnings: string[] = [];
+      // eslint-disable-next-line no-console
       console.warn = (msg: string) => {
         warnings.push(msg);
       };
@@ -431,6 +435,7 @@ IIIIIIII`;
         true
       );
 
+      // eslint-disable-next-line no-console
       console.warn = originalWarn;
     });
   });
@@ -439,91 +444,91 @@ IIIIIIII`;
 
   test("should parse simple FASTQ record", async () => {
     const fastq = "@read1\nATCG\n+\nIIII";
-    const sequences = [];
+    const sequences: FastqSequence[] = [];
 
     for await (const seq of parser.parseString(fastq)) {
       sequences.push(seq);
     }
 
     expect(sequences).toHaveLength(1);
-    expect(sequences[0]).toEqual({
+    expect(sequences[0]).toMatchObject({
       format: "fastq",
       id: "read1",
-      description: undefined,
       sequence: "ATCG",
       quality: "IIII",
       qualityEncoding: "phred33",
       length: 4,
       lineNumber: 2,
     });
+    expect(sequences[0]!.description).toBeUndefined();
   });
 
   test("should parse FASTQ with description", async () => {
     const fastq = "@read1 Sample read description\nATCG\n+\nIIII";
-    const sequences = [];
+    const sequences: FastqSequence[] = [];
 
     for await (const seq of parser.parseString(fastq)) {
       sequences.push(seq);
     }
 
-    expect(sequences[0].id).toBe("read1");
-    expect(sequences[0].description).toBe("Sample read description");
+    expect(sequences[0]!.id).toBe("read1");
+    expect(sequences[0]!.description).toBe("Sample read description");
   });
 
   test("should parse multiple FASTQ records", async () => {
     const fastq = "@read1\nATCG\n+\nIIII\n@read2\nGGGG\n+\n!!!!";
-    const sequences = [];
+    const sequences: FastqSequence[] = [];
 
     for await (const seq of parser.parseString(fastq)) {
       sequences.push(seq);
     }
 
     expect(sequences).toHaveLength(2);
-    expect(sequences[0].id).toBe("read1");
-    expect(sequences[1].id).toBe("read2");
+    expect(sequences[0]!.id).toBe("read1");
+    expect(sequences[1]!.id).toBe("read2");
   });
 
   test("should parse quality scores when requested", async () => {
     const parseQualityParser = new FastqParser({ parseQualityScores: true });
     const fastq = "@read1\nATCG\n+\n!+5?";
-    const sequences = [];
+    const sequences: FastqSequence[] = [];
 
     for await (const seq of parseQualityParser.parseString(fastq)) {
       sequences.push(seq);
     }
 
-    expect(sequences[0].qualityScores).toEqual([0, 10, 20, 30]);
+    expect(sequences[0]!.qualityScores as number[]).toEqual([0, 10, 20, 30]);
   });
 
   test("should detect quality encoding automatically", async () => {
     // Phred+64 quality scores (need higher ASCII values)
     const fastq = "@read1\nATCG\n+\n`abc";
-    const sequences = [];
+    const sequences: FastqSequence[] = [];
 
     for await (const seq of parser.parseString(fastq)) {
       sequences.push(seq);
     }
 
-    expect(sequences[0].qualityEncoding).toBe("phred64");
+    expect(sequences[0]!.qualityEncoding).toBe("phred64");
   });
 
   test("should use specified quality encoding", async () => {
     const phred64Parser = new FastqParser({ qualityEncoding: "phred64" });
     const fastq = "@read1\nATCG\n+\n@ABC";
-    const sequences = [];
+    const sequences: FastqSequence[] = [];
 
     for await (const seq of phred64Parser.parseString(fastq)) {
       sequences.push(seq);
     }
 
-    expect(sequences[0].qualityEncoding).toBe("phred64");
+    expect(sequences[0]!.qualityEncoding).toBe("phred64");
   });
 
   test("should validate sequence and quality length match", async () => {
     const fastq = "@read1\nATCG\n+\nII"; // Quality too short
 
     await expect(async () => {
-      for await (const seq of parser.parseString(fastq)) {
+      for await (const _seq of parser.parseString(fastq)) {
         // Should not reach here
       }
     }).toThrow("Incomplete FASTQ record: started at line 1");
@@ -533,7 +538,7 @@ IIIIIIII`;
     const fastq = "read1\nATCG\n+\nIIII"; // Missing @
 
     await expect(async () => {
-      for await (const seq of parser.parseString(fastq)) {
+      for await (const _seq of parser.parseString(fastq)) {
         // Should not reach here
       }
     }).toThrow("Expected FASTQ header starting with @, got: read1");
@@ -543,7 +548,7 @@ IIIIIIII`;
     const fastq = "@read1\nATCG\n-\nIIII"; // Wrong separator
 
     await expect(async () => {
-      for await (const seq of parser.parseString(fastq)) {
+      for await (const _seq of parser.parseString(fastq)) {
         // Should not reach here
       }
     }).toThrow("Incomplete FASTQ record: started at line 1");
@@ -553,7 +558,7 @@ IIIIIIII`;
     const fastq = "@read1\nATCG\n+"; // Missing quality line
 
     await expect(async () => {
-      for await (const seq of parser.parseString(fastq)) {
+      for await (const _seq of parser.parseString(fastq)) {
         // Should not reach here
       }
     }).toThrow("Incomplete FASTQ record: started at line 1");
@@ -562,13 +567,13 @@ IIIIIIII`;
   test("should skip validation when requested", async () => {
     const skipValidationParser = new FastqParser({ skipValidation: true });
     const fastq = "@read1\nATCGXYZ\n+\nIIIIIII";
-    const sequences = [];
+    const sequences: FastqSequence[] = [];
 
     for await (const seq of skipValidationParser.parseString(fastq)) {
       sequences.push(seq);
     }
 
-    expect(sequences[0].sequence).toBe("ATCGXYZ");
+    expect(sequences[0]!.sequence).toBe("ATCGXYZ");
   });
 });
 
@@ -582,18 +587,18 @@ describe("parseFastPath", () => {
       }
     }
 
-    const sequences = [];
+    const sequences: FastqSequence[] = [];
     for await (const seq of parseFastPath(lineGenerator())) {
       sequences.push(seq);
     }
 
     expect(sequences).toHaveLength(1);
-    expect(sequences[0].id).toBe("read1");
-    expect(sequences[0].description).toBe("description");
-    expect(sequences[0].sequence).toBe("ATCGATCG");
-    expect(sequences[0].quality).toBe("IIIIIIII");
-    expect(sequences[0].qualityEncoding).toBe("phred33");
-    expect(sequences[0].length).toBe(8);
+    expect(sequences[0]!.id).toBe("read1");
+    expect(sequences[0]!.description).toBe("description");
+    expect(sequences[0]!.sequence).toBe("ATCGATCG");
+    expect(sequences[0]!.quality).toBe("IIIIIIII");
+    expect(sequences[0]!.qualityEncoding).toBe("phred33");
+    expect(sequences[0]!.length).toBe(8);
   });
 
   test("should handle multiple records", async () => {
@@ -605,16 +610,16 @@ describe("parseFastPath", () => {
       }
     }
 
-    const sequences = [];
+    const sequences: FastqSequence[] = [];
     for await (const seq of parseFastPath(lineGenerator())) {
       sequences.push(seq);
     }
 
     expect(sequences).toHaveLength(2);
-    expect(sequences[0].id).toBe("read1");
-    expect(sequences[0].sequence).toBe("ATCG");
-    expect(sequences[1].id).toBe("read2");
-    expect(sequences[1].sequence).toBe("GCTA");
+    expect(sequences[0]!.id).toBe("read1");
+    expect(sequences[0]!.sequence).toBe("ATCG");
+    expect(sequences[1]!.id).toBe("read2");
+    expect(sequences[1]!.sequence).toBe("GCTA");
   });
 
   test("should throw on incomplete record", async () => {
@@ -632,7 +637,7 @@ describe("parseFastPath", () => {
     }
 
     await expect(async () => {
-      const sequences = [];
+      const sequences: FastqSequence[] = [];
       for await (const seq of parseFastPath(lineGenerator())) {
         sequences.push(seq);
       }
@@ -654,7 +659,7 @@ describe("parseFastPath", () => {
     }
 
     await expect(async () => {
-      const sequences = [];
+      const sequences: FastqSequence[] = [];
       for await (const seq of parseFastPath(lineGenerator())) {
         sequences.push(seq);
       }

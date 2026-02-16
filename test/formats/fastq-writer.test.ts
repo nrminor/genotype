@@ -322,11 +322,11 @@ describe("FASTQ Writer Enhancements", () => {
     });
 
     test("warns about very short line lengths", () => {
-      const originalWarn = console.warn;
+      const { spyOn } = require("bun:test");
       let warnMessage = "";
-      console.warn = (msg: string) => {
+      const warnSpy = spyOn(console, "warn").mockImplementation((msg: string) => {
         warnMessage = msg;
-      };
+      });
 
       new FastqWriter({
         lineLength: 20,
@@ -335,7 +335,7 @@ describe("FASTQ Writer Enhancements", () => {
 
       expect(warnMessage).toContain("lineLength=20 is very short");
 
-      console.warn = originalWarn;
+      warnSpy.mockRestore();
     });
 
     test("accepts valid option combinations", () => {

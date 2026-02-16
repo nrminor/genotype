@@ -2,32 +2,30 @@
  * Test suite for FASTQ Writer debug logging and constant usage
  */
 
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { PARSING_DEFAULTS } from "../../src/formats/fastq/constants";
 import { FastqWriter } from "../../src/formats/fastq/writer";
 import type { FastqSequence } from "../../src/types";
 
 describe("FASTQ Writer Debug and Constants", () => {
-  let originalConsoleLog: typeof console.log;
   let consoleOutput: string[] = [];
+  let consoleSpy: ReturnType<typeof spyOn>;
 
   beforeEach(() => {
-    // Mock console.log to capture debug output
-    originalConsoleLog = console.log;
+    // Mock console.log to capture debug output using Bun's spyOn
     consoleOutput = [];
-    // Mock console.log with proper typing - matches console.log signature
-    console.log = (...args: Parameters<typeof console.log>) => {
+    consoleSpy = spyOn(console, "log").mockImplementation((...args: unknown[]) => {
       // Convert objects to JSON strings for easier testing
       const message = args
         .map((a) => (typeof a === "object" ? JSON.stringify(a) : String(a)))
         .join(" ");
       consoleOutput.push(message);
-    };
+    });
   });
 
   afterEach(() => {
     // Restore original console.log
-    console.log = originalConsoleLog;
+    consoleSpy.mockRestore();
   });
 
   describe("Debug Logging", () => {

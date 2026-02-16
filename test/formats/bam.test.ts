@@ -28,7 +28,6 @@ import {
   readUInt16LE,
 } from "../../src/formats/bam/binary";
 
-
 describe.skip("BinaryParser", () => {
   describe("readInt32LE", () => {
     it("should read 32-bit little-endian integers correctly", () => {

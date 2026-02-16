@@ -8,8 +8,17 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { ValidationError } from "../../src/errors";
 import { LocateProcessor } from "../../src/operations/locate";
-import type { LocateOptions, MotifLocation } from "../../src/operations/types";
-import type { AbstractSequence } from "../../src/types";
+import type { LocateOptions } from "../../src/operations/types";
+import type { AbstractSequence, MotifLocation } from "../../src/types";
+
+/**
+ * Helper to convert an array to an async iterable for compatibility with LocateProcessor
+ */
+async function* toAsyncIterable<T>(arr: T[]): AsyncIterable<T> {
+  for (const item of arr) {
+    yield item;
+  }
+}
 
 describe("LocateProcessor", () => {
   let processor: LocateProcessor;
@@ -51,21 +60,21 @@ describe("LocateProcessor", () => {
         pattern: "ATCG",
       };
 
-      const results = [];
-      for await (const location of processor.locate(testSequences, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(testSequences), options)) {
         results.push(location);
       }
 
       expect(results).toHaveLength(4); // ATCG appears 4 times in seq1
-      expect(results[0].sequenceId).toBe("seq1");
-      expect(results[0].start).toBe(0);
-      expect(results[0].end).toBe(4);
-      expect(results[0].length).toBe(4);
-      expect(results[0].strand).toBe("+");
-      expect(results[0].matchedSequence).toBe("ATCG");
-      expect(results[0].mismatches).toBe(0);
-      expect(results[0].score).toBe(1.0);
-      expect(results[0].pattern).toBe("ATCG");
+      expect(results[0]!.sequenceId).toBe("seq1");
+      expect(results[0]!.start).toBe(0);
+      expect(results[0]!.end).toBe(4);
+      expect(results[0]!.length).toBe(4);
+      expect(results[0]!.strand).toBe("+");
+      expect(results[0]!.matchedSequence).toBe("ATCG");
+      expect(results[0]!.mismatches).toBe(0);
+      expect(results[0]!.score).toBe(1.0);
+      expect(results[0]!.pattern).toBe("ATCG");
     });
 
     test("finds multiple occurrences in same sequence", async () => {
@@ -73,16 +82,16 @@ describe("LocateProcessor", () => {
         pattern: "GCC",
       };
 
-      const results = [];
-      for await (const location of processor.locate(testSequences, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(testSequences), options)) {
         results.push(location);
       }
 
       // GCC appears 2 times in seq2
       const seq2Results = results.filter((r) => r.sequenceId === "seq2");
       expect(seq2Results).toHaveLength(2);
-      expect(seq2Results[0].start).toBe(1);
-      expect(seq2Results[1].start).toBe(9);
+      expect(seq2Results[0]!.start).toBe(1);
+      expect(seq2Results[1]!.start).toBe(9);
     });
 
     test("returns empty results for pattern not found", async () => {
@@ -90,8 +99,8 @@ describe("LocateProcessor", () => {
         pattern: "AAAAA", // Pattern not in test sequences
       };
 
-      const results = [];
-      for await (const location of processor.locate(testSequences, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(testSequences), options)) {
         results.push(location);
       }
 
@@ -103,15 +112,15 @@ describe("LocateProcessor", () => {
         pattern: "AATT",
       };
 
-      const results = [];
-      for await (const location of processor.locate(testSequences, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(testSequences), options)) {
         results.push(location);
       }
 
       expect(results).toHaveLength(2); // AATT appears in seq2 and seq3
-      expect(results[0].context).toBeDefined();
-      expect(results[0].context?.upstream).toBeDefined();
-      expect(results[0].context?.downstream).toBeDefined();
+      expect(results[0]!.context).toBeDefined();
+      expect(results[0]!.context?.upstream).toBeDefined();
+      expect(results[0]!.context?.downstream).toBeDefined();
     });
   });
 
@@ -121,15 +130,15 @@ describe("LocateProcessor", () => {
         pattern: /GG[CT]{2}/,
       };
 
-      const results = [];
-      for await (const location of processor.locate(testSequences, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(testSequences), options)) {
         results.push(location);
       }
 
       expect(results.length).toBeGreaterThan(0);
-      expect(results[0].sequenceId).toBe("seq2");
-      expect(results[0].matchedSequence).toMatch(/GG[CT]{2}/);
-      expect(results[0].strand).toBe("+");
+      expect(results[0]!.sequenceId).toBe("seq2");
+      expect(results[0]!.matchedSequence).toMatch(/GG[CT]{2}/);
+      expect(results[0]!.strand).toBe("+");
     });
 
     test("handles regex with global flag", async () => {
@@ -137,8 +146,8 @@ describe("LocateProcessor", () => {
         pattern: /(AT|GC)/g,
       };
 
-      const results = [];
-      for await (const location of processor.locate(testSequences, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(testSequences), options)) {
         results.push(location);
       }
 
@@ -150,8 +159,8 @@ describe("LocateProcessor", () => {
         pattern: /(?=A)/g, // Zero-width positive lookahead
       };
 
-      const results = [];
-      for await (const location of processor.locate(testSequences, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(testSequences), options)) {
         results.push(location);
       }
 
@@ -174,8 +183,8 @@ describe("LocateProcessor", () => {
         pattern: "atcg",
       };
 
-      const results = [];
-      for await (const location of processor.locate(seqs, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(seqs), options)) {
         results.push(location);
       }
 
@@ -196,13 +205,13 @@ describe("LocateProcessor", () => {
         ignoreCase: true,
       };
 
-      const results = [];
-      for await (const location of processor.locate(seqs, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(seqs), options)) {
         results.push(location);
       }
 
       expect(results).toHaveLength(2);
-      expect(results[0].matchedSequence).toBe("AtCg");
+      expect(results[0]!.matchedSequence).toBe("AtCg");
     });
 
     test("case-insensitive regex matching", async () => {
@@ -219,8 +228,8 @@ describe("LocateProcessor", () => {
         ignoreCase: true,
       };
 
-      const results = [];
-      for await (const location of processor.locate(seqs, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(seqs), options)) {
         results.push(location);
       }
 
@@ -243,14 +252,14 @@ describe("LocateProcessor", () => {
         allowMismatches: 1,
       };
 
-      const results = [];
-      for await (const location of processor.locate(seqs, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(seqs), options)) {
         results.push(location);
       }
 
       expect(results).toHaveLength(1);
-      expect(results[0].mismatches).toBe(1);
-      expect(results[0].score).toBeLessThan(1.0);
+      expect(results[0]!.mismatches).toBe(1);
+      expect(results[0]!.score).toBeLessThan(1.0);
     });
 
     test("allows multiple mismatches", async () => {
@@ -263,18 +272,18 @@ describe("LocateProcessor", () => {
       ];
 
       const options: LocateOptions = {
-        pattern: "AAGGATCG", // Two mismatches from ATCGATCG (A≠T, G≠C)
+        pattern: "AAGGATCG", // Two mismatches from ATCGATCG (A!=T, G!=C)
         allowMismatches: 2,
       };
 
-      const results = [];
-      for await (const location of processor.locate(seqs, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(seqs), options)) {
         results.push(location);
       }
 
       expect(results).toHaveLength(1);
-      expect(results[0].mismatches).toBe(2);
-      expect(results[0].score).toBeLessThan(1.0);
+      expect(results[0]!.mismatches).toBe(2);
+      expect(results[0]!.score).toBeLessThan(1.0);
     });
 
     test("rejects patterns with too many mismatches", async () => {
@@ -291,8 +300,8 @@ describe("LocateProcessor", () => {
         allowMismatches: 2,
       };
 
-      const results = [];
-      for await (const location of processor.locate(seqs, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(seqs), options)) {
         results.push(location);
       }
 
@@ -313,13 +322,13 @@ describe("LocateProcessor", () => {
         allowMismatches: 1,
       };
 
-      const results = [];
-      for await (const location of processor.locate(seqs, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(seqs), options)) {
         results.push(location);
       }
 
       expect(results).toHaveLength(1);
-      expect(results[0].score).toBeCloseTo(0.875, 3);
+      expect(results[0]!.score).toBeCloseTo(0.875, 3);
     });
   });
 
@@ -337,13 +346,13 @@ describe("LocateProcessor", () => {
         pattern: "CGATCG",
       };
 
-      const results = [];
-      for await (const location of processor.locate(seqs, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(seqs), options)) {
         results.push(location);
       }
 
       expect(results).toHaveLength(1);
-      expect(results[0].strand).toBe("+");
+      expect(results[0]!.strand).toBe("+");
     });
 
     test("searches both strands when enabled", async () => {
@@ -362,8 +371,8 @@ describe("LocateProcessor", () => {
         searchBothStrands: true,
       };
 
-      const results = [];
-      for await (const location of processor.locate(seqs, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(seqs), options)) {
         results.push(location);
       }
 
@@ -388,13 +397,13 @@ describe("LocateProcessor", () => {
         searchBothStrands: true,
       };
 
-      const results = [];
-      for await (const location of processor.locate(seqs, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(seqs), options)) {
         results.push(location);
       }
 
       expect(results).toHaveLength(1);
-      expect(results[0].strand).toBe("-");
+      expect(results[0]!.strand).toBe("-");
     });
 
     test("handles IUPAC ambiguous bases in reverse complement", async () => {
@@ -411,8 +420,8 @@ describe("LocateProcessor", () => {
         searchBothStrands: true,
       };
 
-      const results = [];
-      for await (const location of processor.locate(seqs, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(seqs), options)) {
         results.push(location);
       }
 
@@ -427,8 +436,8 @@ describe("LocateProcessor", () => {
         maxMatches: 2,
       };
 
-      const results = [];
-      for await (const location of processor.locate(testSequences, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(testSequences), options)) {
         results.push(location);
       }
 
@@ -441,13 +450,13 @@ describe("LocateProcessor", () => {
         outputFormat: "bed",
       };
 
-      const results = [];
-      for await (const location of processor.locate(testSequences, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(testSequences), options)) {
         results.push(location);
       }
 
       expect(results.length).toBeGreaterThan(0);
-      expect(results[0].context).toBeUndefined();
+      expect(results[0]!.context).toBeUndefined();
     });
 
     test("includes context for default format", async () => {
@@ -456,13 +465,13 @@ describe("LocateProcessor", () => {
         outputFormat: "default",
       };
 
-      const results = [];
-      for await (const location of processor.locate(testSequences, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(testSequences), options)) {
         results.push(location);
       }
 
       expect(results.length).toBeGreaterThan(0);
-      expect(results[0].context).toBeDefined();
+      expect(results[0]!.context).toBeDefined();
     });
 
     test("respects minimum length filter", async () => {
@@ -471,8 +480,8 @@ describe("LocateProcessor", () => {
         minLength: 4, // Pattern is only 2 chars, should be filtered out
       };
 
-      const results = [];
-      for await (const location of processor.locate(testSequences, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(testSequences), options)) {
         results.push(location);
       }
 
@@ -495,8 +504,8 @@ describe("LocateProcessor", () => {
         allowOverlaps: true,
       };
 
-      const results = [];
-      for await (const location of processor.locate(seqs, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(seqs), options)) {
         results.push(location);
       }
 
@@ -517,8 +526,8 @@ describe("LocateProcessor", () => {
         allowOverlaps: false,
       };
 
-      const results = [];
-      for await (const location of processor.locate(seqs, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(seqs), options)) {
         results.push(location);
       }
 
@@ -540,8 +549,8 @@ describe("LocateProcessor", () => {
         allowOverlaps: false,
       };
 
-      const results = [];
-      for await (const location of processor.locate(seqs, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(seqs), options)) {
         results.push(location);
       }
 
@@ -558,7 +567,7 @@ describe("LocateProcessor", () => {
       const options = {} as LocateOptions;
 
       await expect(async () => {
-        for await (const _ of processor.locate(testSequences, options)) {
+        for await (const _ of processor.locate(toAsyncIterable(testSequences), options)) {
           // Validation should throw before yielding
         }
       }).toThrow(ValidationError);
@@ -570,7 +579,7 @@ describe("LocateProcessor", () => {
       };
 
       await expect(async () => {
-        for await (const _ of processor.locate(testSequences, options)) {
+        for await (const _ of processor.locate(toAsyncIterable(testSequences), options)) {
           // Validation should throw before yielding
         }
       }).toThrow(ValidationError);
@@ -583,7 +592,7 @@ describe("LocateProcessor", () => {
       };
 
       await expect(async () => {
-        for await (const _ of processor.locate(testSequences, options)) {
+        for await (const _ of processor.locate(toAsyncIterable(testSequences), options)) {
           // Validation should throw before yielding
         }
       }).toThrow(ValidationError);
@@ -596,7 +605,7 @@ describe("LocateProcessor", () => {
       };
 
       await expect(async () => {
-        for await (const _ of processor.locate(testSequences, options)) {
+        for await (const _ of processor.locate(toAsyncIterable(testSequences), options)) {
           // Validation should throw before yielding
         }
       }).toThrow(ValidationError);
@@ -609,7 +618,7 @@ describe("LocateProcessor", () => {
       };
 
       await expect(async () => {
-        for await (const _ of processor.locate(testSequences, options)) {
+        for await (const _ of processor.locate(toAsyncIterable(testSequences), options)) {
           // Validation should throw before yielding
         }
       }).toThrow(ValidationError);
@@ -622,7 +631,7 @@ describe("LocateProcessor", () => {
       };
 
       await expect(async () => {
-        for await (const _ of processor.locate(testSequences, options)) {
+        for await (const _ of processor.locate(toAsyncIterable(testSequences), options)) {
           // Validation should throw before yielding
         }
       }).toThrow(ValidationError);
@@ -632,10 +641,10 @@ describe("LocateProcessor", () => {
       const options = {
         pattern: "ATCG",
         outputFormat: "invalid",
-      } as LocateOptions;
+      } as unknown as LocateOptions;
 
       await expect(async () => {
-        for await (const _ of processor.locate(testSequences, options)) {
+        for await (const _ of processor.locate(toAsyncIterable(testSequences), options)) {
           // Validation should throw before yielding
         }
       }).toThrow(ValidationError);
@@ -648,8 +657,12 @@ describe("LocateProcessor", () => {
         pattern: "ATCG",
       };
 
-      const results = [];
-      for await (const location of processor.locate([testSequences[3]], options)) {
+      const emptySeq = testSequences[3];
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(
+        toAsyncIterable(emptySeq ? [emptySeq] : []),
+        options
+      )) {
         results.push(location);
       }
 
@@ -669,8 +682,8 @@ describe("LocateProcessor", () => {
         pattern: "ATCGATCG",
       };
 
-      const results = [];
-      for await (const location of processor.locate(seqs, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(seqs), options)) {
         results.push(location);
       }
 
@@ -690,13 +703,13 @@ describe("LocateProcessor", () => {
         pattern: "ATCG",
       };
 
-      const results = [];
-      for await (const location of processor.locate(seqs, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(seqs), options)) {
         results.push(location);
       }
 
       expect(results).toHaveLength(2);
-      expect(results[0].sequenceId).toBe("no_desc");
+      expect(results[0]!.sequenceId).toBe("no_desc");
     });
 
     test("handles very small context size", async () => {
@@ -712,13 +725,13 @@ describe("LocateProcessor", () => {
         pattern: "GATC",
       };
 
-      const results = [];
-      for await (const location of processor.locate(seqs, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(seqs), options)) {
         results.push(location);
       }
 
       expect(results.length).toBeGreaterThan(0);
-      expect(results[0].context).toBeDefined();
+      expect(results[0]!.context).toBeDefined();
     });
   });
 
@@ -738,8 +751,8 @@ describe("LocateProcessor", () => {
         allowMismatches: 1,
       };
 
-      const results = [];
-      for await (const location of processor.locate(seqs, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(seqs), options)) {
         results.push(location);
       }
 
@@ -760,13 +773,13 @@ describe("LocateProcessor", () => {
         pattern: "GAATTC",
       };
 
-      const results = [];
-      for await (const location of processor.locate(seqs, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(seqs), options)) {
         results.push(location);
       }
 
       expect(results).toHaveLength(1);
-      expect(results[0].matchedSequence).toBe("GAATTC");
+      expect(results[0]!.matchedSequence).toBe("GAATTC");
     });
 
     test("finds palindromic sequences", async () => {
@@ -783,8 +796,8 @@ describe("LocateProcessor", () => {
         searchBothStrands: true,
       };
 
-      const results = [];
-      for await (const location of processor.locate(seqs, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(seqs), options)) {
         results.push(location);
       }
 
@@ -805,8 +818,8 @@ describe("LocateProcessor", () => {
         searchBothStrands: true,
       };
 
-      const results = [];
-      for await (const location of processor.locate(seqs, options)) {
+      const results: MotifLocation[] = [];
+      for await (const location of processor.locate(toAsyncIterable(seqs), options)) {
         results.push(location);
       }
 

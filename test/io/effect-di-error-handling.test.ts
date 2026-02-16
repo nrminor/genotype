@@ -272,7 +272,12 @@ describe("Effect DI Error Handling", () => {
 
       try {
         // Write some corrupted gzip-like data
-        const fakeGzipData = new Uint8Array([0x1f, 0x8b, 0x08, ...new Array(100).fill(0xff)]);
+        const fakeGzipData = new Uint8Array([
+          0x1f,
+          0x8b,
+          0x08,
+          ...Array.from({ length: 100 }, () => 0xff),
+        ]);
         const fs = await import("fs/promises");
         await fs.writeFile(corruptFile, fakeGzipData);
 

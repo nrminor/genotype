@@ -466,7 +466,8 @@ export class SequenceSorter {
 
     const fastq = seq as FastqSequence;
     // Prefer sequence's own qualityEncoding, fall back to options
-    const encoding: QualityEncoding = fastq.qualityEncoding ?? this.options.qualityEncoding ?? "phred33";
+    const encoding: QualityEncoding =
+      fastq.qualityEncoding ?? this.options.qualityEncoding ?? "phred33";
     return calculateAverageQuality(fastq.quality, encoding);
   }
 

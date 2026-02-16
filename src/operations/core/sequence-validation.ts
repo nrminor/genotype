@@ -326,8 +326,8 @@ export class SequenceValidator {
    * console.log(isInvalid); // false
    * ```
    *
- * @performance O(n) time complexity where n is sequence length
- */
+   * @performance O(n) time complexity where n is sequence length
+   */
   validate(sequence: string): boolean {
     // Tiger Style: Assert preconditions
     if (typeof sequence !== "string") {
@@ -371,8 +371,8 @@ export class SequenceValidator {
    * console.log(withDash); // 'ATCG------'
    * ```
    *
- * @performance O(n) time complexity where n is sequence length
- */
+   * @performance O(n) time complexity where n is sequence length
+   */
   clean(sequence: string, replaceChar: string = "N"): string {
     // Tiger Style: Assert preconditions
     if (typeof sequence !== "string") {
@@ -424,9 +424,9 @@ export class SequenceValidator {
    *
    * console.log(result.isValid); // false
    * console.log(result.cleanedSequence); // 'ATCGNNNNNN'
- * console.log(result.errors); // ['Sequence contains invalid characters']
- * ```
- */
+   * console.log(result.errors); // ['Sequence contains invalid characters']
+   * ```
+   */
   validateAndClean(
     sequence: string,
     options: { replaceChar?: string; returnCleaned?: boolean } = {}
@@ -506,9 +506,9 @@ export class SequenceValidator {
    * ```typescript
    * const normalDNA = new SequenceValidator(ValidationMode.NORMAL, SequenceType.DNA);
    * const strictDNA = normalDNA.withSettings(ValidationMode.STRICT);
- * const strictRNA = normalDNA.withSettings(ValidationMode.STRICT, SequenceType.RNA);
- * ```
- */
+   * const strictRNA = normalDNA.withSettings(ValidationMode.STRICT, SequenceType.RNA);
+   * ```
+   */
   withSettings(mode?: ValidationMode, type?: SequenceType): SequenceValidator {
     return new SequenceValidator(mode ?? this.mode, type ?? this.type);
   }
@@ -550,8 +550,8 @@ export class SequenceValidator {
    * console.log(standard); // ['A']
    * ```
    *
- * @performance O(1) constant time for single character lookup
- */
+   * @performance O(1) constant time for single character lookup
+   */
   static expandAmbiguous(base: string): string[] {
     // Tiger Style: Assert preconditions
     if (typeof base !== "string") {

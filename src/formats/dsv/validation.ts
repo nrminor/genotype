@@ -12,8 +12,6 @@ import { type } from "arktype";
 import { DSVParseError, ValidationError } from "../../errors";
 import { MAX_FIELD_SIZE } from "./constants";
 
-
-
 /**
  * Validate that a field doesn't exceed the maximum allowed size
  * @param field - Field content to validate
@@ -30,8 +28,6 @@ export function validateFieldSize(field: string, maxSize: number = MAX_FIELD_SIZ
     );
   }
 }
-
-
 
 /**
  * ArkType validation schema for DSV parser options
@@ -130,8 +126,6 @@ export const DSVWriterOptionsSchema = type({
 
   return true;
 });
-
-
 
 /**
  * FieldValidator class for encapsulating field validation logic

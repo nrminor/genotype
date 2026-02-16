@@ -8,7 +8,15 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { seqops } from "../../src/operations/index";
 import { SampleProcessor } from "../../src/operations/sample";
-import type { AbstractSequence, SampleOptions } from "../../src/types";
+import type { SampleOptions } from "../../src/operations/types";
+import type { AbstractSequence } from "../../src/types";
+
+/** Convert an array to AsyncIterable for processor tests */
+async function* toAsync<T>(items: T[]): AsyncIterable<T> {
+  for (const item of items) {
+    yield item;
+  }
+}
 
 describe("SampleProcessor", () => {
   let processor: SampleProcessor;
@@ -30,8 +38,8 @@ describe("SampleProcessor", () => {
         strategy: "reservoir",
       };
 
-      const results = [];
-      for await (const seq of processor.process(testSequences, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(testSequences), options)) {
         results.push(seq);
       }
 
@@ -45,13 +53,13 @@ describe("SampleProcessor", () => {
         seed: 42,
       };
 
-      const results1 = [];
-      for await (const seq of processor.process(testSequences, options)) {
+      const results1: string[] = [];
+      for await (const seq of processor.process(toAsync(testSequences), options)) {
         results1.push(seq.id);
       }
 
-      const results2 = [];
-      for await (const seq of processor.process(testSequences, options)) {
+      const results2: string[] = [];
+      for await (const seq of processor.process(toAsync(testSequences), options)) {
         results2.push(seq.id);
       }
 
@@ -65,8 +73,8 @@ describe("SampleProcessor", () => {
         strategy: "reservoir",
       };
 
-      const results = [];
-      for await (const seq of processor.process(smallDataset, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(smallDataset), options)) {
         results.push(seq);
       }
 
@@ -81,8 +89,8 @@ describe("SampleProcessor", () => {
         strategy: "systematic",
       };
 
-      const results = [];
-      for await (const seq of processor.process(testSequences, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(testSequences), options)) {
         results.push(seq);
       }
 
@@ -90,8 +98,8 @@ describe("SampleProcessor", () => {
 
       // Should be evenly spaced
       const expectedInterval = Math.floor(100 / 10);
-      expect(results[0].id).toBe("seq_000");
-      expect(results[1].id).toBe(`seq_${expectedInterval.toString().padStart(3, "0")}`);
+      expect(results[0]!.id).toBe("seq_000");
+      expect(results[1]!.id).toBe(`seq_${expectedInterval.toString().padStart(3, "0")}`);
     });
 
     test("handles edge cases in systematic sampling", async () => {
@@ -101,8 +109,8 @@ describe("SampleProcessor", () => {
         strategy: "systematic",
       };
 
-      const results = [];
-      for await (const seq of processor.process(smallDataset, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(smallDataset), options)) {
         results.push(seq);
       }
 
@@ -118,8 +126,8 @@ describe("SampleProcessor", () => {
         seed: 123,
       };
 
-      const results = [];
-      for await (const seq of processor.process(testSequences, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(testSequences), options)) {
         results.push(seq);
       }
 
@@ -133,13 +141,13 @@ describe("SampleProcessor", () => {
         seed: 999,
       };
 
-      const results1 = [];
-      for await (const seq of processor.process(testSequences, options)) {
+      const results1: string[] = [];
+      for await (const seq of processor.process(toAsync(testSequences), options)) {
         results1.push(seq.id);
       }
 
-      const results2 = [];
-      for await (const seq of processor.process(testSequences, options)) {
+      const results2: string[] = [];
+      for await (const seq of processor.process(toAsync(testSequences), options)) {
         results2.push(seq.id);
       }
 
@@ -149,7 +157,7 @@ describe("SampleProcessor", () => {
 
   describe("fraction-based sampling", () => {
     test("samples approximately correct proportion", async () => {
-      const largeTestSet = Array.from({ length: 10000 }, (_, i) => ({
+      const largeTestSet: AbstractSequence[] = Array.from({ length: 10000 }, (_, i) => ({
         id: `seq_${i.toString().padStart(5, "0")}`,
         sequence: "ATCG".repeat(i + 1),
         length: (i + 1) * 4,
@@ -159,8 +167,8 @@ describe("SampleProcessor", () => {
         fraction: 0.1,
       };
 
-      const results = [];
-      for await (const seq of processor.process(largeTestSet, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(largeTestSet), options)) {
         results.push(seq);
       }
 
@@ -175,8 +183,8 @@ describe("SampleProcessor", () => {
         fraction: 1.0,
       };
 
-      const results = [];
-      for await (const seq of processor.process(testSequences, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(testSequences), options)) {
         results.push(seq);
       }
 
@@ -189,13 +197,13 @@ describe("SampleProcessor", () => {
         seed: 42,
       };
 
-      const results1 = [];
-      for await (const seq of processor.process(testSequences, options)) {
+      const results1: string[] = [];
+      for await (const seq of processor.process(toAsync(testSequences), options)) {
         results1.push(seq.id);
       }
 
-      const results2 = [];
-      for await (const seq of processor.process(testSequences, options)) {
+      const results2: string[] = [];
+      for await (const seq of processor.process(toAsync(testSequences), options)) {
         results2.push(seq.id);
       }
 
@@ -204,13 +212,16 @@ describe("SampleProcessor", () => {
     });
 
     test("different seeds produce different samples", async () => {
-      const results1 = [];
-      for await (const seq of processor.process(testSequences, { fraction: 0.2, seed: 42 })) {
+      const results1: string[] = [];
+      for await (const seq of processor.process(toAsync(testSequences), {
+        fraction: 0.2,
+        seed: 42,
+      })) {
         results1.push(seq.id);
       }
 
-      const results2 = [];
-      for await (const seq of processor.process(testSequences, {
+      const results2: string[] = [];
+      for await (const seq of processor.process(toAsync(testSequences), {
         fraction: 0.2,
         seed: 123,
       })) {
@@ -222,7 +233,7 @@ describe("SampleProcessor", () => {
     });
 
     test("small fractions work correctly", async () => {
-      const largeTestSet = Array.from({ length: 10000 }, (_, i) => ({
+      const largeTestSet: AbstractSequence[] = Array.from({ length: 10000 }, (_, i) => ({
         id: `seq_${i.toString().padStart(5, "0")}`,
         sequence: "ATCG".repeat(i + 1),
         length: (i + 1) * 4,
@@ -232,8 +243,8 @@ describe("SampleProcessor", () => {
         fraction: 0.01,
       };
 
-      const results = [];
-      for await (const seq of processor.process(largeTestSet, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(largeTestSet), options)) {
         results.push(seq);
       }
 
@@ -249,8 +260,8 @@ describe("SampleProcessor", () => {
         seed: 42,
       };
 
-      const results = [];
-      for await (const seq of processor.process(testSequences, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(testSequences), options)) {
         results.push(seq);
       }
 
@@ -270,8 +281,8 @@ describe("SampleProcessor", () => {
         // No strategy specified
       };
 
-      const results = [];
-      for await (const seq of processor.process(testSequences, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(testSequences), options)) {
         results.push(seq);
       }
 
@@ -284,7 +295,7 @@ describe("SampleProcessor", () => {
       const options = {} as SampleOptions;
 
       await expect(async () => {
-        for await (const _ of processor.process(testSequences, options)) {
+        for await (const _ of processor.process(toAsync(testSequences), options)) {
           // Validation should throw
         }
       }).toThrow("either n or fraction must be specified");
@@ -297,7 +308,7 @@ describe("SampleProcessor", () => {
       };
 
       await expect(async () => {
-        for await (const _ of processor.process(testSequences, options)) {
+        for await (const _ of processor.process(toAsync(testSequences), options)) {
           // Validation should throw
         }
       }).toThrow("cannot specify both n and fraction");
@@ -309,7 +320,7 @@ describe("SampleProcessor", () => {
       };
 
       await expect(async () => {
-        for await (const _ of processor.process(testSequences, options)) {
+        for await (const _ of processor.process(toAsync(testSequences), options)) {
           // Validation should throw
         }
       }).toThrow("n must be positive");
@@ -321,7 +332,7 @@ describe("SampleProcessor", () => {
       };
 
       await expect(async () => {
-        for await (const _ of processor.process(testSequences, options)) {
+        for await (const _ of processor.process(toAsync(testSequences), options)) {
           // Validation should throw
         }
       }).toThrow("n must be positive");
@@ -333,7 +344,7 @@ describe("SampleProcessor", () => {
       };
 
       await expect(async () => {
-        for await (const _ of processor.process(testSequences, options)) {
+        for await (const _ of processor.process(toAsync(testSequences), options)) {
           // Validation should throw
         }
       }).toThrow("fraction must be at most 1");
@@ -347,8 +358,8 @@ describe("SampleProcessor", () => {
         strategy: "reservoir",
       };
 
-      const results = [];
-      for await (const seq of processor.process([], options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync([]), options)) {
         results.push(seq);
       }
 
@@ -356,20 +367,20 @@ describe("SampleProcessor", () => {
     });
 
     test("handles single sequence input", async () => {
-      const singleSeq = [testSequences[0]];
+      const singleSeq = [testSequences[0]!];
       const options: SampleOptions = {
         n: 1,
         strategy: "random",
         seed: 42,
       };
 
-      const results = [];
-      for await (const seq of processor.process(singleSeq, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(singleSeq), options)) {
         results.push(seq);
       }
 
       expect(results).toHaveLength(1);
-      expect(results[0].id).toBe("seq_000");
+      expect(results[0]!.id).toBe("seq_000");
     });
   });
 
@@ -381,13 +392,13 @@ describe("SampleProcessor", () => {
         seed: 777,
       };
 
-      const results = [];
-      for await (const seq of processor.process(testSequences, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(testSequences), options)) {
         results.push(seq);
       }
 
       // Check that we get sequences from different parts of the dataset
-      const ids = results.map((seq) => parseInt(seq.id.split("_")[1]));
+      const ids = results.map((seq) => parseInt(seq.id.split("_")[1] ?? "0"));
       const minId = Math.min(...ids);
       const maxId = Math.max(...ids);
 
@@ -401,18 +412,18 @@ describe("SampleProcessor", () => {
         strategy: "systematic",
       };
 
-      const results = [];
-      for await (const seq of processor.process(testSequences, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(testSequences), options)) {
         results.push(seq);
       }
 
       // Extract sequence indices
-      const indices = results.map((seq) => parseInt(seq.id.split("_")[1]));
+      const indices = results.map((seq) => parseInt(seq.id.split("_")[1] ?? "0"));
 
       // Should be evenly spaced
       const expectedInterval = Math.floor(100 / 10);
       for (let i = 1; i < indices.length; i++) {
-        expect(indices[i] - indices[i - 1]).toBe(expectedInterval);
+        expect(indices[i]! - indices[i - 1]!).toBe(expectedInterval);
       }
     });
   });
@@ -427,7 +438,7 @@ describe("SampleProcessor", () => {
     test("simple count-based sampling", async () => {
       const sequences = toAsyncIterable(testSequences);
 
-      const sampled = [];
+      const sampled: AbstractSequence[] = [];
       for await (const seq of seqops(sequences).sample(10)) {
         sampled.push(seq);
       }
@@ -436,7 +447,7 @@ describe("SampleProcessor", () => {
     });
 
     test("fraction-based sampling via SeqOps", async () => {
-      const largeTestSet = Array.from({ length: 10000 }, (_, i) => ({
+      const largeTestSet: AbstractSequence[] = Array.from({ length: 10000 }, (_, i) => ({
         id: `seq_${i.toString().padStart(5, "0")}`,
         sequence: "ATCG".repeat(i + 1),
         length: (i + 1) * 4,
@@ -444,7 +455,7 @@ describe("SampleProcessor", () => {
 
       const sequences = toAsyncIterable(largeTestSet);
 
-      const sampled = [];
+      const sampled: AbstractSequence[] = [];
       for await (const seq of seqops(sequences).sample({ fraction: 0.1 })) {
         sampled.push(seq);
       }
@@ -458,17 +469,17 @@ describe("SampleProcessor", () => {
       const sequences2 = toAsyncIterable(testSequences);
       const sequences3 = toAsyncIterable(testSequences);
 
-      const reservoir = [];
+      const reservoir: AbstractSequence[] = [];
       for await (const seq of seqops(sequences1).sample(10, "reservoir")) {
         reservoir.push(seq);
       }
 
-      const systematic = [];
+      const systematic: AbstractSequence[] = [];
       for await (const seq of seqops(sequences2).sample(10, "systematic")) {
         systematic.push(seq);
       }
 
-      const random = [];
+      const random: AbstractSequence[] = [];
       for await (const seq of seqops(sequences3).sample(10, "random")) {
         random.push(seq);
       }
@@ -482,12 +493,12 @@ describe("SampleProcessor", () => {
       const sequences1 = toAsyncIterable(testSequences);
       const sequences2 = toAsyncIterable(testSequences);
 
-      const sample1 = [];
+      const sample1: AbstractSequence[] = [];
       for await (const seq of seqops(sequences1).sample({ n: 10, seed: 42 })) {
         sample1.push(seq);
       }
 
-      const sample2 = [];
+      const sample2: AbstractSequence[] = [];
       for await (const seq of seqops(sequences2).sample({ n: 10, seed: 42 })) {
         sample2.push(seq);
       }
@@ -498,7 +509,7 @@ describe("SampleProcessor", () => {
     test("chaining after sample", async () => {
       const sequences = toAsyncIterable(testSequences);
 
-      const result = [];
+      const result: AbstractSequence[] = [];
       for await (const seq of seqops(sequences)
         .sample(20)
         .filter((seq) => seq.length >= 20)) {
@@ -516,8 +527,8 @@ describe("SampleProcessor", () => {
     test("fraction sampling with empty input", async () => {
       const emptySequences: AbstractSequence[] = [];
 
-      const results = [];
-      for await (const seq of processor.process(emptySequences, { fraction: 0.5 })) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(emptySequences), { fraction: 0.5 })) {
         results.push(seq);
       }
 
@@ -525,10 +536,10 @@ describe("SampleProcessor", () => {
     });
 
     test("fraction sampling with single sequence", async () => {
-      const singleSequence = [testSequences[0]];
+      const singleSequence = [testSequences[0]!];
 
-      const results = [];
-      for await (const seq of processor.process(singleSequence, {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(singleSequence), {
         fraction: 0.9,
         seed: 42,
       })) {
@@ -539,14 +550,14 @@ describe("SampleProcessor", () => {
     });
 
     test("fraction 1.0 with large dataset", async () => {
-      const largeTestSet = Array.from({ length: 10000 }, (_, i) => ({
+      const largeTestSet: AbstractSequence[] = Array.from({ length: 10000 }, (_, i) => ({
         id: `seq_${i.toString().padStart(5, "0")}`,
         sequence: "ATCG".repeat(i + 1),
         length: (i + 1) * 4,
       }));
 
-      const results = [];
-      for await (const seq of processor.process(largeTestSet, { fraction: 1.0 })) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(largeTestSet), { fraction: 1.0 })) {
         results.push(seq);
       }
 
@@ -554,14 +565,14 @@ describe("SampleProcessor", () => {
     });
 
     test("very small fraction", async () => {
-      const largeTestSet = Array.from({ length: 100000 }, (_, i) => ({
+      const largeTestSet: AbstractSequence[] = Array.from({ length: 100000 }, (_, i) => ({
         id: `seq_${i.toString().padStart(6, "0")}`,
         sequence: "ATCG".repeat(i + 1),
         length: (i + 1) * 4,
       }));
 
-      const results = [];
-      for await (const seq of processor.process(largeTestSet, { fraction: 0.0001 })) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(largeTestSet), { fraction: 0.0001 })) {
         results.push(seq);
       }
 
@@ -570,8 +581,11 @@ describe("SampleProcessor", () => {
     });
 
     test("seed 0 should work", async () => {
-      const results = [];
-      for await (const seq of processor.process(testSequences, { fraction: 0.1, seed: 0 })) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(testSequences), {
+        fraction: 0.1,
+        seed: 0,
+      })) {
         results.push(seq);
       }
 
@@ -579,8 +593,8 @@ describe("SampleProcessor", () => {
     });
 
     test("negative seed should work", async () => {
-      const results = [];
-      for await (const seq of processor.process(testSequences, {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(testSequences), {
         fraction: 0.1,
         seed: -42,
       })) {

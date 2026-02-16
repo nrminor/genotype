@@ -16,8 +16,6 @@ import {
 import type { QualityEncoding } from "../../types";
 import { QUALITY_THRESHOLDS, QUALITY_WINDOWS, TRIMMING_DEFAULTS } from "./constants";
 
-
-
 /**
  * Quality encoding ASCII offsets
  */
@@ -65,13 +63,9 @@ const QUALITY_LEVELS = [
   },
 ] as const;
 
-
-
 // Type aliases for clarity and type safety
 type QualityString = string;
 type AsciiOffset = 33 | 64 | 59;
-
-
 
 /**
  * Validate quality string for specific encoding
@@ -136,8 +130,6 @@ function validateQualityString(
   return result;
 }
 
-
-
 /**
  * Convert quality string between encodings
  *
@@ -161,8 +153,6 @@ function convertQualityEncoding(
   return convertQuality(quality, fromEncoding, toEncoding);
 }
 
-
-
 /**
  * Calculate statistics for quality scores
  *
@@ -174,8 +164,6 @@ function getQualityStatistics(quality: QualityString, encoding: QualityEncoding)
   const scores = qualityToScores(quality, encoding);
   return calculateQualityStats(scores);
 }
-
-
 
 /**
  * Assess overall quality of a sequence
@@ -216,8 +204,6 @@ function assessQuality(
     recommendation: matchedLevel.recommendation,
   };
 }
-
-
 
 /**
  * Analyze a single quality window
@@ -286,8 +272,6 @@ function analyzeQualityWindows(
     analyzeWindow(scores, i, validWindowSize)
   ).filter((w): w is NonNullable<typeof w> => w !== null);
 }
-
-
 
 /**
  * Find positions where quality drops below threshold
@@ -369,8 +353,6 @@ function suggestQualityTrimming(
     meanQualityAfter: stats.mean,
   };
 }
-
-
 
 // Export constants
 export { QUALITY_OFFSETS, QUALITY_RANGES };

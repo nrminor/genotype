@@ -45,11 +45,7 @@ const FilterOptionsSchema = type({
   }
 
   // Cross-field validation: minGC <= maxGC
-  if (
-    options.minGC !== undefined &&
-    options.maxGC !== undefined &&
-    options.minGC > options.maxGC
-  ) {
+  if (options.minGC !== undefined && options.maxGC !== undefined && options.minGC > options.maxGC) {
     return ctx.reject({
       expected: `minGC (${options.minGC}) <= maxGC (${options.maxGC})`,
       path: ["minGC", "maxGC"],

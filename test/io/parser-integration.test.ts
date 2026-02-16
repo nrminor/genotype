@@ -10,7 +10,13 @@ import { BedParser } from "../../src/formats/bed";
 import { FastaParser } from "../../src/formats/fasta";
 import { FastqParser } from "../../src/formats/fastq";
 import { SAMParser } from "../../src/formats/sam";
-import type { BedInterval, FastaSequence, FastqSequence, SAMAlignment, SAMHeader } from "../../src/types";
+import type {
+  BedInterval,
+  FastaSequence,
+  FastqSequence,
+  SAMAlignment,
+  SAMHeader,
+} from "../../src/types";
 
 // Test fixtures directory - use absolute path for reliability
 const FIXTURES_DIR = join(process.cwd(), "test", "io", "fixtures");

@@ -17,7 +17,6 @@ import {
   calculateGC,
   DSVParser,
   type DSVRecord,
-  DSVWriter,
   detectDelimiter,
   normalizeLineEndings,
   parseCSVRow,
@@ -223,10 +222,10 @@ describe("DSV Format Module", () => {
       }
 
       expect(records).toHaveLength(2);
-      expect(records[0].gene).toBe("TP53");
-      expect(records[0].expression).toBe("5.23");
-      expect(records[1].gene).toBe("BRCA1");
-      expect(records[1].expression).toBe("3.45");
+      expect(records[0]!.gene).toBe("TP53");
+      expect(records[0]!.expression).toBe("5.23");
+      expect(records[1]!.gene).toBe("BRCA1");
+      expect(records[1]!.expression).toBe("3.45");
     });
 
     test("parses TSV with header", async () => {
@@ -239,9 +238,9 @@ describe("DSV Format Module", () => {
       }
 
       expect(records).toHaveLength(2);
-      expect(records[0].gene_id).toBe("ENSG001");
-      expect(records[0].gene_name).toBe("TP53");
-      expect(records[0].expression).toBe("5.23");
+      expect(records[0]!.gene_id).toBe("ENSG001");
+      expect(records[0]!.gene_name).toBe("TP53");
+      expect(records[0]!.expression).toBe("5.23");
     });
 
     test("handles ragged rows by padding", async () => {
@@ -253,10 +252,10 @@ describe("DSV Format Module", () => {
         records.push(record);
       }
 
-      expect(records[0].col3).toBe(""); // Padded
-      expect(records[1].col1).toBe("val3");
-      expect(records[1].col2).toBe("val4");
-      expect(records[1].col3).toBe("val5");
+      expect(records[0]!.col3).toBe(""); // Padded
+      expect(records[1]!.col1).toBe("val3");
+      expect(records[1]!.col2).toBe("val4");
+      expect(records[1]!.col3).toBe("val5");
       // val6 is truncated to match header count
     });
 
@@ -270,7 +269,7 @@ describe("DSV Format Module", () => {
       }
 
       expect(records).toHaveLength(1);
-      expect(records[0].id).toBe("TP53");
+      expect(records[0]!.id).toBe("TP53");
     });
 
     test("computes GC content when requested", async () => {
@@ -286,8 +285,8 @@ describe("DSV Format Module", () => {
         records.push(record);
       }
 
-      expect(records[0].gc).toBeCloseTo(50.0, 1);
-      expect(records[1].gc).toBeCloseTo(100.0, 1);
+      expect(records[0]!.gc).toBeCloseTo(50.0, 1);
+      expect(records[1]!.gc).toBeCloseTo(100.0, 1);
     });
   });
 
@@ -372,12 +371,12 @@ describe("DSV Format Module", () => {
       }
 
       expect(restored).toHaveLength(2);
-      expect(restored[0].id).toBe(original[0].id);
-      expect(restored[0].sequence).toBe(original[0].sequence);
-      expect(restored[0].description).toBe(original[0].description);
-      expect(restored[1].id).toBe(original[1].id);
-      expect(restored[1].sequence).toBe(original[1].sequence);
-      expect(restored[1].description).toBe(original[1].description);
+      expect(restored[0]!.id).toBe(original[0]!.id);
+      expect(restored[0]!.sequence).toBe(original[0]!.sequence);
+      expect(restored[0]!.description).toBe(original[0]!.description);
+      expect(restored[1]!.id).toBe(original[1]!.id);
+      expect(restored[1]!.sequence).toBe(original[1]!.sequence);
+      expect(restored[1]!.description).toBe(original[1]!.description);
     });
 
     test("preserves complex fields with special characters", async () => {
@@ -400,9 +399,9 @@ describe("DSV Format Module", () => {
         restored.push(record);
       }
 
-      expect(restored[0].id).toBe(original[0].id);
-      expect(restored[0].sequence).toBe(original[0].sequence);
-      expect(restored[0].description).toBe(original[0].description);
+      expect(restored[0]!.id).toBe(original[0]!.id);
+      expect(restored[0]!.sequence).toBe(original[0]!.sequence);
+      expect(restored[0]!.description).toBe(original[0]!.description);
     });
   });
 
@@ -413,7 +412,7 @@ describe("DSV Format Module", () => {
 
       let error: Error | undefined;
       try {
-        for await (const record of parser.parseString(csv)) {
+        for await (const _record of parser.parseString(csv)) {
           // Should throw before yielding
         }
       } catch (e) {
@@ -429,12 +428,12 @@ describe("DSV Format Module", () => {
       const parser = new CSVParser();
 
       try {
-        for await (const record of parser.parseString(csv)) {
+        for await (const _record of parser.parseString(csv)) {
           // Should throw
         }
       } catch (error) {
         expect(error).toBeInstanceOf(DSVParseError);
-        expect(error.message).toContain("line 1");
+        expect((error as Error).message).toContain("line 1");
       }
     });
 
@@ -469,8 +468,8 @@ describe("DSV Format Module", () => {
       }
 
       expect(records).toHaveLength(2);
-      expect(records[0].id).toBe("seq1");
-      expect(records[0].sequence).toBe("ATCG");
+      expect(records[0]!.id).toBe("seq1");
+      expect(records[0]!.sequence).toBe("ATCG");
     });
 
     test("TSV parser handles tab-delimited data correctly", async () => {
@@ -483,8 +482,8 @@ describe("DSV Format Module", () => {
       }
 
       expect(records).toHaveLength(2);
-      expect(records[0].id).toBe("seq1");
-      expect(records[0].sequence).toBe("ATCG");
+      expect(records[0]!.id).toBe("seq1");
+      expect(records[0]!.sequence).toBe("ATCG");
     });
 
     test("uses fallback when auto-detect cannot determine delimiter", async () => {
@@ -495,9 +494,9 @@ describe("DSV Format Module", () => {
       const records = await Array.fromAsync(parser.parseString(ambiguous));
 
       expect(records).toHaveLength(3);
-      expect(records[0].id).toBe("no delimiters here");
-      expect(records[1].id).toBe("just plain text");
-      expect(records[2].id).toBe("nothing to detect");
+      expect(records[0]!.id).toBe("no delimiters here");
+      expect(records[1]!.id).toBe("just plain text");
+      expect(records[2]!.id).toBe("nothing to detect");
     });
 
     test("auto-detects delimiter and headers together", async () => {
@@ -519,9 +518,9 @@ describe("DSV Format Module", () => {
 
       // With proper header detection, all-numeric data should NOT be treated as headers
       expect(records).toHaveLength(3);
-      expect(records[0].id).toBe("1");
-      expect(records[1].id).toBe("4");
-      expect(records[2].id).toBe("7");
+      expect(records[0]!.id).toBe("1");
+      expect(records[1]!.id).toBe("4");
+      expect(records[2]!.id).toBe("7");
     });
 
     test("handles mixed delimiters by detecting most consistent", async () => {
@@ -533,8 +532,8 @@ describe("DSV Format Module", () => {
       const records = await Array.fromAsync(parser.parseString(tsv));
 
       expect(records).toHaveLength(2);
-      expect(records[0].gene).toBe("Gene1");
-      expect(records[0].description).toBe("Involved in process X, Y");
+      expect(records[0]!.gene).toBe("Gene1");
+      expect(records[0]!.description).toBe("Involved in process X, Y");
     });
 
     test("detects headers with genomic vocabulary", async () => {
@@ -566,7 +565,7 @@ describe("DSV Format Module", () => {
     });
 
     test("auto-detection works with streaming", async () => {
-      const csv = "id,seq,quality\nread1,ATCG,IIII\nread2,GCTA,JJJJ";
+      const _csv = "id,seq,quality\nread1,ATCG,IIII\nread2,GCTA,JJJJ";
       const stream = new ReadableStream({
         start(controller) {
           const encoder = new TextEncoder();
@@ -835,7 +834,7 @@ seq2,GCTAGCTA,JJJJJJJJ`;
       const psvParser = new DSVParser({ autoDetectDelimiter: true, header: false });
       const psvRecords = await Array.fromAsync(psvParser.parseString(psv));
       expect(psvRecords).toHaveLength(2);
-      expect(psvRecords[0].id).toBe("seq1");
+      expect(psvRecords[0]!.id).toBe("seq1");
 
       // Test semicolon-delimited with mixed content
       const ssv = "id;sequence;quality\nread_1;ATCGATCG;30\nread_2;GCTAGCTA;25";
@@ -854,16 +853,16 @@ seq2,GCTAGCTA,JJJJJJJJ`;
 
       // With header detection, it should correctly identify these as NOT headers
       expect(records).toHaveLength(3);
-      expect(records[0].id).toBe("ATCGATCG");
-      expect(records[1].id).toBe("GCTAGCTA");
-      expect(records[2].id).toBe("TTAAGGCC");
+      expect(records[0]!.id).toBe("ATCGATCG");
+      expect(records[1]!.id).toBe("GCTAGCTA");
+      expect(records[2]!.id).toBe("TTAAGGCC");
     });
 
     test("error recovery with auto-detection", async () => {
       const malformed = 'gene,expression\nBRCA1,5.2\n"unclosed,field\nTP53,3.8';
       const parser = new DSVParser({
         autoDetect: true,
-        onError: (error, line) => {
+        onError: (_error, _line) => {
           // Error handler to continue parsing
         },
       });
@@ -904,7 +903,7 @@ seq2,GCTAGCTA,JJJJJJJJ`;
       const startMem = process.memoryUsage().heapUsed;
       const startTime = performance.now();
 
-      for await (const record of parser.parseFile(testPath)) {
+      for await (const _record of parser.parseFile(testPath)) {
         count++;
         // Process in streaming fashion without accumulating
       }
@@ -936,8 +935,8 @@ seq2,GCTAGCTA,JJJJJJJJ`;
         records.push(record);
       }
 
-      expect(records[0].sequence).toBe("ATCGATCG"); // null removed
-      expect(records[1].sequence).toBe("GCTA");
+      expect(records[0]!.sequence).toBe("ATCGATCG"); // null removed
+      expect(records[1]!.sequence).toBe("GCTA");
     });
 
     test("handles null bytes in field values", async () => {
@@ -950,9 +949,9 @@ seq2,GCTAGCTA,JJJJJJJJ`;
       }
 
       // Should clean the null bytes
-      expect(records[0].id).toBe("seq1");
-      expect(records[0].quality).toBe("quality");
-      expect(records[0].description).toBe("testdesc");
+      expect(records[0]!.id).toBe("seq1");
+      expect(records[0]!.quality).toBe("quality");
+      expect(records[0]!.description).toBe("testdesc");
     });
 
     test("handles null bytes in headers", async () => {
@@ -965,9 +964,9 @@ seq2,GCTAGCTA,JJJJJJJJ`;
       }
 
       // Headers should be cleaned
-      expect(records[0].id).toBe("seq1");
-      expect(records[0].sequence).toBe("ATCG");
-      expect(records[0].description).toBe("test");
+      expect(records[0]!.id).toBe("seq1");
+      expect(records[0]!.sequence).toBe("ATCG");
+      expect(records[0]!.description).toBe("test");
     });
   });
 
@@ -1031,11 +1030,8 @@ seq2,GCTAGCTA,JJJJJJJJ`;
 
       expect(records.length).toBe(100_000);
 
-      // Log performance for monitoring, but don't fail on CI runner variance
-      // Local dev machines typically achieve 15-20 MB/s, CI might be 5-12 MB/s
-      console.log(`DSV parsing throughput: ${throughput.toFixed(2)} MB/s`);
-
       // Only fail on catastrophic performance regression (>70% slower than expected)
+      // Local dev machines typically achieve 15-20 MB/s, CI might be 5-12 MB/s
       if (throughput < 2) {
         throw new Error(
           `Severe performance regression detected: ${throughput.toFixed(2)} MB/s (expected >2 MB/s)`

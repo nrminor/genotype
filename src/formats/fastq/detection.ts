@@ -15,8 +15,6 @@ import { isSimpleFourLineFastq } from "./primitives";
 import type { PlatformInfo } from "./validation";
 import { detectIlluminaPlatform, detectNanoporePlatform, detectPacBioPlatform } from "./validation";
 
-
-
 /**
  * Confidence zone rules for quality encoding detection
  *
@@ -44,8 +42,6 @@ const CONFIDENCE_ZONES = [
     reason: "Characters above ASCII 126 are not valid in Phred+33",
   },
 ] as const;
-
-
 
 /**
  * Detect FASTQ format complexity by sampling input
@@ -99,8 +95,6 @@ export function detectFastqComplexity(
     sampledLines: Math.min(lines.length, sampleSize),
   };
 }
-
-
 
 /**
  * Determine confidence level based on character range
@@ -221,8 +215,6 @@ export function detectQualityEncoding(records: Array<{ quality: string }>): {
   };
 }
 
-
-
 /**
  * Detect sequencing platform from FASTQ record characteristics
  *
@@ -261,8 +253,6 @@ export function detectSequencingPlatform(record: FastqSequence): PlatformInfo {
 
   return best.info;
 }
-
-
 
 /**
  * Detect if string contains FASTQ format data
@@ -304,8 +294,6 @@ export function detectFastqFormat(data: string): boolean {
   // Length matching is essential for FASTQ format validity
   return header.startsWith("@") && separator.startsWith("+") && sequence.length === quality.length;
 }
-
-
 
 /**
  * Comprehensive FASTQ format auto-detection

@@ -144,7 +144,7 @@ describe("PairedFastqParser", () => {
     });
 
     test("accepts custom extractPairId function", () => {
-      const customExtractor = (id: string) => id.split(":")[0];
+      const customExtractor = (id: string): string => id.split(":")[0] ?? id;
       const parser = new PairedFastqParser({
         checkPairSync: true,
         extractPairId: customExtractor,
@@ -378,10 +378,10 @@ describe("PairedFastqParser", () => {
         pairs.push(pair);
       }
 
-      expect(pairs[0]).toHaveProperty("r1");
-      expect(pairs[0]).toHaveProperty("r2");
-      expect(pairs[0].r1.id).toBe("read1/1");
-      expect(pairs[0].r2.id).toBe("read1/2");
+      expect(pairs[0]!).toHaveProperty("r1");
+      expect(pairs[0]!).toHaveProperty("r2");
+      expect(pairs[0]!.r1.id).toBe("read1/1");
+      expect(pairs[0]!.r2.id).toBe("read1/2");
     });
 
     test("calculates totalLength correctly", async () => {
@@ -394,7 +394,7 @@ describe("PairedFastqParser", () => {
         pairs.push(pair);
       }
 
-      expect(pairs[0].totalLength).toBe(8); // 4 + 4
+      expect(pairs[0]!.totalLength).toBe(8); // 4 + 4
     });
 
     test("yields multiple pairs in order", async () => {
@@ -408,10 +408,10 @@ describe("PairedFastqParser", () => {
       }
 
       expect(pairs).toHaveLength(2);
-      expect(pairs[0].r1.id).toBe("read1/1");
-      expect(pairs[0].r2.id).toBe("read1/2");
-      expect(pairs[1].r1.id).toBe("read2/1");
-      expect(pairs[1].r2.id).toBe("read2/2");
+      expect(pairs[0]!.r1.id).toBe("read1/1");
+      expect(pairs[0]!.r2.id).toBe("read1/2");
+      expect(pairs[1]!.r1.id).toBe("read2/1");
+      expect(pairs[1]!.r2.id).toBe("read2/2");
     });
 
     test("does not include pairId when checkPairSync is false", async () => {
@@ -424,7 +424,7 @@ describe("PairedFastqParser", () => {
         pairs.push(pair);
       }
 
-      expect(pairs[0].pairId).toBeUndefined();
+      expect(pairs[0]!.pairId).toBeUndefined();
     });
 
     test("includes pairId when checkPairSync is true", async () => {
@@ -438,7 +438,7 @@ describe("PairedFastqParser", () => {
       }
 
       // Note: FastqParser strips @ from ID, so pairId is "read1"
-      expect(pairs[0].pairId).toBe("read1");
+      expect(pairs[0]!.pairId).toBe("read1");
     });
 
     test("preserves all r1 properties", async () => {
@@ -451,11 +451,11 @@ describe("PairedFastqParser", () => {
         pairs.push(pair);
       }
 
-      expect(pairs[0].r1.id).toBe("read1/1");
-      expect(pairs[0].r1.description).toBe("description");
-      expect(pairs[0].r1.sequence).toBe("ATCG");
-      expect(pairs[0].r1.quality).toBe("IIII");
-      expect(pairs[0].r1.length).toBe(4);
+      expect(pairs[0]!.r1.id).toBe("read1/1");
+      expect(pairs[0]!.r1.description).toBe("description");
+      expect(pairs[0]!.r1.sequence).toBe("ATCG");
+      expect(pairs[0]!.r1.quality).toBe("IIII");
+      expect(pairs[0]!.r1.length).toBe(4);
     });
 
     test("preserves all r2 properties", async () => {
@@ -468,11 +468,11 @@ describe("PairedFastqParser", () => {
         pairs.push(pair);
       }
 
-      expect(pairs[0].r2.id).toBe("read1/2");
-      expect(pairs[0].r2.description).toBe("description");
-      expect(pairs[0].r2.sequence).toBe("CGAT");
-      expect(pairs[0].r2.quality).toBe("JJJJ");
-      expect(pairs[0].r2.length).toBe(4);
+      expect(pairs[0]!.r2.id).toBe("read1/2");
+      expect(pairs[0]!.r2.description).toBe("description");
+      expect(pairs[0]!.r2.sequence).toBe("CGAT");
+      expect(pairs[0]!.r2.quality).toBe("JJJJ");
+      expect(pairs[0]!.r2.length).toBe(4);
     });
   });
 
@@ -581,7 +581,7 @@ describe("PairedFastqParser", () => {
     });
 
     test("custom extractPairId function used for validation", async () => {
-      const customExtractor = (id: string) => id.split(":")[0];
+      const customExtractor = (id: string): string => id.split(":")[0] ?? id;
       const parser = new PairedFastqParser({
         checkPairSync: true,
         extractPairId: customExtractor,
@@ -614,7 +614,7 @@ describe("PairedFastqParser", () => {
       }
 
       expect(pairs).toHaveLength(1);
-      expect(pairs[0].pairId).toBe("read1");
+      expect(pairs[0]!.pairId).toBe("read1");
     });
 
     test("throw mode: stops iteration on first mismatch", async () => {
@@ -647,9 +647,9 @@ describe("PairedFastqParser", () => {
       }
 
       expect(pairs).toHaveLength(3);
-      expect(pairs[0].pairId).toBe("read1");
-      expect(pairs[1].pairId).toBe("read2");
-      expect(pairs[2].pairId).toBe("read3");
+      expect(pairs[0]!.pairId).toBe("read1");
+      expect(pairs[1]!.pairId).toBe("read2");
+      expect(pairs[2]!.pairId).toBe("read3");
     });
 
     test("skip mode: continues iteration after mismatch silently", async () => {
@@ -666,9 +666,9 @@ describe("PairedFastqParser", () => {
       }
 
       expect(pairs).toHaveLength(3);
-      expect(pairs[0].pairId).toBe("read1");
-      expect(pairs[1].pairId).toBe("read2");
-      expect(pairs[2].pairId).toBe("read3");
+      expect(pairs[0]!.pairId).toBe("read1");
+      expect(pairs[1]!.pairId).toBe("read2");
+      expect(pairs[2]!.pairId).toBe("read3");
     });
 
     test("multiple pairs with all matches", async () => {
@@ -685,9 +685,9 @@ describe("PairedFastqParser", () => {
       }
 
       expect(pairs).toHaveLength(3);
-      expect(pairs[0].pairId).toBe("read1");
-      expect(pairs[1].pairId).toBe("read2");
-      expect(pairs[2].pairId).toBe("read3");
+      expect(pairs[0]!.pairId).toBe("read1");
+      expect(pairs[1]!.pairId).toBe("read2");
+      expect(pairs[2]!.pairId).toBe("read3");
     });
 
     test("multiple pairs with mixed matches in throw mode", async () => {
@@ -706,7 +706,7 @@ describe("PairedFastqParser", () => {
       }).toThrow(PairSyncError);
 
       expect(pairs).toHaveLength(1);
-      expect(pairs[0].pairId).toBe("match1");
+      expect(pairs[0]!.pairId).toBe("match1");
     });
 
     test("checkPairSync=false bypasses validation for mismatched pairs", async () => {
@@ -722,8 +722,8 @@ describe("PairedFastqParser", () => {
       }
 
       expect(pairs).toHaveLength(2);
-      expect(pairs[0].pairId).toBeUndefined();
-      expect(pairs[1].pairId).toBeUndefined();
+      expect(pairs[0]!.pairId).toBeUndefined();
+      expect(pairs[1]!.pairId).toBeUndefined();
     });
   });
 
@@ -740,12 +740,12 @@ describe("PairedFastqParser", () => {
       }
 
       expect(pairs).toHaveLength(3);
-      expect(pairs[0].r1.id).toBe("read1/1");
-      expect(pairs[0].r2.id).toBe("read1/2");
-      expect(pairs[1].r1.id).toBe("read2/1");
-      expect(pairs[1].r2.id).toBe("read2/2");
-      expect(pairs[2].r1.id).toBe("read3/1");
-      expect(pairs[2].r2.id).toBe("read3/2");
+      expect(pairs[0]!.r1.id).toBe("read1/1");
+      expect(pairs[0]!.r2.id).toBe("read1/2");
+      expect(pairs[1]!.r1.id).toBe("read2/1");
+      expect(pairs[1]!.r2.id).toBe("read2/2");
+      expect(pairs[2]!.r1.id).toBe("read3/1");
+      expect(pairs[2]!.r2.id).toBe("read3/2");
     });
 
     test("parses files with checkPairSync enabled", async () => {
@@ -763,9 +763,9 @@ describe("PairedFastqParser", () => {
       }
 
       expect(pairs).toHaveLength(3);
-      expect(pairs[0].pairId).toBe("read1");
-      expect(pairs[1].pairId).toBe("read2");
-      expect(pairs[2].pairId).toBe("read3");
+      expect(pairs[0]!.pairId).toBe("read1");
+      expect(pairs[1]!.pairId).toBe("read2");
+      expect(pairs[2]!.pairId).toBe("read3");
     });
 
     test("detects length mismatch in files", async () => {
@@ -793,10 +793,10 @@ describe("PairedFastqParser", () => {
         pairs.push(pair);
       }
 
-      expect(pairs[0].r1.sequence).toBe("ATCGATCGATCG");
-      expect(pairs[0].r2.sequence).toBe("CGTAGCTAGCTA");
-      expect(pairs[0].r1.quality).toBe("IIIIIIIIIIII");
-      expect(pairs[0].r2.quality).toBe("IIIIIIIIIIII");
+      expect(pairs[0]!.r1.sequence).toBe("ATCGATCGATCG");
+      expect(pairs[0]!.r2.sequence).toBe("CGTAGCTAGCTA");
+      expect(pairs[0]!.r1.quality).toBe("IIIIIIIIIIII");
+      expect(pairs[0]!.r2.quality).toBe("IIIIIIIIIIII");
     });
 
     test("calculates totalLength correctly from files", async () => {
@@ -810,9 +810,9 @@ describe("PairedFastqParser", () => {
         pairs.push(pair);
       }
 
-      expect(pairs[0].totalLength).toBe(24);
-      expect(pairs[1].totalLength).toBe(24);
-      expect(pairs[2].totalLength).toBe(24);
+      expect(pairs[0]!.totalLength).toBe(24);
+      expect(pairs[1]!.totalLength).toBe(24);
+      expect(pairs[2]!.totalLength).toBe(24);
     });
 
     test("accepts FileReaderOptions", async () => {
@@ -843,11 +843,11 @@ describe("PairedFastqParser", () => {
       }
 
       expect(pairs).toHaveLength(2);
-      expect(pairs[0].r1.sequence).toBe("ATCG");
-      expect(pairs[0].r2.sequence).toBe("TAGC");
-      expect(pairs[1].r1.sequence).toBe("GGGG");
-      expect(pairs[1].r2.sequence).toBe("CCCC");
-      expect(pairs[0].pairId).toBeUndefined();
+      expect(pairs[0]!.r1.sequence).toBe("ATCG");
+      expect(pairs[0]!.r2.sequence).toBe("TAGC");
+      expect(pairs[1]!.r1.sequence).toBe("GGGG");
+      expect(pairs[1]!.r2.sequence).toBe("CCCC");
+      expect(pairs[0]!.pairId).toBeUndefined();
     });
 
     test("streaming large paired files maintains constant memory", async () => {
@@ -877,8 +877,8 @@ describe("PairedFastqParser", () => {
         pairs.push(pair);
       }
 
-      expect(pairs[0].totalLength).toBe(8);
-      expect(pairs[1].totalLength).toBe(8);
+      expect(pairs[0]!.totalLength).toBe(8);
+      expect(pairs[1]!.totalLength).toBe(8);
     });
 
     test("handles empty paired files gracefully", async () => {
@@ -911,9 +911,9 @@ describe("PairedFastqParser", () => {
       }
 
       expect(pairs).toHaveLength(3);
-      expect(pairs[0].pairId).toBe("read1");
-      expect(pairs[1].pairId).toBe("read2");
-      expect(pairs[2].pairId).toBe("read3");
+      expect(pairs[0]!.pairId).toBe("read1");
+      expect(pairs[1]!.pairId).toBe("read2");
+      expect(pairs[2]!.pairId).toBe("read3");
     });
 
     test("Illumina naming convention handled correctly with sync checking", async () => {
@@ -931,7 +931,7 @@ describe("PairedFastqParser", () => {
       }
 
       expect(pairs).toHaveLength(1);
-      expect(pairs[0].pairId).toBe("M00123:456:000000000-ABCDE:1:1101:15678:1234");
+      expect(pairs[0]!.pairId).toBe("M00123:456:000000000-ABCDE:1:1101:15678:1234");
     });
 
     test("PairSyncError messages are helpful and actionable", async () => {
@@ -945,7 +945,7 @@ describe("PairedFastqParser", () => {
 
       let errorMessage = "";
       try {
-        for await (const pair of parser.parseStrings(r1, r2)) {
+        for await (const _pair of parser.parseStrings(r1, r2)) {
           // Should throw before yielding
         }
       } catch (error) {
@@ -1000,8 +1000,8 @@ describe("PairedFastqParser", () => {
       }
 
       expect(pairs).toHaveLength(2);
-      expect(pairs[0].pairId).toBe("read1");
-      expect(pairs[1].pairId).toBe("read2");
+      expect(pairs[0]!.pairId).toBe("read1");
+      expect(pairs[1]!.pairId).toBe("read2");
     });
 
     test("onMismatch='skip' silently continues without warnings", async () => {
@@ -1019,8 +1019,8 @@ describe("PairedFastqParser", () => {
       }
 
       expect(pairs).toHaveLength(2);
-      expect(pairs[0].pairId).toBe("read1");
-      expect(pairs[1].pairId).toBe("read2");
+      expect(pairs[0]!.pairId).toBe("read1");
+      expect(pairs[1]!.pairId).toBe("read2");
     });
   });
 
@@ -1028,7 +1028,7 @@ describe("PairedFastqParser", () => {
     test("custom extractPairId function handles non-standard naming", async () => {
       const customExtractor = (id: string): string => {
         const parts = id.split(":");
-        return parts.length > 0 ? parts[0] : id;
+        return parts[0] ?? id;
       };
 
       const parser = new PairedFastqParser({
@@ -1046,7 +1046,7 @@ describe("PairedFastqParser", () => {
       }
 
       expect(pairs).toHaveLength(1);
-      expect(pairs[0].pairId).toBe("instrument");
+      expect(pairs[0]!.pairId).toBe("instrument");
     });
 
     test("multi-line FASTQ sequences handled correctly in pairs", async () => {
@@ -1061,11 +1061,11 @@ describe("PairedFastqParser", () => {
       }
 
       expect(pairs).toHaveLength(1);
-      expect(pairs[0].r1.sequence).toBe("ATCGATCGATCG");
-      expect(pairs[0].r2.sequence).toBe("CGATCGATCGAT");
-      expect(pairs[0].r1.quality).toBe("IIIIIIIIIIII");
-      expect(pairs[0].r2.quality).toBe("IIIIIIIIIIII");
-      expect(pairs[0].totalLength).toBe(24);
+      expect(pairs[0]!.r1.sequence).toBe("ATCGATCGATCG");
+      expect(pairs[0]!.r2.sequence).toBe("CGATCGATCGAT");
+      expect(pairs[0]!.r1.quality).toBe("IIIIIIIIIIII");
+      expect(pairs[0]!.r2.quality).toBe("IIIIIIIIIIII");
+      expect(pairs[0]!.totalLength).toBe(24);
     });
 
     test("quality encoding options inherited from FastqParser", async () => {
@@ -1083,8 +1083,8 @@ describe("PairedFastqParser", () => {
       }
 
       expect(pairs).toHaveLength(1);
-      expect(pairs[0].r1.quality).toBe("!@#$");
-      expect(pairs[0].r2.quality).toBe("%^&*");
+      expect(pairs[0]!.r1.quality).toBe("!@#$");
+      expect(pairs[0]!.r2.quality).toBe("%^&*");
     });
 
     test("error propagation from internal parsers for malformed FASTQ", async () => {
@@ -1095,10 +1095,10 @@ describe("PairedFastqParser", () => {
 
       let threwError = false;
       try {
-        for await (const pair of parser.parseStrings(r1, r2)) {
+        for await (const _pair of parser.parseStrings(r1, r2)) {
           // Should throw due to malformed R2
         }
-      } catch (error) {
+      } catch (_error) {
         threwError = true;
       }
 
@@ -1117,9 +1117,9 @@ describe("PairedFastqParser", () => {
       }
 
       expect(pairs).toHaveLength(1);
-      expect(pairs[0].r1.length).toBe(12);
-      expect(pairs[0].r2.length).toBe(2);
-      expect(pairs[0].totalLength).toBe(14);
+      expect(pairs[0]!.r1.length).toBe(12);
+      expect(pairs[0]!.r2.length).toBe(2);
+      expect(pairs[0]!.totalLength).toBe(14);
     });
 
     test("R1 longer than R2 file detected as length mismatch", async () => {
@@ -1131,7 +1131,7 @@ describe("PairedFastqParser", () => {
       let threwError = false;
       let errorMessage = "";
       try {
-        for await (const pair of parser.parseStrings(r1, r2)) {
+        for await (const _pair of parser.parseStrings(r1, r2)) {
           // Should throw after first pair
         }
       } catch (error) {
@@ -1154,7 +1154,7 @@ describe("PairedFastqParser", () => {
       let threwError = false;
       let errorMessage = "";
       try {
-        for await (const pair of parser.parseStrings(r1, r2)) {
+        for await (const _pair of parser.parseStrings(r1, r2)) {
           // Should throw after first pair
         }
       } catch (error) {

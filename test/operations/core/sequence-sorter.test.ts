@@ -451,11 +451,7 @@ describe("SequenceSorter", () => {
     });
 
     test("handles sequences with equal sort values", async () => {
-      const testSeqs: AbstractSequence[] = [
-        seq("a", "ATCG"),
-        seq("b", "GCTA"),
-        seq("c", "CGAT"),
-      ];
+      const testSeqs: AbstractSequence[] = [seq("a", "ATCG"), seq("b", "GCTA"), seq("c", "CGAT")];
 
       async function* testStream(): AsyncGenerator<AbstractSequence> {
         for (const s of testSeqs) yield s;

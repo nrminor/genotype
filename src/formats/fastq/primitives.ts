@@ -12,8 +12,6 @@
  * and state machine parsers, as well as the FASTQ writer.
  */
 
-
-
 /**
  * Detect if input appears to be simple 4-line FASTQ format
  *
@@ -79,8 +77,6 @@ export function findRecordBoundary(lines: string[], startIdx: number): number {
   return -1;
 }
 
-
-
 /**
  * Check if a line is a valid FASTQ header
  *
@@ -126,8 +122,6 @@ export function isValidSeparator(line: string, expectedId?: string): boolean {
 export function lengthsMatch(sequence: string, quality: string): boolean {
   return sequence.length === quality.length;
 }
-
-
 
 /**
  * Extract record ID from FASTQ header line
@@ -188,8 +182,6 @@ export function extractPlatformInfo(
   return undefined;
 }
 
-
-
 /**
  * Efficiently accumulate multi-line sequence
  *
@@ -228,8 +220,6 @@ export function accumulateQuality(lines: string[], targetLength: number): string
   return accumulated.length === targetLength ? accumulated : null;
 }
 
-
-
 /**
  * Split sequence into fixed-width chunks
  *
@@ -265,8 +255,6 @@ export function chunkQuality(quality: string, width = 80): string[] {
   // Reuse sequence chunking logic - they're identical
   return chunkSequence(quality, width);
 }
-
-
 
 /**
  * Format a FASTQ header line from ID and optional description

@@ -6,8 +6,6 @@
  * code more maintainable and self-documenting.
  */
 
-
-
 /**
  * Quality score thresholds for assessment and filtering
  * Based on standard Phred score interpretations in bioinformatics
@@ -24,8 +22,6 @@ export const QUALITY_THRESHOLDS = {
   /** Minimum acceptable mean quality for most analyses */
   MIN_ACCEPTABLE: 20,
 } as const;
-
-
 
 /**
  * ASCII character code boundaries for different quality encoding schemes
@@ -54,8 +50,6 @@ export const ASCII_BOUNDARIES = {
   HIGH_ASCII_BOUNDARY: 73,
 } as const;
 
-
-
 /**
  * Default configuration values for FASTQ parsing
  */
@@ -74,8 +68,6 @@ export const PARSING_DEFAULTS = {
   MAX_WINDOW_SIZE: 100,
 } as const;
 
-
-
 /**
  * Confidence levels for quality encoding detection
  */
@@ -90,8 +82,6 @@ export const CONFIDENCE_LEVELS = {
   MINIMUM: 0.3,
 } as const;
 
-
-
 /**
  * Platform-specific patterns and characteristics
  */
@@ -105,8 +95,6 @@ export const PLATFORM_PATTERNS = {
   /** Typical Nanopore read length threshold */
   NANOPORE_MIN_LENGTH: 500,
 } as const;
-
-
 
 /**
  * Configuration for quality window analysis
@@ -129,8 +117,6 @@ export const TRIMMING_DEFAULTS = {
   /** Default quality threshold for trimming */
   MIN_QUALITY: 20,
 } as const;
-
-
 
 /** Type for quality threshold values */
 export type QualityThreshold = (typeof QUALITY_THRESHOLDS)[keyof typeof QUALITY_THRESHOLDS];

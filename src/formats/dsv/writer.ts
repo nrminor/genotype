@@ -11,8 +11,6 @@
  * - Statistics computation
  */
 
-
-
 import { type } from "arktype";
 import { ValidationError } from "../../errors";
 import { writeString } from "../../io/file-writer";
@@ -23,8 +21,6 @@ import { protectFromExcel } from "./excel-protection";
 import type { DSVRecord, DSVWriterOptions } from "./types";
 import { calculateBaseCount, calculateGC } from "./utils";
 import { DSVWriterOptionsSchema } from "./validation";
-
-
 
 /**
  * DSVWriter - Core CSV/TSV writer implementation
@@ -218,13 +214,9 @@ export class DSVWriter {
   }
 }
 
-
-
 /**
  * CSV Parser - convenience wrapper with comma delimiter
  */
-
-
 
 /**
  * CSVWriter - Convenience class for CSV files

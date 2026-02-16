@@ -22,19 +22,19 @@ describe("BED Format - Current Implementation Behavior", () => {
     const bed3Data = "chr1\t1000\t2000\n";
     const [interval] = await Array.fromAsync(parser.parseString(bed3Data));
 
-    expect(interval.chromosome).toBe("chr1");
-    expect(interval.start).toBe(1000);
-    expect(interval.end).toBe(2000);
-    expect(interval.length).toBe(1000); // Current implementation adds length
+    expect(interval!.chromosome).toBe("chr1");
+    expect(interval!.start).toBe(1000);
+    expect(interval!.end).toBe(2000);
+    expect(interval!.length).toBe(1000); // Current implementation adds length
   });
 
   test("parses BED6 with all basic fields", async () => {
     const bed6Data = "chr1\t1000\t2000\tfeature1\t100\t+\n";
     const [interval] = await Array.fromAsync(parser.parseString(bed6Data));
 
-    expect(interval.name).toBe("feature1");
-    expect(interval.score).toBe(100);
-    expect(interval.strand).toBe("+");
+    expect(interval!.name).toBe("feature1");
+    expect(interval!.score).toBe(100);
+    expect(interval!.strand).toBe("+");
   });
 
   test("current coordinate validation behavior", async () => {
@@ -42,7 +42,7 @@ describe("BED Format - Current Implementation Behavior", () => {
 
     let threwError = false;
     try {
-      for await (const interval of parser.parseString(invalidData)) {
+      for await (const _interval of parser.parseString(invalidData)) {
         // Should not reach here
       }
     } catch (error) {
@@ -150,10 +150,10 @@ describe("BED Large Coordinate Edge Cases", () => {
 
     const [interval] = await Array.fromAsync(parser.parseString(insertionSite));
 
-    expect(interval.start).toBe(1000);
-    expect(interval.end).toBe(1000);
-    expect(interval.length).toBe(0); // Zero-length valid for insertion sites
-    expect(interval.name).toBe("insertion_site");
+    expect(interval!.start).toBe(1000);
+    expect(interval!.end).toBe(1000);
+    expect(interval!.length).toBe(0); // Zero-length valid for insertion sites
+    expect(interval!.name).toBe("insertion_site");
   });
 
   /**
@@ -201,10 +201,10 @@ describe("BED Large Coordinate Edge Cases", () => {
 
     const [interval] = await Array.fromAsync(parser.parseString(barleyChromosome));
 
-    expect(interval.chromosome).toBe("chr1H"); // Barley chromosome naming
-    expect(interval.start).toBe(750000000); // ~750M coordinate (legitimate)
-    expect(interval.end).toBe(750001000);
-    expect(interval.name).toBe("barley_gene");
+    expect(interval!.chromosome).toBe("chr1H"); // Barley chromosome naming
+    expect(interval!.start).toBe(750000000); // ~750M coordinate (legitimate)
+    expect(interval!.end).toBe(750001000);
+    expect(interval!.name).toBe("barley_gene");
   });
 
   /**
@@ -224,10 +224,10 @@ describe("BED Large Coordinate Edge Cases", () => {
     try {
       const [interval] = await Array.fromAsync(parser.parseString(bedtoolsFailureCase));
       // If it parses, should have appropriate coordinates
-      expect(interval.chromosome).toBe("LIB18989");
+      expect(interval!.chromosome).toBe("LIB18989");
     } catch (error) {
       // If it errors, should mention tool compatibility
-      expect(error.message).toMatch(/coordinate.*large|tool.*compatibility|bedtools/i);
+      expect((error as Error).message).toMatch(/coordinate.*large|tool.*compatibility|bedtools/i);
     }
   });
 
@@ -247,9 +247,9 @@ describe("BED Large Coordinate Edge Cases", () => {
     const intervals = await Array.fromAsync(parser.parseString(mixedData));
 
     expect(intervals).toHaveLength(2);
-    expect(intervals[0].chromosome).toBe("chr1");
-    expect(intervals[1].chromosome).toBe("scaffold_1");
-    expect(intervals[1].start).toBe(500000000); // Large coordinate handled correctly
+    expect(intervals[0]!.chromosome).toBe("chr1");
+    expect(intervals[1]!.chromosome).toBe("scaffold_1");
+    expect(intervals[1]!.start).toBe(500000000); // Large coordinate handled correctly
   });
 
   /**
@@ -265,9 +265,9 @@ describe("BED Large Coordinate Edge Cases", () => {
     // Just under 2.5GB limit - should be accepted
     const [interval] = await Array.fromAsync(parser.parseString(boundaryCoordinate));
 
-    expect(interval.start).toBe(2499999000);
-    expect(interval.end).toBe(2500000000);
-    expect(interval.name).toBe("boundary_test");
+    expect(interval!.start).toBe(2499999000);
+    expect(interval!.end).toBe(2500000000);
+    expect(interval!.name).toBe("boundary_test");
   });
 
   /**
@@ -286,10 +286,10 @@ describe("BED Large Coordinate Edge Cases", () => {
 
     const [interval] = await Array.fromAsync(parser.parseString(plantGenomeCoordinate));
 
-    expect(interval.chromosome).toBe("scaffold_paris");
-    expect(interval.start).toBe(1000000000); // 1GB coordinate (legitimate for giant plants)
-    expect(interval.end).toBe(1000001000);
-    expect(interval.name).toBe("plant_gene");
+    expect(interval!.chromosome).toBe("scaffold_paris");
+    expect(interval!.start).toBe(1000000000); // 1GB coordinate (legitimate for giant plants)
+    expect(interval!.end).toBe(1000001000);
+    expect(interval!.name).toBe("plant_gene");
   });
 
   /**
@@ -309,9 +309,9 @@ describe("BED Large Coordinate Edge Cases", () => {
     const intervals = await Array.fromAsync(parser.parseString(precisionCases));
 
     expect(intervals).toHaveLength(3);
-    expect(intervals[0].length).toBe(0); // Zero-length CRISPR cut site
-    expect(intervals[1].length).toBe(1); // Single base SNV
-    expect(intervals[2].length).toBe(0); // Zero-length methylation site
+    expect(intervals[0]!.length).toBe(0); // Zero-length CRISPR cut site
+    expect(intervals[1]!.length).toBe(1); // Single base SNV
+    expect(intervals[2]!.length).toBe(0); // Zero-length methylation site
   });
 });
 
@@ -340,11 +340,11 @@ describe("BED12 Block Structure Validation (UCSC Specification)", () => {
 
     const [interval] = await Array.fromAsync(parser.parseString(validBed12));
 
-    expect(interval.chromosome).toBe("chr1");
-    expect(interval.blockCount).toBe(3);
-    expect(interval.blockStarts).toEqual([0, 400, 800]);
-    expect(interval.blockSizes).toEqual([200, 200, 200]);
-    expect(interval.stats?.bedType).toBe("BED12");
+    expect(interval!.chromosome).toBe("chr1");
+    expect(interval!.blockCount).toBe(3);
+    expect(interval!.blockStarts).toEqual([0, 400, 800]);
+    expect(interval!.blockSizes).toEqual([200, 200, 200]);
+    expect(interval!.stats?.bedType).toBe("BED12");
   });
 
   /**
@@ -436,15 +436,15 @@ describe("BED12 Block Structure Validation (UCSC Specification)", () => {
 
     const [interval] = await Array.fromAsync(parser.parseString(complexGene));
 
-    expect(interval.chromosome).toBe("chr17");
-    expect(interval.name).toBe("BRCA1-201"); // Transcript identifier
-    expect(interval.blockCount).toBe(5); // 5 exons
-    expect(interval.strand).toBe("-"); // Reverse strand gene
-    expect(interval.blockStarts![0]).toBe(0); // First exon starts at transcript start
+    expect(interval!.chromosome).toBe("chr17");
+    expect(interval!.name).toBe("BRCA1-201"); // Transcript identifier
+    expect(interval!.blockCount).toBe(5); // 5 exons
+    expect(interval!.strand).toBe("-"); // Reverse strand gene
+    expect(interval!.blockStarts![0]).toBe(0); // First exon starts at transcript start
 
     // Verify final exon math: 81103 + 85 = 81188 should equal chromEnd - chromStart
-    const featureLength = interval.end - interval.start;
-    const finalBlockEnd = interval.blockStarts![4]! + interval.blockSizes![4]!;
+    const featureLength = interval!.end - interval!.start;
+    const finalBlockEnd = interval!.blockStarts![4]! + interval!.blockSizes![4]!;
     expect(finalBlockEnd).toBe(featureLength);
   });
 });
@@ -472,12 +472,12 @@ describe("ENCODE Format Compatibility (Real-World ChIP-seq Data)", () => {
 
     const [peak] = await Array.fromAsync(parser.parseString(narrowPeakData));
 
-    expect(peak.chromosome).toBe("chr1");
-    expect(peak.start).toBe(777491);
-    expect(peak.end).toBe(778262);
-    expect(peak.name).toBe("neuroGM23338_macs3_rep1_peak_1"); // ENCODE naming convention
-    expect(peak.score).toBe(34);
-    expect(peak.strand).toBe(".");
+    expect(peak!.chromosome).toBe("chr1");
+    expect(peak!.start).toBe(777491);
+    expect(peak!.end).toBe(778262);
+    expect(peak!.name).toBe("neuroGM23338_macs3_rep1_peak_1"); // ENCODE naming convention
+    expect(peak!.score).toBe(34);
+    expect(peak!.strand).toBe(".");
     // Note: Full narrowPeak fields 7-10 (signalValue, pValue, qValue, peak) require format extension
   });
 
@@ -496,10 +496,10 @@ describe("ENCODE Format Compatibility (Real-World ChIP-seq Data)", () => {
 
     const [peak] = await Array.fromAsync(parser.parseString(broadPeakData));
 
-    expect(peak.chromosome).toBe("chr1");
-    expect(peak.name).toBe("H3K4me3_peak_1"); // Histone mark naming
-    expect(peak.length).toBe(2000); // Broader domain (2KB) vs narrow peaks
-    expect(peak.strand).toBe(".");
+    expect(peak!.chromosome).toBe("chr1");
+    expect(peak!.name).toBe("H3K4me3_peak_1"); // Histone mark naming
+    expect(peak!.length).toBe(2000); // Broader domain (2KB) vs narrow peaks
+    expect(peak!.strand).toBe(".");
     // Note: Full broadPeak fields 7-9 (signalValue, pValue, qValue) require format extension
   });
 
@@ -522,8 +522,8 @@ describe("ENCODE Format Compatibility (Real-World ChIP-seq Data)", () => {
     const intervals = await Array.fromAsync(parser.parseString(nonCompliantEncode));
 
     expect(intervals).toHaveLength(2);
-    expect(intervals[0].name).toBe("."); // Should preserve dot placeholders
-    expect(intervals[1].strand).toBe("."); // Handle mixed usage
+    expect(intervals[0]!.name).toBe("."); // Should preserve dot placeholders
+    expect(intervals[1]!.strand).toBe("."); // Handle mixed usage
   });
 
   /**
@@ -540,9 +540,9 @@ describe("ENCODE Format Compatibility (Real-World ChIP-seq Data)", () => {
 
     const [interval] = await Array.fromAsync(parser.parseString(encodeStyleData));
 
-    expect(interval.name).toBe("ENCFF591RMN_peak_1"); // ENCODE identifier format
-    expect(interval.chromosome).toBe("chr1");
-    expect(interval.score).toBe(100);
+    expect(interval!.name).toBe("ENCFF591RMN_peak_1"); // ENCODE identifier format
+    expect(interval!.chromosome).toBe("chr1");
+    expect(interval!.score).toBe(100);
   });
 
   /**
@@ -564,9 +564,9 @@ describe("ENCODE Format Compatibility (Real-World ChIP-seq Data)", () => {
     const peaks = await Array.fromAsync(parser.parseString(chipseqPeaks));
 
     expect(peaks).toHaveLength(3);
-    expect(peaks[0].score).toBe(150); // High significance peak
-    expect(peaks[1].score).toBe(25); // Low significance peak
-    expect(peaks[2].score).toBe(30); // Threshold significance
+    expect(peaks[0]!.score).toBe(150); // High significance peak
+    expect(peaks[1]!.score).toBe(25); // Low significance peak
+    expect(peaks[2]!.score).toBe(30); // Threshold significance
 
     // Verify score range compliance (0-1000 UCSC specification)
     peaks.forEach((peak) => {
@@ -604,10 +604,10 @@ describe("Tool Ecosystem Compatibility (Cross-Tool Interoperability)", () => {
     const intervals = await Array.fromAsync(parser.parseString(chromosomeNamingVariants));
 
     expect(intervals).toHaveLength(4);
-    expect(intervals[0].chromosome).toBe("chr1"); // UCSC style preserved
-    expect(intervals[1].chromosome).toBe("1"); // NCBI style preserved
-    expect(intervals[2].chromosome).toBe("chrX"); // Sex chromosome handled
-    expect(intervals[3].chromosome).toBe("chrM"); // Mitochondrial handled
+    expect(intervals[0]!.chromosome).toBe("chr1"); // UCSC style preserved
+    expect(intervals[1]!.chromosome).toBe("1"); // NCBI style preserved
+    expect(intervals[2]!.chromosome).toBe("chrX"); // Sex chromosome handled
+    expect(intervals[3]!.chromosome).toBe("chrM"); // Mitochondrial handled
   });
 
   /**
@@ -629,10 +629,10 @@ describe("Tool Ecosystem Compatibility (Cross-Tool Interoperability)", () => {
 
     expect(intervals).toHaveLength(3);
     // Verify BEDOPS-compatible ordering is maintained
-    expect(intervals[0].chromosome).toBe("chr1");
-    expect(intervals[1].chromosome).toBe("chr1");
-    expect(intervals[1].start).toBeGreaterThan(intervals[0].start); // Numeric order within chr
-    expect(intervals[2].chromosome).toBe("chr10"); // Lexicographic order
+    expect(intervals[0]!.chromosome).toBe("chr1");
+    expect(intervals[1]!.chromosome).toBe("chr1");
+    expect(intervals[1]!.start).toBeGreaterThan(intervals[0]!.start); // Numeric order within chr
+    expect(intervals[2]!.chromosome).toBe("chr10"); // Lexicographic order
   });
 
   /**
@@ -651,14 +651,14 @@ describe("Tool Ecosystem Compatibility (Cross-Tool Interoperability)", () => {
     const [interval] = await Array.fromAsync(parser.parseString(deepToolsCompatible));
 
     // Verify all 6 required fields are present and properly typed
-    expect(interval.chromosome).toBe("chr1"); // Required field 1
-    expect(interval.start).toBe(1000); // Required field 2
-    expect(interval.end).toBe(2000); // Required field 3
-    expect(interval.name).toBe("feature1"); // Required field 4
-    expect(interval.score).toBe(100); // Required field 5
-    expect(interval.strand).toBe("+"); // Required field 6
+    expect(interval!.chromosome).toBe("chr1"); // Required field 1
+    expect(interval!.start).toBe(1000); // Required field 2
+    expect(interval!.end).toBe(2000); // Required field 3
+    expect(interval!.name).toBe("feature1"); // Required field 4
+    expect(interval!.score).toBe(100); // Required field 5
+    expect(interval!.strand).toBe("+"); // Required field 6
 
-    expect(interval.stats?.bedType).toBe("BED6"); // Confirms BED6 format
+    expect(interval!.stats?.bedType).toBe("BED6"); // Confirms BED6 format
   });
 
   /**
@@ -681,10 +681,10 @@ describe("Tool Ecosystem Compatibility (Cross-Tool Interoperability)", () => {
     expect(dosIntervals).toHaveLength(2);
 
     // Both should produce identical results regardless of line ending
-    expect(unixIntervals[0].chromosome).toBe("chr1");
-    expect(dosIntervals[0].chromosome).toBe("chr1");
-    expect(unixIntervals[1].name).toBe("unix_feature2");
-    expect(dosIntervals[1].name).toBe("dos_feature2");
+    expect(unixIntervals[0]!.chromosome).toBe("chr1");
+    expect(dosIntervals[0]!.chromosome).toBe("chr1");
+    expect(unixIntervals[1]!.name).toBe("unix_feature2");
+    expect(dosIntervals[1]!.name).toBe("dos_feature2");
   });
 
   /**
@@ -702,11 +702,11 @@ describe("Tool Ecosystem Compatibility (Cross-Tool Interoperability)", () => {
 
     // Tab delimited should parse correctly
     const [tabInterval] = await Array.fromAsync(parser.parseString(tabDelimited));
-    expect(tabInterval.name).toBe("tab_feature");
+    expect(tabInterval!.name).toBe("tab_feature");
 
     // Space delimited should parse (our parser handles whitespace generally)
     const [spaceInterval] = await Array.fromAsync(parser.parseString(spaceDelimited));
-    expect(spaceInterval.name).toBe("space_feature"); // Flexible parsing
+    expect(spaceInterval!.name).toBe("space_feature"); // Flexible parsing
   });
 });
 
@@ -735,9 +735,9 @@ describe("Biological Workflow Use Cases (Real Genomics Applications)", () => {
     const peaks = await Array.fromAsync(parser.parseString(chipseqPeaks));
 
     expect(peaks).toHaveLength(2);
-    expect(peaks[0].name).toBe("peak1");
-    expect(peaks[0].length).toBe(400); // Narrow peak characteristic
-    expect(peaks[1].length).toBe(2500); // Broad domain characteristic
+    expect(peaks[0]!.name).toBe("peak1");
+    expect(peaks[0]!.length).toBe(400); // Narrow peak characteristic
+    expect(peaks[1]!.length).toBe(2500); // Broad domain characteristic
   });
 
   /**
@@ -755,10 +755,10 @@ describe("Biological Workflow Use Cases (Real Genomics Applications)", () => {
 
     const [transcript] = await Array.fromAsync(parser.parseString(rnaseqTranscript));
 
-    expect(transcript.blockCount).toBe(4); // 4 exons
-    expect(transcript.thickStart).toBe(1200); // CDS start
-    expect(transcript.thickEnd).toBe(4800); // CDS end
-    expect(transcript.strand).toBe("+"); // Forward strand transcript
+    expect(transcript!.blockCount).toBe(4); // 4 exons
+    expect(transcript!.thickStart).toBe(1200); // CDS start
+    expect(transcript!.thickEnd).toBe(4800); // CDS end
+    expect(transcript!.strand).toBe("+"); // Forward strand transcript
   });
 
   /**
@@ -778,9 +778,9 @@ describe("Biological Workflow Use Cases (Real Genomics Applications)", () => {
     const variants = await Array.fromAsync(parser.parseString(variantData));
 
     expect(variants).toHaveLength(3);
-    expect(variants[0].length).toBe(0); // Insertion site (zero-length)
-    expect(variants[1].length).toBe(1); // SNV (single base)
-    expect(variants[2].length).toBe(50); // Deletion (50bp)
+    expect(variants[0]!.length).toBe(0); // Insertion site (zero-length)
+    expect(variants[1]!.length).toBe(1); // SNV (single base)
+    expect(variants[2]!.length).toBe(50); // Deletion (50bp)
   });
 });
 
@@ -822,7 +822,7 @@ describe("Error Recovery and Data Corruption Handling", () => {
       const intervals = await Array.fromAsync(parser.parseString(incompleteData));
       expect(intervals).toHaveLength(1); // Only complete line parsed
     } catch (error) {
-      expect(error.message).toMatch(/field|incomplete|format/i);
+      expect((error as Error).message).toMatch(/field|incomplete|format/i);
     }
   });
 
@@ -846,8 +846,8 @@ describe("Error Recovery and Data Corruption Handling", () => {
     const intervals = await Array.fromAsync(parser.parseString(mixedContent));
 
     expect(intervals).toHaveLength(2); // Only data lines parsed, metadata skipped
-    expect(intervals[0].name).toBe("feature1");
-    expect(intervals[1].name).toBe("feature2");
+    expect(intervals[0]!.name).toBe("feature1");
+    expect(intervals[1]!.name).toBe("feature2");
   });
 });
 
@@ -883,9 +883,9 @@ describe("Real-World Edge Cases (Industry Problem Prevention)", () => {
     expect(intervals).toHaveLength(6);
 
     // Verify format detection for each variant
-    expect(intervals[0].stats?.bedType).toBe("BED3");
-    expect(intervals[3].stats?.bedType).toBe("BED6");
-    expect(intervals[5].stats?.bedType).toBe("BED12");
+    expect(intervals[0]!.stats?.bedType).toBe("BED3");
+    expect(intervals[3]!.stats?.bedType).toBe("BED6");
+    expect(intervals[5]!.stats?.bedType).toBe("BED12");
   });
 
   /**
@@ -933,11 +933,11 @@ describe("Real-World Edge Cases (Industry Problem Prevention)", () => {
     const intervals = await Array.fromAsync(parser.parseString(chromosomeVariations));
 
     expect(intervals).toHaveLength(7);
-    expect(intervals[0].chromosome).toBe("chr1"); // UCSC preserved
-    expect(intervals[1].chromosome).toBe("1"); // NCBI preserved
-    expect(intervals[2].chromosome).toBe("X"); // Sex chromosome
-    expect(intervals[4].chromosome).toBe("chrM"); // UCSC mitochondrial
-    expect(intervals[5].chromosome).toBe("scaffold_123"); // Assembly naming
+    expect(intervals[0]!.chromosome).toBe("chr1"); // UCSC preserved
+    expect(intervals[1]!.chromosome).toBe("1"); // NCBI preserved
+    expect(intervals[2]!.chromosome).toBe("X"); // Sex chromosome
+    expect(intervals[4]!.chromosome).toBe("chrM"); // UCSC mitochondrial
+    expect(intervals[5]!.chromosome).toBe("scaffold_123"); // Assembly naming
   });
 
   /**
@@ -959,9 +959,9 @@ describe("Real-World Edge Cases (Industry Problem Prevention)", () => {
     const intervals = await Array.fromAsync(parser.parseString(scoreVariations));
 
     expect(intervals).toHaveLength(3);
-    expect(intervals[0].score).toBe(0); // Minimum boundary
-    expect(intervals[1].score).toBe(500); // Mid-range value
-    expect(intervals[2].score).toBe(1000); // Maximum boundary
+    expect(intervals[0]!.score).toBe(0); // Minimum boundary
+    expect(intervals[1]!.score).toBe(500); // Mid-range value
+    expect(intervals[2]!.score).toBe(1000); // Maximum boundary
   });
 
   /**
@@ -983,9 +983,9 @@ describe("Real-World Edge Cases (Industry Problem Prevention)", () => {
     const intervals = await Array.fromAsync(parser.parseString(strandVariations));
 
     expect(intervals).toHaveLength(3);
-    expect(intervals[0].strand).toBe("+"); // Forward strand gene
-    expect(intervals[1].strand).toBe("-"); // Reverse strand gene
-    expect(intervals[2].strand).toBe("."); // Unknown/irrelevant strand
+    expect(intervals[0]!.strand).toBe("+"); // Forward strand gene
+    expect(intervals[1]!.strand).toBe("-"); // Reverse strand gene
+    expect(intervals[2]!.strand).toBe("."); // Unknown/irrelevant strand
   });
 
   /**
@@ -1007,10 +1007,10 @@ describe("Real-World Edge Cases (Industry Problem Prevention)", () => {
     const intervals = await Array.fromAsync(parser.parseString(colorSpecifications));
 
     expect(intervals).toHaveLength(3);
-    expect(intervals[0].itemRgb).toBe("255,0,0"); // Red color preserved
-    expect(intervals[1].itemRgb).toBe("0,0,255"); // Blue color preserved
-    expect(intervals[2].itemRgb).toBe("0"); // Default color preserved
-    expect(intervals[0].stats?.bedType).toBe("BED9"); // Confirms BED9 format
+    expect(intervals[0]!.itemRgb).toBe("255,0,0"); // Red color preserved
+    expect(intervals[1]!.itemRgb).toBe("0,0,255"); // Blue color preserved
+    expect(intervals[2]!.itemRgb).toBe("0"); // Default color preserved
+    expect(intervals[0]!.stats?.bedType).toBe("BED9"); // Confirms BED9 format
   });
 
   /**
@@ -1036,7 +1036,7 @@ describe("Real-World Edge Cases (Industry Problem Prevention)", () => {
       expect(intervals.length).toBeGreaterThanOrEqual(1); // At least some should parse
     } catch (error) {
       // If errors occur, should provide helpful context about field formatting
-      expect(error.message).toMatch(/field|format|whitespace/i);
+      expect((error as Error).message).toMatch(/field|format|whitespace/i);
     }
   });
 });
@@ -1067,10 +1067,10 @@ describe("BED Format Variant Comprehensive Testing (BED3-BED12 Exhaustive)", () 
     const intervals = await Array.fromAsync(parser.parseString(bed3Examples));
 
     expect(intervals).toHaveLength(3);
-    expect(intervals[0].start).toBe(0); // Zero-based coordinate system
-    expect(intervals[0].end).toBe(1000); // Exclusive end
-    expect(intervals[0].length).toBe(1000); // Calculated length
-    expect(intervals[2].length).toBe(1); // Single-base precision
+    expect(intervals[0]!.start).toBe(0); // Zero-based coordinate system
+    expect(intervals[0]!.end).toBe(1000); // Exclusive end
+    expect(intervals[0]!.length).toBe(1000); // Calculated length
+    expect(intervals[2]!.length).toBe(1); // Single-base precision
 
     intervals.forEach((interval) => {
       expect(interval.stats?.bedType).toBe("BED3");
@@ -1097,9 +1097,9 @@ describe("BED Format Variant Comprehensive Testing (BED3-BED12 Exhaustive)", () 
     const intervals = await Array.fromAsync(parser.parseString(bed4Examples));
 
     expect(intervals).toHaveLength(3);
-    expect(intervals[0].name).toBe("gene_ABC1");
-    expect(intervals[1].name).toBe("exon_5");
-    expect(intervals[2].name).toBe("mitochondrial_tRNA");
+    expect(intervals[0]!.name).toBe("gene_ABC1");
+    expect(intervals[1]!.name).toBe("exon_5");
+    expect(intervals[2]!.name).toBe("mitochondrial_tRNA");
 
     intervals.forEach((interval) => {
       expect(interval.stats?.bedType).toBe("BED4");
@@ -1125,9 +1125,9 @@ describe("BED Format Variant Comprehensive Testing (BED3-BED12 Exhaustive)", () 
     const intervals = await Array.fromAsync(parser.parseString(bed5Examples));
 
     expect(intervals).toHaveLength(3);
-    expect(intervals[0].score).toBe(0); // Minimum valid score
-    expect(intervals[1].score).toBe(500); // Mid-range score
-    expect(intervals[2].score).toBe(1000); // Maximum valid score
+    expect(intervals[0]!.score).toBe(0); // Minimum valid score
+    expect(intervals[1]!.score).toBe(500); // Mid-range score
+    expect(intervals[2]!.score).toBe(1000); // Maximum valid score
 
     intervals.forEach((interval) => {
       expect(interval.stats?.bedType).toBe("BED5");
@@ -1152,9 +1152,9 @@ describe("BED Format Variant Comprehensive Testing (BED3-BED12 Exhaustive)", () 
     const intervals = await Array.fromAsync(parser.parseString(bed6Examples));
 
     expect(intervals).toHaveLength(3);
-    expect(intervals[0].strand).toBe("+"); // Forward transcription
-    expect(intervals[1].strand).toBe("-"); // Reverse transcription
-    expect(intervals[2].strand).toBe("."); // Strand-independent
+    expect(intervals[0]!.strand).toBe("+"); // Forward transcription
+    expect(intervals[1]!.strand).toBe("-"); // Reverse transcription
+    expect(intervals[2]!.strand).toBe("."); // Strand-independent
 
     intervals.forEach((interval) => {
       expect(interval.stats?.bedType).toBe("BED6");
@@ -1180,12 +1180,12 @@ describe("BED Format Variant Comprehensive Testing (BED3-BED12 Exhaustive)", () 
     const intervals = await Array.fromAsync(parser.parseString(bed9Examples));
 
     expect(intervals).toHaveLength(2);
-    expect(intervals[0].thickStart).toBe(1500); // CDS start within transcript
-    expect(intervals[0].thickEnd).toBe(4500); // CDS end within transcript
-    expect(intervals[0].itemRgb).toBe("255,0,0"); // Red color coding
+    expect(intervals[0]!.thickStart).toBe(1500); // CDS start within transcript
+    expect(intervals[0]!.thickEnd).toBe(4500); // CDS end within transcript
+    expect(intervals[0]!.itemRgb).toBe("255,0,0"); // Red color coding
 
-    expect(intervals[1].thickStart).toBe(2000); // Non-coding: thick = transcript start
-    expect(intervals[1].thickEnd).toBe(2000); // Non-coding: thick = transcript start
+    expect(intervals[1]!.thickStart).toBe(2000); // Non-coding: thick = transcript start
+    expect(intervals[1]!.thickEnd).toBe(2000); // Non-coding: thick = transcript start
 
     intervals.forEach((interval) => {
       expect(interval.stats?.bedType).toBe("BED9");
@@ -1221,14 +1221,14 @@ describe("Biological Context Testing (Gene Models and Regulatory Elements)", () 
     const isoforms = await Array.fromAsync(parser.parseString(alternativeSplicing));
 
     expect(isoforms).toHaveLength(2);
-    expect(isoforms[0].blockCount).toBe(3); // Long isoform (3 exons)
-    expect(isoforms[1].blockCount).toBe(2); // Short isoform (2 exons)
+    expect(isoforms[0]!.blockCount).toBe(3); // Long isoform (3 exons)
+    expect(isoforms[1]!.blockCount).toBe(2); // Short isoform (2 exons)
 
     // Both share same genomic coordinates but different exon structure
-    expect(isoforms[0].start).toBe(isoforms[1].start); // Same gene locus
-    expect(isoforms[0].end).toBe(isoforms[1].end); // Same gene locus
-    expect(isoforms[0].name).toBe("GENE1-isoform1");
-    expect(isoforms[1].name).toBe("GENE1-isoform2");
+    expect(isoforms[0]!.start).toBe(isoforms[1]!.start); // Same gene locus
+    expect(isoforms[0]!.end).toBe(isoforms[1]!.end); // Same gene locus
+    expect(isoforms[0]!.name).toBe("GENE1-isoform1");
+    expect(isoforms[1]!.name).toBe("GENE1-isoform2");
   });
 
   /**
@@ -1251,11 +1251,11 @@ describe("Biological Context Testing (Gene Models and Regulatory Elements)", () 
     const elements = await Array.fromAsync(parser.parseString(regulatoryElements));
 
     expect(elements).toHaveLength(4);
-    expect(elements[0].name).toBe("promoter_GENE1");
-    expect(elements[0].score).toBe(950); // High regulatory strength
-    expect(elements[1].length).toBe(2000); // Typical enhancer size
-    expect(elements[2].score).toBe(300); // Lower silencer strength
-    expect(elements[3].length).toBe(200); // Compact insulator element
+    expect(elements[0]!.name).toBe("promoter_GENE1");
+    expect(elements[0]!.score).toBe(950); // High regulatory strength
+    expect(elements[1]!.length).toBe(2000); // Typical enhancer size
+    expect(elements[2]!.score).toBe(300); // Lower silencer strength
+    expect(elements[3]!.length).toBe(200); // Compact insulator element
   });
 
   /**
@@ -1276,10 +1276,10 @@ describe("Biological Context Testing (Gene Models and Regulatory Elements)", () 
     const features = await Array.fromAsync(parser.parseString(assemblyFeatures));
 
     expect(features).toHaveLength(4);
-    expect(features[0].length).toBe(100000); // Large centromeric region
-    expect(features[1].score).toBe(0); // Gap regions have no signal
-    expect(features[2].chromosome).toBe("scaffold_10"); // Scaffold naming
-    expect(features[3].chromosome).toBe("chrY_random"); // Random chromosome naming
+    expect(features[0]!.length).toBe(100000); // Large centromeric region
+    expect(features[1]!.score).toBe(0); // Gap regions have no signal
+    expect(features[2]!.chromosome).toBe("scaffold_10"); // Scaffold naming
+    expect(features[3]!.chromosome).toBe("chrY_random"); // Random chromosome naming
   });
 
   /**
@@ -1302,14 +1302,14 @@ describe("Biological Context Testing (Gene Models and Regulatory Elements)", () 
     const marks = await Array.fromAsync(parser.parseString(histoneMarks));
 
     expect(marks).toHaveLength(4);
-    expect(marks[0].length).toBe(1000); // Sharp promoter peak (~1KB)
-    expect(marks[1].length).toBe(10000); // Broad enhancer domain (~10KB)
-    expect(marks[2].length).toBe(30000); // Very broad heterochromatin (~30KB)
-    expect(marks[3].length).toBe(1000); // Poised enhancer (~1KB)
+    expect(marks[0]!.length).toBe(1000); // Sharp promoter peak (~1KB)
+    expect(marks[1]!.length).toBe(10000); // Broad enhancer domain (~10KB)
+    expect(marks[2]!.length).toBe(30000); // Very broad heterochromatin (~30KB)
+    expect(marks[3]!.length).toBe(1000); // Poised enhancer (~1KB)
 
     // Verify biological score patterns
-    expect(marks[0].score).toBe(900); // Strong promoter signal
-    expect(marks[2].score).toBe(400); // Moderate heterochromatin signal
+    expect(marks[0]!.score).toBe(900); // Strong promoter signal
+    expect(marks[2]!.score).toBe(400); // Moderate heterochromatin signal
   });
 });
 
@@ -1334,10 +1334,10 @@ describe("Advanced Error Recovery Testing (Malformed Data Resilience)", () => {
     try {
       const [interval] = await Array.fromAsync(parser.parseString(invalidScoreData));
       // If parsed, score should be handled appropriately
-      expect(interval.score).toBeDefined();
+      expect(interval!.score).toBeDefined();
     } catch (error) {
       // Should provide biological context about score field usage
-      expect(error.message).toMatch(/score|1000|range|visualization/i);
+      expect((error as Error).message).toMatch(/score|1000|range|visualization/i);
     }
   });
 
@@ -1373,15 +1373,15 @@ describe("Advanced Error Recovery Testing (Malformed Data Resilience)", () => {
     ].join("\n");
 
     // Should handle malformed coordinates gracefully with biological guidance
-    let errorCount = 0;
+    let _errorCount = 0;
     try {
       const intervals = await Array.fromAsync(parser.parseString(malformedCoordinates));
       // Some might parse successfully with intelligent handling
       expect(intervals.length).toBeLessThan(3); // At least some should fail
     } catch (error) {
-      errorCount++;
+      _errorCount++;
       // Should provide genomic coordinate context in error messages
-      expect(error.message).toMatch(/coordinate|integer|genomic|position/i);
+      expect((error as Error).message).toMatch(/coordinate|integer|genomic|position/i);
     }
   });
 
@@ -1407,7 +1407,7 @@ describe("Advanced Error Recovery Testing (Malformed Data Resilience)", () => {
       expect(parseableLines).toBeLessThan(3); // Some should fail validation
     } catch (error) {
       // Should explain biological importance of coordinate completeness
-      expect(error.message).toMatch(/field|required|coordinate|chromosome|not.*number/i);
+      expect((error as Error).message).toMatch(/field|required|coordinate|chromosome|not.*number/i);
     }
   });
 
@@ -1428,9 +1428,9 @@ describe("Advanced Error Recovery Testing (Malformed Data Resilience)", () => {
     const intervals = await Array.fromAsync(parser.parseString(boundaryConditions));
 
     expect(intervals).toHaveLength(3);
-    expect(intervals[0].length).toBe(249000000); // Chromosome-scale interval
-    expect(intervals[1].length).toBe(1); // Single-base precision
-    expect(intervals[2].start).toBe(16569); // Mitochondrial genome boundary
+    expect(intervals[0]!.length).toBe(249000000); // Chromosome-scale interval
+    expect(intervals[1]!.length).toBe(1); // Single-base precision
+    expect(intervals[2]!.start).toBe(16569); // Mitochondrial genome boundary
   });
 });
 
@@ -1464,7 +1464,7 @@ describe("Memory Usage and Streaming Architecture Validation", () => {
       const startMemory = process.memoryUsage().heapUsed;
 
       let processedCount = 0;
-      for await (const interval of parser.parseString(createBedData(size))) {
+      for await (const _interval of parser.parseString(createBedData(size))) {
         processedCount++;
         // Don't accumulate results - true streaming test
       }
@@ -1538,7 +1538,7 @@ describe("Memory Usage and Streaming Architecture Validation", () => {
     const testData = "chr1\t1000\t2000\ttest_feature\t100\t+";
 
     // Process same data multiple times with same parser instance
-    let baselineMemory = 0;
+    let _baselineMemory = 0;
 
     for (let session = 0; session < 5; session++) {
       const sessionStart = process.memoryUsage().heapUsed;
@@ -1553,7 +1553,7 @@ describe("Memory Usage and Streaming Architecture Validation", () => {
       const sessionMemory = sessionEnd - sessionStart;
 
       if (session === 0) {
-        baselineMemory = Math.abs(sessionMemory);
+        _baselineMemory = Math.abs(sessionMemory);
       } else {
         // Memory usage should remain reasonable across sessions
         expect(Math.abs(sessionMemory)).toBeLessThan(50_000_000); // < 50MB per session

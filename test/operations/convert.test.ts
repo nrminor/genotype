@@ -9,7 +9,7 @@
  * - Legacy data processing workflows
  */
 
-import { beforeAll, describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, spyOn, test } from "bun:test";
 import { ValidationError } from "../../src/errors";
 import { seqops } from "../../src/operations";
 import {
@@ -71,8 +71,6 @@ function createFastqSequenceForAutoDetection(
 async function* singleSequence(seq: AbstractSequence): AsyncIterable<AbstractSequence> {
   yield seq;
 }
-
-
 
 async function* singleFastqSequence(seq: FastqSequence): AsyncIterable<FastqSequence> {
   yield seq;
@@ -364,12 +362,11 @@ describe("ConvertProcessor", () => {
         "phred33"
       );
 
-      // Capture console warnings
-      const originalWarn = console.warn;
+      // Capture console warnings using Bun's spyOn
       let warningCalled = false;
-      console.warn = () => {
+      const warnSpy = spyOn(console, "warn").mockImplementation(() => {
         warningCalled = true;
-      };
+      });
 
       const results = await collectResults(
         processor.process(singleSequence(clearModernSeq), {
@@ -377,7 +374,7 @@ describe("ConvertProcessor", () => {
         })
       );
 
-      console.warn = originalWarn;
+      warnSpy.mockRestore();
 
       expect(results).toHaveLength(1);
       expect(warningCalled).toBe(false); // No warning for high-confidence detection
@@ -393,12 +390,11 @@ describe("ConvertProcessor", () => {
         "@PPPP" // ASCII 64-80, range 16 - triggers overlap zone detection
       );
 
-      // Capture console warnings
-      const originalWarn = console.warn;
+      // Capture console warnings using Bun's spyOn
       let warningMessage = "";
-      console.warn = (message: string) => {
+      const warnSpy = spyOn(console, "warn").mockImplementation((message: string) => {
         warningMessage = message;
-      };
+      });
 
       const results = await collectResults(
         processor.process(singleSequence(ambiguousSeq), {
@@ -406,7 +402,7 @@ describe("ConvertProcessor", () => {
         })
       );
 
-      console.warn = originalWarn;
+      warnSpy.mockRestore();
 
       expect(results).toHaveLength(1);
       // New detection provides warnings when confidence < 0.8
@@ -425,11 +421,10 @@ describe("ConvertProcessor", () => {
         "@PPPP" // ASCII 64-80 - triggers overlap zone with 0.6 confidence
       );
 
-      const originalWarn = console.warn;
       let warningMessage = "";
-      console.warn = (message: string) => {
+      const warnSpy = spyOn(console, "warn").mockImplementation((message: string) => {
         warningMessage = message;
-      };
+      });
 
       const results = await collectResults(
         processor.process(singleSequence(ambiguousSeq), {
@@ -437,7 +432,7 @@ describe("ConvertProcessor", () => {
         })
       );
 
-      console.warn = originalWarn;
+      warnSpy.mockRestore();
 
       expect(results).toHaveLength(1);
       // New detection provides evidence array joined with "; "
@@ -449,11 +444,10 @@ describe("ConvertProcessor", () => {
       // When user specifies encoding, no warnings should appear
       const ambiguousSeq = createFastqSequence("explicit", "ATCG", "@@@@", "phred64");
 
-      const originalWarn = console.warn;
       let warningCalled = false;
-      console.warn = () => {
+      const warnSpy = spyOn(console, "warn").mockImplementation(() => {
         warningCalled = true;
-      };
+      });
 
       const results = await collectResults(
         processor.process(singleSequence(ambiguousSeq), {
@@ -462,7 +456,7 @@ describe("ConvertProcessor", () => {
         })
       );
 
-      console.warn = originalWarn;
+      warnSpy.mockRestore();
 
       expect(results).toHaveLength(1);
       expect(warningCalled).toBe(false); // No warning when explicit

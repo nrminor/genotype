@@ -33,8 +33,6 @@
  * - Streaming architecture maintains constant memory usage
  */
 
-
-
 import { type } from "arktype";
 import {
   getErrorSuggestion,
@@ -71,19 +69,11 @@ import {
 import { type ValidationLevel, validateFastqRecord } from "./validation";
 import { FastqWriter } from "./writer";
 
-
-
 // No module-level constants needed here
-
-
 
 // Types are imported from ./types module
 
-
-
 // Interfaces are imported from ./types module
-
-
 
 /**
  * ArkType schema for FASTQ parser options validation
@@ -141,8 +131,6 @@ const FastqParserOptionsSchema = type({
 
   return true;
 });
-
-
 
 /**
  * FASTQ format parser with intelligent path selection and quality score handling
@@ -1078,8 +1066,6 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
     }
   }
 
-
-
   /**
    * Validate FASTQ sequence if required by parser options
    *
@@ -1178,8 +1164,6 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
     throw new SequenceError(message, context.id, context.startLineNumber);
   }
 }
-
-
 
 /**
  * Generate context-aware suggestions for quality-related errors

@@ -63,7 +63,7 @@
     "test": "bun test",
     "test:node": "node --test test/**/*.test.js",
     "test:rust": "cargo test",
-    "typecheck": "bunx tsgo --noEmit",
+    "typecheck": "bunx tsgo --noEmit -p tsconfig.test.json",
     "typecheck:tsc": "tsc --noEmit",
     "validate": "bun run check",
     "validate:full": "bun run typecheck && bun run lint && bun run test && bun run test:rust && bun run lint:rust && bun run build:with-native"

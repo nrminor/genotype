@@ -68,8 +68,6 @@
  * ```
  */
 
-
-
 /**
  * Error thrown when paired reads are out of sync
  * @group Paired-End

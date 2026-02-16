@@ -21,7 +21,7 @@ describe("Replace operation", () => {
       );
 
       expect(result).toHaveLength(1);
-      expect(result[0].id).toBe("sample1");
+      expect(result[0]!.id).toBe("sample1");
     });
 
     test("remove version numbers from Ensembl IDs", async () => {
@@ -37,8 +37,8 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("ENSG00000139618");
-      expect(result[1].id).toBe("ENSG00000012048");
+      expect(result[0]!.id).toBe("ENSG00000139618");
+      expect(result[1]!.id).toBe("ENSG00000012048");
     });
 
     test("prepend prefix to all IDs", async () => {
@@ -54,8 +54,8 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("sample_seq1");
-      expect(result[1].id).toBe("sample_seq2");
+      expect(result[0]!.id).toBe("sample_seq1");
+      expect(result[1]!.id).toBe("sample_seq2");
     });
 
     test("append suffix to all IDs", async () => {
@@ -71,8 +71,8 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("gene1_v1");
-      expect(result[1].id).toBe("gene2_v1");
+      expect(result[0]!.id).toBe("gene1_v1");
+      expect(result[1]!.id).toBe("gene2_v1");
     });
 
     test("replace first underscore with hyphen", async () => {
@@ -88,8 +88,8 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("sample-001_tissue_A");
-      expect(result[1].id).toBe("sample-002_tissue_B");
+      expect(result[0]!.id).toBe("sample-001_tissue_A");
+      expect(result[1]!.id).toBe("sample-002_tissue_B");
     });
 
     test("empty replacement (deletion)", async () => {
@@ -104,7 +104,7 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("1:100-200");
+      expect(result[0]!.id).toBe("1:100-200");
     });
   });
 
@@ -121,7 +121,7 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("gene_X");
+      expect(result[0]!.id).toBe("gene_X");
     });
 
     test("multiple capture groups (reorder)", async () => {
@@ -136,7 +136,7 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("123_gene");
+      expect(result[0]!.id).toBe("123_gene");
     });
 
     test("three capture groups (restructure database IDs)", async () => {
@@ -151,7 +151,7 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("ENSG-00000139618_v15");
+      expect(result[0]!.id).toBe("ENSG-00000139618_v15");
     });
 
     test("capture with surrounding text preserved", async () => {
@@ -166,7 +166,7 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("subject_001_sample_A");
+      expect(result[0]!.id).toBe("subject_001_sample_A");
     });
 
     test("both $N and ${N} syntax work identically", async () => {
@@ -188,8 +188,8 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result1[0].id).toBe("gene_123");
-      expect(result2[0].id).toBe("gene_123");
+      expect(result1[0]!.id).toBe("gene_123");
+      expect(result2[0]!.id).toBe("gene_123");
     });
   });
 
@@ -209,9 +209,9 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("transcript123");
-      expect(result[1].id).toBe("transcript456");
-      expect(result[2].id).toBe("transcript789");
+      expect(result[0]!.id).toBe("transcript123");
+      expect(result[1]!.id).toBe("transcript456");
+      expect(result[2]!.id).toBe("transcript789");
     });
 
     test("case-sensitive by default", async () => {
@@ -227,8 +227,8 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("GENE123");
-      expect(result[1].id).toBe("transcript456");
+      expect(result[0]!.id).toBe("GENE123");
+      expect(result[1]!.id).toBe("transcript456");
     });
   });
 
@@ -256,7 +256,7 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("seq1");
+      expect(result[0]!.id).toBe("seq1");
     });
 
     test("preserves all sequence properties except ID", async () => {
@@ -277,11 +277,11 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("sample1");
-      expect(result[0].description).toBe("important metadata");
-      expect(result[0].sequence).toBe("ATCGATCGATCG");
-      expect(result[0].length).toBe(12);
-      expect(result[0].format).toBe("fasta");
+      expect(result[0]!.id).toBe("sample1");
+      expect(result[0]!.description).toBe("important metadata");
+      expect(result[0]!.sequence).toBe("ATCGATCGATCG");
+      expect(result[0]!.length).toBe(12);
+      expect(result[0]!.format).toBe("fasta");
     });
 
     test("handles special regex characters in pattern", async () => {
@@ -296,7 +296,7 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("seq_1");
+      expect(result[0]!.id).toBe("seq_1");
     });
 
     test("replaces only first occurrence (non-global)", async () => {
@@ -311,7 +311,7 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("chromosome1|chr2|chr3");
+      expect(result[0]!.id).toBe("chromosome1|chr2|chr3");
     });
   });
 
@@ -330,9 +330,9 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("sample_1");
-      expect(result[1].id).toBe("sample_2");
-      expect(result[2].id).toBe("sample_3");
+      expect(result[0]!.id).toBe("sample_1");
+      expect(result[1]!.id).toBe("sample_2");
+      expect(result[2]!.id).toBe("sample_3");
     });
 
     test("{nr} with width formatting (nrWidth)", async () => {
@@ -350,9 +350,9 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("sample_0001");
-      expect(result[1].id).toBe("sample_0002");
-      expect(result[2].id).toBe("sample_0003");
+      expect(result[0]!.id).toBe("sample_0001");
+      expect(result[1]!.id).toBe("sample_0002");
+      expect(result[2]!.id).toBe("sample_0003");
     });
 
     test("file name symbols {fn}, {fbn}, {fbne}", async () => {
@@ -371,8 +371,8 @@ describe("Replace operation", () => {
 
       // {fbn} = basename = "experiment.fasta.gz"
       // {fbne} = basename without extension = "experiment.fasta" (removes only .gz)
-      expect(result[0].id).toBe("experiment.fasta.gz_experiment.fasta1");
-      expect(result[1].id).toBe("experiment.fasta.gz_experiment.fasta2");
+      expect(result[0]!.id).toBe("experiment.fasta.gz_experiment.fasta1");
+      expect(result[1]!.id).toBe("experiment.fasta.gz_experiment.fasta2");
     });
 
     test("dollar sign escaping ($$)", async () => {
@@ -387,7 +387,7 @@ describe("Replace operation", () => {
 
       // JavaScript's replace() does NOT auto-convert $$ to $
       // This is literal $$ in the output (correct behavior)
-      expect(result[0].id).toBe("price_$$1001");
+      expect(result[0]!.id).toBe("price_$$1001");
     });
   });
 
@@ -413,9 +413,9 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("breast_cancer_1");
-      expect(result[1].id).toBe("tumor_protein_53");
-      expect(result[2].id).toBe("epidermal_growth_factor_receptor");
+      expect(result[0]!.id).toBe("breast_cancer_1");
+      expect(result[1]!.id).toBe("tumor_protein_53");
+      expect(result[2]!.id).toBe("epidermal_growth_factor_receptor");
     });
 
     test("missing key with keepKey option", async () => {
@@ -437,8 +437,8 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("breast_cancer_1");
-      expect(result[1].id).toBe("UNKNOWN"); // Key preserved
+      expect(result[0]!.id).toBe("breast_cancer_1");
+      expect(result[1]!.id).toBe("UNKNOWN"); // Key preserved
     });
 
     test("missing key with keepUntouch option", async () => {
@@ -460,8 +460,8 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("breast_cancer_1");
-      expect(result[1].id).toBe("gene_UNKNOWN"); // Entire match untouched
+      expect(result[0]!.id).toBe("breast_cancer_1");
+      expect(result[1]!.id).toBe("gene_UNKNOWN"); // Entire match untouched
     });
 
     test("missing key with custom replacement (keyMissRepl)", async () => {
@@ -483,8 +483,8 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("breast_cancer_1");
-      expect(result[1].id).toBe("uncharacterized");
+      expect(result[0]!.id).toBe("breast_cancer_1");
+      expect(result[1]!.id).toBe("uncharacterized");
     });
 
     test("missing key with default (empty string)", async () => {
@@ -505,8 +505,8 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("breast_cancer_1");
-      expect(result[1].id).toBe(""); // Default: empty string
+      expect(result[0]!.id).toBe("breast_cancer_1");
+      expect(result[1]!.id).toBe(""); // Default: empty string
     });
 
     test("configurable key capture index (keyCaptIdx)", async () => {
@@ -527,7 +527,7 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("BRCA1_version_one");
+      expect(result[0]!.id).toBe("BRCA1_version_one");
     });
 
     test("kvMap accepts Map object", async () => {
@@ -545,7 +545,7 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("breast_cancer_1");
+      expect(result[0]!.id).toBe("breast_cancer_1");
     });
 
     test("kvFile loads from tab-delimited file", async () => {
@@ -562,8 +562,8 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("breast_cancer_1");
-      expect(result[1].id).toBe("tumor_protein_53");
+      expect(result[0]!.id).toBe("breast_cancer_1");
+      expect(result[1]!.id).toBe("tumor_protein_53");
     });
 
     test("invalid kvFile format throws ValidationError", async () => {
@@ -646,10 +646,10 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("seq1");
-      expect(result[0].sequence).toBe("ATCGATCG");
-      expect(result[1].id).toBe("seq2");
-      expect(result[1].sequence).toBe("GCTAGCTA");
+      expect(result[0]!.id).toBe("seq1");
+      expect(result[0]!.sequence).toBe("ATCGATCG");
+      expect(result[1]!.id).toBe("seq2");
+      expect(result[1]!.sequence).toBe("GCTAGCTA");
     });
 
     test("error on FASTQ sequence replacement", async () => {
@@ -689,7 +689,7 @@ describe("Replace operation", () => {
       );
 
       // Only first occurrence replaced (matches seqkit behavior)
-      expect(result[0].sequence).toBe("ATCGAT CG.ATCG");
+      expect(result[0]!.sequence).toBe("ATCGAT CG.ATCG");
     });
 
     test("add space to first base (first occurrence only)", async () => {
@@ -704,7 +704,7 @@ describe("Replace operation", () => {
       );
 
       // Only first occurrence replaced (matches seqkit behavior)
-      expect(result[0].sequence).toBe("A TCG");
+      expect(result[0]!.sequence).toBe("A TCG");
     });
 
     test("sequence replacement preserves ID and description", async () => {
@@ -726,10 +726,10 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("seq1");
-      expect(result[0].description).toBe("important metadata");
-      expect(result[0].sequence).toBe("ATCGATCG");
-      expect(result[0].format).toBe("fasta");
+      expect(result[0]!.id).toBe("seq1");
+      expect(result[0]!.description).toBe("important metadata");
+      expect(result[0]!.sequence).toBe("ATCGATCG");
+      expect(result[0]!.format).toBe("fasta");
     });
 
     test("bySeq with capture groups in sequences", async () => {
@@ -746,7 +746,7 @@ describe("Replace operation", () => {
       );
 
       // First occurrence: ATCG → GATC
-      expect(result[0].sequence).toBe("GATCATCG");
+      expect(result[0]!.sequence).toBe("GATCATCG");
     });
   });
 
@@ -766,9 +766,9 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("sample_BRCA1");
-      expect(result[1].id).toBe("sample_TP53");
-      expect(result[2].id).toBe("control_001"); // Not modified
+      expect(result[0]!.id).toBe("sample_BRCA1");
+      expect(result[1]!.id).toBe("sample_TP53");
+      expect(result[2]!.id).toBe("control_001"); // Not modified
     });
 
     test("filter with regex (filterUseRegexp)", async () => {
@@ -787,9 +787,9 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("sample001");
-      expect(result[1].id).toBe("sample002");
-      expect(result[2].id).toBe("seqABC"); // Doesn't match \d+$
+      expect(result[0]!.id).toBe("sample001");
+      expect(result[1]!.id).toBe("sample002");
+      expect(result[2]!.id).toBe("seqABC"); // Doesn't match \d+$
     });
 
     test("invert match (filterInvertMatch)", async () => {
@@ -808,9 +808,9 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("control_001"); // Not modified (matches control)
-      expect(result[1].id).toBe("test_002"); // Modified (doesn't match control)
-      expect(result[2].id).toBe("control_003"); // Not modified (matches control)
+      expect(result[0]!.id).toBe("control_001"); // Not modified (matches control)
+      expect(result[1]!.id).toBe("test_002"); // Modified (doesn't match control)
+      expect(result[2]!.id).toBe("control_003"); // Not modified (matches control)
     });
 
     test("filter by sequence (filterBySeq)", async () => {
@@ -829,9 +829,9 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("sample1"); // Sequence contains ATCG
-      expect(result[1].id).toBe("seq2"); // Sequence doesn't contain ATCG
-      expect(result[2].id).toBe("seq3"); // Sequence doesn't contain ATCG
+      expect(result[0]!.id).toBe("sample1"); // Sequence contains ATCG
+      expect(result[1]!.id).toBe("seq2"); // Sequence doesn't contain ATCG
+      expect(result[2]!.id).toBe("seq3"); // Sequence doesn't contain ATCG
     });
 
     test("filter by name with description (filterByName)", async () => {
@@ -862,9 +862,9 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("sample1"); // Description matches "chromosome"
-      expect(result[1].id).toBe("seq2"); // Description is "mitochondrial"
-      expect(result[2].id).toBe("seq3"); // No description
+      expect(result[0]!.id).toBe("sample1"); // Description matches "chromosome"
+      expect(result[1]!.id).toBe("seq2"); // Description is "mitochondrial"
+      expect(result[2]!.id).toBe("seq3"); // No description
     });
 
     test("case-insensitive filtering (filterIgnoreCase)", async () => {
@@ -884,9 +884,9 @@ describe("Replace operation", () => {
       );
 
       // All should match with case-insensitive filter
-      expect(result[0].id).toBe("sample_001");
-      expect(result[1].id).toBe("sample_002");
-      expect(result[2].id).toBe("sample_003");
+      expect(result[0]!.id).toBe("sample_001");
+      expect(result[1]!.id).toBe("sample_002");
+      expect(result[2]!.id).toBe("sample_003");
     });
 
     test("multiple filter patterns (OR logic)", async () => {
@@ -904,9 +904,9 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("sample_BRCA1"); // Matches "gene"
-      expect(result[1].id).toBe("sample_TP53"); // Matches "transcript"
-      expect(result[2].id).toBe("control_001"); // Matches neither
+      expect(result[0]!.id).toBe("sample_BRCA1"); // Matches "gene"
+      expect(result[1]!.id).toBe("sample_TP53"); // Matches "transcript"
+      expect(result[2]!.id).toBe("control_001"); // Matches neither
     });
 
     test("combined filters (regex + invert + case-insensitive)", async () => {
@@ -927,9 +927,9 @@ describe("Replace operation", () => {
         })
       );
 
-      expect(result[0].id).toBe("CONTROL_001"); // Matches control (not modified)
-      expect(result[1].id).toBe("test_002"); // Doesn't match control (modified)
-      expect(result[2].id).toBe("Control_003"); // Matches control (not modified)
+      expect(result[0]!.id).toBe("CONTROL_001"); // Matches control (not modified)
+      expect(result[1]!.id).toBe("test_002"); // Doesn't match control (modified)
+      expect(result[2]!.id).toBe("Control_003"); // Matches control (not modified)
     });
 
     test("no filters processes all sequences", async () => {
@@ -946,8 +946,8 @@ describe("Replace operation", () => {
       );
 
       // All sequences processed when no filters
-      expect(result[0].id).toBe("sample1");
-      expect(result[1].id).toBe("sample2");
+      expect(result[0]!.id).toBe("sample1");
+      expect(result[1]!.id).toBe("sample2");
     });
   });
 });

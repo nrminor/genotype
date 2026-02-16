@@ -55,10 +55,10 @@ describe("PairProcessor", () => {
       );
 
       expect(results).toHaveLength(4);
-      expect(results[0].id).toBe("read1/1");
-      expect(results[1].id).toBe("read1/2");
-      expect(results[2].id).toBe("read2/1");
-      expect(results[3].id).toBe("read2/2");
+      expect(results[0]!.id).toBe("read1/1");
+      expect(results[1]!.id).toBe("read1/2");
+      expect(results[2]!.id).toBe("read2/1");
+      expect(results[3]!.id).toBe("read2/2");
     });
 
     test("yields in interleaved order (R1, R2, R1, R2)", async () => {
@@ -69,8 +69,8 @@ describe("PairProcessor", () => {
         processor.process({ mode: "dual", source1: r1, source2: r2 })
       );
 
-      expect(results[0].sequence).toBe("AAAA");
-      expect(results[1].sequence).toBe("TTTT");
+      expect(results[0]!.sequence).toBe("AAAA");
+      expect(results[1]!.sequence).toBe("TTTT");
     });
 
     test("handles synchronized streams without buffering", async () => {
@@ -90,12 +90,12 @@ describe("PairProcessor", () => {
       );
 
       expect(results).toHaveLength(6);
-      expect(results[0].id).toBe("read1/1");
-      expect(results[1].id).toBe("read1/2");
-      expect(results[2].id).toBe("read2/1");
-      expect(results[3].id).toBe("read2/2");
-      expect(results[4].id).toBe("read3/1");
-      expect(results[5].id).toBe("read3/2");
+      expect(results[0]!.id).toBe("read1/1");
+      expect(results[1]!.id).toBe("read1/2");
+      expect(results[2]!.id).toBe("read2/1");
+      expect(results[3]!.id).toBe("read2/2");
+      expect(results[4]!.id).toBe("read3/1");
+      expect(results[5]!.id).toBe("read3/2");
     });
 
     test("handles shuffled streams with buffering", async () => {
@@ -115,12 +115,12 @@ describe("PairProcessor", () => {
       );
 
       expect(results).toHaveLength(6);
-      expect(results[0].id).toBe("readA/1");
-      expect(results[1].id).toBe("readA/2");
-      expect(results[2].id).toBe("readB/1");
-      expect(results[3].id).toBe("readB/2");
-      expect(results[4].id).toBe("readC/1");
-      expect(results[5].id).toBe("readC/2");
+      expect(results[0]!.id).toBe("readA/1");
+      expect(results[1]!.id).toBe("readA/2");
+      expect(results[2]!.id).toBe("readB/1");
+      expect(results[3]!.id).toBe("readB/2");
+      expect(results[4]!.id).toBe("readC/1");
+      expect(results[5]!.id).toBe("readC/2");
     });
 
     test("handles partial overlap between streams", async () => {
@@ -140,10 +140,10 @@ describe("PairProcessor", () => {
       );
 
       expect(results).toHaveLength(4);
-      expect(results[0].id).toBe("shared1/1");
-      expect(results[1].id).toBe("shared1/2");
-      expect(results[2].id).toBe("shared2/1");
-      expect(results[3].id).toBe("shared2/2");
+      expect(results[0]!.id).toBe("shared1/1");
+      expect(results[1]!.id).toBe("shared1/2");
+      expect(results[2]!.id).toBe("shared2/1");
+      expect(results[3]!.id).toBe("shared2/2");
     });
   });
 
@@ -157,8 +157,8 @@ describe("PairProcessor", () => {
       const results = await Array.fromAsync(processor.process({ mode: "single", source: mixed }));
 
       expect(results).toHaveLength(2);
-      expect(results[0].id).toBe("read1/1");
-      expect(results[1].id).toBe("read1/2");
+      expect(results[0]!.id).toBe("read1/1");
+      expect(results[1]!.id).toBe("read1/2");
     });
 
     test("detects R1/R2 from /1 and /2 suffixes", async () => {
@@ -171,10 +171,10 @@ describe("PairProcessor", () => {
 
       const results = await Array.fromAsync(processor.process({ mode: "single", source: mixed }));
 
-      expect(results[0].sequence).toBe("AAAA");
-      expect(results[1].sequence).toBe("TTTT");
-      expect(results[2].sequence).toBe("CCCC");
-      expect(results[3].sequence).toBe("GGGG");
+      expect(results[0]!.sequence).toBe("AAAA");
+      expect(results[1]!.sequence).toBe("TTTT");
+      expect(results[2]!.sequence).toBe("CCCC");
+      expect(results[3]!.sequence).toBe("GGGG");
     });
 
     test("handles correctly ordered input", async () => {
@@ -188,10 +188,10 @@ describe("PairProcessor", () => {
       const results = await Array.fromAsync(processor.process({ mode: "single", source: ordered }));
 
       expect(results).toHaveLength(4);
-      expect(results[0].id).toBe("read1/1");
-      expect(results[1].id).toBe("read1/2");
-      expect(results[2].id).toBe("read2/1");
-      expect(results[3].id).toBe("read2/2");
+      expect(results[0]!.id).toBe("read1/1");
+      expect(results[1]!.id).toBe("read1/2");
+      expect(results[2]!.id).toBe("read2/1");
+      expect(results[3]!.id).toBe("read2/2");
     });
 
     test("detects R1/R2 from first/second occurrence when no suffix", async () => {
@@ -208,10 +208,10 @@ describe("PairProcessor", () => {
       );
 
       expect(results).toHaveLength(4);
-      expect(results[0].sequence).toBe("AAAA");
-      expect(results[1].sequence).toBe("TTTT");
-      expect(results[2].sequence).toBe("CCCC");
-      expect(results[3].sequence).toBe("GGGG");
+      expect(results[0]!.sequence).toBe("AAAA");
+      expect(results[1]!.sequence).toBe("TTTT");
+      expect(results[2]!.sequence).toBe("CCCC");
+      expect(results[3]!.sequence).toBe("GGGG");
     });
   });
 
@@ -348,10 +348,10 @@ describe("SeqOps.pair() integration", () => {
       const results = await Array.fromAsync(r1.pair(r2));
 
       expect(results).toHaveLength(4);
-      expect(results[0].id).toBe("read1/1");
-      expect(results[1].id).toBe("read1/2");
-      expect(results[2].id).toBe("read2/1");
-      expect(results[3].id).toBe("read2/2");
+      expect(results[0]!.id).toBe("read1/1");
+      expect(results[1]!.id).toBe("read1/2");
+      expect(results[2]!.id).toBe("read2/1");
+      expect(results[3]!.id).toBe("read2/2");
     });
 
     test("pairs SeqOps with AsyncIterable", async () => {
@@ -362,8 +362,8 @@ describe("SeqOps.pair() integration", () => {
       const results = await Array.fromAsync(r1.pair(r2Iterable));
 
       expect(results).toHaveLength(2);
-      expect(results[0].id).toBe("read1/1");
-      expect(results[1].id).toBe("read1/2");
+      expect(results[0]!.id).toBe("read1/1");
+      expect(results[1]!.id).toBe("read1/2");
     });
   });
 
@@ -378,8 +378,8 @@ describe("SeqOps.pair() integration", () => {
       const results = await Array.fromAsync(seqOps.pair());
 
       expect(results).toHaveLength(2);
-      expect(results[0].id).toBe("read1/1");
-      expect(results[1].id).toBe("read1/2");
+      expect(results[0]!.id).toBe("read1/1");
+      expect(results[1]!.id).toBe("read1/2");
     });
   });
 
@@ -402,7 +402,7 @@ describe("SeqOps.pair() integration", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0].sequence).toBe("AAAA");
+      expect(results[0]!.sequence).toBe("AAAA");
     });
   });
 
@@ -480,10 +480,10 @@ describe("SeqOps.pair() integration", () => {
 
       expect(paired).toHaveLength(4);
       expect(interleaved).toHaveLength(4);
-      expect(paired[0].id).toBe("read1/1");
-      expect(interleaved[0].id).toBe("read1/1");
-      expect(paired[1].id).toBe("read1/2");
-      expect(interleaved[1].id).toBe("read1/2");
+      expect(paired[0]!.id).toBe("read1/1");
+      expect(interleaved[0]!.id).toBe("read1/1");
+      expect(paired[1]!.id).toBe("read1/2");
+      expect(interleaved[1]!.id).toBe("read1/2");
     });
 
     test("integrates with quality filtering pipeline", async () => {
@@ -503,8 +503,8 @@ describe("SeqOps.pair() integration", () => {
       );
 
       expect(results).toHaveLength(2);
-      expect(results[0].id).toBe("read2/1");
-      expect(results[1].id).toBe("read2/2");
+      expect(results[0]!.id).toBe("read2/1");
+      expect(results[1]!.id).toBe("read2/2");
     });
 
     test("handles large dataset efficiently", async () => {
@@ -522,10 +522,10 @@ describe("SeqOps.pair() integration", () => {
       const results = await Array.fromAsync(r1.pair(r2));
 
       expect(results).toHaveLength(2000);
-      expect(results[0].id).toBe("read0/1");
-      expect(results[1].id).toBe("read0/2");
-      expect(results[1998].id).toBe("read999/1");
-      expect(results[1999].id).toBe("read999/2");
+      expect(results[0]!.id).toBe("read0/1");
+      expect(results[1]!.id).toBe("read0/2");
+      expect(results[1998]!.id).toBe("read999/1");
+      expect(results[1999]!.id).toBe("read999/2");
     });
   });
 
@@ -549,8 +549,8 @@ describe("SeqOps.pair() integration", () => {
       const results = await Array.fromAsync(r1.pair(r2));
 
       expect(results).toHaveLength(2);
-      expect(results[0].id).toBe("read1/1");
-      expect(results[1].id).toBe("read1/2");
+      expect(results[0]!.id).toBe("read1/1");
+      expect(results[1]!.id).toBe("read1/2");
     });
 
     test("handles all unpaired reads with skip mode", async () => {
@@ -582,8 +582,8 @@ describe("SeqOps.pair() integration", () => {
       const results = await Array.fromAsync(r1.pair(r2, { extractPairId: extractNoSuffix }));
 
       expect(results).toHaveLength(2);
-      expect(results[0].sequence).toBe("AAAA");
-      expect(results[1].sequence).toBe("TTTT");
+      expect(results[0]!.sequence).toBe("AAAA");
+      expect(results[1]!.sequence).toBe("TTTT");
     });
 
     test("handles missing R1 for every read", async () => {

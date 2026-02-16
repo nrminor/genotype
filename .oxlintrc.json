@@ -142,20 +142,12 @@
         "test": "readonly",
         "beforeEach": "readonly",
         "afterEach": "readonly",
+        "beforeAll": "readonly",
+        "afterAll": "readonly",
         "performance": "readonly",
         "setTimeout": "readonly",
         "global": "readonly",
         "process": "readonly"
-      },
-      "rules": {
-        "eslint/no-useless-escape": "off",
-        "eslint/no-undef": "off",
-        "eslint/no-unused-vars": "off",
-        "typescript/no-explicit-any": "warn",
-        "eslint/no-redeclare": "off",
-        "unicorn/new-for-builtins": "off",
-        "unicorn/no-useless-spread": "off",
-        "typescript/no-non-null-asserted-optional-chain": "off"
       }
     }
   ]

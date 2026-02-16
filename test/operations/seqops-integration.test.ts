@@ -42,10 +42,12 @@ describe("SeqOps integration with windows and collectSet", () => {
         },
       ];
 
-      const windows = await seqops(makeAsync(sequences)).windows(3, {
-        step: 2,
-        suffix: "_kmer",
-      }).collect();
+      const windows = await seqops(makeAsync(sequences))
+        .windows(3, {
+          step: 2,
+          suffix: "_kmer",
+        })
+        .collect();
 
       expect(windows.length).toBe(5);
       expect(windows[0]!.stepSize).toBe(2);
@@ -63,10 +65,12 @@ describe("SeqOps integration with windows and collectSet", () => {
         },
       ];
 
-      const windows = await seqops(makeAsync(sequences)).windows({
-        size: 15,
-        step: 5,
-      }).collect();
+      const windows = await seqops(makeAsync(sequences))
+        .windows({
+          size: 15,
+          step: 5,
+        })
+        .collect();
 
       expect(windows.length).toBe(8);
       expect(windows[0]!.kmerSize).toBe(15);

@@ -11,8 +11,6 @@
  * - Configurable error recovery
  */
 
-
-
 import { type } from "arktype";
 import { CompressionDetector } from "../../compression/detector";
 import { wrapStream as wrapGzipStream } from "../../compression/gzip";
@@ -41,8 +39,6 @@ import {
   removeBOM,
 } from "./utils";
 import { DSVParserOptionsSchema, validateFieldSize } from "./validation";
-
-
 
 /**
  * BufferedStreamReader - Allows peeking at stream bytes without consuming
@@ -89,8 +85,6 @@ class BufferedStreamReader {
     });
   }
 }
-
-
 
 /**
  * DSVParser - Core CSV/TSV parser implementation
@@ -721,8 +715,6 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
     return record;
   }
 }
-
-
 
 /**
  * DSV writer for outputting genomic data

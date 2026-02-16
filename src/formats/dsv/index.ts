@@ -41,8 +41,6 @@
  * ```
  */
 
-
-
 export type {
   DelimiterType,
   DSVFormat,
@@ -54,13 +52,9 @@ export type {
 
 export { CSVParseState } from "./types";
 
-
-
 export { CSVParser, DSVParser, TSVParser } from "./parser";
 
 export { CSVWriter, DSVWriter, TSVWriter } from "./writer";
-
-
 
 export {
   detectDelimiter,
@@ -71,8 +65,6 @@ export {
   sniff,
 } from "./detection";
 
-
-
 export {
   DSVParserOptionsSchema,
   DSVWriterOptionsSchema,
@@ -80,8 +72,6 @@ export {
   validateDSV,
   validateFieldSize,
 } from "./validation";
-
-
 
 export {
   calculateBaseCount,
@@ -95,11 +85,7 @@ export {
   summarizeDSV,
 } from "./utils";
 
-
-
 export { ExcelProtector, protectFromExcel } from "./excel-protection";
-
-
 
 export {
   CSVFieldParser,
@@ -107,8 +93,6 @@ export {
   hasBalancedQuotes,
   parseCSVRow,
 } from "./state-machine";
-
-
 
 export {
   COMMENT_PREFIXES,

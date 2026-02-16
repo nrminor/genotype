@@ -8,7 +8,7 @@
  * comprehensive coverage for production genomic data processing workflows.
  */
 
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import { promises as fs } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -27,7 +27,6 @@ describe("ConcatProcessor", () => {
       id,
       sequence,
       length: sequence.length,
-      format: "fasta" as const,
     };
   }
 
@@ -36,8 +35,8 @@ describe("ConcatProcessor", () => {
       format: "fasta" as const,
       id,
       sequence,
-      description,
       length: sequence.length,
+      ...(description !== undefined && { description }),
     };
   }
 
@@ -92,14 +91,6 @@ describe("ConcatProcessor", () => {
     return tempFile;
   }
 
-  // Helper to create empty file
-  async function createEmptyFile(): Promise<string> {
-    const tempFile = join(tmpdir(), `test-concat-empty-${Date.now()}-${Math.random()}.fasta`);
-    await fs.writeFile(tempFile, "", "utf-8");
-    tempFiles.push(tempFile);
-    return tempFile;
-  }
-
   // Helper to create non-existent file path
   function createNonExistentPath(): string {
     return join(tmpdir(), `non-existent-${Date.now()}-${Math.random()}.fasta`);
@@ -140,11 +131,11 @@ describe("ConcatProcessor", () => {
       );
 
       expect(result).toHaveLength(5);
-      expect(result[0].id).toBe("base_seq");
-      expect(result[1].id).toBe("chr1_seq1");
-      expect(result[2].id).toBe("chr1_seq2");
-      expect(result[3].id).toBe("chr2_seq1");
-      expect(result[4].id).toBe("chr2_seq2");
+      expect(result[0]!.id).toBe("base_seq");
+      expect(result[1]!.id).toBe("chr1_seq1");
+      expect(result[2]!.id).toBe("chr1_seq2");
+      expect(result[3]!.id).toBe("chr2_seq1");
+      expect(result[4]!.id).toBe("chr2_seq2");
     });
 
     test("maintains sequence order across sources", async () => {
@@ -183,10 +174,10 @@ describe("ConcatProcessor", () => {
       );
 
       expect(result).toHaveLength(4);
-      expect(result[0].id).toBe("file_seq1");
-      expect(result[1].id).toBe("file_seq2");
-      expect(result[2].id).toBe("iter_seq1");
-      expect(result[3].id).toBe("iter_seq2");
+      expect(result[0]!.id).toBe("file_seq1");
+      expect(result[1]!.id).toBe("file_seq2");
+      expect(result[2]!.id).toBe("iter_seq1");
+      expect(result[3]!.id).toBe("iter_seq2");
     });
   });
 
@@ -227,9 +218,9 @@ describe("ConcatProcessor", () => {
       );
 
       expect(result).toHaveLength(3);
-      expect(result[0].id).toBe("duplicate_id"); // Base sequence keeps original ID
-      expect(result[1].id).toBe("duplicate_id_src0"); // First source gets suffix
-      expect(result[2].id).toBe("duplicate_id_src1"); // Second source gets suffix
+      expect(result[0]!.id).toBe("duplicate_id"); // Base sequence keeps original ID
+      expect(result[1]!.id).toBe("duplicate_id_src0"); // First source gets suffix
+      expect(result[2]!.id).toBe("duplicate_id_src1"); // Second source gets suffix
     });
 
     test("ignores conflicts with ignore strategy", async () => {
@@ -249,9 +240,9 @@ describe("ConcatProcessor", () => {
       );
 
       expect(result).toHaveLength(2);
-      expect(result[0].id).toBe("duplicate_id");
-      expect(result[0].sequence).toBe("AAAAAAA"); // Base sequence preserved
-      expect(result[1].id).toBe("unique_seq");
+      expect(result[0]!.id).toBe("duplicate_id");
+      expect(result[0]!.sequence).toBe("AAAAAAA"); // Base sequence preserved
+      expect(result[1]!.id).toBe("unique_seq");
     });
 
     test("generates unique IDs with rename strategy", async () => {
@@ -271,9 +262,9 @@ describe("ConcatProcessor", () => {
       );
 
       expect(result).toHaveLength(3);
-      expect(result[0].id).toBe("duplicate_id");
-      expect(result[1].id).toBe("duplicate_id_1");
-      expect(result[2].id).toBe("duplicate_id_2"); // Incremented to avoid conflict
+      expect(result[0]!.id).toBe("duplicate_id");
+      expect(result[1]!.id).toBe("duplicate_id_1");
+      expect(result[2]!.id).toBe("duplicate_id_2"); // Incremented to avoid conflict
     });
 
     test("handles complex suffix conflicts", async () => {
@@ -294,9 +285,9 @@ describe("ConcatProcessor", () => {
       );
 
       expect(result).toHaveLength(3);
-      expect(result[0].id).toBe("seq1");
-      expect(result[1].id).toBe("seq1_src0");
-      expect(result[2].id).toBe("seq1_src0_1"); // Falls back to rename strategy
+      expect(result[0]!.id).toBe("seq1");
+      expect(result[1]!.id).toBe("seq1_src0");
+      expect(result[2]!.id).toBe("seq1_src0_1"); // Falls back to rename strategy
     });
   });
 
@@ -380,7 +371,7 @@ describe("ConcatProcessor", () => {
 
       const largeFile = await createTempFasta(largeSequences);
 
-      let processedCount = 0;
+      let _processedCount = 0;
       let finalCount = 0;
       const maxMemoryUsage = process.memoryUsage().heapUsed;
 
@@ -388,7 +379,7 @@ describe("ConcatProcessor", () => {
         sources: [largeFile],
         validateFormats: false, // Skip format validation to avoid file size limits
         onProgress: (processed) => {
-          processedCount = processed;
+          _processedCount = processed;
         },
       })) {
         finalCount++;
@@ -423,8 +414,8 @@ describe("ConcatProcessor", () => {
       const endTime = Date.now();
 
       expect(result).toHaveLength(2);
-      expect(result[0].sequence.length).toBe(1000);
-      expect(result[1].sequence.length).toBe(1000);
+      expect(result[0]!.sequence.length).toBe(1000);
+      expect(result[1]!.sequence.length).toBe(1000);
 
       // Should complete quickly with streaming behavior
       expect(endTime - startTime).toBeLessThan(1000); // 1 second max
@@ -437,15 +428,15 @@ describe("ConcatProcessor", () => {
       const file = await createTempFasta(sequences);
 
       const progressReports: number[] = [];
-      let finalTotal = 0;
+      let _finalTotal = 0;
       const result = await collect(
         processor.process(source([]), {
           sources: [file],
           validateFormats: false, // Skip validation to avoid file size issues
-          onProgress: (processed, total, sourceLabel) => {
+          onProgress: (processed, total, _sourceLabel) => {
             progressReports.push(processed);
             if (total !== undefined) {
-              finalTotal = total;
+              _finalTotal = total;
             }
           },
         })
@@ -535,7 +526,7 @@ describe("ConcatProcessor", () => {
             sourceLabels: ["test_source"],
           })
         );
-        fail("Expected ConcatError to be thrown");
+        expect.unreachable("Expected ConcatError to be thrown");
       } catch (error) {
         expect(error).toBeInstanceOf(ConcatError);
         const concatError = error as ConcatError;
@@ -563,7 +554,7 @@ describe("ConcatProcessor", () => {
       );
 
       expect(result).toHaveLength(3);
-      expect(result[1].sequence).toBe("");
+      expect(result[1]!.sequence).toBe("");
     });
 
     test("skips empty sequences when requested from iterables", async () => {
@@ -597,7 +588,7 @@ describe("ConcatProcessor", () => {
       );
 
       expect(result).toHaveLength(1);
-      expect(result[0].id).toBe("single");
+      expect(result[0]!.id).toBe("single");
     });
 
     test("handles completely empty sources", async () => {
@@ -628,10 +619,10 @@ describe("ConcatProcessor", () => {
             idConflictResolution: "error",
           })
         );
-        fail("Expected ConcatError");
+        expect.unreachable("Expected ConcatError");
       } catch (error) {
         expect(error).toBeInstanceOf(ConcatError);
-        expect(error.toString()).toContain("custom_source");
+        expect((error as Error).toString()).toContain("custom_source");
       }
     });
   });
@@ -710,9 +701,9 @@ describe("ConcatProcessor", () => {
       );
 
       expect(result).toHaveLength(4);
-      expect(result[0].sequence.length).toBe(1000); // Reference genome
+      expect(result[0]!.sequence.length).toBe(1000); // Reference genome
       expect(result.slice(1, 3).every((seq) => seq.sequence.length === 16)).toBe(true); // Genes
-      expect(result[3].sequence.length).toBe(16); // Vector
+      expect(result[3]!.sequence.length).toBe(16); // Vector
     });
 
     test("handles multi-organism database construction", async () => {
@@ -759,9 +750,9 @@ describe("ConcatProcessor", () => {
         .collect();
 
       expect(result).toHaveLength(3);
-      expect(result[0].id).toBe("base");
-      expect(result[1].id).toBe("file1");
-      expect(result[2].id).toBe("file2");
+      expect(result[0]!.id).toBe("base");
+      expect(result[1]!.id).toBe("file1");
+      expect(result[2]!.id).toBe("file2");
     });
 
     test("chains concat with other operations", async () => {
@@ -782,8 +773,8 @@ describe("ConcatProcessor", () => {
         .collect();
 
       expect(result).toHaveLength(2);
-      expect(result[0].sequence).toBe("ATCG");
-      expect(result[1].sequence).toBe("AAAATTTT");
+      expect(result[0]!.sequence).toBe("ATCG");
+      expect(result[1]!.sequence).toBe("AAAATTTT");
     });
 
     test("preserves sequence metadata through concat pipeline", async () => {
@@ -799,11 +790,11 @@ describe("ConcatProcessor", () => {
         .collect();
 
       expect(result).toHaveLength(2);
-      expect(result[0].id).toBe("base_seq");
-      expect(result[1].id).toBe("file_seq");
+      expect(result[0]!.id).toBe("base_seq");
+      expect(result[1]!.id).toBe("file_seq");
       // Metadata should be preserved through the pipeline
-      expect((result[0] as FastaSequence).description).toBe("Base sequence description");
-      expect((result[1] as FastaSequence).description).toBe("File sequence description");
+      expect((result[0]! as FastaSequence).description).toBe("Base sequence description");
+      expect((result[1]! as FastaSequence).description).toBe("File sequence description");
     });
   });
 });

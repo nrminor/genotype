@@ -12,17 +12,19 @@ import {
   FastqUtils,
   FastqWriter,
   parseMultiLineFastq,
+  type PairedFastqRead,
 } from "../../src/formats/fastq";
 // Test that all exports are available from the module
 import * as FastqMain from "../../src/formats/fastq/";
 // Import quality operations from the new core module
 import {
+  asNumbers,
   calculateQualityStats as calculateStats,
   scoresToQuality as scoresToString,
   qualityToScores as toNumbers,
 } from "../../src/operations/core/quality";
 // Import types from the main types module
-import type { FastqSequence, QualityEncoding } from "../../src/types";
+import type { FastqSequence } from "../../src/types";
 
 describe("FASTQ Module Integration", () => {
   test("all exports are available from index.ts", () => {
@@ -66,7 +68,7 @@ describe("FASTQ Module Integration", () => {
   test("quality conversion works across modules", () => {
     const phred33Scores = "IIIIIIIIII";
     const numericScores = toNumbers(phred33Scores, "phred33");
-    expect(numericScores).toEqual([40, 40, 40, 40, 40, 40, 40, 40, 40, 40]);
+    expect(asNumbers(numericScores)).toEqual([40, 40, 40, 40, 40, 40, 40, 40, 40, 40]);
 
     const backToString = scoresToString(numericScores, "phred33");
     expect(backToString).toBe(phred33Scores);
@@ -75,7 +77,7 @@ describe("FASTQ Module Integration", () => {
   test("QualityScores aggregate object works", () => {
     const phred33Scores = "IIIIIIIIII";
     const numericScores = toNumbers(phred33Scores, "phred33");
-    expect(numericScores).toEqual([40, 40, 40, 40, 40, 40, 40, 40, 40, 40]);
+    expect(asNumbers(numericScores)).toEqual([40, 40, 40, 40, 40, 40, 40, 40, 40, 40]);
 
     const backToString = scoresToString(numericScores, "phred33");
     expect(backToString).toBe(phred33Scores);
@@ -106,8 +108,8 @@ IIII`;
     }
 
     expect(sequences).toHaveLength(1);
-    expect(sequences[0].sequence).toBe("ATCGATCG");
-    expect(sequences[0].quality).toBe("IIIIIIII");
+    expect(sequences[0]!.sequence).toBe("ATCGATCG");
+    expect(sequences[0]!.quality).toBe("IIIIIIII");
   });
 
   describe("Paired-End Integration", () => {
@@ -139,14 +141,14 @@ IIII`;
         singleReads.push(read);
       }
 
-      const pairs = [];
+      const pairs: PairedFastqRead[] = [];
       for await (const pair of pairedParser.parseStrings(r1Data, r2Data)) {
         pairs.push(pair);
       }
 
       expect(singleReads).toHaveLength(1);
       expect(pairs).toHaveLength(1);
-      expect(pairs[0].r1.id).toBe(singleReads[0].id);
+      expect(pairs[0]!.r1.id).toBe(singleReads[0]!.id);
     });
 
     test("quality score parsing works in paired mode", async () => {
@@ -160,14 +162,14 @@ IIII`;
       const r1 = "@read1/1\nATCG\n+\nIIII";
       const r2 = "@read1/2\nCGAT\n+\nIIII";
 
-      const pairs = [];
+      const pairs: PairedFastqRead[] = [];
       for await (const pair of parser.parseStrings(r1, r2)) {
         pairs.push(pair);
       }
 
       expect(pairs).toHaveLength(1);
-      expect(pairs[0].r1.quality).toBe("IIII");
-      expect(pairs[0].r2.quality).toBe("IIII");
+      expect(pairs[0]!.r1.quality).toBe("IIII");
+      expect(pairs[0]!.r2.quality).toBe("IIII");
     });
 
     test("parser metrics collection works for paired parsing", async () => {
@@ -177,7 +179,7 @@ IIII`;
       const r1 = "@read1/1\nATCG\n+\nIIII\n@read2/1\nGGGG\n+\nIIII";
       const r2 = "@read1/2\nCGAT\n+\nIIII\n@read2/2\nCCCC\n+\nIIII";
 
-      const pairs = [];
+      const pairs: PairedFastqRead[] = [];
       for await (const pair of parser.parseStrings(r1, r2)) {
         pairs.push(pair);
       }

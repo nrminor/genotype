@@ -1,16 +1,10 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { rm } from "node:fs/promises";
-import { FileError, ParseError } from "../../src/errors";
-import { SeqOps, seqops } from "../../src/operations";
+import { FileError } from "../../src/errors";
+import { seqops } from "../../src/operations";
 import { baseContent, baseCount, sequenceAlphabet } from "../../src/operations/core/calculations";
 import { hashMD5 } from "../../src/operations/core/hashing";
-import {
-  type ColumnId,
-  type Fx2TabRow,
-  fx2tab,
-  TabularOps,
-  tab2fx,
-} from "../../src/operations/fx2tab";
+import { type ColumnId, type Fx2TabRow, fx2tab, TabularOps } from "../../src/operations/fx2tab";
 import type { AbstractSequence } from "../../src/types";
 
 describe("fx2tab", () => {
@@ -31,7 +25,8 @@ describe("fx2tab", () => {
       id: "seq3",
       sequence: "ATGC",
       length: 4,
-      ...{ quality: "IIII", qualityEncoding: "phred33" }, // FASTQ-specific fields
+      quality: "IIII",
+      qualityEncoding: "phred33", // FASTQ-specific fields
     } as AbstractSequence,
   ];
 
@@ -68,13 +63,13 @@ describe("fx2tab", () => {
       }
 
       // Test type-safe access
-      expect(rows[1].id).toBe("seq1");
-      expect(rows[1].length).toBe(8);
-      expect(rows[1].gc).toBeCloseTo(50, 1);
+      expect(rows[1]!.id).toBe("seq1");
+      expect(rows[1]!.length).toBe(8);
+      expect(rows[1]!.gc).toBeCloseTo(50, 1);
 
       // Test metadata fields
-      expect(rows[1].__columns).toEqual(["id", "length", "gc"]);
-      expect(rows[1].__delimiter).toBe("\t");
+      expect(rows[1]!.__columns).toEqual(["id", "length", "gc"]);
+      expect(rows[1]!.__delimiter).toBe("\t");
     });
 
     test("supports custom columns", async () => {
@@ -173,8 +168,8 @@ describe("fx2tab", () => {
 
         // Verify against our core function
         const expectedAlphabet = sequenceAlphabet("ATCGATCGNNatcg", false);
-        expect(rows[0].alphabet).toBe(expectedAlphabet);
-        expect(rows[0].alphabet).toBe("ACGNT");
+        expect(rows[0]!.alphabet).toBe(expectedAlphabet);
+        expect(rows[0]!.alphabet).toBe("ACGNT");
       });
 
       test("seq_hash column generates consistent MD5", async () => {
@@ -188,8 +183,8 @@ describe("fx2tab", () => {
 
         // Verify against our core function
         const expectedHash = hashMD5("ATCGATCGNNatcg", false);
-        expect(rows[0].seq_hash).toBe(expectedHash);
-        expect(rows[0].seq_hash).toHaveLength(32);
+        expect(rows[0]!.seq_hash).toBe(expectedHash);
+        expect(rows[0]!.seq_hash).toHaveLength(32);
       });
     });
 
@@ -278,11 +273,11 @@ describe("fx2tab", () => {
         }
 
         // Alphabet should differ
-        expect(insensitiveRows[0].alphabet).toBe("ACGT");
-        expect(sensitiveRows[0].alphabet).toBe("ACGTacgt");
+        expect(insensitiveRows[0]!.alphabet).toBe("ACGT");
+        expect(sensitiveRows[0]!.alphabet).toBe("ACGTacgt");
 
         // Hash should differ
-        expect(insensitiveRows[0].seq_hash).not.toBe(sensitiveRows[0].seq_hash);
+        expect(insensitiveRows[0]!.seq_hash).not.toBe(sensitiveRows[0]!.seq_hash);
 
         // Base content should differ
         const insensitiveData = insensitiveRows[0] as Record<string, unknown>;
@@ -304,7 +299,7 @@ describe("fx2tab", () => {
         }
 
         // Skip header
-        const dataRow = rows[1];
+        const dataRow = rows[1]!;
 
         // Core data must be preserved exactly
         expect(dataRow.id).toBe("seq1");
@@ -331,7 +326,7 @@ describe("fx2tab", () => {
           rows.push(row);
         }
 
-        const headerRow = rows[0];
+        const headerRow = rows[0]!;
         const headers = headerRow.__values;
 
         // Check static column headers
@@ -359,7 +354,7 @@ describe("fx2tab", () => {
         }
 
         // Check the raw string output
-        const rawValues = rows[0].__raw.split("\t");
+        const rawValues = rows[0]!.__raw.split("\t");
 
         // Find the values (they should be after any static columns)
         const values = rawValues.filter((v) => v !== "");
@@ -387,7 +382,7 @@ describe("fx2tab", () => {
       }
 
       expect(rows).toHaveLength(3);
-      expect(rows[0].__raw).toBe("seq1\t8\t50.00");
+      expect(rows[0]!.__raw).toBe("seq1\t8\t50.00");
     });
 
     test("can convert to array using TabularOps", async () => {
@@ -397,8 +392,8 @@ describe("fx2tab", () => {
 
       // Header + 3 sequences
       expect(rows).toHaveLength(4);
-      expect(rows[1].__raw).toContain("seq1\t8");
-      expect(rows[2].__raw).toContain("SEPT1\t8");
+      expect(rows[1]!.__raw).toContain("seq1\t8");
+      expect(rows[2]!.__raw).toContain("SEPT1\t8");
     });
   });
 
@@ -468,8 +463,8 @@ describe("fx2tab", () => {
 
       // 2 sequences with length > 4 (seq3 has length 4)
       expect(results).toHaveLength(2);
-      expect(results[0].id).toBe("seq1");
-      expect(results[1].id).toBe("SEPT1");
+      expect(results[0]!.id).toBe("seq1");
+      expect(results[1]!.id).toBe("SEPT1");
     });
 
     test("supports chained filtering", async () => {
@@ -481,7 +476,7 @@ describe("fx2tab", () => {
 
       // All 3 sequences have GC >= 50
       expect(results).toHaveLength(3);
-      expect(results[0].gc).toBeGreaterThanOrEqual(50);
+      expect(results[0]!.gc).toBeGreaterThanOrEqual(50);
     });
 
     test("writes to TSV file", async () => {
@@ -534,7 +529,7 @@ describe("fx2tab", () => {
         yield {
           id: "seq1",
           sequence: "ATCG",
-          description: undefined,
+          length: 4,
         } as AbstractSequence;
       }
 
@@ -567,7 +562,7 @@ describe("fx2tab", () => {
         rows.push(row);
       }
 
-      expect(rows[0].length).toBe(1000000);
+      expect(rows[0]!.length).toBe(1000000);
     });
 
     test("handles custom sequence formats", async () => {
@@ -588,7 +583,7 @@ describe("fx2tab", () => {
         rows.push(row);
       }
 
-      expect(rows[0].__raw).toBe("custom1\tATCG");
+      expect(rows[0]!.__raw).toBe("custom1\tATCG");
     });
   });
 
@@ -608,8 +603,8 @@ describe("fx2tab", () => {
       }
 
       // Verify protection is maintained
-      expect(protectedRows[1].__raw).toContain('"SEPT1"');
-      expect(protectedRows[2].__raw).toContain('"MARCH1"');
+      expect(protectedRows[1]!.__raw).toContain('"SEPT1"');
+      expect(protectedRows[2]!.__raw).toContain('"MARCH1"');
     });
   });
 
@@ -628,7 +623,7 @@ describe("fx2tab", () => {
         rows.push(row);
       }
 
-      expect(rows[0].__raw).toBe("\t"); // Empty fields
+      expect(rows[0]!.__raw).toBe("\t"); // Empty fields
     });
 
     test("validates column names", async () => {
@@ -641,7 +636,7 @@ describe("fx2tab", () => {
       }
 
       // Should handle gracefully - undefined for invalid column
-      expect(rows[0].__raw).toBe("seq1\t");
+      expect(rows[0]!.__raw).toBe("seq1\t");
     });
 
     test("handles streaming errors", async () => {
@@ -698,10 +693,10 @@ describe("fx2tab", () => {
       }
 
       expect(rows).toHaveLength(2); // header + 1 sequence
-      expect(rows[1].id).toBe("solexa_seq");
-      expect(rows[1].min_qual).toBe(-5); // Solexa can have negative scores
-      expect(rows[1].max_qual).toBe(2);
-      expect(typeof rows[1].avg_qual).toBe("number");
+      expect(rows[1]!.id).toBe("solexa_seq");
+      expect(rows[1]!.min_qual).toBe(-5); // Solexa can have negative scores
+      expect(rows[1]!.max_qual).toBe(2);
+      expect(typeof rows[1]!.avg_qual).toBe("number");
     });
 
     test("handles Phred33 encoding with quality columns", async () => {
@@ -726,8 +721,8 @@ describe("fx2tab", () => {
       }
 
       expect(rows).toHaveLength(2);
-      expect(rows[1].min_qual).toBe(0);
-      expect(rows[1].max_qual).toBe(30);
+      expect(rows[1]!.min_qual).toBe(0);
+      expect(rows[1]!.max_qual).toBe(30);
     });
 
     test("handles Phred64 encoding with quality columns", async () => {
@@ -752,8 +747,8 @@ describe("fx2tab", () => {
       }
 
       expect(rows).toHaveLength(2);
-      expect(rows[1].min_qual).toBe(0);
-      expect(rows[1].max_qual).toBe(30);
+      expect(rows[1]!.min_qual).toBe(0);
+      expect(rows[1]!.max_qual).toBe(30);
     });
   });
 

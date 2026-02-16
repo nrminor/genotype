@@ -6,19 +6,9 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 import { FileError, StreamError } from "../../src/errors";
-import {
-  createStream,
-  exists,
-  getMetadata,
-  getSize,
-  readToString,
-} from "../../src/io/file-reader";
+import { createStream, exists, getMetadata, getSize, readToString } from "../../src/io/file-reader";
 import { detectRuntime } from "../../src/io/runtime";
-import {
-  processBuffer,
-  readLines,
-  StreamUtils,
-} from "../../src/io/stream-utils";
+import { processBuffer, readLines, StreamUtils } from "../../src/io/stream-utils";
 
 // Test fixtures directory - use absolute path for reliability
 const FIXTURES_DIR = join(process.cwd(), "test", "io", "fixtures");

@@ -144,7 +144,8 @@ describe("Complete SeqOps Pipeline Integration", () => {
           cleanedSequences[i - 1]!.length) *
         100;
       const gcCurrent =
-        ((cleanedSequences[i]!.sequence.match(/[GC]/gi)?.length ?? 0) / cleanedSequences[i]!.length) *
+        ((cleanedSequences[i]!.sequence.match(/[GC]/gi)?.length ?? 0) /
+          cleanedSequences[i]!.length) *
         100;
       expect(gcPrev).toBeLessThanOrEqual(gcCurrent);
     }
@@ -184,7 +185,9 @@ describe("Complete SeqOps Pipeline Integration", () => {
 
     // Should be sorted by ID
     for (let i = 1; i < analysisResults.length; i++) {
-      expect(analysisResults[i - 1]!.id.localeCompare(analysisResults[i]!.id)).toBeLessThanOrEqual(0);
+      expect(analysisResults[i - 1]!.id.localeCompare(analysisResults[i]!.id)).toBeLessThanOrEqual(
+        0
+      );
     }
   });
 

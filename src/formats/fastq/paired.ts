@@ -73,14 +73,10 @@
  * ```
  */
 
-
-
 import { PairSyncError } from "../../errors";
 import type { FastqSequence, FileReaderOptions } from "../../types";
 import { FastqParser } from "./parser";
 import type { PairedFastqParserOptions, PairedFastqRead } from "./types";
-
-
 
 /**
  * Default paired-end ID extractor
@@ -132,8 +128,6 @@ export function defaultExtractPairId(id: string): string {
   // Anchored to end of string to avoid matching middle of ID
   return id.replace(/[/._][12]$|[/._][Rr][12]$/i, "");
 }
-
-
 
 /**
  * Paired-end FASTQ format parser with intelligent read synchronization
@@ -443,7 +437,5 @@ export class PairedFastqParser {
     };
   }
 }
-
-
 
 // PairSyncError and PairedFastqParser are already exported via class declarations above

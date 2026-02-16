@@ -1,23 +1,26 @@
 import { describe, expect, test } from "bun:test";
 import {
-  type DNASequence,
   dna,
-  type IUPACSequence,
   isDNASequence,
   isIUPACSequence,
   isPrimerSequence,
   isRNASequence,
   iupac,
-  type PrimerSequence,
   primer,
-  type RNASequence,
   rna,
 } from "../../../src/operations/core/alphabet";
+
+// Helper to create TemplateStringsArray for testing runtime validation
+function makeTemplateArray(str: string): TemplateStringsArray {
+  const arr = [str] as string[] & { raw: readonly string[] };
+  arr.raw = [str];
+  return arr as TemplateStringsArray;
+}
 
 describe("Template Literal Tag Functions", () => {
   describe("dna template tag", () => {
     test("creates valid DNA sequences with standard nucleotides", () => {
-      const seq = dna`ATCGATCG`;
+      const seq = dna`ATCGATCG` as string;
 
       expect(seq).toBe("ATCGATCG");
       expect(typeof seq).toBe("string");
@@ -25,14 +28,14 @@ describe("Template Literal Tag Functions", () => {
     });
 
     test("handles mixed case correctly", () => {
-      const seq = dna`ATCGatcg`;
+      const seq = dna`ATCGatcg` as string;
 
       expect(seq).toBe("ATCGatcg");
       expect(seq.length).toBe(8);
     });
 
     test("works with empty string", () => {
-      const seq = dna``;
+      const seq = dna`` as string;
 
       expect(seq).toBe("");
       expect(seq.length).toBe(0);
@@ -41,21 +44,19 @@ describe("Template Literal Tag Functions", () => {
     test("throws runtime error for invalid characters", () => {
       expect(() => {
         // Test runtime validation by calling function directly
-        const invalidTemplate: TemplateStringsArray = ["ATCGXYZ"] as TemplateStringsArray;
-        dna(invalidTemplate);
+        dna(makeTemplateArray("ATCGXYZ"));
       }).toThrow("Invalid DNA sequence: contains non-standard bases");
     });
 
     test("throws runtime error for RNA nucleotides in DNA tag", () => {
       expect(() => {
         // Test runtime validation by calling function directly
-        const invalidTemplate: TemplateStringsArray = ["ATCGU"] as TemplateStringsArray;
-        dna(invalidTemplate);
+        dna(makeTemplateArray("ATCGU"));
       }).toThrow("Invalid DNA sequence: contains non-standard bases");
     });
 
     test("provides string compatibility", () => {
-      const seq = dna`ATCGATCG`;
+      const seq = dna`ATCGATCG` as string;
 
       // Should work with all string methods
       expect(seq.toUpperCase()).toBe("ATCGATCG");
@@ -66,42 +67,42 @@ describe("Template Literal Tag Functions", () => {
 
   describe("iupac template tag", () => {
     test("creates valid IUPAC sequences with standard nucleotides", () => {
-      const seq = iupac`ATCGATCG`;
+      const seq = iupac`ATCGATCG` as string;
 
       expect(seq).toBe("ATCGATCG");
       expect(typeof seq).toBe("string");
     });
 
     test("handles two-base IUPAC codes", () => {
-      const seq = iupac`ATCGRYSWKM`;
+      const seq = iupac`ATCGRYSWKM` as string;
 
       expect(seq).toBe("ATCGRYSWKM");
       expect(seq.length).toBe(10);
     });
 
     test("handles three-base IUPAC codes", () => {
-      const seq = iupac`ATCGBDHV`;
+      const seq = iupac`ATCGBDHV` as string;
 
       expect(seq).toBe("ATCGBDHV");
       expect(seq.length).toBe(8);
     });
 
     test("handles four-base IUPAC code (N)", () => {
-      const seq = iupac`ATCGN`;
+      const seq = iupac`ATCGN` as string;
 
       expect(seq).toBe("ATCGN");
       expect(seq.length).toBe(5);
     });
 
     test("handles real-world primer with degenerate bases", () => {
-      const seq = iupac`GTGCCAGCMGCCGCGGTAA`; // Real 515F primer with M=A|C
+      const seq = iupac`GTGCCAGCMGCCGCGGTAA` as string; // Real 515F primer with M=A|C
 
       expect(seq).toBe("GTGCCAGCMGCCGCGGTAA");
       expect(seq.length).toBe(19);
     });
 
     test("handles complex degenerate primer", () => {
-      const seq = iupac`GGACTACHVGGGTWTCTAAT`; // Real 806R primer with H,V,W
+      const seq = iupac`GGACTACHVGGGTWTCTAAT` as string; // Real 806R primer with H,V,W
 
       expect(seq).toBe("GGACTACHVGGGTWTCTAAT");
       expect(seq.length).toBe(20);
@@ -110,13 +111,12 @@ describe("Template Literal Tag Functions", () => {
     test("throws runtime error for invalid characters", () => {
       expect(() => {
         // Test runtime validation by calling function directly
-        const invalidTemplate: TemplateStringsArray = ["ATCGXYZ"] as TemplateStringsArray;
-        iupac(invalidTemplate);
+        iupac(makeTemplateArray("ATCGXYZ"));
       }).toThrow("Invalid IUPAC sequence: contains invalid bases");
     });
 
     test("provides string compatibility with IUPAC codes", () => {
-      const seq = iupac`ATCGRYSWKMBDHVN`;
+      const seq = iupac`ATCGRYSWKMBDHVN` as string;
 
       expect(seq.toUpperCase()).toBe("ATCGRYSWKMBDHVN");
       expect(seq.slice(0, 4)).toBe("ATCG");
@@ -126,14 +126,14 @@ describe("Template Literal Tag Functions", () => {
 
   describe("rna template tag", () => {
     test("creates valid RNA sequences with standard nucleotides", () => {
-      const seq = rna`AUCGAUCG`;
+      const seq = rna`AUCGAUCG` as string;
 
       expect(seq).toBe("AUCGAUCG");
       expect(typeof seq).toBe("string");
     });
 
     test("handles IUPAC codes in RNA", () => {
-      const seq = rna`AUCGRYSWKM`;
+      const seq = rna`AUCGRYSWKM` as string;
 
       expect(seq).toBe("AUCGRYSWKM");
       expect(seq.length).toBe(10);
@@ -142,31 +142,29 @@ describe("Template Literal Tag Functions", () => {
     test("throws runtime error for DNA nucleotides (T) in RNA", () => {
       expect(() => {
         // Test runtime validation by calling function directly
-        const invalidTemplate: TemplateStringsArray = ["ATCGATCG"] as TemplateStringsArray;
-        rna(invalidTemplate);
+        rna(makeTemplateArray("ATCGATCG"));
       }).toThrow("Invalid RNA sequence: contains invalid bases");
     });
 
     test("throws runtime error for invalid characters", () => {
       expect(() => {
         // Test runtime validation by calling function directly
-        const invalidTemplate: TemplateStringsArray = ["AUCGXYZ"] as TemplateStringsArray;
-        rna(invalidTemplate);
+        rna(makeTemplateArray("AUCGXYZ"));
       }).toThrow("Invalid RNA sequence: contains invalid bases");
     });
   });
 
   describe("primer template tag", () => {
     test("creates valid primer sequences with correct length", () => {
-      const seq = primer`ATCGATCGATCGATCG`; // 16bp
+      const seq = primer`ATCGATCGATCGATCG` as string; // 16bp
 
       expect(seq).toBe("ATCGATCGATCGATCG");
       expect(seq.length).toBe(16);
     });
 
     test("handles real COVID-19 primers", () => {
-      const covidN = primer`ACCAGGAACTAATCAGACAAG`; // N gene forward (21bp)
-      const covidNRev = primer`CAAAGACCAATCCTACCATGAG`; // N gene reverse (22bp)
+      const covidN = primer`ACCAGGAACTAATCAGACAAG` as string; // N gene forward (21bp)
+      const covidNRev = primer`CAAAGACCAATCCTACCATGAG` as string; // N gene reverse (22bp)
 
       expect(covidN).toBe("ACCAGGAACTAATCAGACAAG");
       expect(covidNRev).toBe("CAAAGACCAATCCTACCATGAG");
@@ -175,8 +173,8 @@ describe("Template Literal Tag Functions", () => {
     });
 
     test("handles real 16S rRNA primers with IUPAC codes", () => {
-      const primer515F = primer`GTGCCAGCMGCCGCGGTAA`; // M=A|C
-      const primer806R = primer`GGACTACHVGGGTWTCTAAT`; // H=A|C|T, V=A|C|G, W=A|T
+      const primer515F = primer`GTGCCAGCMGCCGCGGTAA` as string; // M=A|C
+      const primer806R = primer`GGACTACHVGGGTWTCTAAT` as string; // H=A|C|T, V=A|C|G, W=A|T
 
       expect(primer515F).toBe("GTGCCAGCMGCCGCGGTAA");
       expect(primer806R).toBe("GGACTACHVGGGTWTCTAAT");
@@ -185,14 +183,14 @@ describe("Template Literal Tag Functions", () => {
     });
 
     test("accepts minimum valid length (10bp)", () => {
-      const seq = primer`ATCGATCGAT`; // Exactly 10bp
+      const seq = primer`ATCGATCGAT` as string; // Exactly 10bp
 
       expect(seq).toBe("ATCGATCGAT");
       expect(seq.length).toBe(10);
     });
 
     test("accepts maximum valid length (50bp)", () => {
-      const seq = primer`${"ATCGATCG".repeat(6)}AT`; // Exactly 50bp
+      const seq = primer`${"ATCGATCG".repeat(6)}AT` as string; // Exactly 50bp
 
       expect(seq.length).toBe(50);
     });
@@ -200,31 +198,26 @@ describe("Template Literal Tag Functions", () => {
     test("throws runtime error for too short primers", () => {
       expect(() => {
         // Test runtime validation by calling function directly
-        const shortTemplate: TemplateStringsArray = ["ATCGATCG"] as TemplateStringsArray;
-        primer(shortTemplate);
+        primer(makeTemplateArray("ATCGATCG"));
       }).toThrow("Primer too short: 8bp < 10bp minimum");
     });
 
     test("throws runtime error for too long primers", () => {
       expect(() => {
         // Test runtime validation by calling function directly
-        const longTemplate: TemplateStringsArray = ["A".repeat(60)] as TemplateStringsArray;
-        primer(longTemplate);
+        primer(makeTemplateArray("A".repeat(60)));
       }).toThrow("Primer too long: 60bp > 50bp maximum");
     });
 
     test("throws runtime error for invalid characters", () => {
       expect(() => {
         // Test runtime validation by calling function directly
-        const invalidTemplate: TemplateStringsArray = [
-          "ATCGATCGATCGATCGXYZ",
-        ] as TemplateStringsArray;
-        primer(invalidTemplate);
+        primer(makeTemplateArray("ATCGATCGATCGATCGXYZ"));
       }).toThrow("Invalid primer sequence: contains invalid bases");
     });
 
     test("provides string compatibility for primer operations", () => {
-      const covidPrimer = primer`ACCAGGAACTAATCAGACAAG`;
+      const covidPrimer = primer`ACCAGGAACTAATCAGACAAG` as string;
 
       // Should work with string methods
       expect(covidPrimer.toUpperCase()).toBe("ACCAGGAACTAATCAGACAAG");
@@ -235,10 +228,10 @@ describe("Template Literal Tag Functions", () => {
 
   describe("string widening and algorithm compatibility", () => {
     test("tagged sequences work with string functions", () => {
-      const dnaSeq = dna`ATCGATCG`;
-      const iupacSeq = iupac`ATCGRYSWKM`;
-      const rnaSeq = rna`AUCGAUCG`;
-      const primerSeq = primer`ATCGATCGATCGATCG`;
+      const dnaSeq = dna`ATCGATCG` as string;
+      const iupacSeq = iupac`ATCGRYSWKM` as string;
+      const rnaSeq = rna`AUCGAUCG` as string;
+      const primerSeq = primer`ATCGATCGATCGATCG` as string;
 
       // Test common string operations
       function processAsString(s: string): number {
@@ -252,8 +245,8 @@ describe("Template Literal Tag Functions", () => {
     });
 
     test("tagged sequences work with our pattern matching functions", () => {
-      const sequence = dna`ATCGATCGATCGATCG`;
-      const pattern = dna`ATCG`;
+      const sequence = dna`ATCGATCGATCGATCG` as string;
+      const pattern = dna`ATCG` as string;
 
       // Should work with our existing pattern matching
       function mockPatternSearch(seq: string, pat: string): boolean {
@@ -264,8 +257,8 @@ describe("Template Literal Tag Functions", () => {
     });
 
     test("branded types preserve type information", () => {
-      const dnaSeq = dna`ATCGATCG`;
-      const primerSeq = primer`ATCGATCGATCGATCG`;
+      const dnaSeq = dna`ATCGATCG` as string;
+      const primerSeq = primer`ATCGATCGATCGATCG` as string;
 
       // Type information should be preserved conceptually, but brands are compile-time only
       expect(typeof dnaSeq).toBe("string"); // Widens to string at runtime
@@ -276,14 +269,14 @@ describe("Template Literal Tag Functions", () => {
   describe("biological validation integration", () => {
     test("validates complete IUPAC alphabet", () => {
       // Test all IUPAC codes can be used
-      const allIUPAC = iupac`ACGTRYSWKMBDHVN`;
+      const allIUPAC = iupac`ACGTRYSWKMBDHVN` as string;
 
       expect(allIUPAC).toBe("ACGTRYSWKMBDHVN");
       expect(allIUPAC.length).toBe(15);
     });
 
     test("validates three-base IUPAC codes specifically", () => {
-      const threeBases = iupac`BDHV`; // B=C|G|T, D=A|G|T, H=A|C|T, V=A|C|G
+      const threeBases = iupac`BDHV` as string; // B=C|G|T, D=A|G|T, H=A|C|T, V=A|C|G
 
       expect(threeBases).toBe("BDHV");
       expect(threeBases.length).toBe(4);
@@ -291,8 +284,8 @@ describe("Template Literal Tag Functions", () => {
 
     test("validates primers with biological length constraints", () => {
       // Test boundary conditions
-      const minLength = primer`ATCGATCGATCGATC`; // 15bp
-      const maxLength = primer`${"ATCGATCG".repeat(6)}AT`; // 50bp
+      const minLength = primer`ATCGATCGATCGATC` as string; // 15bp
+      const maxLength = primer`${"ATCGATCG".repeat(6)}AT` as string; // 50bp
 
       expect(minLength.length).toBe(15);
       expect(maxLength.length).toBe(50);
@@ -362,8 +355,8 @@ describe("Type Guard Functions", () => {
 describe("Real-World Biological Sequences", () => {
   describe("COVID-19 diagnostic primers", () => {
     test("validates N gene primers", () => {
-      const nGeneForward = primer`ACCAGGAACTAATCAGACAAG`;
-      const nGeneReverse = primer`CAAAGACCAATCCTACCATGAG`;
+      const nGeneForward = primer`ACCAGGAACTAATCAGACAAG` as string;
+      const nGeneReverse = primer`CAAAGACCAATCCTACCATGAG` as string;
 
       expect(nGeneForward.length).toBe(21);
       expect(nGeneReverse.length).toBe(22);
@@ -372,8 +365,8 @@ describe("Real-World Biological Sequences", () => {
     });
 
     test("validates E gene primers", () => {
-      const eGeneForward = primer`ACAGGTACGTTAATAGTTAATAGCGT`;
-      const eGeneReverse = primer`ATATTGCAGCAGTACGCACACA`;
+      const eGeneForward = primer`ACAGGTACGTTAATAGTTAATAGCGT` as string;
+      const eGeneReverse = primer`ATATTGCAGCAGTACGCACACA` as string;
 
       expect(eGeneForward.length).toBe(26);
       expect(eGeneReverse.length).toBe(22);
@@ -382,8 +375,8 @@ describe("Real-World Biological Sequences", () => {
 
   describe("16S rRNA universal primers", () => {
     test("validates V4 region primers with IUPAC codes", () => {
-      const primer515F = primer`GTGCCAGCMGCCGCGGTAA`; // M = A or C
-      const primer806R = primer`GGACTACHVGGGTWTCTAAT`; // H=A|C|T, V=A|C|G, W=A|T
+      const primer515F = primer`GTGCCAGCMGCCGCGGTAA` as string; // M = A or C
+      const primer806R = primer`GGACTACHVGGGTWTCTAAT` as string; // H=A|C|T, V=A|C|G, W=A|T
 
       expect(primer515F.length).toBe(19);
       expect(primer806R.length).toBe(20);
@@ -396,8 +389,8 @@ describe("Real-World Biological Sequences", () => {
     });
 
     test("validates full-length 16S primers", () => {
-      const primer27F = primer`AGAGTTTGATCMTGGCTCAG`; // 27F universal (M=A|C)
-      const primer1492R = primer`TACGGYTACCTTGTTACGACTT`; // 1492R universal (Y=C|T)
+      const primer27F = primer`AGAGTTTGATCMTGGCTCAG` as string; // 27F universal (M=A|C)
+      const primer1492R = primer`TACGGYTACCTTGTTACGACTT` as string; // 1492R universal (Y=C|T)
 
       expect(primer27F.length).toBe(20);
       expect(primer1492R.length).toBe(22);
@@ -406,14 +399,14 @@ describe("Real-World Biological Sequences", () => {
 
   describe("DNA and RNA sequence validation", () => {
     test("validates genomic DNA sequences", () => {
-      const genomicSeq = dna`ATCGATCGATCGATCGATCGATCGATCGATCG`;
+      const genomicSeq = dna`ATCGATCGATCGATCGATCGATCGATCGATCG` as string;
 
       expect(genomicSeq.length).toBe(32);
       expect(genomicSeq.includes("U")).toBe(false); // No RNA bases
     });
 
     test("validates mRNA sequences", () => {
-      const mrnaSeq = rna`AUGCAUGCAUGCAUGC`; // Start codon (AUG) repeated
+      const mrnaSeq = rna`AUGCAUGCAUGCAUGC` as string; // Start codon (AUG) repeated
 
       expect(mrnaSeq.length).toBe(16);
       expect(mrnaSeq.includes("U")).toBe(true); // Contains RNA bases
@@ -422,7 +415,7 @@ describe("Real-World Biological Sequences", () => {
 
     test("validates complex IUPAC sequences", () => {
       // Test all IUPAC codes including 3-base codes
-      const complexSeq = iupac`ACGTRYSWKMBDHVN`;
+      const complexSeq = iupac`ACGTRYSWKMBDHVN` as string;
 
       expect(complexSeq.length).toBe(15);
 
@@ -436,22 +429,22 @@ describe("Real-World Biological Sequences", () => {
 
 describe("Integration with Existing Infrastructure", () => {
   test("works with existing IUPAC validation functions", () => {
-    const iupacSeq = iupac`ATCGRYSWKMBDHVN`;
+    const iupacSeq = iupac`ATCGRYSWKMBDHVN` as string;
 
     // Should work with existing validation infrastructure
     expect(isIUPACSequence(iupacSeq)).toBe(true);
   });
 
   test("primers work with length validation", () => {
-    const validPrimer = primer`ATCGATCGATCGATCG`;
+    const validPrimer = primer`ATCGATCGATCGATCG` as string;
 
     expect(isPrimerSequence(validPrimer)).toBe(true);
   });
 
   test("can be used in algorithm functions expecting strings", () => {
-    const seq1 = dna`ATCGATCG`;
-    const seq2 = iupac`ATCGRYSWKM`;
-    const primerSeq = primer`ATCGATCGATCGATCG`;
+    const seq1 = dna`ATCGATCG` as string;
+    const seq2 = iupac`ATCGRYSWKM` as string;
+    const primerSeq = primer`ATCGATCGATCGATCG` as string;
 
     // Mock algorithm function expecting string
     function reverseString(s: string): string {
@@ -468,21 +461,19 @@ describe("Error Handling and Edge Cases", () => {
   test("provides clear error messages for biological violations", () => {
     expect(() => {
       // Test runtime validation by calling function directly
-      const shortTemplate: TemplateStringsArray = ["ATCG"] as TemplateStringsArray;
-      primer(shortTemplate);
+      primer(makeTemplateArray("ATCG"));
     }).toThrow("10bp minimum for biological specificity");
 
     expect(() => {
       // Test runtime validation by calling function directly
-      const longTemplate: TemplateStringsArray = ["A".repeat(60)] as TemplateStringsArray;
-      primer(longTemplate);
+      primer(makeTemplateArray("A".repeat(60)));
     }).toThrow("50bp maximum for efficient PCR amplification");
   });
 
   test("handles empty sequences appropriately", () => {
-    const emptyDNA = dna``;
-    const emptyIUPAC = iupac``;
-    const emptyRNA = rna``;
+    const emptyDNA = dna`` as string;
+    const emptyIUPAC = iupac`` as string;
+    const emptyRNA = rna`` as string;
 
     expect(emptyDNA).toBe("");
     expect(emptyIUPAC).toBe("");
@@ -490,7 +481,7 @@ describe("Error Handling and Edge Cases", () => {
   });
 
   test("maintains type safety through string operations", () => {
-    const seq = dna`ATCGATCG`;
+    const seq = dna`ATCGATCG` as string;
     const upper = seq.toUpperCase();
     const slice = seq.slice(0, 4);
 

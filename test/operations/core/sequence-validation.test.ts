@@ -16,10 +16,7 @@ import {
   validateAndClean,
 } from "../../../src/operations/core/sequence-validation";
 // Import SequenceValidator and ValidationMode from operations/validate where they now live
-import {
-  expandAmbiguous,
-  SequenceValidator,
-} from "../../../src/operations/validate";
+import { expandAmbiguous, SequenceValidator } from "../../../src/operations/validate";
 
 describe("IUPAC Pattern Constants", () => {
   test("IUPAC_DNA should match valid DNA sequences", () => {

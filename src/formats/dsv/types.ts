@@ -7,8 +7,6 @@
 
 import type { ParserOptions } from "../../types";
 
-
-
 /**
  * Supported delimiter types for DSV formats
  */

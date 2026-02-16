@@ -60,8 +60,6 @@ export abstract class AbstractParser<T, TOptions extends ParserOptions = ParserO
    */
   protected abstract getDefaultOptions(): Partial<TOptions>;
 
-
-
   /**
    * Check if parsing operation should be aborted
    * Call this in parsing loops to enable Ctrl+C interruption
@@ -77,8 +75,6 @@ export abstract class AbstractParser<T, TOptions extends ParserOptions = ParserO
   protected throwIfAborted(context: string): void {
     this.interruptHandler.throwIfAborted(`${this.getFormatName()} ${context}`);
   }
-
-
 
   /**
    * Parse genomic data from string with interrupt support

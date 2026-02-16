@@ -144,9 +144,9 @@ describe("JSON Format - Morphs & Validation", () => {
 
       expect(Array.isArray(result)).toBe(true);
       expect(result).toHaveLength(2);
-      expect(result[0].id).toBe("seq1");
-      expect(result[0].sequence).toBe("ATCG");
-      expect(result[1].id).toBe("seq2");
+      expect(result[0]!.id).toBe("seq1");
+      expect(result[0]!.sequence).toBe("ATCG");
+      expect(result[1]!.id).toBe("seq2");
     });
 
     test("deserializeJSON rejects invalid JSON structure", () => {
@@ -222,14 +222,14 @@ describe("JSON Format - Morphs & Validation", () => {
 
       expect(lines).toHaveLength(3);
 
-      const parsed1 = JSON.parse(lines[0]);
+      const parsed1 = JSON.parse(lines[0]!);
       expect(parsed1.id).toBe("seq1");
       expect(parsed1.sequence).toBe("ATCG");
 
-      const parsed2 = JSON.parse(lines[1]);
+      const parsed2 = JSON.parse(lines[1]!);
       expect(parsed2.id).toBe("seq2");
 
-      const parsed3 = JSON.parse(lines[2]);
+      const parsed3 = JSON.parse(lines[2]!);
       expect(parsed3.id).toBe("seq3");
     });
 
@@ -261,9 +261,9 @@ describe("JSON Format - Morphs & Validation", () => {
       }
 
       expect(results).toHaveLength(3);
-      expect(results[0].id).toBe("seq1");
-      expect(results[1].id).toBe("seq2");
-      expect(results[2].id).toBe("seq3");
+      expect(results[0]!.id).toBe("seq1");
+      expect(results[1]!.id).toBe("seq2");
+      expect(results[2]!.id).toBe("seq3");
     });
 
     test("jsonlToRows skips empty lines", async () => {
@@ -286,8 +286,8 @@ describe("JSON Format - Morphs & Validation", () => {
       }
 
       expect(results).toHaveLength(2);
-      expect(results[0].id).toBe("seq1");
-      expect(results[1].id).toBe("seq2");
+      expect(results[0]!.id).toBe("seq1");
+      expect(results[1]!.id).toBe("seq2");
     });
 
     test("jsonlToRows rejects invalid JSONL", async () => {
@@ -441,8 +441,8 @@ describe("JSON Format - JSONParser", () => {
       const sequences = await Array.fromAsync(parser.parseString(json));
 
       expect(sequences).toHaveLength(2);
-      expect(sequences[0].id).toBe("seq1");
-      expect(sequences[1].id).toBe("seq2");
+      expect(sequences[0]!.id).toBe("seq1");
+      expect(sequences[1]!.id).toBe("seq2");
     });
 
     test("parses FASTQ sequences when quality field present", async () => {
@@ -492,7 +492,7 @@ describe("JSON Format - JSONParser", () => {
       const sequences = await Array.fromAsync(parser.parseString(json));
 
       expect(sequences).toHaveLength(1);
-      expect(sequences[0].length).toBe(8);
+      expect(sequences[0]!.length).toBe(8);
     });
 
     test("uses explicit format option when provided", async () => {
@@ -546,10 +546,10 @@ describe("JSON Format - JSONParser", () => {
       const sequences = await Array.fromAsync(parser.parseFile("test/fixtures/sequences.json"));
 
       expect(sequences).toHaveLength(3);
-      expect(sequences[0].id).toBe("seq1");
-      expect(sequences[0].sequence).toBe("ATCGATCG");
-      expect(sequences[1].id).toBe("seq2");
-      expect(sequences[2].id).toBe("seq3");
+      expect(sequences[0]!.id).toBe("seq1");
+      expect(sequences[0]!.sequence).toBe("ATCGATCG");
+      expect(sequences[1]!.id).toBe("seq2");
+      expect(sequences[2]!.id).toBe("seq3");
     });
 
     test("parses JSON file with wrapped format", async () => {
@@ -559,8 +559,8 @@ describe("JSON Format - JSONParser", () => {
       );
 
       expect(sequences).toHaveLength(2);
-      expect(sequences[0].id).toBe("seq1");
-      expect(sequences[1].id).toBe("seq2");
+      expect(sequences[0]!.id).toBe("seq1");
+      expect(sequences[1]!.id).toBe("seq2");
     });
 
     test("parses JSON file with FASTQ sequences", async () => {
@@ -588,11 +588,11 @@ describe("JSON Format - JSONLParser", () => {
       const sequences = await Array.fromAsync(parser.parseFile("test/fixtures/sequences.jsonl"));
 
       expect(sequences).toHaveLength(4);
-      expect(sequences[0].id).toBe("seq1");
-      expect(sequences[0].sequence).toBe("ATCGATCG");
-      expect(sequences[1].id).toBe("seq2");
-      expect(sequences[2].id).toBe("seq3");
-      expect(sequences[3].id).toBe("seq4");
+      expect(sequences[0]!.id).toBe("seq1");
+      expect(sequences[0]!.sequence).toBe("ATCGATCG");
+      expect(sequences[1]!.id).toBe("seq2");
+      expect(sequences[2]!.id).toBe("seq3");
+      expect(sequences[3]!.id).toBe("seq4");
     });
 
     test("parses JSONL file with FASTQ sequences", async () => {
@@ -660,9 +660,9 @@ describe("JSON Format - Edge Cases", () => {
       await SeqOps.from(sequences).writeJSON(tempFile);
 
       const recovered = await SeqOps.fromJSON(tempFile).collect();
-      expect(recovered[0].id).toBe("seq_αβγ");
-      expect(recovered[1].id).toBe("seq_中文");
-      expect(recovered[2].id).toBe("seq_🧬");
+      expect(recovered[0]!.id).toBe("seq_αβγ");
+      expect(recovered[1]!.id).toBe("seq_中文");
+      expect(recovered[2]!.id).toBe("seq_🧬");
     });
 
     test("handles spaces and special chars in IDs", async () => {
@@ -681,8 +681,8 @@ describe("JSON Format - Edge Cases", () => {
       await SeqOps.from(sequences).writeJSON(tempFile);
 
       const recovered = await SeqOps.fromJSON(tempFile).collect();
-      expect(recovered[0].id).toBe("seq with spaces");
-      expect(recovered[1].id).toBe("seq-with-dashes");
+      expect(recovered[0]!.id).toBe("seq with spaces");
+      expect(recovered[1]!.id).toBe("seq-with-dashes");
     });
 
     test("handles quotes in IDs (properly escaped)", async () => {
@@ -704,8 +704,8 @@ describe("JSON Format - Edge Cases", () => {
       expect(parsed).toHaveLength(2);
 
       const recovered = await SeqOps.fromJSON(tempFile).collect();
-      expect(recovered[0].id).toBe('seq"with"quotes');
-      expect(recovered[1].id).toBe("seq'with'apostrophes");
+      expect(recovered[0]!.id).toBe('seq"with"quotes');
+      expect(recovered[1]!.id).toBe("seq'with'apostrophes");
     });
   });
 
@@ -726,8 +726,8 @@ describe("JSON Format - Edge Cases", () => {
 
       const recovered = await SeqOps.fromJSON(tempFile).collect();
       expect(recovered).toHaveLength(1);
-      expect(recovered[0].sequence).toHaveLength(100000);
-      expect(recovered[0].sequence).toBe(longSequence);
+      expect(recovered[0]!.sequence).toHaveLength(100000);
+      expect(recovered[0]!.sequence).toBe(longSequence);
     });
 
     test("handles multiple long sequences in JSONL", async () => {
@@ -744,8 +744,8 @@ describe("JSON Format - Edge Cases", () => {
 
       const recovered = await SeqOps.fromJSONL(tempFile).collect();
       expect(recovered).toHaveLength(2);
-      expect(recovered[0].sequence).toHaveLength(100000);
-      expect(recovered[1].sequence).toHaveLength(100000);
+      expect(recovered[0]!.sequence).toHaveLength(100000);
+      expect(recovered[1]!.sequence).toHaveLength(100000);
     });
   });
 
@@ -770,7 +770,7 @@ describe("JSON Format - Edge Cases", () => {
 
       const recovered = await SeqOps.fromJSON(tempFile).collect();
       expect(recovered).toHaveLength(1);
-      expect(recovered[0].id).toBe("only_one");
+      expect(recovered[0]!.id).toBe("only_one");
     });
 
     test("handles empty JSONL file", async () => {

@@ -19,8 +19,8 @@ describe("rename operation", () => {
 
     const result = await Array.fromAsync(rename(toAsyncIterable(input)));
 
-    expect(result[0].id).toBe("seq1");
-    expect(result[1].id).toBe("seq1_2");
+    expect(result[0]!.id).toBe("seq1");
+    expect(result[1]!.id).toBe("seq1_2");
   });
 
   test("handles no duplicates", async () => {
@@ -31,8 +31,8 @@ describe("rename operation", () => {
 
     const result = await Array.fromAsync(rename(toAsyncIterable(input)));
 
-    expect(result[0].id).toBe("seq1");
-    expect(result[1].id).toBe("seq2");
+    expect(result[0]!.id).toBe("seq1");
+    expect(result[1]!.id).toBe("seq2");
   });
 
   test("handles empty input", async () => {
@@ -51,8 +51,8 @@ describe("rename operation", () => {
 
     const result = await Array.fromAsync(rename(toAsyncIterable(input), { byName: false }));
 
-    expect(result[0].id).toBe("seq1");
-    expect(result[1].id).toBe("seq1_2");
+    expect(result[0]!.id).toBe("seq1");
+    expect(result[1]!.id).toBe("seq1_2");
   });
 
   test("byName: true - same ID, different descriptions NOT treated as duplicates", async () => {
@@ -63,8 +63,8 @@ describe("rename operation", () => {
 
     const result = await Array.fromAsync(rename(toAsyncIterable(input), { byName: true }));
 
-    expect(result[0].id).toBe("seq1");
-    expect(result[1].id).toBe("seq1");
+    expect(result[0]!.id).toBe("seq1");
+    expect(result[1]!.id).toBe("seq1");
   });
 
   test("byName: true - same full name treated as duplicates", async () => {
@@ -75,8 +75,8 @@ describe("rename operation", () => {
 
     const result = await Array.fromAsync(rename(toAsyncIterable(input), { byName: true }));
 
-    expect(result[0].id).toBe("seq1");
-    expect(result[1].id).toBe("seq1_2");
+    expect(result[0]!.id).toBe("seq1");
+    expect(result[1]!.id).toBe("seq1_2");
   });
 
   test("custom separator: dot", async () => {
@@ -87,8 +87,8 @@ describe("rename operation", () => {
 
     const result = await Array.fromAsync(rename(toAsyncIterable(input), { separator: "." }));
 
-    expect(result[0].id).toBe("seq1");
-    expect(result[1].id).toBe("seq1.2");
+    expect(result[0]!.id).toBe("seq1");
+    expect(result[1]!.id).toBe("seq1.2");
   });
 
   test("custom separator: hyphen", async () => {
@@ -99,8 +99,8 @@ describe("rename operation", () => {
 
     const result = await Array.fromAsync(rename(toAsyncIterable(input), { separator: "-" }));
 
-    expect(result[0].id).toBe("seq1");
-    expect(result[1].id).toBe("seq1-2");
+    expect(result[0]!.id).toBe("seq1");
+    expect(result[1]!.id).toBe("seq1-2");
   });
 
   test("custom startNum: 0", async () => {
@@ -112,9 +112,9 @@ describe("rename operation", () => {
 
     const result = await Array.fromAsync(rename(toAsyncIterable(input), { startNum: 0 }));
 
-    expect(result[0].id).toBe("seq1");
-    expect(result[1].id).toBe("seq1_0");
-    expect(result[2].id).toBe("seq1_1");
+    expect(result[0]!.id).toBe("seq1");
+    expect(result[1]!.id).toBe("seq1_0");
+    expect(result[2]!.id).toBe("seq1_1");
   });
 
   test("custom startNum: 100", async () => {
@@ -125,8 +125,8 @@ describe("rename operation", () => {
 
     const result = await Array.fromAsync(rename(toAsyncIterable(input), { startNum: 100 }));
 
-    expect(result[0].id).toBe("seq1");
-    expect(result[1].id).toBe("seq1_100");
+    expect(result[0]!.id).toBe("seq1");
+    expect(result[1]!.id).toBe("seq1_100");
   });
 
   test("renameFirst: true with default startNum", async () => {
@@ -138,9 +138,9 @@ describe("rename operation", () => {
 
     const result = await Array.fromAsync(rename(toAsyncIterable(input), { renameFirst: true }));
 
-    expect(result[0].id).toBe("seq1_2");
-    expect(result[1].id).toBe("seq1_3");
-    expect(result[2].id).toBe("seq1_4");
+    expect(result[0]!.id).toBe("seq1_2");
+    expect(result[1]!.id).toBe("seq1_3");
+    expect(result[2]!.id).toBe("seq1_4");
   });
 
   test("renameFirst: true with startNum: 1", async () => {
@@ -154,9 +154,9 @@ describe("rename operation", () => {
       rename(toAsyncIterable(input), { renameFirst: true, startNum: 1 })
     );
 
-    expect(result[0].id).toBe("seq1_1");
-    expect(result[1].id).toBe("seq1_2");
-    expect(result[2].id).toBe("seq1_3");
+    expect(result[0]!.id).toBe("seq1_1");
+    expect(result[1]!.id).toBe("seq1_2");
+    expect(result[2]!.id).toBe("seq1_3");
   });
 
   test("multiple duplicates (4 sequences with same ID)", async () => {
@@ -169,10 +169,10 @@ describe("rename operation", () => {
 
     const result = await Array.fromAsync(rename(toAsyncIterable(input)));
 
-    expect(result[0].id).toBe("seq1");
-    expect(result[1].id).toBe("seq1_2");
-    expect(result[2].id).toBe("seq1_3");
-    expect(result[3].id).toBe("seq1_4");
+    expect(result[0]!.id).toBe("seq1");
+    expect(result[1]!.id).toBe("seq1_2");
+    expect(result[2]!.id).toBe("seq1_3");
+    expect(result[3]!.id).toBe("seq1_4");
   });
 
   test("validation: rejects empty separator", async () => {
@@ -230,8 +230,8 @@ describe("rename operation", () => {
       .collect();
 
     expect(result).toHaveLength(2);
-    expect(result[0].id).toBe("seq1");
-    expect(result[1].id).toBe("seq1-2");
+    expect(result[0]!.id).toBe("seq1");
+    expect(result[1]!.id).toBe("seq1-2");
   });
 
   test("integration: works with FASTQ sequences", async () => {
@@ -256,10 +256,10 @@ describe("rename operation", () => {
 
     const result = await Array.fromAsync(rename(toAsyncIterable(input)));
 
-    expect(result[0].id).toBe("seq1");
-    expect(result[0].quality).toBe("IIII");
-    expect(result[1].id).toBe("seq1_2");
-    expect(result[1].quality).toBe("JJJJ");
+    expect(result[0]!.id).toBe("seq1");
+    expect(result[0]!.quality).toBe("IIII");
+    expect(result[1]!.id).toBe("seq1_2");
+    expect(result[1]!.quality).toBe("JJJJ");
   });
 
   test("integration: preserves descriptions", async () => {
@@ -282,8 +282,8 @@ describe("rename operation", () => {
 
     const result = await Array.fromAsync(rename(toAsyncIterable(input)));
 
-    expect(result[0].description).toBe("original comment");
-    expect(result[1].description).toBe("another comment");
+    expect(result[0]!.description).toBe("original comment");
+    expect(result[1]!.description).toBe("another comment");
   });
 
   test("integration: memory efficient with large unique ID count", async () => {
@@ -297,7 +297,7 @@ describe("rename operation", () => {
     const result = await Array.fromAsync(rename(toAsyncIterable(input)));
 
     expect(result).toHaveLength(1000);
-    expect(result[0].id).toBe("seq0");
-    expect(result[999].id).toBe("seq999");
+    expect(result[0]!.id).toBe("seq0");
+    expect(result[999]!.id).toBe("seq999");
   });
 });

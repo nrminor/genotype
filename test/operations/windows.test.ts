@@ -32,10 +32,10 @@ describe("WindowsProcessor", () => {
       windows.push(window);
     }
 
-    expect(windows[0].kmerSize).toBe(3);
-    expect(windows[0].stepSize).toBe(1);
-    expect(windows[0].windowIndex).toBe(0);
-    expect(windows[1].windowIndex).toBe(1);
+    expect(windows[0]!.kmerSize).toBe(3);
+    expect(windows[0]!.stepSize).toBe(1);
+    expect(windows[0]!.windowIndex).toBe(0);
+    expect(windows[1]!.windowIndex).toBe(1);
   });
 
   test("extracts correct sequence substrings", async () => {
@@ -47,11 +47,11 @@ describe("WindowsProcessor", () => {
       windows.push(window);
     }
 
-    expect(windows[0].sequence).toBe("ATCG");
-    expect(windows[1].sequence).toBe("TCGA");
-    expect(windows[2].sequence).toBe("CGAT");
-    expect(windows[3].sequence).toBe("GATC");
-    expect(windows[4].sequence).toBe("ATCG");
+    expect(windows[0]!.sequence).toBe("ATCG");
+    expect(windows[1]!.sequence).toBe("TCGA");
+    expect(windows[2]!.sequence).toBe("CGAT");
+    expect(windows[3]!.sequence).toBe("GATC");
+    expect(windows[4]!.sequence).toBe("ATCG");
   });
 
   test("handles different step sizes correctly", async () => {
@@ -107,13 +107,13 @@ describe("WindowsProcessor", () => {
     expect(windows.length).toBe(8);
 
     // First 4 windows should be full size
-    expect(windows[0].sequence.length).toBe(5);
-    expect(windows[3].sequence.length).toBe(5);
+    expect(windows[0]!.sequence.length).toBe(5);
+    expect(windows[3]!.sequence.length).toBe(5);
 
     // Remaining windows are progressively shorter (greedy mode)
-    expect(windows[4].sequence.length).toBe(4);
-    expect(windows[7].sequence.length).toBe(1);
-    expect(windows[7].sequence).toBe("G");
+    expect(windows[4]!.sequence.length).toBe(4);
+    expect(windows[7]!.sequence.length).toBe(1);
+    expect(windows[7]!.sequence).toBe("G");
   });
 
   test("non-greedy mode (default) skips short final window", async () => {
@@ -149,9 +149,9 @@ describe("WindowsProcessor", () => {
 
     // Positions: 0 (full), 3 (full), 6 (greedy, length 2)
     expect(windows.length).toBe(3);
-    expect(windows[0].sequence).toBe("ATCG");
-    expect(windows[1].sequence).toBe("GATC");
-    expect(windows[2].sequence).toBe("CG"); // Short greedy window
+    expect(windows[0]!.sequence).toBe("ATCG");
+    expect(windows[1]!.sequence).toBe("GATC");
+    expect(windows[2]!.sequence).toBe("CG"); // Short greedy window
   });
 
   test("circular mode wraps around sequence end", async () => {
@@ -165,8 +165,8 @@ describe("WindowsProcessor", () => {
 
     // Size 5, length 4 → all windows wrap
     expect(windows.length).toBe(4);
-    expect(windows[0].isWrapped).toBe(true);
-    expect(windows[1].isWrapped).toBe(true);
+    expect(windows[0]!.isWrapped).toBe(true);
+    expect(windows[1]!.isWrapped).toBe(true);
   });
 
   test("circular mode reconstructs sequences correctly", async () => {
@@ -179,9 +179,9 @@ describe("WindowsProcessor", () => {
     }
 
     // Position 0: "ATCG" (end) + "AT" (beginning) = "ATCGAT"
-    expect(windows[0].sequence).toBe("ATCGAT");
+    expect(windows[0]!.sequence).toBe("ATCGAT");
     // Position 1: "TCG" (end) + "ATC" (beginning) = "TCGATC"
-    expect(windows[1].sequence).toBe("TCGATC");
+    expect(windows[1]!.sequence).toBe("TCGATC");
   });
 
   test("non-circular mode (default) does not wrap", async () => {
@@ -216,10 +216,10 @@ describe("WindowsProcessor", () => {
     // 0: end=3 (normal), 3: end=6 (normal), 6: end=9 > 8 (would be circular but let's check)
     // First two should be normal, last one might be circular
     expect(windows.length).toBe(3);
-    expect(windows[0].isWrapped).toBe(false);
-    expect(windows[1].isWrapped).toBe(false);
+    expect(windows[0]!.isWrapped).toBe(false);
+    expect(windows[1]!.isWrapped).toBe(false);
     // Position 6 would wrap (end=9 > length=8), so circular takes priority over greedy
-    expect(windows[2].isWrapped).toBe(true);
+    expect(windows[2]!.isWrapped).toBe(true);
   });
 
   test("uses 1-based coordinates by default", async () => {
@@ -231,12 +231,12 @@ describe("WindowsProcessor", () => {
       windows.push(w);
     }
 
-    expect(windows[0].coordinateSystem).toBe("1-based");
-    expect(windows[0].startPosition).toBe(1); // Not 0
-    expect(windows[0].endPosition).toBe(3);
+    expect(windows[0]!.coordinateSystem).toBe("1-based");
+    expect(windows[0]!.startPosition).toBe(1); // Not 0
+    expect(windows[0]!.endPosition).toBe(3);
 
-    expect(windows[1].startPosition).toBe(2);
-    expect(windows[1].endPosition).toBe(4);
+    expect(windows[1]!.startPosition).toBe(2);
+    expect(windows[1]!.endPosition).toBe(4);
   });
 
   test("uses 0-based coordinates when zeroBased=true", async () => {
@@ -248,12 +248,12 @@ describe("WindowsProcessor", () => {
       windows.push(w);
     }
 
-    expect(windows[0].coordinateSystem).toBe("0-based");
-    expect(windows[0].startPosition).toBe(0);
-    expect(windows[0].endPosition).toBe(3);
+    expect(windows[0]!.coordinateSystem).toBe("0-based");
+    expect(windows[0]!.startPosition).toBe(0);
+    expect(windows[0]!.endPosition).toBe(3);
 
-    expect(windows[1].startPosition).toBe(1);
-    expect(windows[1].endPosition).toBe(4);
+    expect(windows[1]!.startPosition).toBe(1);
+    expect(windows[1]!.endPosition).toBe(4);
   });
 
   test("position values match actual sequence slices", async () => {
@@ -299,8 +299,8 @@ describe("WindowsProcessor", () => {
       windows.push(w);
     }
 
-    expect(windows[0].id).toMatch(/seq1_kmer:\d+-\d+/);
-    expect(windows[0].suffix).toBe("_kmer");
+    expect(windows[0]!.id).toMatch(/seq1_kmer:\d+-\d+/);
+    expect(windows[0]!.suffix).toBe("_kmer");
   });
 
   test("preserves originalId from source sequence", async () => {
@@ -361,7 +361,7 @@ describe("WindowsProcessor", () => {
       }
 
       expect(windows.length).toBe(1);
-      expect(windows[0].sequence).toBe("ATCG");
+      expect(windows[0]!.sequence).toBe("ATCG");
     });
 
     test("handles very large step size", async () => {
@@ -374,7 +374,7 @@ describe("WindowsProcessor", () => {
       }
 
       expect(windows.length).toBe(1);
-      expect(windows[0].sequence).toBe("ATC");
+      expect(windows[0]!.sequence).toBe("ATC");
     });
 
     test("ArkType validation rejects size=0", async () => {

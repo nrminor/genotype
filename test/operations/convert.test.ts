@@ -36,7 +36,7 @@ function createFastqSequence(
     quality,
     qualityEncoding: encoding,
     length: sequence.length,
-    description,
+    ...(description !== undefined && { description }),
   };
 }
 
@@ -64,7 +64,7 @@ function createFastqSequenceForAutoDetection(
     quality,
     qualityEncoding: undefined as unknown as "phred33", // Force undefined to trigger detection
     length: sequence.length,
-    description,
+    ...(description !== undefined && { description }),
   };
 }
 
@@ -72,11 +72,7 @@ async function* singleSequence(seq: AbstractSequence): AsyncIterable<AbstractSeq
   yield seq;
 }
 
-async function* asyncIterable<T>(items: T[]): AsyncIterable<T> {
-  for (const item of items) {
-    yield item;
-  }
-}
+
 
 async function* singleFastqSequence(seq: FastqSequence): AsyncIterable<FastqSequence> {
   yield seq;
@@ -824,20 +820,20 @@ describe("Format conversions", () => {
       ];
 
       const results: FastaSequence[] = [];
-      for await (const seq of fq2fa(singleFastqSequence(fastqSeqs[0]))) {
+      for await (const seq of fq2fa(singleFastqSequence(fastqSeqs[0]!))) {
         results.push(seq);
       }
 
       expect(results).toHaveLength(1);
-      expect(results[0]).toMatchObject({
+      expect(results[0]!).toMatchObject({
         format: "fasta",
         id: "read1",
         sequence: "ATCGATCG",
         description: "test read",
         length: 8,
       });
-      expect("quality" in results[0]).toBe(false);
-      expect("qualityEncoding" in results[0]).toBe(false);
+      expect("quality" in results[0]!).toBe(false);
+      expect("qualityEncoding" in results[0]!).toBe(false);
     });
 
     test("includes quality statistics when requested", async () => {
@@ -853,15 +849,15 @@ describe("Format conversions", () => {
       ];
 
       const results: FastaSequence[] = [];
-      for await (const seq of fq2fa(singleFastqSequence(fastqSeqs[0]), {
+      for await (const seq of fq2fa(singleFastqSequence(fastqSeqs[0]!), {
         includeQualityStats: true,
       })) {
         results.push(seq);
       }
 
-      expect(results[0].description).toContain("avg_qual=");
-      expect(results[0].description).toContain("min_qual=");
-      expect(results[0].description).toContain("max_qual=");
+      expect(results[0]!.description).toContain("avg_qual=");
+      expect(results[0]!.description).toContain("min_qual=");
+      expect(results[0]!.description).toContain("max_qual=");
     });
 
     test("handles empty description", async () => {
@@ -877,14 +873,14 @@ describe("Format conversions", () => {
       ];
 
       const results: FastaSequence[] = [];
-      for await (const seq of fq2fa(singleFastqSequence(fastqSeqs[0]), {
+      for await (const seq of fq2fa(singleFastqSequence(fastqSeqs[0]!), {
         includeQualityStats: true,
       })) {
         results.push(seq);
       }
 
       // Description should only have stats, no leading space
-      expect(results[0].description).toMatch(/^avg_qual=/);
+      expect(results[0]!.description).toMatch(/^avg_qual=/);
     });
 
     test("validates options with ArkType", async () => {
@@ -905,7 +901,7 @@ describe("Format conversions", () => {
         const invalidOptions = {
           includeQualityStats: "not-a-boolean", // Should be boolean
         } as unknown as Fq2FaOptions;
-        const iterator = fq2fa(singleFastqSequence(fastqSeqs[0]), invalidOptions);
+        const iterator = fq2fa(singleFastqSequence(fastqSeqs[0]!), invalidOptions);
         // Actually start the iteration to trigger validation
         await iterator[Symbol.asyncIterator]().next();
       } catch (error) {
@@ -930,12 +926,12 @@ describe("Format conversions", () => {
       ];
 
       const results: FastqSequence[] = [];
-      for await (const seq of fa2fq(singleFastaSequence(fastaSeqs[0]))) {
+      for await (const seq of fa2fq(singleFastaSequence(fastaSeqs[0]!))) {
         results.push(seq);
       }
 
       expect(results).toHaveLength(1);
-      expect(results[0]).toMatchObject({
+      expect(results[0]!).toMatchObject({
         format: "fastq",
         id: "seq1",
         sequence: "ATCGATCG",
@@ -957,7 +953,7 @@ describe("Format conversions", () => {
       ];
 
       const results: FastqSequence[] = [];
-      for await (const seq of fa2fq(singleFastaSequence(fastaSeqs[0]), {
+      for await (const seq of fa2fq(singleFastaSequence(fastaSeqs[0]!), {
         qualityScore: 30,
         encoding: "phred33",
       })) {
@@ -965,7 +961,7 @@ describe("Format conversions", () => {
       }
 
       // Score 30 in Phred+33 = ASCII 63 = '?'
-      expect(results[0].quality).toBe("????");
+      expect(results[0]!.quality).toBe("????");
     });
 
     test("uses custom quality character", async () => {
@@ -979,13 +975,13 @@ describe("Format conversions", () => {
       ];
 
       const results: FastqSequence[] = [];
-      for await (const seq of fa2fq(singleFastaSequence(fastaSeqs[0]), {
+      for await (const seq of fa2fq(singleFastaSequence(fastaSeqs[0]!), {
         quality: "J",
       })) {
         results.push(seq);
       }
 
-      expect(results[0].quality).toBe("JJJJ");
+      expect(results[0]!.quality).toBe("JJJJ");
     });
 
     test("rejects both quality and qualityScore", async () => {
@@ -1005,7 +1001,7 @@ describe("Format conversions", () => {
           quality: "I",
           qualityScore: 40,
         } as Fa2FqOptions; // Both specified, which is invalid
-        const iterator = fa2fq(singleFastaSequence(fastaSeqs[0]), invalidOptions);
+        const iterator = fa2fq(singleFastaSequence(fastaSeqs[0]!), invalidOptions);
         // Actually start the iteration to trigger validation
         await iterator[Symbol.asyncIterator]().next();
       } catch (error) {
@@ -1031,7 +1027,7 @@ describe("Format conversions", () => {
         const invalidOptions = {
           quality: "II", // Two characters - invalid
         } as Fa2FqOptions;
-        const iterator = fa2fq(singleFastaSequence(fastaSeqs[0]), invalidOptions);
+        const iterator = fa2fq(singleFastaSequence(fastaSeqs[0]!), invalidOptions);
         // Actually start the iteration to trigger validation
         await iterator[Symbol.asyncIterator]().next();
       } catch (error) {
@@ -1060,13 +1056,13 @@ describe("Format conversions", () => {
         yield fastqSeq;
       }
       for await (const seq of seqops(fastqIterable()).toFastaSequence()) {
-        results.push(seq);
+        results.push(seq as FastaSequence);
       }
 
-      expect(results[0].format).toBe("fasta");
+      expect(results[0]!.format).toBe("fasta");
 
       // Test that it's not available on FastaSequence
-      const fastaSeq: FastaSequence = {
+      const _fastaSeq: FastaSequence = {
         format: "fasta",
         id: "test",
         sequence: "ATCG",
@@ -1075,7 +1071,7 @@ describe("Format conversions", () => {
 
       // This would be a compile-time error, but we can't test that in runtime
       // So we just verify the correct type constraint works
-      expect(results[0]).not.toHaveProperty("quality");
+      expect(results[0]!).not.toHaveProperty("quality");
     });
 
     test("fa2fq only available on FastaSequence", async () => {
@@ -1093,11 +1089,11 @@ describe("Format conversions", () => {
         yield fastaSeq;
       }
       for await (const seq of seqops(fastaIterable()).toFastqSequence()) {
-        results.push(seq);
+        results.push(seq as FastqSequence);
       }
 
-      expect(results[0].format).toBe("fastq");
-      expect(results[0].quality).toBe("IIII");
+      expect(results[0]!.format).toBe("fastq");
+      expect(results[0]!.quality).toBe("IIII");
     });
 
     test("conversion pipeline works correctly", async () => {
@@ -1120,15 +1116,15 @@ describe("Format conversions", () => {
       for await (const seq of seqops(fastqPipelineIterable())
         .toFastaSequence()
         .toFastqSequence({ qualityScore: 35 })) {
-        results.push(seq);
+        results.push(seq as FastqSequence);
       }
 
-      expect(results[0].format).toBe("fastq");
-      expect(results[0].id).toBe("test");
-      expect(results[0].sequence).toBe("ATCGATCG");
-      expect(results[0].description).toBe("original");
+      expect(results[0]!.format).toBe("fastq");
+      expect(results[0]!.id).toBe("test");
+      expect(results[0]!.sequence).toBe("ATCGATCG");
+      expect(results[0]!.description).toBe("original");
       // New quality should be uniform score 35
-      expect(results[0].quality).toBe("DDDDDDDD"); // ASCII 68 = score 35
+      expect(results[0]!.quality).toBe("DDDDDDDD"); // ASCII 68 = score 35
     });
   });
 });

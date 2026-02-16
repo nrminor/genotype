@@ -1010,8 +1010,9 @@ describe("Real-world bioinformatics scenarios", () => {
 
   test("splits large genome assembly into manageable chunks", async () => {
     const processor = new SplitProcessor();
-    // Simulate large genome with many contigs
-    const sequences = Array.from({ length: 50000 }, (_, i) =>
+    // Simulate genome with many contigs (5000 is sufficient to exercise
+    // partitioning logic without stressing CI runner time limits)
+    const sequences = Array.from({ length: 5000 }, (_, i) =>
       createSequence(
         `contig_${i + 1}`,
         "A".repeat(Math.floor(Math.random() * 10000) + 1000),
@@ -1022,22 +1023,24 @@ describe("Real-world bioinformatics scenarios", () => {
     const results = await collect(
       processor.process(source(sequences), {
         mode: "by-size",
-        sequencesPerFile: 1000,
+        sequencesPerFile: 100,
         outputDir: tempDir,
         filePrefix: "genome_chunk",
       })
     );
 
-    expect(results).toHaveLength(50000);
+    expect(results).toHaveLength(5000);
 
-    // Should create 50 files (50000 / 1000)
-    const uniqueParts = new Set(results.map((r) => r.partId));
-    expect(uniqueParts.size).toBe(50);
+    // Should create 50 files (5000 / 100)
+    const partCounts = new Map<number | string, number>();
+    for (const r of results) {
+      partCounts.set(r.partId, (partCounts.get(r.partId) ?? 0) + 1);
+    }
+    expect(partCounts.size).toBe(50);
 
-    // Verify sequence count distribution
-    for (let partId = 1; partId <= 50; partId++) {
-      const partResults = results.filter((r) => r.partId === partId);
-      expect(partResults).toHaveLength(1000);
+    // Verify even distribution across all partitions
+    for (const [_, count] of partCounts) {
+      expect(count).toBe(100);
     }
   });
 

@@ -11,36 +11,31 @@ import {
   findDuplicates,
   SequenceDeduplicator,
 } from "../../../src/operations/core/sequence-deduplicator";
-import type { Sequence } from "../../../src/types";
+import type { AbstractSequence } from "../../../src/types";
+
+/** Helper to create test sequences with required length field */
+function seq(id: string, sequence: string, description?: string): AbstractSequence {
+  return {
+    id,
+    sequence,
+    length: sequence.length,
+    ...(description !== undefined && { description }),
+  };
+}
 
 describe("SequenceDeduplicator", () => {
   // Test data with various duplicates
-  const sequences: Sequence[] = [
-    { id: "seq1", sequence: "ATCGATCG", type: "dna", description: "First" },
-    { id: "seq2", sequence: "GCGCGCGC", type: "dna", description: "Unique" },
-    { id: "seq1", sequence: "ATCGATCG", type: "dna", description: "First" }, // Exact duplicate
-    {
-      id: "seq3",
-      sequence: "ATCGATCG",
-      type: "dna",
-      description: "Different ID",
-    }, // Same sequence
-    {
-      id: "seq1",
-      sequence: "GCGCGCGC",
-      type: "dna",
-      description: "Different seq",
-    }, // Same ID
-    { id: "seq4", sequence: "atcgatcg", type: "dna", description: "Lowercase" },
-    {
-      id: "seq5",
-      sequence: "TTTTTTTT",
-      type: "dna",
-      description: "Another unique",
-    },
+  const sequences: AbstractSequence[] = [
+    seq("seq1", "ATCGATCG", "First"),
+    seq("seq2", "GCGCGCGC", "Unique"),
+    seq("seq1", "ATCGATCG", "First"), // Exact duplicate
+    seq("seq3", "ATCGATCG", "Different ID"), // Same sequence
+    seq("seq1", "GCGCGCGC", "Different seq"), // Same ID
+    seq("seq4", "atcgatcg", "Lowercase"),
+    seq("seq5", "TTTTTTTT", "Another unique"),
   ];
 
-  async function* createAsyncSequences(): AsyncGenerator<Sequence> {
+  async function* createAsyncSequences(): AsyncGenerator<AbstractSequence> {
     for (const seq of sequences) {
       yield seq;
     }
@@ -49,7 +44,7 @@ describe("SequenceDeduplicator", () => {
   describe("Basic Deduplication", () => {
     test("deduplicates by both ID and sequence (default)", async () => {
       const dedup = new SequenceDeduplicator();
-      const unique: Sequence[] = [];
+      const unique: AbstractSequence[] = [];
 
       for await (const seq of dedup.deduplicate(createAsyncSequences())) {
         unique.push(seq);
@@ -67,7 +62,7 @@ describe("SequenceDeduplicator", () => {
 
     test("deduplicates by sequence only", async () => {
       const dedup = new SequenceDeduplicator({ strategy: "sequence" });
-      const unique: Sequence[] = [];
+      const unique: AbstractSequence[] = [];
 
       for await (const seq of dedup.deduplicate(createAsyncSequences())) {
         unique.push(seq);
@@ -84,7 +79,7 @@ describe("SequenceDeduplicator", () => {
 
     test("deduplicates by ID only", async () => {
       const dedup = new SequenceDeduplicator({ strategy: "id" });
-      const unique: Sequence[] = [];
+      const unique: AbstractSequence[] = [];
 
       for await (const seq of dedup.deduplicate(createAsyncSequences())) {
         unique.push(seq);
@@ -100,7 +95,7 @@ describe("SequenceDeduplicator", () => {
 
     test("exact matching strategy", async () => {
       const dedup = new SequenceDeduplicator({ strategy: "exact" });
-      const unique: Sequence[] = [];
+      const unique: AbstractSequence[] = [];
 
       for await (const seq of dedup.deduplicate(createAsyncSequences())) {
         unique.push(seq);
@@ -119,19 +114,15 @@ describe("SequenceDeduplicator", () => {
         caseSensitive: true,
       });
 
-      const testSeqs = [
-        { id: "a", sequence: "ATCG", type: "dna" as const },
-        { id: "b", sequence: "atcg", type: "dna" as const },
-        { id: "c", sequence: "AtCg", type: "dna" as const },
-      ];
+      const testSeqs = [seq("a", "ATCG"), seq("b", "atcg"), seq("c", "AtCg")];
 
-      async function* testStream(): AsyncGenerator<Sequence> {
-        for (const seq of testSeqs) yield seq;
+      async function* testStream(): AsyncGenerator<AbstractSequence> {
+        for (const s of testSeqs) yield s;
       }
 
-      const unique: Sequence[] = [];
-      for await (const seq of dedup.deduplicate(testStream())) {
-        unique.push(seq);
+      const unique: AbstractSequence[] = [];
+      for await (const s of dedup.deduplicate(testStream())) {
+        unique.push(s);
       }
 
       // All three are different when case-sensitive
@@ -144,52 +135,48 @@ describe("SequenceDeduplicator", () => {
         caseSensitive: false,
       });
 
-      const testSeqs = [
-        { id: "a", sequence: "ATCG", type: "dna" as const },
-        { id: "b", sequence: "atcg", type: "dna" as const },
-        { id: "c", sequence: "AtCg", type: "dna" as const },
-      ];
+      const testSeqs = [seq("a", "ATCG"), seq("b", "atcg"), seq("c", "AtCg")];
 
-      async function* testStream(): AsyncGenerator<Sequence> {
-        for (const seq of testSeqs) yield seq;
+      async function* testStream(): AsyncGenerator<AbstractSequence> {
+        for (const s of testSeqs) yield s;
       }
 
-      const unique: Sequence[] = [];
-      for await (const seq of dedup.deduplicate(testStream())) {
-        unique.push(seq);
+      const unique: AbstractSequence[] = [];
+      for await (const s of dedup.deduplicate(testStream())) {
+        unique.push(s);
       }
 
       // All three are the same when case-insensitive
       expect(unique).toHaveLength(1);
-      expect(unique[0].id).toBe("a"); // First one is kept
+      expect(unique[0]!.id).toBe("a"); // First one is kept
     });
   });
 
   describe("Custom Deduplication Strategy", () => {
     test("custom key function", async () => {
       // Deduplicate by first 4 bases only
-      const customKey = (seq: Sequence) => seq.sequence.substring(0, 4);
+      const customKey = (seq: AbstractSequence) => seq.sequence.substring(0, 4);
 
       const dedup = new SequenceDeduplicator({ strategy: customKey });
-      const unique: Sequence[] = [];
+      const unique: AbstractSequence[] = [];
 
       const testSeqs = [
-        { id: "a", sequence: "ATCGATCG", type: "dna" as const },
-        { id: "b", sequence: "ATCGTTTT", type: "dna" as const }, // Same first 4
-        { id: "c", sequence: "GCGCATCG", type: "dna" as const }, // Different first 4
+        seq("a", "ATCGATCG"),
+        seq("b", "ATCGTTTT"), // Same first 4
+        seq("c", "GCGCATCG"), // Different first 4
       ];
 
-      async function* testStream(): AsyncGenerator<Sequence> {
-        for (const seq of testSeqs) yield seq;
+      async function* testStream(): AsyncGenerator<AbstractSequence> {
+        for (const s of testSeqs) yield s;
       }
 
-      for await (const seq of dedup.deduplicate(testStream())) {
-        unique.push(seq);
+      for await (const s of dedup.deduplicate(testStream())) {
+        unique.push(s);
       }
 
       expect(unique).toHaveLength(2);
-      expect(unique[0].id).toBe("a");
-      expect(unique[1].id).toBe("c");
+      expect(unique[0]!.id).toBe("a");
+      expect(unique[1]!.id).toBe("c");
     });
   });
 
@@ -219,21 +206,21 @@ describe("SequenceDeduplicator", () => {
       });
 
       // Create many duplicates
-      async function* manyDuplicates(): AsyncGenerator<Sequence> {
+      async function* manyDuplicates(): AsyncGenerator<AbstractSequence> {
         for (let i = 0; i < 5; i++) {
-          yield { id: "common", sequence: `SEQ${i}`, type: "dna" };
+          yield seq("common", `SEQ${i}`);
         }
         for (let i = 0; i < 3; i++) {
-          yield { id: "medium", sequence: `SEQ${i}`, type: "dna" };
+          yield seq("medium", `SEQ${i}`);
         }
-        yield { id: "rare", sequence: "SEQ", type: "dna" };
+        yield seq("rare", "SEQ");
       }
 
       await dedup.process(manyDuplicates());
 
       const stats = dedup.getStats();
-      expect(stats.topDuplicates?.[0].id).toBe("common");
-      expect(stats.topDuplicates?.[0].count).toBe(4); // 5 total, 4 duplicates
+      expect(stats.topDuplicates?.[0]!.id).toBe("common");
+      expect(stats.topDuplicates?.[0]!.count).toBe(4); // 5 total, 4 duplicates
     });
   });
 
@@ -261,13 +248,13 @@ describe("SequenceDeduplicator", () => {
       });
 
       // Add more sequences than expected
-      async function* manySequences(): AsyncGenerator<Sequence> {
+      async function* manySequences(): AsyncGenerator<AbstractSequence> {
         for (let i = 0; i < 100; i++) {
-          yield { id: `seq${i}`, sequence: `ATCG${i}`, type: "dna" };
+          yield seq(`seq${i}`, `ATCG${i}`);
         }
       }
 
-      const unique: Sequence[] = [];
+      const unique: AbstractSequence[] = [];
       for await (const seq of dedup.deduplicate(manySequences())) {
         unique.push(seq);
       }
@@ -285,8 +272,8 @@ describe("SequenceDeduplicator", () => {
     test("isUnique checks if sequence has been seen", () => {
       const dedup = new SequenceDeduplicator({ strategy: "sequence" });
 
-      const seq1 = { id: "a", sequence: "ATCG", type: "dna" as const };
-      const seq2 = { id: "b", sequence: "GCTA", type: "dna" as const };
+      const seq1 = seq("a", "ATCG");
+      const seq2 = seq("b", "GCTA");
 
       expect(dedup.isUnique(seq1)).toBe(true);
       dedup.markAsSeen(seq1);
@@ -308,8 +295,8 @@ describe("SequenceDeduplicator", () => {
       expect(stats.duplicateCount).toBe(0);
 
       // Should work normally after reset
-      const seq = { id: "test", sequence: "ATCG", type: "dna" as const };
-      expect(dedup.isUnique(seq)).toBe(true);
+      const testSeq = seq("test", "ATCG");
+      expect(dedup.isUnique(testSeq)).toBe(true);
     });
 
     test("process method only collects statistics", async () => {
@@ -329,21 +316,14 @@ describe("SequenceDeduplicator", () => {
       const dedup1 = new SequenceDeduplicator({ scalable: false });
       const dedup2 = new SequenceDeduplicator({ scalable: false });
 
-      const seqs1 = [
-        { id: "a", sequence: "AAAA", type: "dna" as const },
-        { id: "b", sequence: "BBBB", type: "dna" as const },
-      ];
+      const seqs1 = [seq("a", "AAAA"), seq("b", "BBBB")];
+      const seqs2 = [seq("c", "CCCC"), seq("d", "DDDD")];
 
-      const seqs2 = [
-        { id: "c", sequence: "CCCC", type: "dna" as const },
-        { id: "d", sequence: "DDDD", type: "dna" as const },
-      ];
-
-      async function* stream1(): AsyncGenerator<Sequence> {
+      async function* stream1(): AsyncGenerator<AbstractSequence> {
         for (const s of seqs1) yield s;
       }
 
-      async function* stream2(): AsyncGenerator<Sequence> {
+      async function* stream2(): AsyncGenerator<AbstractSequence> {
         for (const s of seqs2) yield s;
       }
 
@@ -353,9 +333,9 @@ describe("SequenceDeduplicator", () => {
       const merged = dedup1.merge(dedup2);
 
       // Merged filter should recognize all sequences
-      expect(merged.isUnique(seqs1[0])).toBe(false);
-      expect(merged.isUnique(seqs2[0])).toBe(false);
-      expect(merged.isUnique({ id: "e", sequence: "EEEE", type: "dna" })).toBe(true);
+      expect(merged.isUnique(seqs1[0]!)).toBe(false);
+      expect(merged.isUnique(seqs2[0]!)).toBe(false);
+      expect(merged.isUnique(seq("e", "EEEE"))).toBe(true);
     });
 
     test("throws error when merging scalable filters", () => {
@@ -369,7 +349,7 @@ describe("SequenceDeduplicator", () => {
   describe("ExactDeduplicator", () => {
     test("provides 100% accuracy with Set", async () => {
       const dedup = new ExactDeduplicator("sequence");
-      const unique: Sequence[] = [];
+      const unique: AbstractSequence[] = [];
 
       for await (const seq of dedup.deduplicate(createAsyncSequences())) {
         unique.push(seq);
@@ -386,29 +366,29 @@ describe("SequenceDeduplicator", () => {
     test("supports all deduplication strategies", async () => {
       const byId = new ExactDeduplicator("id");
       const byBoth = new ExactDeduplicator("both");
-      const custom = new ExactDeduplicator((seq) => seq.sequence.length.toString());
+      const custom = new ExactDeduplicator((s) => s.sequence.length.toString());
 
-      async function* testSeqs(): AsyncGenerator<Sequence> {
-        yield { id: "a", sequence: "ATCG", type: "dna" };
-        yield { id: "a", sequence: "GCTA", type: "dna" };
-        yield { id: "b", sequence: "ATCG", type: "dna" };
+      async function* testSeqs(): AsyncGenerator<AbstractSequence> {
+        yield seq("a", "ATCG");
+        yield seq("a", "GCTA");
+        yield seq("b", "ATCG");
       }
 
-      const uniqueById: Sequence[] = [];
-      for await (const seq of byId.deduplicate(testSeqs())) {
-        uniqueById.push(seq);
+      const uniqueById: AbstractSequence[] = [];
+      for await (const s of byId.deduplicate(testSeqs())) {
+        uniqueById.push(s);
       }
       expect(uniqueById).toHaveLength(2); // 'a' and 'b'
 
-      const uniqueByBoth: Sequence[] = [];
-      for await (const seq of byBoth.deduplicate(testSeqs())) {
-        uniqueByBoth.push(seq);
+      const uniqueByBoth: AbstractSequence[] = [];
+      for await (const s of byBoth.deduplicate(testSeqs())) {
+        uniqueByBoth.push(s);
       }
       expect(uniqueByBoth).toHaveLength(3); // All unique combinations
 
-      const uniqueByLength: Sequence[] = [];
-      for await (const seq of custom.deduplicate(testSeqs())) {
-        uniqueByLength.push(seq);
+      const uniqueByLength: AbstractSequence[] = [];
+      for await (const s of custom.deduplicate(testSeqs())) {
+        uniqueByLength.push(s);
       }
       expect(uniqueByLength).toHaveLength(1); // All have length 4
     });
@@ -416,21 +396,18 @@ describe("SequenceDeduplicator", () => {
     test("reports memory usage estimate", async () => {
       const dedup = new ExactDeduplicator();
 
-      const seqs = [
-        { id: "a", sequence: "ATCG", type: "dna" as const },
-        { id: "b", sequence: "GCTA", type: "dna" as const },
-      ];
+      const seqs = [seq("a", "ATCG"), seq("b", "GCTA")];
 
-      async function* testSequences() {
-        for (const seq of seqs) {
-          yield seq;
+      async function* testSequences(): AsyncGenerator<AbstractSequence> {
+        for (const s of seqs) {
+          yield s;
         }
       }
 
       // Consume the generator to process sequences
-      const results = [];
-      for await (const seq of dedup.deduplicate(testSequences())) {
-        results.push(seq);
+      const results: AbstractSequence[] = [];
+      for await (const s of dedup.deduplicate(testSequences())) {
+        results.push(s);
       }
 
       const stats = dedup.getStats();
@@ -464,9 +441,9 @@ describe("SequenceDeduplicator", () => {
   describe("Edge Cases", () => {
     test("handles empty stream", async () => {
       const dedup = new SequenceDeduplicator();
-      const unique: Sequence[] = [];
+      const unique: AbstractSequence[] = [];
 
-      async function* empty(): AsyncGenerator<Sequence> {
+      async function* empty(): AsyncGenerator<AbstractSequence> {
         // Yield nothing
       }
 
@@ -483,13 +460,13 @@ describe("SequenceDeduplicator", () => {
     test("handles single sequence", async () => {
       const dedup = new SequenceDeduplicator();
 
-      async function* single(): AsyncGenerator<Sequence> {
-        yield { id: "only", sequence: "ATCG", type: "dna" };
+      async function* single(): AsyncGenerator<AbstractSequence> {
+        yield seq("only", "ATCG");
       }
 
-      const unique: Sequence[] = [];
-      for await (const seq of dedup.deduplicate(single())) {
-        unique.push(seq);
+      const unique: AbstractSequence[] = [];
+      for await (const s of dedup.deduplicate(single())) {
+        unique.push(s);
       }
 
       expect(unique).toHaveLength(1);
@@ -498,19 +475,19 @@ describe("SequenceDeduplicator", () => {
     test("handles all duplicates", async () => {
       const dedup = new SequenceDeduplicator({ strategy: "sequence" });
 
-      async function* allDuplicates(): AsyncGenerator<Sequence> {
+      async function* allDuplicates(): AsyncGenerator<AbstractSequence> {
         for (let i = 0; i < 10; i++) {
-          yield { id: `seq${i}`, sequence: "SAME", type: "dna" };
+          yield seq(`seq${i}`, "SAME");
         }
       }
 
-      const unique: Sequence[] = [];
-      for await (const seq of dedup.deduplicate(allDuplicates())) {
-        unique.push(seq);
+      const unique: AbstractSequence[] = [];
+      for await (const s of dedup.deduplicate(allDuplicates())) {
+        unique.push(s);
       }
 
       expect(unique).toHaveLength(1);
-      expect(unique[0].id).toBe("seq0"); // First one kept
+      expect(unique[0]!.id).toBe("seq0"); // First one kept
 
       const stats = dedup.getStats();
       expect(stats.duplicateCount).toBe(9);
@@ -524,20 +501,16 @@ describe("SequenceDeduplicator", () => {
         falsePositiveRate: 0.001,
       });
 
-      async function* largeDataset(): AsyncGenerator<Sequence> {
+      async function* largeDataset(): AsyncGenerator<AbstractSequence> {
         for (let i = 0; i < 10000; i++) {
-          yield {
-            id: `seq${i}`,
-            sequence: `ATCG${i}`,
-            type: "dna",
-          };
+          yield seq(`seq${i}`, `ATCG${i}`);
         }
       }
 
       const start = Date.now();
       let count = 0;
 
-      for await (const seq of dedup.deduplicate(largeDataset())) {
+      for await (const _s of dedup.deduplicate(largeDataset())) {
         count++;
       }
 
@@ -561,13 +534,9 @@ describe("SequenceDeduplicator", () => {
 
       const exactDedup = new ExactDeduplicator();
 
-      async function* dataset(): AsyncGenerator<Sequence> {
+      async function* dataset(): AsyncGenerator<AbstractSequence> {
         for (let i = 0; i < 1000; i++) {
-          yield {
-            id: `seq${i}`,
-            sequence: "A".repeat(100), // Long sequences
-            type: "dna",
-          };
+          yield seq(`seq${i}`, "A".repeat(100)); // Long sequences
         }
       }
 
@@ -575,7 +544,7 @@ describe("SequenceDeduplicator", () => {
       await bloomDedup.process(dataset());
 
       // Process with exact deduplicator (use deduplicate method)
-      for await (const seq of exactDedup.deduplicate(dataset())) {
+      for await (const _s of exactDedup.deduplicate(dataset())) {
         // Just consume the generator
       }
 

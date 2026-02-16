@@ -9,84 +9,83 @@ import {
   FastaUtils,
   FastaWriter,
   ParseError,
-  SequenceError,
-} from "../../src/index.ts";
+} from "../../src/index";
 
 describe("FastaParser", () => {
   const parser = new FastaParser();
 
   test("should parse simple FASTA sequence", async () => {
     const fasta = ">seq1\nATCG";
-    const sequences = [];
+    const sequences: FastaSequence[] = [];
 
     for await (const seq of parser.parseString(fasta)) {
       sequences.push(seq);
     }
 
     expect(sequences).toHaveLength(1);
-    expect(sequences[0]).toEqual({
+    expect(sequences[0]!).toMatchObject({
       format: "fasta",
       id: "seq1",
-      description: undefined,
       sequence: "ATCG",
       length: 4,
       lineNumber: 1,
     });
+    expect(sequences[0]!.description).toBeUndefined();
   });
 
   test("should parse FASTA with description", async () => {
     const fasta = ">seq1 Sample sequence description\nATCGATCG";
-    const sequences = [];
+    const sequences: FastaSequence[] = [];
 
     for await (const seq of parser.parseString(fasta)) {
       sequences.push(seq);
     }
 
-    expect(sequences[0].id).toBe("seq1");
-    expect(sequences[0].description).toBe("Sample sequence description");
-    expect(sequences[0].sequence).toBe("ATCGATCG");
+    expect(sequences[0]!.id).toBe("seq1");
+    expect(sequences[0]!.description).toBe("Sample sequence description");
+    expect(sequences[0]!.sequence).toBe("ATCGATCG");
   });
 
   test("should parse multiline sequences", async () => {
     const fasta = ">seq1\nATCG\nATCG\nATCG";
-    const sequences = [];
+    const sequences: FastaSequence[] = [];
 
     for await (const seq of parser.parseString(fasta)) {
       sequences.push(seq);
     }
 
-    expect(sequences[0].sequence).toBe("ATCGATCGATCG");
-    expect(sequences[0].length).toBe(12);
+    expect(sequences[0]!.sequence).toBe("ATCGATCGATCG");
+    expect(sequences[0]!.length).toBe(12);
   });
 
   test("should parse multiple sequences", async () => {
     const fasta = ">seq1\nATCG\n>seq2\nGGGG\n>seq3\nTTTT";
-    const sequences = [];
+    const sequences: FastaSequence[] = [];
 
     for await (const seq of parser.parseString(fasta)) {
       sequences.push(seq);
     }
 
     expect(sequences).toHaveLength(3);
-    expect(sequences[0].id).toBe("seq1");
-    expect(sequences[1].id).toBe("seq2");
-    expect(sequences[2].id).toBe("seq3");
+    expect(sequences[0]!.id).toBe("seq1");
+    expect(sequences[1]!.id).toBe("seq2");
+    expect(sequences[2]!.id).toBe("seq3");
   });
 
   test("should handle IUPAC ambiguity codes", async () => {
     const fasta = ">seq1\nATCGRYSWKMBDHVN";
-    const sequences = [];
+    const sequences: FastaSequence[] = [];
 
     for await (const seq of parser.parseString(fasta)) {
       sequences.push(seq);
     }
 
-    expect(sequences[0].sequence).toBe("ATCGRYSWKMBDHVN");
+    expect(sequences[0]!.sequence).toBe("ATCGRYSWKMBDHVN");
   });
 
   test("should skip comments and empty lines", async () => {
     const fasta = ";This is a comment\n\n>seq1\nATCG\n\n;Another comment\n>seq2\nGGGG";
-    const sequences = [];
+    const sequences: FastaSequence[] = [];
 
     for await (const seq of parser.parseString(fasta)) {
       sequences.push(seq);
@@ -99,13 +98,13 @@ describe("FastaParser", () => {
     const fasta = ">\nATCG"; // Empty header after '>'
 
     await expect(async () => {
-      for await (const seq of parser.parseString(fasta)) {
+      for await (const _seq of parser.parseString(fasta)) {
         // Should throw before yielding any sequences
       }
     }).toThrow(ParseError);
 
     await expect(async () => {
-      for await (const seq of parser.parseString(fasta)) {
+      for await (const _seq of parser.parseString(fasta)) {
         // Should throw before yielding any sequences
       }
     }).toThrow(/Empty FASTA header.*identifier/);
@@ -119,21 +118,21 @@ describe("FastaParser", () => {
     });
 
     const fasta = ">\nATCG";
-    const sequences = [];
+    const sequences: FastaSequence[] = [];
 
     for await (const seq of parserWithoutValidation.parseString(fasta)) {
       sequences.push(seq);
     }
 
     expect(warnings).toContain("Empty FASTA header");
-    expect(sequences[0].id).toBe("");
+    expect(sequences[0]!.id).toBe("");
   });
 
   test("should throw error for sequence without header", async () => {
     const fasta = "ATCG";
 
     await expect(async () => {
-      for await (const seq of parser.parseString(fasta)) {
+      for await (const _seq of parser.parseString(fasta)) {
         // Should not reach here
       }
     }).toThrow("Sequence data found before header");
@@ -143,7 +142,7 @@ describe("FastaParser", () => {
     const fasta = ">seq1\n>seq2\nATCG";
 
     await expect(async () => {
-      for await (const seq of parser.parseString(fasta)) {
+      for await (const _seq of parser.parseString(fasta)) {
         // Should not reach here
       }
     }).toThrow("Empty sequence found");
@@ -153,7 +152,7 @@ describe("FastaParser", () => {
     const fasta = ">seq1\nATCGXYZ123";
 
     await expect(async () => {
-      for await (const seq of parser.parseString(fasta)) {
+      for await (const _seq of parser.parseString(fasta)) {
         // Should not reach here
       }
     }).toThrow("Invalid sequence characters");
@@ -162,35 +161,35 @@ describe("FastaParser", () => {
   test("should skip validation when requested", async () => {
     const skipValidationParser = new FastaParser({ skipValidation: true });
     const fasta = ">seq1\nATCGXYZ123";
-    const sequences = [];
+    const sequences: FastaSequence[] = [];
 
     for await (const seq of skipValidationParser.parseString(fasta)) {
       sequences.push(seq);
     }
 
-    expect(sequences[0].sequence).toBe("ATCGXYZ123");
+    expect(sequences[0]!.sequence).toBe("ATCGXYZ123");
   });
 
   test("should handle case-insensitive sequences", async () => {
     const fasta = ">seq1\natcgATCG";
-    const sequences = [];
+    const sequences: FastaSequence[] = [];
 
     for await (const seq of parser.parseString(fasta)) {
       sequences.push(seq);
     }
 
-    expect(sequences[0].sequence).toBe("atcgATCG");
+    expect(sequences[0]!.sequence).toBe("atcgATCG");
   });
 
   test("should remove whitespace from sequences", async () => {
     const fasta = ">seq1\nAT CG\n  AT   CG  ";
-    const sequences = [];
+    const sequences: FastaSequence[] = [];
 
     for await (const seq of parser.parseString(fasta)) {
       sequences.push(seq);
     }
 
-    expect(sequences[0].sequence).toBe("ATCGATCG");
+    expect(sequences[0]!.sequence).toBe("ATCGATCG");
   });
 });
 

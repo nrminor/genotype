@@ -28,7 +28,7 @@ describe("KmerSet type safety", () => {
       expect(set.size).toBe(1);
 
       const arr = set.toArray();
-      const size: 21 = arr[0].kmerSize;
+      const size: 21 = arr[0]!.kmerSize;
       expect(size).toBe(21);
     });
   });
@@ -60,7 +60,7 @@ describe("KmerSet type safety", () => {
       const union = set1.union(set2);
 
       const arr = union.toArray();
-      const size: 21 = arr[0].kmerSize;
+      const size: 21 = arr[0]!.kmerSize;
       expect(size).toBe(21);
     });
   });
@@ -92,7 +92,7 @@ describe("KmerSet type safety", () => {
       const intersection = set1.intersection(set2);
 
       const arr = intersection.toArray();
-      const size: 31 = arr[0].kmerSize;
+      const size: 31 = arr[0]!.kmerSize;
       expect(size).toBe(31);
     });
   });
@@ -129,7 +129,7 @@ describe("KmerSet type safety", () => {
 
       expect(difference.size).toBe(1);
       const arr = difference.toArray();
-      const size: 15 = arr[0].kmerSize;
+      const size: 15 = arr[0]!.kmerSize;
       expect(size).toBe(15);
     });
   });
@@ -159,7 +159,7 @@ describe("KmerSet type safety", () => {
       const symDiff = set1.symmetricDifference(set2);
 
       const arr = symDiff.toArray();
-      const size: 7 = arr[0].kmerSize;
+      const size: 7 = arr[0]!.kmerSize;
       expect(size).toBe(7);
     });
   });
@@ -206,7 +206,7 @@ describe("KmerSet type safety", () => {
 
       expect(filtered.size).toBe(1);
       const arr = filtered.toArray();
-      const size: 10 = arr[0].kmerSize;
+      const size: 10 = arr[0]!.kmerSize;
       expect(size).toBe(10);
     });
   });
@@ -268,7 +268,7 @@ describe("KmerSet type safety", () => {
       }
 
       const arr = set.toArray();
-      const size: 3 = arr[0].kmerSize;
+      const size: 3 = arr[0]!.kmerSize;
       expect(size).toBe(3);
     });
   });

@@ -251,6 +251,19 @@ export const isValidQualityChar = (charCode: number): charCode is QualityChar =>
 };
 
 /**
+ * Convert branded quality scores to plain numbers for comparison and interop
+ *
+ * Useful when passing quality scores to functions expecting plain numbers,
+ * or when comparing scores in tests.
+ *
+ * @param scores - Array of branded quality scores
+ * @returns Array of plain numbers with the same values
+ */
+export function asNumbers(scores: readonly (QualityScore | SolexaScore)[]): number[] {
+  return [...scores] as number[];
+}
+
+/**
  * Type guard to check if a string is a valid quality character for an encoding
  */
 export const isValidQualityCharForEncoding = (char: string, encoding: QualityEncoding): boolean => {

@@ -52,10 +52,10 @@ describe("QualityProcessor", () => {
       );
 
       expect(processed).toHaveLength(1);
-      expect(processed[0].quality).toBeDefined();
-      expect(processed[0].quality.length).toBe(8); // Same length
-      expect(processed[0].id).toBe("seq1");
-      expect(processed[0].sequence).toBe("ATCGATCG");
+      expect(processed[0]!.quality).toBeDefined();
+      expect(processed[0]!.quality.length).toBe(8); // Same length
+      expect(processed[0]!.id).toBe("seq1");
+      expect(processed[0]!.sequence).toBe("ATCGATCG");
     });
 
     test("bins quality with custom boundaries", async () => {
@@ -69,7 +69,7 @@ describe("QualityProcessor", () => {
       );
 
       expect(processed).toHaveLength(1);
-      expect(processed[0].quality.length).toBe(4);
+      expect(processed[0]!.quality.length).toBe(4);
     });
 
     test("bins with PacBio preset", async () => {
@@ -83,7 +83,7 @@ describe("QualityProcessor", () => {
       );
 
       expect(processed).toHaveLength(1);
-      expect(processed[0].quality).toBeDefined();
+      expect(processed[0]!.quality).toBeDefined();
     });
 
     test("bins with Nanopore preset", async () => {
@@ -97,7 +97,7 @@ describe("QualityProcessor", () => {
       );
 
       expect(processed).toHaveLength(1);
-      expect(processed[0].quality).toBeDefined();
+      expect(processed[0]!.quality).toBeDefined();
     });
   });
 
@@ -117,8 +117,8 @@ describe("QualityProcessor", () => {
       );
 
       expect(processed).toHaveLength(1);
-      expect(processed[0].id).toBe("good");
-      expect(processed[0].quality).toBeDefined();
+      expect(processed[0]!.id).toBe("good");
+      expect(processed[0]!.quality).toBeDefined();
     });
 
     test("trims, filters, then bins quality", async () => {
@@ -135,9 +135,9 @@ describe("QualityProcessor", () => {
       );
 
       expect(processed).toHaveLength(1);
-      expect(processed[0].sequence.length).toBeLessThan(12); // Trimmed
-      expect(processed[0].quality).toBeDefined();
-      expect(processed[0].quality.length).toBe(processed[0].sequence.length);
+      expect(processed[0]!.sequence.length).toBeLessThan(12); // Trimmed
+      expect(processed[0]!.quality).toBeDefined();
+      expect(processed[0]!.quality.length).toBe(processed[0]!.sequence.length);
     });
 
     test("bins without filtering or trimming", async () => {
@@ -151,8 +151,8 @@ describe("QualityProcessor", () => {
       );
 
       expect(processed).toHaveLength(1);
-      expect(processed[0].sequence).toBe("ATCG"); // Unchanged
-      expect(processed[0].quality.length).toBe(4); // Binned but same length
+      expect(processed[0]!.sequence).toBe("ATCG"); // Unchanged
+      expect(processed[0]!.quality.length).toBe(4); // Binned but same length
     });
   });
 
@@ -222,7 +222,7 @@ describe("QualityProcessor", () => {
         })
       );
 
-      expect(processed[0].id).toBe("important_id");
+      expect(processed[0]!.id).toBe("important_id");
     });
 
     test("preserves sequence data", async () => {
@@ -235,7 +235,7 @@ describe("QualityProcessor", () => {
         })
       );
 
-      expect(processed[0].sequence).toBe("ATCGATCG");
+      expect(processed[0]!.sequence).toBe("ATCGATCG");
     });
 
     test("preserves quality string length", async () => {
@@ -248,7 +248,7 @@ describe("QualityProcessor", () => {
         })
       );
 
-      expect(processed[0].quality.length).toBe(sequences[0].quality.length);
+      expect(processed[0]!.quality.length).toBe(sequences[0]!.quality.length);
     });
   });
 });

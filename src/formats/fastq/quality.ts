@@ -263,7 +263,7 @@ function analyzeWindow(
 function analyzeQualityWindows(
   quality: QualityString,
   encoding: QualityEncoding,
-  windowSize = QUALITY_WINDOWS.DEFAULT_SIZE
+  windowSize: number = QUALITY_WINDOWS.DEFAULT_SIZE
 ): Array<{
   start: number;
   end: number;
@@ -322,8 +322,8 @@ function findLowQualityPositions(
 function suggestQualityTrimming(
   quality: QualityString,
   encoding: QualityEncoding,
-  minQuality = TRIMMING_DEFAULTS.MIN_QUALITY,
-  minLength = TRIMMING_DEFAULTS.MIN_LENGTH
+  minQuality: number = TRIMMING_DEFAULTS.MIN_QUALITY,
+  minLength: number = TRIMMING_DEFAULTS.MIN_LENGTH
 ): {
   trimStart: number;
   trimEnd: number;

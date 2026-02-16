@@ -13,7 +13,7 @@ import type { BAMAlignment, SAMAlignment, SAMHeader } from "../../src/types";
 export function assertSAMEquality(
   actual: SAMAlignment,
   expected: SAMAlignment,
-  message?: string
+  _message?: string
 ): void {
   expect(actual.format).toBe(expected.format);
   expect(actual.qname).toBe(expected.qname);
@@ -46,7 +46,7 @@ export function assertSAMEquality(
 export function assertSAMHeaderEquality(
   actual: SAMHeader,
   expected: SAMHeader,
-  message?: string
+  _message?: string
 ): void {
   expect(actual.format).toBe(expected.format);
   expect(actual.type).toBe(expected.type);
@@ -115,8 +115,8 @@ export function checkRoundTripFidelity(original: SAMAlignment, converted: BAMAli
     expect(converted.tags).toHaveLength(original.tags.length);
 
     for (let i = 0; i < original.tags.length; i++) {
-      const origTag = original.tags[i];
-      const convTag = converted.tags[i];
+      const origTag = original.tags[i]!;
+      const convTag = converted.tags[i]!;
 
       expect(convTag.tag).toBe(origTag.tag);
       expect(convTag.value).toBe(origTag.value);
@@ -260,7 +260,7 @@ export async function validateLargeDataset<T>(
     const batch = items.slice(i, Math.min(i + batchSize, items.length));
 
     for (let j = 0; j < batch.length && errors.length < maxErrors; j++) {
-      const item = batch[j];
+      const item = batch[j]!;
       const result = validator(item);
 
       if (result.isValid) {

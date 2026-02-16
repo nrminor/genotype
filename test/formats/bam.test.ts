@@ -27,7 +27,7 @@ import {
   readUInt8,
   readUInt16LE,
 } from "../../src/formats/bam/binary";
-import type { BAMHeader } from "../../src/types";
+
 
 describe.skip("BinaryParser", () => {
   describe("readInt32LE", () => {
@@ -86,7 +86,7 @@ describe.skip("BinaryParser", () => {
       // Write "hello\0world\0"
       const text = new TextEncoder().encode("hello\0world\0");
       for (let i = 0; i < text.length; i++) {
-        view.setUint8(i, text[i]);
+        view.setUint8(i, text[i]!);
       }
 
       const result1 = readCString(view, 0, 15);
@@ -291,9 +291,9 @@ describe("BAMParser", () => {
     });
 
     it("should accept custom options", () => {
-      let errorCalled = false;
+      let _errorCalled = false;
       const onError = () => {
-        errorCalled = true;
+        _errorCalled = true;
       };
       const parser = new BAMParser({
         skipValidation: true,
@@ -337,12 +337,13 @@ describe("BAMParser", () => {
         },
       });
 
-      const generator = parser.parse(stream);
-
       // The parser should complete successfully but yield no records
       // since the BGZF stream fails to decompress properly
-      const result = await generator.next();
-      expect(result.done).toBe(true);
+      let recordCount = 0;
+      for await (const _record of parser.parse(stream)) {
+        recordCount++;
+      }
+      expect(recordCount).toBe(0);
     });
 
     it("should handle corrupted BGZF blocks", async () => {
@@ -361,11 +362,12 @@ describe("BAMParser", () => {
         },
       });
 
-      const generator = parser.parse(stream);
-
       // The parser should complete successfully but yield no records
-      const result = await generator.next();
-      expect(result.done).toBe(true);
+      let recordCount = 0;
+      for await (const _record of parser.parse(stream)) {
+        recordCount++;
+      }
+      expect(recordCount).toBe(0);
     });
   });
 
@@ -377,12 +379,12 @@ describe("BAMParser", () => {
         },
       });
 
-      const results = [];
-      for await (const record of parser.parse(stream)) {
-        results.push(record);
+      let recordCount = 0;
+      for await (const _record of parser.parse(stream)) {
+        recordCount++;
       }
 
-      expect(results).toHaveLength(0);
+      expect(recordCount).toBe(0);
     });
 
     it("should handle incomplete data gracefully", async () => {
@@ -395,12 +397,13 @@ describe("BAMParser", () => {
         },
       });
 
-      const generator = parser.parse(stream);
-
       // The parser should complete successfully but yield no records
       // since the data is incomplete
-      const result = await generator.next();
-      expect(result.done).toBe(true);
+      let recordCount = 0;
+      for await (const _record of parser.parse(stream)) {
+        recordCount++;
+      }
+      expect(recordCount).toBe(0);
     });
   });
 });
@@ -451,8 +454,10 @@ describe("Integration tests", () => {
         expect(Bun.version).toBeDefined();
         expect(typeof Bun.file).toBe("function");
         // Note: Bun.gunzip might not be available in all versions
-        if (Bun.gunzip) {
-          expect(typeof Bun.gunzip).toBe("function");
+        // Use type assertion since gunzip is not in all Bun type definitions
+        const bunWithGunzip = Bun as typeof Bun & { gunzip?: unknown };
+        if (bunWithGunzip.gunzip) {
+          expect(typeof bunWithGunzip.gunzip).toBe("function");
         }
       }
     });
@@ -472,11 +477,7 @@ describe("Integration tests", () => {
     it("should handle large sequence arrays efficiently", () => {
       // Test optimized string building
       const length = 1000;
-      const chars = new Array(length);
-
-      for (let i = 0; i < length; i++) {
-        chars[i] = "A";
-      }
+      const chars = Array.from({ length }, () => "A");
 
       const sequence = chars.join("");
       expect(sequence.length).toBe(length);
@@ -518,7 +519,7 @@ describe("Essential BAM invariants", () => {
     });
 
     let processed = false;
-    for await (const record of parser.parse(stream)) {
+    for await (const _record of parser.parse(stream)) {
       processed = true;
       break; // Don't need to process everything for this test
     }
@@ -550,12 +551,13 @@ describe("Edge cases and error recovery", () => {
         },
       });
 
-      const generator = parser.parse(stream);
-
       // The parser should complete successfully but yield no records
       // since the file is truncated
-      const result = await generator.next();
-      expect(result.done).toBe(true);
+      let recordCount = 0;
+      for await (const _record of parser.parse(stream)) {
+        recordCount++;
+      }
+      expect(recordCount).toBe(0);
     });
 
     it("should handle invalid sequence encodings", () => {

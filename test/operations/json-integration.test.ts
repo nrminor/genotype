@@ -53,8 +53,9 @@ describe("JSON Integration - SeqOps Static Methods", () => {
       expect(sequences).toHaveLength(2);
       expect(sequences[0]).toHaveProperty("quality");
 
-      if (isFastqSequence(sequences[0])) {
-        expect(sequences[0].quality).toBe("IIIIIIII");
+      const firstSeq = sequences[0]!;
+      if (isFastqSequence(firstSeq)) {
+        expect(firstSeq.quality).toBe("IIIIIIII");
       } else {
         throw new Error("Expected FASTQ sequence");
       }
@@ -66,9 +67,9 @@ describe("JSON Integration - SeqOps Static Methods", () => {
       const sequences = await SeqOps.fromJSONL("test/fixtures/sequences.jsonl").collect();
 
       expect(sequences).toHaveLength(4);
-      expect(sequences[0].id).toBe("seq1");
-      expect(sequences[0].sequence).toBe("ATCGATCG");
-      expect(sequences[0].length).toBe(8);
+      expect(sequences[0]!.id).toBe("seq1");
+      expect(sequences[0]!.sequence).toBe("ATCGATCG");
+      expect(sequences[0]!.length).toBe(8);
     });
 
     test("supports async iteration", async () => {
@@ -90,8 +91,9 @@ describe("JSON Integration - SeqOps Static Methods", () => {
       expect(sequences).toHaveLength(3);
       expect(sequences[0]).toHaveProperty("quality");
 
-      if (isFastqSequence(sequences[0])) {
-        expect(sequences[0].quality).toBe("IIIIIIII");
+      const firstSeq = sequences[0]!;
+      if (isFastqSequence(firstSeq)) {
+        expect(firstSeq.quality).toBe("IIIIIIII");
       } else {
         throw new Error("Expected FASTQ sequence");
       }
@@ -151,8 +153,8 @@ describe("JSON Integration - SeqOps Write Methods", () => {
 
       const recovered = await SeqOps.fromJSON(tempFile).collect();
       expect(recovered).toHaveLength(2);
-      expect(recovered[0].id).toBe("seq1");
-      expect(recovered[0].sequence).toBe("ATCG");
+      expect(recovered[0]!.id).toBe("seq1");
+      expect(recovered[0]!.sequence).toBe("ATCG");
     });
 
     test("supports column selection", async () => {
@@ -219,9 +221,9 @@ describe("JSON Integration - SeqOps Write Methods", () => {
 
       const recovered = await SeqOps.fromJSONL(tempFile).collect();
       expect(recovered).toHaveLength(3);
-      expect(recovered[0].id).toBe("seq1");
-      expect(recovered[1].id).toBe("seq2");
-      expect(recovered[2].id).toBe("seq3");
+      expect(recovered[0]!.id).toBe("seq1");
+      expect(recovered[1]!.id).toBe("seq2");
+      expect(recovered[2]!.id).toBe("seq3");
     });
 
     test("supports column selection", async () => {
@@ -275,7 +277,7 @@ describe("JSON Integration - SeqOps Write Methods", () => {
 
       expect(lines).toHaveLength(1);
 
-      const parsed = JSON.parse(lines[0]);
+      const parsed = JSON.parse(lines[0]!);
       expect(parsed).not.toHaveProperty("sequences");
       expect(parsed).not.toHaveProperty("metadata");
       expect(parsed).toHaveProperty("id");
@@ -304,8 +306,8 @@ describe("JSON Integration - TabularOps Direct Usage", () => {
 
     const recovered = await SeqOps.fromJSON(tempFile).collect();
     expect(recovered).toHaveLength(2);
-    expect(recovered[0].id).toBe("seq1");
-    expect(recovered[0].sequence).toBe("ATCG");
+    expect(recovered[0]!.id).toBe("seq1");
+    expect(recovered[0]!.sequence).toBe("ATCG");
   });
 
   test("TabularOps.writeJSONL() works when called directly", async () => {
@@ -401,8 +403,8 @@ describe("JSON Integration - Cross-Format Pipelines", () => {
       const sequences = await Array.fromAsync(parser.parseFile(outputFile));
 
       expect(sequences).toHaveLength(3);
-      expect(sequences[0].id).toBe("seq1");
-      expect(sequences[0].sequence).toBe("ATCGATCG");
+      expect(sequences[0]!.id).toBe("seq1");
+      expect(sequences[0]!.sequence).toBe("ATCGATCG");
     });
 
     test("fromJSONL() → collect → writeFasta()", async () => {
@@ -437,8 +439,8 @@ describe("JSON Integration - Cross-Format Pipelines", () => {
 
       expect(recovered).toHaveLength(original.length);
       for (let i = 0; i < original.length; i++) {
-        expect(recovered[i].id).toBe(original[i].id);
-        expect(recovered[i].sequence).toBe(original[i].sequence);
+        expect(recovered[i]!.id).toBe(original[i]!.id);
+        expect(recovered[i]!.sequence).toBe(original[i]!.sequence);
       }
     });
 

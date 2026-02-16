@@ -11,7 +11,7 @@ import { GzipDecompressor } from "../../src/compression/gzip";
 import { CompressionError } from "../../src/errors";
 
 // Mock gzip data for testing (simplified header + data)
-const MOCK_FASTA_DATA = new TextEncoder().encode(">sequence1\nACGTACGT\n>sequence2\nGGCCTTAA\n");
+const _MOCK_FASTA_DATA = new TextEncoder().encode(">sequence1\nACGTACGT\n>sequence2\nGGCCTTAA\n");
 
 describe("GzipDecompressor", () => {
   describe("decompress", () => {
@@ -131,10 +131,13 @@ describe("GzipDecompressor", () => {
       controller.abort();
 
       // Should handle aborted signal gracefully
+      const reader = decompressedStream.getReader();
       await expect(
         (async () => {
-          for await (const chunk of decompressedStream) {
-            // Should not reach here due to abort
+          // eslint-disable-next-line no-constant-condition
+          while (true) {
+            const { done } = await reader.read();
+            if (done) break;
           }
         })()
       ).rejects.toThrow(CompressionError);
@@ -202,7 +205,7 @@ describe("GzipDecompressor", () => {
 
       try {
         // Should not throw immediately
-        const { done, value } = await reader.read();
+        const { done: _done, value: _value } = await reader.read();
         // May be done if no valid compressed data, but shouldn't error on stream creation
       } catch (error) {
         // Expected to fail with incomplete gzip data, but stream should be created
@@ -223,7 +226,7 @@ describe("GzipDecompressor", () => {
       } catch (error) {
         // Expected to fail with incomplete data, but shouldn't throw runtime errors
         expect(error).toBeInstanceOf(CompressionError);
-        expect(error.message).not.toContain("Unsupported runtime");
+        expect((error as Error).message).not.toContain("Unsupported runtime");
       }
     });
 
@@ -244,8 +247,8 @@ describe("GzipDecompressor", () => {
         await GzipDecompressor.decompress(truncatedGzip);
       } catch (error) {
         expect(error).toBeInstanceOf(CompressionError);
-        expect(error.format).toBe("gzip");
-        expect(error.operation).toBe("decompress");
+        expect((error as CompressionError).format).toBe("gzip");
+        expect((error as CompressionError).operation).toBe("decompress");
       }
     });
 
@@ -256,7 +259,7 @@ describe("GzipDecompressor", () => {
         await GzipDecompressor.decompress(invalidGzip);
       } catch (error) {
         expect(error).toBeInstanceOf(CompressionError);
-        expect(error.message).toContain("invalid gzip data");
+        expect((error as Error).message).toContain("invalid gzip data");
       }
     });
 
@@ -267,8 +270,8 @@ describe("GzipDecompressor", () => {
         await GzipDecompressor.decompress(partialGzip);
       } catch (error) {
         expect(error).toBeInstanceOf(CompressionError);
-        expect(error.format).toBe("gzip");
-        expect(error.operation).toBe("decompress");
+        expect((error as CompressionError).format).toBe("gzip");
+        expect((error as CompressionError).operation).toBe("decompress");
       }
     });
   });
@@ -307,7 +310,7 @@ describe("GzipDecompressor", () => {
       } catch (error) {
         // Expected to fail with incomplete data
         expect(error).toBeInstanceOf(CompressionError);
-        expect(error.format).toBe("gzip");
+        expect((error as CompressionError).format).toBe("gzip");
       }
     });
   });

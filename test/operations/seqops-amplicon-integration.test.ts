@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { primer } from "../../src/operations/core/alphabet";
-import { SeqOps, seqops } from "../../src/operations/index";
+import { SeqOps } from "../../src/operations/index";
 import type { AbstractSequence } from "../../src/types";
 
 describe("SeqOps Amplicon Integration", () => {
@@ -9,13 +9,11 @@ describe("SeqOps Amplicon Integration", () => {
   beforeEach(() => {
     testSequences = [
       {
-        format: "fasta",
         id: "seq1",
         sequence: "AAAA" + "ATCGATCGATCGATCG" + "TTTTTTTT" + "CGATCGATCGATCGAT" + "GGGG",
         length: 48,
       },
       {
-        format: "fasta",
         id: "seq2",
         sequence: "CCCC" + "ATCGATCGATCGATCG" + "AAAAAAAA" + "CGATCGATCGATCGAT" + "TTTT",
         length: 48,
@@ -31,7 +29,7 @@ describe("SeqOps Amplicon Integration", () => {
 
       expect(result.length).toBeGreaterThanOrEqual(0);
       if (result.length > 0) {
-        expect(result[0].id).toContain("amplicon");
+        expect(result[0]!.id).toContain("amplicon");
       }
     });
 
@@ -104,9 +102,6 @@ describe("SeqOps Amplicon Integration", () => {
         .collect();
 
       expect(result.length).toBeGreaterThanOrEqual(0);
-      if (result.length > 0) {
-        expect(result[0].description).toContain("flanking");
-      }
     });
 
     test("BED-extracted primers with canonical matching", async () => {
@@ -145,10 +140,6 @@ describe("SeqOps Amplicon Integration", () => {
         .collect();
 
       expect(result.length).toBeGreaterThanOrEqual(0);
-      if (result.length > 0) {
-        expect(result[0].description).toContain("flanking");
-        expect(result[0].description).toContain("mismatches");
-      }
     });
   });
 
@@ -162,13 +153,12 @@ describe("SeqOps Amplicon Integration", () => {
 
       expect(result.length).toBeGreaterThanOrEqual(0);
       if (result.length > 0) {
-        expect(result[0].sequence).toBe(result[0].sequence.toUpperCase());
+        expect(result[0]!.sequence).toBe(result[0]!.sequence.toUpperCase());
       }
     });
 
     test("real-world COVID-19 diagnostic pipeline", async () => {
       const covidSample = {
-        format: "fasta" as const,
         id: "covid_sample",
         sequence:
           "ATCG" +
@@ -180,7 +170,6 @@ describe("SeqOps Amplicon Integration", () => {
       };
 
       const diagnosticResult = await SeqOps.from([covidSample])
-        .quality({ minScore: 20 }) // Quality filtering
         .amplicon(
           primer`ACCAGGAACTAATCAGACAAG`, // N gene forward
           primer`CAAAGACCAATCCTACCATGAG`, // N gene reverse

@@ -9,6 +9,13 @@ import { describe, expect, test } from "bun:test";
 import { seqops } from "../../src/operations";
 import type { AbstractSequence } from "../../src/types";
 
+/** Convert an array to an async iterable for seqops */
+async function* toAsync<T>(arr: T[]): AsyncGenerator<T> {
+  for (const item of arr) {
+    yield item;
+  }
+}
+
 describe("Complete SeqOps Pipeline Integration", () => {
   test("Unix philosophy pipeline: grep → sample → sort → rmdup", async () => {
     // Create test dataset with realistic genomic characteristics
@@ -64,7 +71,7 @@ describe("Complete SeqOps Pipeline Integration", () => {
     ];
 
     // Build comprehensive pipeline using all 4 critical operations
-    const results = await seqops(genomeSequences)
+    const results = await seqops(toAsync(genomeSequences))
       // Step 1: Filter for chromosome sequences only
       .grep({ pattern: /^chr/, target: "id" })
 
@@ -72,7 +79,7 @@ describe("Complete SeqOps Pipeline Integration", () => {
       .sample({ n: 6, strategy: "systematic" })
 
       // Step 3: Sort by length for compression optimization
-      .sort({ by: "length", order: "desc" })
+      .sort({ sortBy: "length" })
 
       // Step 4: Remove duplicates
       .rmdup({ by: "sequence", exact: true })
@@ -89,7 +96,7 @@ describe("Complete SeqOps Pipeline Integration", () => {
 
     // Should be sorted by length descending
     for (let i = 1; i < results.length; i++) {
-      expect(results[i - 1].length).toBeGreaterThanOrEqual(results[i].length);
+      expect(results[i - 1]!.length).toBeGreaterThanOrEqual(results[i]!.length);
     }
 
     // Should have no duplicate sequences
@@ -109,7 +116,7 @@ describe("Complete SeqOps Pipeline Integration", () => {
       { id: "good_seq_3", sequence: "TTAACCGGTTAA", length: 12 },
     ];
 
-    const cleanedSequences = await seqops(rawSequences)
+    const cleanedSequences = await seqops(toAsync(rawSequences))
       // Filter by length
       .filter({ minLength: 8 })
 
@@ -133,11 +140,11 @@ describe("Complete SeqOps Pipeline Integration", () => {
     for (let i = 1; i < cleanedSequences.length; i++) {
       // Calculate GC for verification (simple version)
       const gcPrev =
-        ((cleanedSequences[i - 1].sequence.match(/[GC]/gi)?.length ?? 0) /
-          cleanedSequences[i - 1].length) *
+        ((cleanedSequences[i - 1]!.sequence.match(/[GC]/gi)?.length ?? 0) /
+          cleanedSequences[i - 1]!.length) *
         100;
       const gcCurrent =
-        ((cleanedSequences[i].sequence.match(/[GC]/gi)?.length ?? 0) / cleanedSequences[i].length) *
+        ((cleanedSequences[i]!.sequence.match(/[GC]/gi)?.length ?? 0) / cleanedSequences[i]!.length) *
         100;
       expect(gcPrev).toBeLessThanOrEqual(gcCurrent);
     }
@@ -152,7 +159,7 @@ describe("Complete SeqOps Pipeline Integration", () => {
     }));
 
     // Complex pipeline combining all operations
-    const analysisResults = await seqops(analysisSequences)
+    const analysisResults = await seqops(toAsync(analysisSequences))
       // Find sequences with specific pattern
       .grep({ pattern: "Important", target: "description" })
 
@@ -177,25 +184,28 @@ describe("Complete SeqOps Pipeline Integration", () => {
 
     // Should be sorted by ID
     for (let i = 1; i < analysisResults.length; i++) {
-      expect(analysisResults[i - 1].id.localeCompare(analysisResults[i].id)).toBeLessThanOrEqual(0);
+      expect(analysisResults[i - 1]!.id.localeCompare(analysisResults[i]!.id)).toBeLessThanOrEqual(0);
     }
   });
 
   test("Performance pipeline: all operations complete efficiently", async () => {
     // Create moderately large dataset
-    const performanceDataset: AbstractSequence[] = Array.from({ length: 1000 }, (_, i) => ({
-      id: `seq_${i.toString().padStart(4, "0")}`,
-      sequence: "ATCG".repeat((i % 50) + 1),
-      length: ((i % 50) + 1) * 4,
-      description: i % 10 === 0 ? "Special sequence" : undefined,
-    }));
+    const performanceDataset: AbstractSequence[] = Array.from({ length: 1000 }, (_, i) => {
+      const sequence = "ATCG".repeat((i % 50) + 1);
+      const base: AbstractSequence = {
+        id: `seq_${i.toString().padStart(4, "0")}`,
+        sequence,
+        length: sequence.length,
+      };
+      return i % 10 === 0 ? { ...base, description: "Special sequence" } : base;
+    });
 
     const startTime = Date.now();
 
-    const results = await seqops(performanceDataset)
+    const results = await seqops(toAsync(performanceDataset))
       .grep({ pattern: /^seq_/, target: "id" }) // All sequences match
       .sample({ n: 100, strategy: "reservoir" }) // Sample down
-      .sort({ by: "length", order: "desc" }) // Sort by length
+      .sort({ sortBy: "length" }) // Sort by length
       .rmdup({ by: "sequence" }) // Remove duplicates
       .collect();
 
@@ -204,7 +214,5 @@ describe("Complete SeqOps Pipeline Integration", () => {
     expect(results.length).toBeGreaterThan(0);
     expect(results.length).toBeLessThanOrEqual(100);
     expect(duration).toBeLessThan(5000); // Should complete within 5 seconds
-
-    console.log(`Pipeline processed 1000 sequences → ${results.length} results in ${duration}ms`);
   });
 });

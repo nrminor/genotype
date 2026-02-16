@@ -36,6 +36,7 @@ export type {
 
 // Export type guards for branded types
 export {
+  asNumbers,
   isValidAsciiOffset,
   isValidQualityChar,
   isValidQualityCharForEncoding,

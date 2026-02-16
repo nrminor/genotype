@@ -174,8 +174,8 @@ describe("FASTQ Writer Enhancements", () => {
 
       // Should have header + 3 seq lines + separator + 3 qual lines = 8 lines
       expect(lines.length).toBe(8);
-      expect(lines[1].length).toBeLessThanOrEqual(50);
-      expect(lines[2].length).toBeLessThanOrEqual(50);
+      expect(lines[1]!.length).toBeLessThanOrEqual(50);
+      expect(lines[2]!.length).toBeLessThanOrEqual(50);
     });
 
     test("doesn't wrap when sequence is shorter than lineLength", () => {
@@ -361,8 +361,8 @@ describe("FASTQ Writer Enhancements", () => {
         expect(true).toBe(false); // Should not reach here
       } catch (error) {
         expect(error).toBeInstanceOf(Error);
-        expect(error.message).toContain("Invalid FASTQ writer options");
-        expect(error.message).toContain("Wrapped output format requires");
+        expect((error as Error).message).toContain("Invalid FASTQ writer options");
+        expect((error as Error).message).toContain("Wrapped output format requires");
       }
     });
   });
@@ -532,9 +532,9 @@ describe("FASTQ Writer Enhancements", () => {
       }
 
       expect(parsed).toHaveLength(1);
-      expect(parsed[0].sequence).toBe(longSeq.sequence);
-      expect(parsed[0].quality).toBe(longSeq.quality);
-      expect(parsed[0].id).toBe(longSeq.id);
+      expect(parsed[0]!.sequence).toBe(longSeq.sequence);
+      expect(parsed[0]!.quality).toBe(longSeq.quality);
+      expect(parsed[0]!.id).toBe(longSeq.id);
     });
 
     test("platform-preserved output maintains format with description", async () => {
@@ -562,10 +562,10 @@ describe("FASTQ Writer Enhancements", () => {
       }
 
       expect(parsed).toHaveLength(1);
-      expect(parsed[0].id).toBe(illuminaSeq.id);
+      expect(parsed[0]!.id).toBe(illuminaSeq.id);
       // Platform format preservation MUST maintain the description field for Illumina format
-      expect(parsed[0].description).toBeDefined();
-      expect(parsed[0].description).toBe("1:N:0:1");
+      expect(parsed[0]!.description).toBeDefined();
+      expect(parsed[0]!.description).toBe("1:N:0:1");
     });
 
     test("handles sequences without description field", async () => {
@@ -592,9 +592,9 @@ describe("FASTQ Writer Enhancements", () => {
       }
 
       expect(parsed).toHaveLength(1);
-      expect(parsed[0].id).toBe(seqWithoutDescription.id);
+      expect(parsed[0]!.id).toBe(seqWithoutDescription.id);
       // When no description in input, output should also have no description
-      expect(parsed[0].description).toBeUndefined();
+      expect(parsed[0]!.description).toBeUndefined();
     });
   });
 

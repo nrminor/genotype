@@ -4,7 +4,7 @@
 
 import { describe, expect, test } from "bun:test";
 import { SequenceStatsCalculator } from "../../src/operations/stats";
-import type { AbstractSequence, FASTXSequence, FastqSequence } from "../../src/types";
+import type { AbstractSequence, FastqSequence } from "../../src/types";
 
 describe("SequenceStatsCalculator", () => {
   // Helper functions

@@ -340,7 +340,7 @@ describe("binQuality - Preserves Sequence Properties", () => {
       })
     );
 
-    expect(binned[0].id).toBe("my_sequence_id");
+    expect(binned[0]!.id).toBe("my_sequence_id");
   });
 
   test("preserves sequence data", async () => {
@@ -353,8 +353,8 @@ describe("binQuality - Preserves Sequence Properties", () => {
       })
     );
 
-    expect(binned[0].sequence).toBe("ATCGATCGATCG");
-    expect(binned[0].length).toBe(12);
+    expect(binned[0]!.sequence).toBe("ATCGATCGATCG");
+    expect(binned[0]!.length).toBe(12);
   });
 
   test("preserves quality string length", async () => {

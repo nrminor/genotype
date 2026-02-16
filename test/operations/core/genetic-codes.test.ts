@@ -6,7 +6,6 @@ import { describe, expect, test } from "bun:test";
 import {
   findORFs,
   GeneticCode,
-  GeneticCodes,
   getGeneticCode,
   isStartCodon,
   isStopCodon,
@@ -162,7 +161,7 @@ describe("Genetic Code Functions", () => {
       const orfs = findORFs(dna, GeneticCode.STANDARD, 2);
 
       const plusOrfs = orfs.filter((o) => o.strand === "+");
-      const minusOrfs = orfs.filter((o) => o.strand === "-");
+      const _minusOrfs = orfs.filter((o) => o.strand === "-");
 
       expect(plusOrfs.length).toBeGreaterThan(0);
       // May or may not have minus strand ORFs depending on reverse complement

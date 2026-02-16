@@ -15,7 +15,7 @@
 
 import { describe, expect, test } from "bun:test";
 import { SubseqExtractor } from "../../src/operations/subseq";
-import type { AbstractSequence, FastqSequence } from "../../src/types";
+import type { AbstractSequence } from "../../src/types";
 
 describe("SubseqExtractor", () => {
   // Helper functions

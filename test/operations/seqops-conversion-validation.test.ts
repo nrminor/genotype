@@ -78,7 +78,7 @@ describe("SeqOps Conversion Methods", () => {
       }
 
       expect(sequences).toHaveLength(1);
-      expect(sequences[0].quality).toBe("IIII");
+      expect(sequences[0]!.quality).toBe("IIII");
     });
   });
 

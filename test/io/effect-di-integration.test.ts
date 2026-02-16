@@ -47,7 +47,7 @@ describe("Effect DI Integration - Compression Layers", () => {
 
     test("should work with mock layer for fast testing", async () => {
       const testData = "Fast test with mock layer";
-      const encoder = new TextEncoder();
+      const _encoder = new TextEncoder();
 
       // Note: In a real test scenario, you would extract the compression
       // logic into a separate Effect program to swap layers. For now,

@@ -1574,7 +1574,7 @@ describe("SeqOps", () => {
 
       await expect(async () => {
         await seqops(arrayToAsync(stream1))
-          .zipWith(seqops(arrayToAsync(stream2)), (a, b) => {
+          .zipWith(seqops(arrayToAsync(stream2)), (_a, _b) => {
             throw new Error("Test error");
           })
           .collect();

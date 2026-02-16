@@ -156,10 +156,10 @@ GGGGGGGGGGGGGGGG
         expect(parts).toHaveLength(5);
 
         expect(parts[0]).toBeTruthy();
-        expect(Number.parseInt(parts[1])).toBeGreaterThan(0);
-        expect(Number.parseInt(parts[2])).toBeGreaterThan(0);
-        expect(Number.parseInt(parts[3])).toBeGreaterThan(0);
-        expect(Number.parseInt(parts[4])).toBeGreaterThan(0);
+        expect(Number.parseInt(parts[1]!)).toBeGreaterThan(0);
+        expect(Number.parseInt(parts[2]!)).toBeGreaterThan(0);
+        expect(Number.parseInt(parts[3]!)).toBeGreaterThan(0);
+        expect(Number.parseInt(parts[4]!)).toBeGreaterThan(0);
       }
     });
   });

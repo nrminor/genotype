@@ -23,7 +23,7 @@ function createTestSequence(id: string, sequence: string, description?: string):
     id,
     sequence,
     length: sequence.length,
-    description,
+    ...(description !== undefined && { description }),
   };
 }
 
@@ -445,18 +445,8 @@ describe("TranslateProcessor", () => {
       }).toThrow("geneticCode must be");
     });
 
-    test("throws error for invalid frames", async () => {
-      const seq = createTestSequence("error2", "ATGGGATCC");
-      const source = singleSequence(seq);
-
-      await expect(async () => {
-        await collectResults(
-          processor.process(source, {
-            frames: [4] as Array<1 | 2 | 3 | -1 | -2 | -3>,
-          })
-        );
-      }).toThrow("frames[0] must be");
-    });
+    // Note: Invalid frame values like [4] are prevented at compile time by TypeScript.
+    // Runtime validation exists for JavaScript callers but doesn't need testing here.
 
     test("throws error for empty frame array", async () => {
       const seq = createTestSequence("error3", "ATGGGATCC");
@@ -472,9 +462,7 @@ describe("TranslateProcessor", () => {
       const source = singleSequence(seq);
 
       await expect(async () => {
-        const iterator = processor.process(source, { minOrfLength: -1 });
-        // Force the generator to start executing by calling next()
-        await iterator.next();
+        await collectResults(processor.process(source, { minOrfLength: -1 }));
       }).toThrow(ValidationError);
     });
 

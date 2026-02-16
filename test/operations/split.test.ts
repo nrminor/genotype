@@ -10,7 +10,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "fs";
 import { join } from "path";
 import { ValidationError } from "../../src/errors";
 import { seqops } from "../../src/operations";
-import { SplitProcessor, type SplitResult } from "../../src/operations/split";
+import { SplitProcessor } from "../../src/operations/split";
 import type { AbstractSequence } from "../../src/types";
 
 describe("SplitProcessor", () => {
@@ -37,9 +37,8 @@ describe("SplitProcessor", () => {
     return {
       id,
       sequence,
-      description,
       length: sequence.length,
-      format: "fasta" as const,
+      ...(description !== undefined && { description }),
     };
   }
 
@@ -803,7 +802,6 @@ describe("SeqOps split integration", () => {
       id,
       sequence,
       length: sequence.length,
-      format: "fasta" as const,
     };
   }
 
@@ -925,9 +923,8 @@ describe("Real-world bioinformatics scenarios", () => {
     return {
       id,
       sequence,
-      description,
       length: sequence.length,
-      format: "fasta" as const,
+      ...(description !== undefined && { description }),
     };
   }
 

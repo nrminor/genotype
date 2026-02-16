@@ -93,7 +93,7 @@ test("Grouped object has all expected methods", () => {
     "isPalindromic",
     "findPattern",
     "translateSimple",
-  ];
+  ] as const;
 
   for (const method of expectedMethods) {
     expect(typeof SequenceTransforms[method]).toBe("function");

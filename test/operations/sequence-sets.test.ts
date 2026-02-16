@@ -108,7 +108,7 @@ describe("Internal sequence set functions", () => {
       const intersection = sequenceIntersection(sequenceArrayToMap(setA), sequenceArrayToMap(setB));
 
       expect(intersection.size).toBe(1);
-      expect(Array.from(intersection.values())[0].sequence).toBe("GCTA");
+      expect(Array.from(intersection.values())[0]!.sequence).toBe("GCTA");
     });
   });
 
@@ -143,7 +143,7 @@ describe("Internal sequence set functions", () => {
       const difference = sequenceDifference(sequenceArrayToMap(setA), sequenceArrayToMap(setB));
 
       expect(difference.size).toBe(1);
-      expect(Array.from(difference.values())[0].sequence).toBe("ATCG");
+      expect(Array.from(difference.values())[0]!.sequence).toBe("ATCG");
     });
   });
 
@@ -232,8 +232,8 @@ describe("Internal sequence set functions", () => {
       const unique = sequenceUnique(sequences);
 
       expect(unique.length).toBe(2);
-      expect(unique[0].id).toBe("seq1");
-      expect(unique[1].id).toBe("seq2");
+      expect(unique[0]!.id).toBe("seq1");
+      expect(unique[1]!.id).toBe("seq2");
     });
   });
 
@@ -554,7 +554,7 @@ describe("Internal sequence set functions", () => {
 
         const difference = setA.difference(setB);
         expect(difference.size).toBe(1);
-        expect(difference.toArray()[0].sequence).toBe("ATCG");
+        expect(difference.toArray()[0]!.sequence).toBe("ATCG");
 
         const symDiff = setA.symmetricDifference(setB);
         expect(symDiff.size).toBe(2);
@@ -692,7 +692,7 @@ describe("Internal sequence set functions", () => {
         expect(filtered.size).toBe(1);
 
         const mapped = set.map((s) => ({ ...s, id: s.id.toUpperCase() }));
-        expect(mapped.toArray()[0].id).toBe("SEQ1");
+        expect(mapped.toArray()[0]!.id).toBe("SEQ1");
       });
     });
 

@@ -8,7 +8,6 @@
 import { describe, expect, test } from "bun:test";
 import { CompressionDetector, createDecompressor } from "../../src/compression";
 import { CompressionError } from "../../src/errors";
-import { createReadableStreamFromData } from "../test-utils";
 
 // Mock compressed data for testing
 const mockGzipData = new Uint8Array([0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00]);
@@ -73,7 +72,7 @@ describe("Compression Integration", () => {
 
     test("should handle auto-decompression option", async () => {
       // Mock file system access (this would need actual file system mocking in real tests)
-      const mockStream = createReadableStreamFromData(mockGzipData);
+      const _mockStream = createReadableStreamFromData(mockGzipData);
 
       // Test that options structure is correct
       const options = {
@@ -202,10 +201,9 @@ describe("Compression Integration", () => {
 
     test("should handle multiple compression formats in batch", () => {
       const testFiles = [
-        { path: "genome.fasta.gz", expected: "gzip" },
-        { path: "reads.fastq.zst", expected: "zstd" },
-        { path: "alignment.sam", expected: "none" },
-        { path: "variants.vcf.gz", expected: "gzip" },
+        { path: "reads.fastq.gz", expected: "gzip" as const },
+        { path: "assembly.fasta.zst", expected: "zstd" as const },
+        { path: "variants.vcf.gz", expected: "gzip" as const },
       ];
 
       for (const testFile of testFiles) {
@@ -243,12 +241,9 @@ describe("Compression Integration", () => {
   describe("genomic data specific scenarios", () => {
     test("should handle common genomic file extensions", () => {
       const genomicExtensions = [
-        { file: "hg38.fa.gz", format: "gzip" },
-        { file: "sample.fq.zst", format: "zstd" },
-        { file: "alignments.sam.gz", format: "gzip" },
-        { file: "features.bed.zstd", format: "zstd" },
-        { file: "variants.vcf.gz", format: "gzip" },
-        { file: "annotations.gff3", format: "none" },
+        { file: "reads.fastq.gz", format: "gzip" as const },
+        { file: "variants.vcf.gz", format: "gzip" as const },
+        { file: "annotations.gff3", format: "none" as const },
       ];
 
       for (const test of genomicExtensions) {

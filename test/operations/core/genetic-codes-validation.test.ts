@@ -346,12 +346,12 @@ describe("Reading Frame Biology Validation", () => {
       expect(frames["-3"]).toBe("RIP"); // T is incomplete
 
       // Verify lengths are correct
-      expect(frames["+1"].length).toBe(4);
-      expect(frames["+2"].length).toBe(3);
-      expect(frames["+3"].length).toBe(3);
-      expect(frames["-1"].length).toBe(4); // Complete codons including CAT
-      expect(frames["-2"].length).toBe(3);
-      expect(frames["-3"].length).toBe(3);
+      expect(frames["+1"]!.length).toBe(4);
+      expect(frames["+2"]!.length).toBe(3);
+      expect(frames["+3"]!.length).toBe(3);
+      expect(frames["-1"]!.length).toBe(4); // Complete codons including CAT
+      expect(frames["-2"]!.length).toBe(3);
+      expect(frames["-3"]!.length).toBe(3);
     });
   });
 });

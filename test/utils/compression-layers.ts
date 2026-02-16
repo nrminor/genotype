@@ -47,7 +47,7 @@ export const MockCompressionService: Layer.Layer<CompressionService> = Layer.suc
       return Effect.succeed(data);
     },
 
-    createCompressionStream: (format: CompressionFormat) => {
+    createCompressionStream: (_format: CompressionFormat) => {
       return new TransformStream<Uint8Array, Uint8Array>({
         transform(chunk, controller) {
           controller.enqueue(chunk);
@@ -55,7 +55,7 @@ export const MockCompressionService: Layer.Layer<CompressionService> = Layer.suc
       });
     },
 
-    createDecompressionStream: (format: CompressionFormat) => {
+    createDecompressionStream: (_format: CompressionFormat) => {
       return new TransformStream<Uint8Array, Uint8Array>({
         transform(chunk, controller) {
           controller.enqueue(chunk);
@@ -118,8 +118,14 @@ export function createTrackingCompressionService(
 ): Layer.Layer<CompressionService> {
   return Layer.succeed(CompressionService, {
     compress: (data: Uint8Array, format: CompressionFormat, level?: number) => {
-      tracker.compressCalls.push({ data, format, level });
-      return baseService.compress(data, format, level);
+      tracker.compressCalls.push({
+        data,
+        format,
+        ...(level !== undefined && { level }),
+      });
+      return level !== undefined
+        ? baseService.compress(data, format, level)
+        : baseService.compress(data, format);
     },
 
     decompress: (data: Uint8Array, format: CompressionFormat) => {
@@ -202,7 +208,7 @@ export function createFormatRestrictedCompressionService(
   allowedFormats: CompressionFormat[]
 ): Layer.Layer<CompressionService> {
   return Layer.succeed(CompressionService, {
-    compress: (data: Uint8Array, format: CompressionFormat, level?: number) => {
+    compress: (data: Uint8Array, format: CompressionFormat, _level?: number) => {
       if (!allowedFormats.includes(format)) {
         return Effect.fail(
           new CompressionError(

@@ -7,14 +7,12 @@
 
 import { describe, expect, test } from "bun:test";
 import {
-  type BinnedResult,
   type BinningStrategy,
   binQualityString,
   calculateBinDistribution,
   calculateCompressionRatio,
   calculateRepresentatives,
   findBinIndex,
-  type Platform,
   PRESETS,
   validateBoundaries,
 } from "../../../src/operations/core/quality/binning";

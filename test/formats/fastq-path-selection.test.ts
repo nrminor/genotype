@@ -95,7 +95,7 @@ KKKK`;
       expect(metrics.lastStrategy).toBe("state-machine");
       expect(metrics.lastDetectedFormat).toBe("complex");
       expect(sequences).toHaveLength(1);
-      expect(sequences[0].sequence).toBe("ATCGGCTATTAA");
+      expect(sequences[0]!.sequence).toBe("ATCGGCTATTAA");
     });
 
     test("respects confidence threshold for parser selection", async () => {
@@ -211,7 +211,7 @@ JJJJ`;
         for await (const seq of parser.parseString(complexFastq)) {
           sequences.push(seq);
         }
-      } catch (error) {
+      } catch (_error) {
         errorThrown = true;
       }
 
@@ -225,7 +225,7 @@ JJJJ`;
       if (!errorThrown) {
         // If no error, fast path will have misinterpreted the data
         // It would see each line as separate, not concatenated
-        expect(sequences[0].sequence).toBe("ATCG"); // Not "ATCGGCTA" as it should be
+        expect(sequences[0]!.sequence).toBe("ATCG"); // Not "ATCGGCTA" as it should be
       }
     });
   });

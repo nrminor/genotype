@@ -245,12 +245,12 @@ describe("CompressionDetector", () => {
         {
           file: "test.fasta.gz",
           magic: new Uint8Array([0x1f, 0x8b, 0x08]),
-          expected: "gzip",
+          expected: "gzip" as const,
         },
         {
           file: "test.vcf.zst",
           magic: new Uint8Array([0x28, 0xb5, 0x2f, 0xfd]),
-          expected: "zstd",
+          expected: "zstd" as const,
         },
       ];
 

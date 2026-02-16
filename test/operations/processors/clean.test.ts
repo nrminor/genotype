@@ -19,7 +19,6 @@ describe("CleanProcessor", () => {
       id: "test",
       sequence,
       length: sequence.length,
-      format: "fasta" as const,
       ...(description && { description }),
     };
   }
@@ -132,8 +131,8 @@ describe("CleanProcessor", () => {
       const result = await collect(processor.process(source(), { removeEmpty: true }));
 
       expect(result).toHaveLength(2);
-      expect(result[0].sequence).toBe("ATCG");
-      expect(result[1].sequence).toBe("GCTA");
+      expect(result[0]!.sequence).toBe("ATCG");
+      expect(result[1]!.sequence).toBe("GCTA");
     });
 
     test("removes sequences that become empty after cleaning", async () => {
@@ -151,8 +150,8 @@ describe("CleanProcessor", () => {
       );
 
       expect(result).toHaveLength(2);
-      expect(result[0].sequence).toBe("ATCG");
-      expect(result[1].sequence).toBe("GCTA");
+      expect(result[0]!.sequence).toBe("ATCG");
+      expect(result[1]!.sequence).toBe("GCTA");
     });
   });
 

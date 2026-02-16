@@ -5,17 +5,16 @@
 import { describe, expect, test } from "bun:test";
 import {
   calculateSequenceStats,
-  type SequenceStats,
   SequenceStatsAccumulator,
 } from "../../../src/operations/core/statistics";
-import type { FastqSequence, Sequence } from "../../../src/types";
+import type { AbstractSequence, FastaSequence, FastqSequence } from "../../../src/types";
 
 describe("SequenceStatsAccumulator", () => {
   describe("basic statistics", () => {
     test("should calculate basic stats for simple sequences", () => {
       const accumulator = new SequenceStatsAccumulator();
 
-      const sequences: Sequence[] = [
+      const sequences: AbstractSequence[] = [
         { id: "1", sequence: "ATCG", length: 4 },
         { id: "2", sequence: "ATCGATCG", length: 8 },
         { id: "3", sequence: "AT", length: 2 },
@@ -164,9 +163,10 @@ describe("SequenceStatsAccumulator", () => {
         quality: "IIII", // All Q40 (73 - 33 = 40)
         length: 4,
         format: "fastq",
+        qualityEncoding: "phred33",
       };
 
-      accumulator.add(fastqSeq as Sequence);
+      accumulator.add(fastqSeq as AbstractSequence);
       const stats = accumulator.getStats();
 
       expect(stats.qualityStats).toBeDefined();
@@ -184,9 +184,10 @@ describe("SequenceStatsAccumulator", () => {
         quality: '!"#I', // Q0, Q1, Q2, Q40
         length: 4,
         format: "fastq",
+        qualityEncoding: "phred33",
       };
 
-      accumulator.add(fastqSeq as Sequence);
+      accumulator.add(fastqSeq as AbstractSequence);
       const stats = accumulator.getStats();
 
       expect(stats.qualityStats?.meanQuality).toBeCloseTo(10.75, 2);
@@ -233,7 +234,7 @@ describe("SequenceStatsAccumulator", () => {
     test("should handle async iterable input", async () => {
       const accumulator = new SequenceStatsAccumulator();
 
-      async function* generateSequences(): AsyncGenerator<Sequence> {
+      async function* generateSequences(): AsyncGenerator<AbstractSequence> {
         yield { id: "1", sequence: "ATCG", length: 4 };
         yield { id: "2", sequence: "GGCCAATT", length: 8 };
         yield { id: "3", sequence: "AT", length: 2 };
@@ -247,7 +248,7 @@ describe("SequenceStatsAccumulator", () => {
     });
 
     test("should work with calculateSequenceStats utility", async () => {
-      const sequences: Sequence[] = [
+      const sequences: AbstractSequence[] = [
         { id: "1", sequence: "GGCC", length: 4 },
         { id: "2", sequence: "AATT", length: 4 },
       ];

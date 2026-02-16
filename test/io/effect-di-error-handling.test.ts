@@ -13,9 +13,9 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, unlinkSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { CompressionError, FileError } from "../../src/errors";
+import { FileError } from "../../src/errors";
 import { readByteRange, readToString } from "../../src/io/file-reader";
-import { writeBytes, writeString } from "../../src/io/file-writer";
+import { writeString } from "../../src/io/file-writer";
 
 describe("Effect DI Error Handling", () => {
   let testFile: string;
@@ -119,7 +119,7 @@ describe("Effect DI Error Handling", () => {
         const result = await readByteRange(testFile, 0, 5);
         const text = new TextDecoder().decode(result);
         expect(text).toBe(content);
-      } catch (error) {
+      } catch (_error) {
         // Should not reach here
         expect.unreachable("Valid range should not throw");
       }

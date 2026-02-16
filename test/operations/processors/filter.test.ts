@@ -18,7 +18,6 @@ describe("FilterProcessor", () => {
       id,
       sequence,
       length: sequence.length,
-      format: "fasta" as const,
     };
   }
 
@@ -49,7 +48,7 @@ describe("FilterProcessor", () => {
       const result = await collect(processor.process(source(sequences), { minLength: 5 }));
 
       expect(result).toHaveLength(1);
-      expect(result[0].id).toBe("seq2");
+      expect(result[0]!.id).toBe("seq2");
     });
 
     test("filters by maximum length", async () => {
@@ -134,7 +133,7 @@ describe("FilterProcessor", () => {
       const result = await collect(processor.process(source(sequences), { pattern: /A{4,}/ }));
 
       expect(result).toHaveLength(1);
-      expect(result[0].id).toBe("seq2");
+      expect(result[0]!.id).toBe("seq2");
     });
   });
 
@@ -181,7 +180,7 @@ describe("FilterProcessor", () => {
       const result = await collect(processor.process(source(sequences), { hasAmbiguous: false }));
 
       expect(result).toHaveLength(1);
-      expect(result[0].id).toBe("seq1");
+      expect(result[0]!.id).toBe("seq1");
     });
 
     test("filters sequences without ambiguous bases", async () => {

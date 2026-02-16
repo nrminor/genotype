@@ -18,7 +18,6 @@ describe("TransformProcessor", () => {
       id: "test",
       sequence,
       length: sequence.length,
-      format: "fasta" as const,
     };
   }
 

@@ -9,17 +9,13 @@ import { FileError, StreamError } from "../../src/errors";
 import {
   createStream,
   exists,
-  FileReader,
   getMetadata,
   getSize,
   readToString,
 } from "../../src/io/file-reader";
 import { detectRuntime } from "../../src/io/runtime";
 import {
-  batchLines,
-  pipe,
   processBuffer,
-  processChunks,
   readLines,
   StreamUtils,
 } from "../../src/io/stream-utils";
@@ -107,7 +103,7 @@ describe("FileReader", () => {
     test("should get comprehensive metadata", async () => {
       const metadata = await getMetadata(TEST_FILES.small);
 
-      expect(metadata.path).toBe(TEST_FILES.small);
+      expect(metadata.path as string).toBe(TEST_FILES.small);
       expect(metadata.size).toBe(13);
       expect(metadata.readable).toBe(true);
       expect(metadata.lastModified).toBeInstanceOf(Date);
@@ -453,7 +449,7 @@ describe("Integration Tests", () => {
   });
 
   test("should handle concurrent file operations", async () => {
-    const promises = Array.from({ length: 5 }, (_, i) => readToString(TEST_FILES.small));
+    const promises = Array.from({ length: 5 }, (_) => readToString(TEST_FILES.small));
 
     const results = await Promise.all(promises);
     results.forEach((content) => {

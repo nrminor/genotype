@@ -5,7 +5,7 @@
  * and sequence cleaning functionality.
  */
 
-import { beforeEach, describe, expect, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 // Import IUPAC constants and utilities from core/sequence-validation
 import {
   detectSequenceType,
@@ -18,9 +18,7 @@ import {
 // Import SequenceValidator and ValidationMode from operations/validate where they now live
 import {
   expandAmbiguous,
-  SequenceType,
   SequenceValidator,
-  ValidationMode,
 } from "../../../src/operations/validate";
 
 describe("IUPAC Pattern Constants", () => {

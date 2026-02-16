@@ -7,7 +7,15 @@
 
 import { beforeEach, describe, expect, test } from "bun:test";
 import { RmdupProcessor } from "../../src/operations/rmdup";
-import type { AbstractSequence, FastqSequence, RmdupOptions } from "../../src/types";
+import type { RmdupOptions } from "../../src/operations/types";
+import type { AbstractSequence } from "../../src/types";
+
+/** Convert an array to an async iterable */
+async function* toAsync<T>(arr: T[]): AsyncGenerator<T> {
+  for (const item of arr) {
+    yield item;
+  }
+}
 
 describe("RmdupProcessor", () => {
   let processor: RmdupProcessor;
@@ -68,8 +76,8 @@ describe("RmdupProcessor", () => {
         by: "sequence",
       };
 
-      const results = [];
-      for await (const seq of processor.process(duplicateSequences, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(duplicateSequences), options)) {
         results.push(seq);
       }
 
@@ -94,13 +102,13 @@ describe("RmdupProcessor", () => {
         caseSensitive: false,
       };
 
-      const results = [];
-      for await (const seq of processor.process(caseTestSeqs, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(caseTestSeqs), options)) {
         results.push(seq);
       }
 
       expect(results).toHaveLength(2); // ATCG and GGCC (case-insensitive)
-      expect(results[0].id).toBe("seq1"); // First occurrence kept
+      expect(results[0]!.id).toBe("seq1"); // First occurrence kept
     });
   });
 
@@ -110,8 +118,8 @@ describe("RmdupProcessor", () => {
         by: "id",
       };
 
-      const results = [];
-      for await (const seq of processor.process(duplicateSequences, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(duplicateSequences), options)) {
         results.push(seq);
       }
 
@@ -133,8 +141,8 @@ describe("RmdupProcessor", () => {
         by: "both",
       };
 
-      const results = [];
-      for await (const seq of processor.process(duplicateSequences, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(duplicateSequences), options)) {
         results.push(seq);
       }
 
@@ -155,8 +163,8 @@ describe("RmdupProcessor", () => {
         exact: true,
       };
 
-      const results = [];
-      for await (const seq of processor.process(duplicateSequences, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(duplicateSequences), options)) {
         results.push(seq);
       }
 
@@ -171,8 +179,8 @@ describe("RmdupProcessor", () => {
         falsePositiveRate: 0.001,
       };
 
-      const results = [];
-      for await (const seq of processor.process(duplicateSequences, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(duplicateSequences), options)) {
         results.push(seq);
       }
 
@@ -214,8 +222,8 @@ describe("RmdupProcessor", () => {
       };
 
       const startTime = Date.now();
-      const results = [];
-      for await (const seq of processor.process(largeDataset, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(largeDataset), options)) {
         results.push(seq);
       }
       const duration = Date.now() - startTime;
@@ -231,10 +239,10 @@ describe("RmdupProcessor", () => {
     test("throws error for invalid deduplication strategy", async () => {
       const options = {
         by: "invalid",
-      } as RmdupOptions;
+      } as unknown as RmdupOptions;
 
       await expect(async () => {
-        for await (const _ of processor.process(testSequences, options)) {
+        for await (const _seq of processor.process(toAsync(testSequences), options)) {
           // Validation should throw
         }
       }).toThrow('by must be "both", "id" or "sequence"');
@@ -247,7 +255,7 @@ describe("RmdupProcessor", () => {
       };
 
       await expect(async () => {
-        for await (const _ of processor.process(testSequences, options)) {
+        for await (const _seq of processor.process(toAsync(testSequences), options)) {
           // Validation should throw
         }
       }).toThrow("expectedUnique must be positive");
@@ -260,7 +268,7 @@ describe("RmdupProcessor", () => {
       };
 
       await expect(async () => {
-        for await (const _ of processor.process(testSequences, options)) {
+        for await (const _seq of processor.process(toAsync(testSequences), options)) {
           // Validation should throw
         }
       }).toThrow("falsePositiveRate must be at most 0.1");
@@ -273,8 +281,8 @@ describe("RmdupProcessor", () => {
         by: "sequence",
       };
 
-      const results = [];
-      for await (const seq of processor.process([], options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync([]), options)) {
         results.push(seq);
       }
 
@@ -282,18 +290,18 @@ describe("RmdupProcessor", () => {
     });
 
     test("handles single sequence", async () => {
-      const singleSeq = [testSequences[0]];
+      const singleSeq: AbstractSequence[] = [testSequences[0]!];
       const options: RmdupOptions = {
         by: "both",
       };
 
-      const results = [];
-      for await (const seq of processor.process(singleSeq, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(singleSeq), options)) {
         results.push(seq);
       }
 
       expect(results).toHaveLength(1);
-      expect(results[0].id).toBe("unique_1");
+      expect(results[0]!.id).toBe("unique_1");
     });
 
     test("handles sequences with empty descriptions", async () => {
@@ -307,8 +315,8 @@ describe("RmdupProcessor", () => {
         by: "sequence",
       };
 
-      const results = [];
-      for await (const seq of processor.process(seqsNoDesc, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(seqsNoDesc), options)) {
         results.push(seq);
       }
 
@@ -333,8 +341,8 @@ describe("RmdupProcessor", () => {
         caseSensitive: true,
       };
 
-      const results = [];
-      for await (const seq of processor.process(pcrDuplicates, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(pcrDuplicates), options)) {
         results.push(seq);
       }
 
@@ -360,8 +368,8 @@ describe("RmdupProcessor", () => {
         exact: true, // Use exact matching for assembly data
       };
 
-      const results = [];
-      for await (const seq of processor.process(assemblyContigs, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(assemblyContigs), options)) {
         results.push(seq);
       }
 
@@ -399,8 +407,8 @@ describe("RmdupProcessor", () => {
       };
 
       const startTime = Date.now();
-      const results = [];
-      for await (const seq of processor.process(largeDataset, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(largeDataset), options)) {
         results.push(seq);
       }
       const duration = Date.now() - startTime;
@@ -418,8 +426,8 @@ describe("RmdupProcessor", () => {
         exact: true,
       };
 
-      const results = [];
-      for await (const seq of processor.process(duplicateSequences, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(duplicateSequences), options)) {
         results.push(seq);
       }
 

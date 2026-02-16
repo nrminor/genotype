@@ -15,7 +15,6 @@ describe("SeqOps Semantic API", () => {
       id,
       sequence,
       length: sequence.length,
-      format: "fasta" as const,
     };
   }
 
@@ -37,6 +36,13 @@ describe("SeqOps Semantic API", () => {
     }
   }
 
+  // Typed source for FASTQ sequences
+  async function* fastqSource(sequences: FastqSequence[]): AsyncIterable<FastqSequence> {
+    for (const seq of sequences) {
+      yield seq;
+    }
+  }
+
   describe("method chaining", () => {
     test("chains filter and transform methods", async () => {
       const sequences = [
@@ -51,8 +57,8 @@ describe("SeqOps Semantic API", () => {
         .collect();
 
       expect(result).toHaveLength(2);
-      expect(result[0].sequence).toBe("ATCG");
-      expect(result[1].sequence).toBe("ATCGATCG");
+      expect(result[0]!.sequence).toBe("ATCG");
+      expect(result[1]!.sequence).toBe("ATCGATCG");
     });
 
     test("chains clean and validate methods", async () => {
@@ -68,8 +74,8 @@ describe("SeqOps Semantic API", () => {
         .collect();
 
       expect(result).toHaveLength(2);
-      expect(result[0].sequence).toBe("ATCG");
-      expect(result[1].sequence).toBe("GCTA");
+      expect(result[0]!.sequence).toBe("ATCG");
+      expect(result[1]!.sequence).toBe("GCTA");
     });
 
     test("complex pipeline with multiple operations", async () => {
@@ -88,12 +94,12 @@ describe("SeqOps Semantic API", () => {
         .collect();
 
       expect(result).toHaveLength(3);
-      expect(result[0].id).toBe("chr1_gene1");
-      expect(result[0].sequence).toBe("ATCGNNN");
-      expect(result[1].id).toBe("chr2_gene2");
-      expect(result[1].sequence).toBe("GCGCGCGCGCGC");
-      expect(result[2].id).toBe("chr3_gene3");
-      expect(result[2].sequence).toBe("ATATATAT");
+      expect(result[0]!.id).toBe("chr1_gene1");
+      expect(result[0]!.sequence).toBe("ATCGNNN");
+      expect(result[1]!.id).toBe("chr2_gene2");
+      expect(result[1]!.sequence).toBe("GCGCGCGCGCGC");
+      expect(result[2]!.id).toBe("chr3_gene3");
+      expect(result[2]!.sequence).toBe("ATATATAT");
     });
   });
 
@@ -102,14 +108,14 @@ describe("SeqOps Semantic API", () => {
       const sequences = [
         createFastq("read1", "ATCG", "IIII"), // Q40
         createFastq("read2", "GCTA", "!!!!"), // Q0
-        createFasta("seq1", "AAAA"), // FASTA passes through
+        createFastq("read3", "AAAA", "5555"), // Q20
       ];
 
-      const result = await seqops(source(sequences)).quality({ minScore: 20 }).collect();
+      const result = await seqops(fastqSource(sequences)).quality({ minScore: 20 }).collect();
 
       expect(result).toHaveLength(2);
-      expect(result[0].id).toBe("read1");
-      expect(result[1].id).toBe("seq1");
+      expect(result[0]!.id).toBe("read1");
+      expect(result[1]!.id).toBe("read3");
     });
   });
 
@@ -126,7 +132,7 @@ describe("SeqOps Semantic API", () => {
         .collect();
 
       expect(result).toHaveLength(1);
-      expect(result[0].id).toBe("seq2");
+      expect(result[0]!.id).toBe("seq2");
     });
   });
 
@@ -138,7 +144,7 @@ describe("SeqOps Semantic API", () => {
         createFastq("read3", "ATATATATATATAT", "IIIIIIIIIIIIII"), // All good
       ];
 
-      const result = await seqops(source(reads))
+      const result = await seqops(fastqSource(reads))
         .quality({
           trim: true,
           trimThreshold: 20,
@@ -150,11 +156,11 @@ describe("SeqOps Semantic API", () => {
 
       // Only read1 (trimmed) and read3 should pass
       expect(result).toHaveLength(2);
-      expect(result[0].id).toBe("read1");
+      expect(result[0]!.id).toBe("read1");
       // The trimming finds the first good window and last good window
       // With IIIIIIII!!!! the algorithm keeps more than expected
-      expect((result[0] as FastqSequence).sequence.length).toBeGreaterThanOrEqual(6);
-      expect(result[1].id).toBe("read3");
+      expect((result[0]! as FastqSequence).sequence.length).toBeGreaterThanOrEqual(6);
+      expect(result[1]!.id).toBe("read3");
     });
 
     test("genome assembly preprocessing", async () => {
@@ -183,8 +189,8 @@ describe("SeqOps Semantic API", () => {
         .collect();
 
       expect(result).toHaveLength(2);
-      expect(result[0].sequence).toBe("ATCGNNNNATCG");
-      expect(result[1].sequence).toBe("ATCGGCTA");
+      expect(result[0]!.sequence).toBe("ATCGNNNNATCG");
+      expect(result[1]!.sequence).toBe("ATCGGCTA");
     });
   });
 
@@ -222,13 +228,13 @@ describe("SeqOps Semantic API", () => {
 
       // Each step has clear, predictable effect
       const step1 = await seqops(source(sequences)).transform({ upperCase: true }).collect();
-      expect(step1[0].sequence).toBe("ATCG");
+      expect(step1[0]!.sequence).toBe("ATCG");
 
       const step2 = await seqops(source(sequences))
         .transform({ upperCase: true })
         .transform({ reverseComplement: true })
         .collect();
-      expect(step2[0].sequence).toBe("CGAT");
+      expect(step2[0]!.sequence).toBe("CGAT");
     });
   });
 });

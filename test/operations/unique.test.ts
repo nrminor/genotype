@@ -19,14 +19,14 @@ describe("UniqueProcessor", () => {
       ];
 
       const processor = new UniqueProcessor();
-      const result = [];
+      const result: AbstractSequence[] = [];
       for await (const seq of processor.process(makeAsync(sequences), { by: "sequence" })) {
         result.push(seq);
       }
 
       expect(result.length).toBe(2);
-      expect(result[0].id).toBe("seq1");
-      expect(result[1].id).toBe("seq3");
+      expect(result[0]!.id).toBe("seq1");
+      expect(result[1]!.id).toBe("seq3");
     });
 
     test("removes duplicate IDs (by id)", async () => {
@@ -37,15 +37,15 @@ describe("UniqueProcessor", () => {
       ];
 
       const processor = new UniqueProcessor();
-      const result = [];
+      const result: AbstractSequence[] = [];
       for await (const seq of processor.process(makeAsync(sequences), { by: "id" })) {
         result.push(seq);
       }
 
       expect(result.length).toBe(2);
-      expect(result[0].id).toBe("seq1");
-      expect(result[0].sequence).toBe("ATCG");
-      expect(result[1].id).toBe("seq2");
+      expect(result[0]!.id).toBe("seq1");
+      expect(result[0]!.sequence).toBe("ATCG");
+      expect(result[1]!.id).toBe("seq2");
     });
 
     test("deduplicates by both id and sequence", async () => {
@@ -57,17 +57,17 @@ describe("UniqueProcessor", () => {
       ];
 
       const processor = new UniqueProcessor();
-      const result = [];
+      const result: AbstractSequence[] = [];
       for await (const seq of processor.process(makeAsync(sequences), { by: "both" })) {
         result.push(seq);
       }
 
       expect(result.length).toBe(3);
-      expect(result[0].id).toBe("seq1");
-      expect(result[0].sequence).toBe("ATCG");
-      expect(result[1].id).toBe("seq1");
-      expect(result[1].sequence).toBe("GCTA");
-      expect(result[2].id).toBe("seq2");
+      expect(result[0]!.id).toBe("seq1");
+      expect(result[0]!.sequence).toBe("ATCG");
+      expect(result[1]!.id).toBe("seq1");
+      expect(result[1]!.sequence).toBe("GCTA");
+      expect(result[2]!.id).toBe("seq2");
     });
   });
 
@@ -79,7 +79,7 @@ describe("UniqueProcessor", () => {
       ];
 
       const processor = new UniqueProcessor();
-      const result = [];
+      const result: AbstractSequence[] = [];
       for await (const seq of processor.process(makeAsync(sequences), {
         conflictResolution: "first",
       })) {
@@ -87,8 +87,8 @@ describe("UniqueProcessor", () => {
       }
 
       expect(result.length).toBe(1);
-      expect(result[0].id).toBe("first");
-      expect(result[0].description).toBe("first");
+      expect(result[0]!.id).toBe("first");
+      expect(result[0]!.description).toBe("first");
     });
 
     test("keeps last occurrence", async () => {
@@ -98,7 +98,7 @@ describe("UniqueProcessor", () => {
       ];
 
       const processor = new UniqueProcessor();
-      const result = [];
+      const result: AbstractSequence[] = [];
       for await (const seq of processor.process(makeAsync(sequences), {
         conflictResolution: "last",
       })) {
@@ -106,8 +106,8 @@ describe("UniqueProcessor", () => {
       }
 
       expect(result.length).toBe(1);
-      expect(result[0].id).toBe("second");
-      expect(result[0].description).toBe("second");
+      expect(result[0]!.id).toBe("second");
+      expect(result[0]!.description).toBe("second");
     });
 
     test("keeps longest sequence", async () => {
@@ -117,7 +117,7 @@ describe("UniqueProcessor", () => {
       ];
 
       const processor = new UniqueProcessor();
-      const result = [];
+      const result: AbstractSequence[] = [];
       for await (const seq of processor.process(makeAsync(sequences), {
         by: "id",
         conflictResolution: "longest",
@@ -134,7 +134,7 @@ describe("UniqueProcessor", () => {
         { id: "seq1", sequence: "ATCGAAAA", length: 8, lineNumber: 2, description: "" },
       ];
 
-      const result2 = [];
+      const result2: AbstractSequence[] = [];
       for await (const seq of processor.process(makeAsync(sameIdSeqs), {
         by: "id",
         conflictResolution: "longest",
@@ -143,8 +143,8 @@ describe("UniqueProcessor", () => {
       }
 
       expect(result2.length).toBe(1);
-      expect(result2[0].length).toBe(8);
-      expect(result2[0].sequence).toBe("ATCGAAAA");
+      expect(result2[0]!.length).toBe(8);
+      expect(result2[0]!.sequence).toBe("ATCGAAAA");
     });
 
     test("keeps highest quality for FASTQ sequences", async () => {
@@ -157,6 +157,7 @@ describe("UniqueProcessor", () => {
           lineNumber: 1,
           description: "",
           format: "fastq",
+          qualityEncoding: "phred33",
         },
         {
           id: "high",
@@ -166,11 +167,12 @@ describe("UniqueProcessor", () => {
           lineNumber: 2,
           description: "",
           format: "fastq",
+          qualityEncoding: "phred33",
         },
       ];
 
       const processor = new UniqueProcessor<FastqSequence>();
-      const result = [];
+      const result: FastqSequence[] = [];
       for await (const seq of processor.process(makeAsync(sequences), {
         conflictResolution: "highest-quality",
       })) {
@@ -178,8 +180,8 @@ describe("UniqueProcessor", () => {
       }
 
       expect(result.length).toBe(1);
-      expect(result[0].id).toBe("high");
-      expect(result[0].quality).toBe("IIII");
+      expect(result[0]!.id).toBe("high");
+      expect(result[0]!.quality).toBe("IIII");
     });
   });
 
@@ -191,7 +193,7 @@ describe("UniqueProcessor", () => {
       ];
 
       const processor = new UniqueProcessor();
-      const result = [];
+      const result: AbstractSequence[] = [];
       for await (const seq of processor.process(makeAsync(sequences), {
         caseSensitive: true,
       })) {
@@ -208,7 +210,7 @@ describe("UniqueProcessor", () => {
       ];
 
       const processor = new UniqueProcessor();
-      const result = [];
+      const result: AbstractSequence[] = [];
       for await (const seq of processor.process(makeAsync(sequences), {
         caseSensitive: false,
       })) {
@@ -216,7 +218,7 @@ describe("UniqueProcessor", () => {
       }
 
       expect(result.length).toBe(1);
-      expect(result[0].sequence).toBe("ATCG");
+      expect(result[0]!.sequence).toBe("ATCG");
     });
   });
 
@@ -247,16 +249,16 @@ describe("UniqueProcessor", () => {
       ];
 
       const processor = new UniqueProcessor();
-      const result = [];
+      const result: AbstractSequence[] = [];
       for await (const seq of processor.process(makeAsync(sequences), {
-        by: (seq) => seq.id.split("_")[0], // Group by sample prefix
+        by: (seq) => seq.id.split("_")[0] ?? seq.id, // Group by sample prefix
       })) {
         result.push(seq);
       }
 
       expect(result.length).toBe(2);
-      expect(result[0].id).toBe("sample1_read1");
-      expect(result[1].id).toBe("sample2_read1");
+      expect(result[0]!.id).toBe("sample1_read1");
+      expect(result[1]!.id).toBe("sample2_read1");
     });
   });
 
@@ -265,7 +267,7 @@ describe("UniqueProcessor", () => {
       const sequences: AbstractSequence[] = [];
 
       const processor = new UniqueProcessor();
-      const result = [];
+      const result: AbstractSequence[] = [];
       for await (const seq of processor.process(makeAsync(sequences), {})) {
         result.push(seq);
       }
@@ -281,7 +283,7 @@ describe("UniqueProcessor", () => {
       ];
 
       const processor = new UniqueProcessor();
-      const result = [];
+      const result: AbstractSequence[] = [];
       for await (const seq of processor.process(makeAsync(sequences), {})) {
         result.push(seq);
       }
@@ -297,7 +299,7 @@ describe("UniqueProcessor", () => {
       ];
 
       const processor = new UniqueProcessor();
-      const result = [];
+      const result: AbstractSequence[] = [];
       for await (const seq of processor.process(makeAsync(sequences), {})) {
         result.push(seq);
       }
@@ -317,8 +319,8 @@ describe("UniqueProcessor", () => {
       const unique = await seqops(makeAsync(sequences)).unique().collect();
 
       expect(unique.length).toBe(2);
-      expect(unique[0].id).toBe("seq1");
-      expect(unique[1].id).toBe("seq3");
+      expect(unique[0]!.id).toBe("seq1");
+      expect(unique[1]!.id).toBe("seq3");
     });
 
     test(".unique() with options works via SeqOps", async () => {
@@ -332,8 +334,8 @@ describe("UniqueProcessor", () => {
         .collect();
 
       expect(unique.length).toBe(1);
-      expect(unique[0].id).toBe("seq2");
-      expect(unique[0].description).toBe("second");
+      expect(unique[0]!.id).toBe("seq2");
+      expect(unique[0]!.description).toBe("second");
     });
 
     test(".unique() can be chained with other operations", async () => {
@@ -347,8 +349,8 @@ describe("UniqueProcessor", () => {
       const result = await seqops(makeAsync(sequences)).filter({ minLength: 4 }).unique().collect();
 
       expect(result.length).toBe(2);
-      expect(result[0].sequence).toBe("ATCG");
-      expect(result[1].sequence).toBe("GCTA");
+      expect(result[0]!.sequence).toBe("ATCG");
+      expect(result[1]!.sequence).toBe("GCTA");
     });
   });
 });

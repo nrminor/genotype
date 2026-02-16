@@ -22,15 +22,12 @@ describe("SeqOps integration with windows and collectSet", () => {
         },
       ];
 
-      const windows = [];
-      for await (const window of seqops(makeAsync(sequences)).windows(21)) {
-        windows.push(window);
-      }
+      const windows = await seqops(makeAsync(sequences)).windows(21).collect();
 
       expect(windows.length).toBe(30);
-      expect(windows[0].kmerSize).toBe(21);
+      expect(windows[0]!.kmerSize).toBe(21);
 
-      const size: 21 = windows[0].kmerSize;
+      const size: 21 = windows[0]!.kmerSize;
       expect(size).toBe(21);
     });
 
@@ -45,17 +42,14 @@ describe("SeqOps integration with windows and collectSet", () => {
         },
       ];
 
-      const windows = [];
-      for await (const window of seqops(makeAsync(sequences)).windows(3, {
+      const windows = await seqops(makeAsync(sequences)).windows(3, {
         step: 2,
         suffix: "_kmer",
-      })) {
-        windows.push(window);
-      }
+      }).collect();
 
       expect(windows.length).toBe(5);
-      expect(windows[0].stepSize).toBe(2);
-      expect(windows[0].suffix).toBe("_kmer");
+      expect(windows[0]!.stepSize).toBe(2);
+      expect(windows[0]!.suffix).toBe("_kmer");
     });
 
     test(".windows({size, ...}) object form works", async () => {
@@ -69,16 +63,13 @@ describe("SeqOps integration with windows and collectSet", () => {
         },
       ];
 
-      const windows = [];
-      for await (const window of seqops(makeAsync(sequences)).windows({
+      const windows = await seqops(makeAsync(sequences)).windows({
         size: 15,
         step: 5,
-      })) {
-        windows.push(window);
-      }
+      }).collect();
 
       expect(windows.length).toBe(8);
-      expect(windows[0].kmerSize).toBe(15);
+      expect(windows[0]!.kmerSize).toBe(15);
     });
   });
 
@@ -94,18 +85,11 @@ describe("SeqOps integration with windows and collectSet", () => {
         },
       ];
 
-      const windows = [];
-      for await (const window of seqops(makeAsync(sequences)).windows(4)) {
-        windows.push(window);
-      }
-
-      const sliding = [];
-      for await (const window of seqops(makeAsync(sequences)).sliding(4)) {
-        sliding.push(window);
-      }
+      const windows = await seqops(makeAsync(sequences)).windows(4).collect();
+      const sliding = await seqops(makeAsync(sequences)).sliding(4).collect();
 
       expect(sliding.length).toBe(windows.length);
-      expect(sliding[0].sequence).toBe(windows[0].sequence);
+      expect(sliding[0]!.sequence).toBe(windows[0]!.sequence);
     });
   });
 
@@ -121,18 +105,11 @@ describe("SeqOps integration with windows and collectSet", () => {
         },
       ];
 
-      const windows = [];
-      for await (const window of seqops(makeAsync(sequences)).windows(3)) {
-        windows.push(window);
-      }
-
-      const kmers = [];
-      for await (const kmer of seqops(makeAsync(sequences)).kmers(3)) {
-        kmers.push(kmer);
-      }
+      const windows = await seqops(makeAsync(sequences)).windows(3).collect();
+      const kmers = await seqops(makeAsync(sequences)).kmers(3).collect();
 
       expect(kmers.length).toBe(windows.length);
-      expect(kmers[0].sequence).toBe(windows[0].sequence);
+      expect(kmers[0]!.sequence).toBe(windows[0]!.sequence);
     });
   });
 
@@ -154,7 +131,7 @@ describe("SeqOps integration with windows and collectSet", () => {
       expect(kmerSet.size).toBeGreaterThan(0);
 
       const arr = kmerSet.toArray();
-      const size: 21 = arr[0].kmerSize;
+      const size: 21 = arr[0]!.kmerSize;
       expect(size).toBe(21);
     });
 
@@ -203,7 +180,7 @@ describe("SeqOps integration with windows and collectSet", () => {
       expect(intersection.size).toBeLessThanOrEqual(kmers1.size);
 
       const unionArr = union.toArray();
-      const size: 5 = unionArr[0].kmerSize;
+      const size: 5 = unionArr[0]!.kmerSize;
       expect(size).toBe(5);
     });
   });
@@ -226,8 +203,8 @@ describe("SeqOps integration with windows and collectSet", () => {
 
       expect(clean.length).toBe(2);
       expect(clean.find((s) => s.sequence === "AAAA")).toBeUndefined();
-      expect(clean[0].sequence).toBe("ATCG");
-      expect(clean[1].sequence).toBe("GCTA");
+      expect(clean[0]!.sequence).toBe("ATCG");
+      expect(clean[1]!.sequence).toBe("GCTA");
     });
 
     test("includes only whitelisted sequences", async () => {
@@ -245,7 +222,7 @@ describe("SeqOps integration with windows and collectSet", () => {
         .collect();
 
       expect(approved.length).toBe(1);
-      expect(approved[0].sequence).toBe("ATCG");
+      expect(approved[0]!.sequence).toBe("ATCG");
     });
 
     test("filters by ID instead of sequence content", async () => {
@@ -262,8 +239,8 @@ describe("SeqOps integration with windows and collectSet", () => {
       const filtered = await seqops(makeAsync(reads)).filterBySet(idSet, { by: "id" }).collect();
 
       expect(filtered.length).toBe(1);
-      expect(filtered[0].id).toBe("target_id");
-      expect(filtered[0].sequence).toBe("ATCG");
+      expect(filtered[0]!.id).toBe("target_id");
+      expect(filtered[0]!.sequence).toBe("ATCG");
     });
   });
 });

@@ -10,6 +10,7 @@ import { BedParser } from "../../src/formats/bed";
 import { FastaParser } from "../../src/formats/fasta";
 import { FastqParser } from "../../src/formats/fastq";
 import { SAMParser } from "../../src/formats/sam";
+import type { BedInterval, FastaSequence, FastqSequence, SAMAlignment, SAMHeader } from "../../src/types";
 
 // Test fixtures directory - use absolute path for reliability
 const FIXTURES_DIR = join(process.cwd(), "test", "io", "fixtures");
@@ -81,7 +82,7 @@ describe("Parser File Integration", () => {
     );
 
     // Create large FASTA file for streaming tests
-    const largeSequences = [];
+    const largeSequences: string[] = [];
     for (let i = 0; i < 1000; i++) {
       largeSequences.push(`>seq${i}`);
       largeSequences.push("A".repeat(100) + "T".repeat(100) + "C".repeat(100) + "G".repeat(100));
@@ -109,18 +110,18 @@ describe("Parser File Integration", () => {
   describe("FASTA Parser File Integration", () => {
     test("should parse FASTA file correctly", async () => {
       const parser = new FastaParser();
-      const sequences = [];
+      const sequences: FastaSequence[] = [];
 
       for await (const sequence of parser.parseFile(TEST_FILES.fasta)) {
         sequences.push(sequence);
       }
 
       expect(sequences).toHaveLength(3);
-      expect(sequences[0].id).toBe("seq1");
-      expect(sequences[0].description).toBe("First sequence");
-      expect(sequences[0].sequence).toBe("ATCGATCGATCG");
-      expect(sequences[1].sequence).toBe("GGGGAAAACCCCTTTTTTTT");
-      expect(sequences[2].id).toBe("seq3");
+      expect(sequences[0]!.id).toBe("seq1");
+      expect(sequences[0]!.description).toBe("First sequence");
+      expect(sequences[0]!.sequence).toBe("ATCGATCGATCG");
+      expect(sequences[1]!.sequence).toBe("GGGGAAAACCCCTTTTTTTT");
+      expect(sequences[2]!.id).toBe("seq3");
     });
 
     test("should handle large FASTA files", async () => {
@@ -145,7 +146,7 @@ describe("Parser File Integration", () => {
       // Test with validation enabled (default) - should throw
       await expect(
         (async () => {
-          const sequences = [];
+          const sequences: FastaSequence[] = [];
           for await (const sequence of parser.parseFile(TEST_FILES.malformedFasta)) {
             sequences.push(sequence);
           }
@@ -159,17 +160,17 @@ describe("Parser File Integration", () => {
           errors.push(error);
           // Don't re-throw to continue parsing
         },
-        onWarning: (warning) => {
+        onWarning: (_warning) => {
           // Capture warnings too
         },
       });
 
-      const sequences = [];
+      const sequences: FastaSequence[] = [];
       try {
         for await (const sequence of parserWithErrorHandler.parseFile(TEST_FILES.malformedFasta)) {
           sequences.push(sequence);
         }
-      } catch (e) {
+      } catch (_e) {
         // May still throw for severe errors
       }
 
@@ -191,7 +192,7 @@ describe("Parser File Integration", () => {
 
     test("should handle empty files gracefully", async () => {
       const parser = new FastaParser();
-      const sequences = [];
+      const sequences: FastaSequence[] = [];
 
       for await (const sequence of parser.parseFile(TEST_FILES.emptyFile)) {
         sequences.push(sequence);
@@ -203,7 +204,7 @@ describe("Parser File Integration", () => {
     test("should respect file reading options", async () => {
       const parser = new FastaParser();
 
-      const sequences = [];
+      const sequences: FastaSequence[] = [];
       for await (const sequence of parser.parseFile(TEST_FILES.fasta, {
         bufferSize: 2048, // Use realistic buffer size
         encoding: "utf8", // Test encoding option
@@ -218,23 +219,23 @@ describe("Parser File Integration", () => {
   describe("FASTQ Parser File Integration", () => {
     test("should parse FASTQ file correctly", async () => {
       const parser = new FastqParser();
-      const sequences = [];
+      const sequences: FastqSequence[] = [];
 
       for await (const sequence of parser.parseFile(TEST_FILES.fastq)) {
         sequences.push(sequence);
       }
 
       expect(sequences).toHaveLength(2);
-      expect(sequences[0].id).toBe("seq1");
-      expect(sequences[0].description).toBe("First read");
-      expect(sequences[0].sequence).toBe("ATCGATCGATCG");
-      expect(sequences[0].quality).toBe("IIIIIIIIIIII");
-      expect(sequences[0].qualityEncoding).toBe("phred33");
+      expect(sequences[0]!.id).toBe("seq1");
+      expect(sequences[0]!.description).toBe("First read");
+      expect(sequences[0]!.sequence).toBe("ATCGATCGATCG");
+      expect(sequences[0]!.quality).toBe("IIIIIIIIIIII");
+      expect(sequences[0]!.qualityEncoding).toBe("phred33");
     });
 
     test("should detect quality encoding automatically", async () => {
       const parser = new FastqParser();
-      const sequences = [];
+      const sequences: FastqSequence[] = [];
 
       for await (const sequence of parser.parseFile(TEST_FILES.fastq)) {
         sequences.push(sequence);
@@ -248,15 +249,15 @@ describe("Parser File Integration", () => {
 
     test("should parse quality scores when requested", async () => {
       const parser = new FastqParser({ parseQualityScores: true });
-      const sequences = [];
+      const sequences: FastqSequence[] = [];
 
       for await (const sequence of parser.parseFile(TEST_FILES.fastq)) {
         sequences.push(sequence);
       }
 
-      expect(sequences[0].qualityScores).toBeDefined();
-      expect(sequences[0].qualityScores).toHaveLength(12);
-      expect(sequences[0].qualityStats).toBeDefined();
+      expect(sequences[0]!.qualityScores).toBeDefined();
+      expect(sequences[0]!.qualityScores).toHaveLength(12);
+      expect(sequences[0]!.qualityStats).toBeDefined();
     });
 
     test("should handle file I/O errors gracefully", async () => {
@@ -275,7 +276,7 @@ describe("Parser File Integration", () => {
   describe("SAM Parser File Integration", () => {
     test("should parse SAM file correctly", async () => {
       const parser = new SAMParser();
-      const records = [];
+      const records: (SAMAlignment | SAMHeader)[] = [];
 
       for await (const record of parser.parseFile(TEST_FILES.sam)) {
         records.push(record);
@@ -283,20 +284,20 @@ describe("Parser File Integration", () => {
 
       expect(records).toHaveLength(4); // 2 headers + 2 alignments
 
-      const headers = records.filter((r) => r.format === "sam-header");
-      const alignments = records.filter((r) => r.format === "sam");
+      const headers = records.filter((r): r is SAMHeader => r.format === "sam-header");
+      const alignments = records.filter((r): r is SAMAlignment => r.format === "sam");
 
       expect(headers).toHaveLength(2);
       expect(alignments).toHaveLength(2);
 
-      expect(alignments[0].qname).toBe("read1");
-      expect(alignments[0].rname).toBe("chr1");
-      expect(alignments[0].pos).toBe(100);
+      expect(alignments[0]!.qname).toBe("read1");
+      expect(alignments[0]!.rname).toBe("chr1");
+      expect(alignments[0]!.pos).toBe(100);
     });
 
     test("should validate SAM fields correctly", async () => {
       const parser = new SAMParser();
-      const records = [];
+      const records: (SAMAlignment | SAMHeader)[] = [];
 
       for await (const record of parser.parseFile(TEST_FILES.sam)) {
         if (record.format === "sam") {
@@ -310,7 +311,7 @@ describe("Parser File Integration", () => {
     });
 
     test("should handle large SAM files with warnings", async () => {
-      const parser = new SAMParser();
+      const _parser = new SAMParser();
       const warnings: string[] = [];
 
       const parserWithWarnings = new SAMParser({
@@ -319,7 +320,7 @@ describe("Parser File Integration", () => {
 
       // This will trigger the large file warning if file is > 2GB
       // For now, just ensure the parser works with small files
-      const records = [];
+      const records: (SAMAlignment | SAMHeader)[] = [];
       for await (const record of parserWithWarnings.parseFile(TEST_FILES.sam)) {
         records.push(record);
       }
@@ -331,24 +332,24 @@ describe("Parser File Integration", () => {
   describe("BED Parser File Integration", () => {
     test("should parse BED file correctly", async () => {
       const parser = new BedParser();
-      const intervals = [];
+      const intervals: BedInterval[] = [];
 
       for await (const interval of parser.parseFile(TEST_FILES.bed)) {
         intervals.push(interval);
       }
 
       expect(intervals).toHaveLength(3);
-      expect(intervals[0].chromosome).toBe("chr1");
-      expect(intervals[0].start).toBe(100);
-      expect(intervals[0].end).toBe(200);
-      expect(intervals[0].name).toBe("feature1");
-      expect(intervals[0].score).toBe(500);
-      expect(intervals[0].strand).toBe("+");
+      expect(intervals[0]!.chromosome).toBe("chr1");
+      expect(intervals[0]!.start).toBe(100);
+      expect(intervals[0]!.end).toBe(200);
+      expect(intervals[0]!.name).toBe("feature1");
+      expect(intervals[0]!.score).toBe(500);
+      expect(intervals[0]!.strand).toBe("+");
     });
 
     test("should calculate derived properties", async () => {
       const parser = new BedParser();
-      const intervals = [];
+      const intervals: BedInterval[] = [];
 
       for await (const interval of parser.parseFile(TEST_FILES.bed)) {
         intervals.push(interval);
@@ -377,15 +378,15 @@ describe("Parser File Integration", () => {
       );
 
       const parser = new BedParser();
-      const intervals = [];
+      const intervals: BedInterval[] = [];
 
       for await (const interval of parser.parseFile(bedWithHeaders)) {
         intervals.push(interval);
       }
 
       expect(intervals).toHaveLength(2);
-      expect(intervals[0].name).toBe("feature1");
-      expect(intervals[1].name).toBe("feature2");
+      expect(intervals[0]!.name).toBe("feature1");
+      expect(intervals[1]!.name).toBe("feature2");
     });
   });
 
@@ -439,7 +440,7 @@ describe("Parser File Integration", () => {
       const parsers = [new FastaParser(), new FastaParser(), new FastaParser()];
 
       const promises = parsers.map(async (parser) => {
-        const sequences = [];
+        const sequences: FastaSequence[] = [];
         for await (const sequence of parser.parseFile(TEST_FILES.fasta)) {
           sequences.push(sequence);
         }
@@ -470,7 +471,7 @@ describe("Parser File Integration", () => {
   describe("File Format Validation", () => {
     test("should validate file extensions and content", async () => {
       // This test would be enhanced with actual format detection
-      const parser = new FastaParser();
+      const _parser = new FastaParser();
 
       // Parsing a FASTQ file with FASTA parser should work but produce warnings
       const warnings: string[] = [];
@@ -479,7 +480,7 @@ describe("Parser File Integration", () => {
       });
 
       try {
-        const sequences = [];
+        const sequences: FastaSequence[] = [];
         for await (const sequence of parserWithWarnings.parseFile(TEST_FILES.fastq)) {
           sequences.push(sequence);
         }

@@ -16,7 +16,7 @@ import { CompressionError } from "../../src/errors";
 import { BedParser } from "../../src/formats/bed";
 import { FastaParser } from "../../src/formats/fasta";
 import { FastqParser } from "../../src/formats/fastq";
-import { FileReader } from "../../src/io/file-reader";
+import type { BedInterval, FastaSequence, FastqSequence } from "../../src/types";
 
 describe("Compression-Format Integration Tests", () => {
   // Test data generators for realistic genomic content
@@ -46,7 +46,7 @@ describe("Compression-Format Integration Tests", () => {
 
       // Parse with FASTA parser
       const parser = new FastaParser();
-      const sequences = [];
+      const sequences: FastaSequence[] = [];
 
       for await (const sequence of parser.parseString(decompressedText)) {
         sequences.push(sequence);
@@ -54,10 +54,10 @@ describe("Compression-Format Integration Tests", () => {
 
       // Verify parsing worked correctly
       expect(sequences).toHaveLength(2);
-      expect(sequences[0].id).toBe("chr1_fragment");
-      expect(sequences[0].sequence).toBe("ATCGATCGATCGATCGATCGATCGATCGATCGATCG");
-      expect(sequences[1].id).toBe("chr2_fragment");
-      expect(sequences[1].sequence).toBe("GGGGCCCCAAAATTTTGGGGCCCCAAAATTTT");
+      expect(sequences[0]!.id).toBe("chr1_fragment");
+      expect(sequences[0]!.sequence).toBe("ATCGATCGATCGATCGATCGATCGATCGATCGATCG");
+      expect(sequences[1]!.id).toBe("chr2_fragment");
+      expect(sequences[1]!.sequence).toBe("GGGGCCCCAAAATTTTGGGGCCCCAAAATTTT");
     });
 
     test("streaming compression-decompression pipeline with FASTA", async () => {
@@ -74,10 +74,17 @@ describe("Compression-Format Integration Tests", () => {
       // Decompress with updated streaming implementation
       const decompressedStream = GzipDecompressor.wrapStream(compressedStream);
 
-      // Collect decompressed chunks
+      // Collect decompressed chunks using reader (ReadableStream doesn't have [Symbol.asyncIterator] in TS types)
       const chunks: Uint8Array[] = [];
-      for await (const chunk of decompressedStream) {
-        chunks.push(chunk);
+      const reader = decompressedStream.getReader();
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+        }
+      } finally {
+        reader.releaseLock();
       }
 
       // Verify streaming worked
@@ -96,7 +103,7 @@ describe("Compression-Format Integration Tests", () => {
 
       // Parse with FASTA parser
       const parser = new FastaParser();
-      const sequences = [];
+      const sequences: FastaSequence[] = [];
 
       for await (const sequence of parser.parseString(decompressedText)) {
         sequences.push(sequence);
@@ -116,7 +123,7 @@ describe("Compression-Format Integration Tests", () => {
 
       // Parse with FASTQ parser
       const parser = new FastqParser();
-      const reads = [];
+      const reads: FastqSequence[] = [];
 
       for await (const read of parser.parseString(decompressedText)) {
         reads.push(read);
@@ -124,12 +131,12 @@ describe("Compression-Format Integration Tests", () => {
 
       // Verify FASTQ parsing with quality preservation
       expect(reads).toHaveLength(2);
-      expect(reads[0].id).toBe("read1");
-      expect(reads[0].sequence).toBe("ATCGATCGATCGATCG");
-      expect(reads[0].quality).toBe("!!!!!!!!!!!!!!!!");
-      expect(reads[1].id).toBe("read2");
-      expect(reads[1].sequence).toBe("GGGGCCCCAAAATTTT");
-      expect(reads[1].quality).toBe("################");
+      expect(reads[0]!.id).toBe("read1");
+      expect(reads[0]!.sequence).toBe("ATCGATCGATCGATCG");
+      expect(reads[0]!.quality).toBe("!!!!!!!!!!!!!!!!");
+      expect(reads[1]!.id).toBe("read2");
+      expect(reads[1]!.sequence).toBe("GGGGCCCCAAAATTTT");
+      expect(reads[1]!.quality).toBe("################");
     });
   });
 
@@ -143,7 +150,7 @@ describe("Compression-Format Integration Tests", () => {
 
       // Parse with BED parser
       const parser = new BedParser();
-      const intervals = [];
+      const intervals: BedInterval[] = [];
 
       for await (const interval of parser.parseString(decompressedText)) {
         intervals.push(interval);
@@ -151,13 +158,13 @@ describe("Compression-Format Integration Tests", () => {
 
       // Verify BED parsing with coordinate preservation
       expect(intervals).toHaveLength(2);
-      expect(intervals[0].chromosome).toBe("chr1");
-      expect(intervals[0].start).toBe(1000);
-      expect(intervals[0].end).toBe(2000);
-      expect(intervals[0].name).toBe("feature1");
-      expect(intervals[1].chromosome).toBe("chr2");
-      expect(intervals[1].start).toBe(5000);
-      expect(intervals[1].end).toBe(6000);
+      expect(intervals[0]!.chromosome).toBe("chr1");
+      expect(intervals[0]!.start).toBe(1000);
+      expect(intervals[0]!.end).toBe(2000);
+      expect(intervals[0]!.name).toBe("feature1");
+      expect(intervals[1]!.chromosome).toBe("chr2");
+      expect(intervals[1]!.start).toBe(5000);
+      expect(intervals[1]!.end).toBe(6000);
     });
   });
 
@@ -224,8 +231,15 @@ describe("Compression-Format Integration Tests", () => {
       await expect(
         (async () => {
           const decompressed = GzipDecompressor.wrapStream(invalidStream);
-          for await (const chunk of decompressed) {
-            // Should error before yielding chunks
+          const reader = decompressed.getReader();
+          try {
+            while (true) {
+              const { done, value: _value } = await reader.read();
+              if (done) break;
+              // Should error before yielding chunks
+            }
+          } finally {
+            reader.releaseLock();
           }
         })()
       ).rejects.toThrow(CompressionError);
@@ -299,14 +313,14 @@ describe("Real-World Genomic File Integration", () => {
       bed: genomicTestData.bed,
     };
 
-    for (const [format, content] of Object.entries(testFiles)) {
+    for (const [_format, content] of Object.entries(testFiles)) {
       const compressed = createCompressedTestFile(content);
 
       // Test with both implementations where possible
       let currentResult: Uint8Array | null = null;
       try {
         currentResult = await GzipDecompressor.decompress(compressed);
-      } catch (error) {
+      } catch (_error) {
         // Current implementation may fail in test environment
       }
 

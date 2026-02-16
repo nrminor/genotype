@@ -32,10 +32,8 @@ import {
   isValidQualityScore,
   isValidSolexaScore,
   percentAboveThreshold,
-  type QualityChar,
   type QualityScore,
   qualityToScores,
-  type SolexaScore,
   scoreToChar,
   scoreToErrorProbability,
 } from "../../../src/operations/core/quality";
@@ -195,13 +193,13 @@ describe("Quality Operations - Type Safety", () => {
       if (isValidQualityScore(unknownScore as number)) {
         // This assignment would fail without proper narrowing
         const score: QualityScore = unknownScore as QualityScore;
-        expect(score).toBe(40);
+        expect(score as number).toBe(40);
       }
 
       if (isValidAsciiOffset(unknownOffset as number)) {
         // This assignment would fail without proper narrowing
         const offset: AsciiOffset = unknownOffset as AsciiOffset;
-        expect(offset).toBe(33);
+        expect(offset as number).toBe(33);
       }
     });
 
@@ -226,7 +224,7 @@ describe("Quality Operations - Type Safety", () => {
       const validScores = mixedValues.filter(isValidQualityScore);
 
       // TypeScript should know these are all valid
-      expect(validScores).toEqual([0, 40, 93]);
+      expect(validScores.map((s) => s as number)).toEqual([0, 40, 93]);
       expect(validScores.every((s) => s >= 0 && s <= 93)).toBe(true);
     });
   });
@@ -238,11 +236,11 @@ describe("Quality Operations - Type Safety", () => {
 
       // Can't assign regular number to QualityScore without validation
       // @ts-expect-error - Regular number can't be assigned to branded type
-      const wrongAssignment: QualityScore = regularNumber;
+      const _wrongAssignment: QualityScore = regularNumber;
 
       // But validated scores work fine
       const correctAssignment: QualityScore = validatedScore;
-      expect(correctAssignment).toBe(40);
+      expect(correctAssignment as number).toBe(40);
     });
 
     test("prevents invalid offset values", () => {
@@ -250,10 +248,10 @@ describe("Quality Operations - Type Safety", () => {
 
       // Can't use arbitrary numbers as offsets
       // @ts-expect-error - 32 is not a valid AsciiOffset
-      const invalidOffset: AsciiOffset = 32;
+      const _invalidOffset: AsciiOffset = 32;
 
       // @ts-expect-error - 65 is not a valid AsciiOffset
-      const anotherInvalid: AsciiOffset = 65;
+      const _anotherInvalid: AsciiOffset = 65;
 
       expect(isValidAsciiOffset(validOffset)).toBe(true);
     });
@@ -279,8 +277,8 @@ describe("Quality Operations - Type Safety", () => {
 
     test("prevents out-of-bounds scores at type level", () => {
       // These casts would be caught by validation
-      const tooHigh = 100 as QualityScore; // Unsafe cast
-      const negative = -5 as QualityScore; // Unsafe cast
+      const _tooHigh = 100 as QualityScore; // Unsafe cast
+      const _negative = -5 as QualityScore; // Unsafe cast
 
       // Type guards catch these
       expect(isValidQualityScore(100)).toBe(false);
@@ -291,7 +289,7 @@ describe("Quality Operations - Type Safety", () => {
         return isValidQualityScore(value) ? (value as QualityScore) : null;
       };
 
-      expect(safeProcess(40)).toBe(40);
+      expect(safeProcess(40) as number | null).toBe(40);
       expect(safeProcess(100)).toBe(null);
     });
   });
@@ -304,13 +302,15 @@ describe("Quality Operations - Type Safety", () => {
     const generateInvalidScores = (count: number): number[] =>
       Array.from({ length: count }, () => {
         const choice = Math.random();
-        return choice < 0.25
-          ? Math.floor(Math.random() * 100) + 94 // > 93
-          : choice < 0.5
-            ? Math.floor(Math.random() * 100) - 100 // negative
-            : choice < 0.75
-              ? Math.random() * 93 // non-integer
-              : [NaN, Infinity, -Infinity][Math.floor(Math.random() * 3)]; // special values
+        if (choice < 0.25) {
+          return Math.floor(Math.random() * 100) + 94; // > 93
+        } else if (choice < 0.5) {
+          return Math.floor(Math.random() * 100) - 100; // negative
+        } else if (choice < 0.75) {
+          return Math.random() * 93; // non-integer
+        } else {
+          return [NaN, Infinity, -Infinity][Math.floor(Math.random() * 3)]!; // special values
+        }
       });
 
     test("invariant: all valid scores pass type guard", () => {
@@ -338,7 +338,7 @@ describe("Quality Operations - Type Safety", () => {
 
           const quality = scoreToChar(score, encoding);
           const decoded = charToScore(quality, encoding);
-          expect(decoded).toBe(score);
+          expect(decoded as number).toBe(score);
         }
       }
     });
@@ -439,21 +439,21 @@ describe("Quality Operations - Type Safety", () => {
 describe("Quality Operations - Core Conversions", () => {
   describe("charToScore", () => {
     test("converts Phred+33 characters correctly", () => {
-      expect(charToScore("!", "phred33")).toBe(0);
-      expect(charToScore("I", "phred33")).toBe(40);
-      expect(charToScore("~", "phred33")).toBe(93);
+      expect(charToScore("!", "phred33") as number).toBe(0);
+      expect(charToScore("I", "phred33") as number).toBe(40);
+      expect(charToScore("~", "phred33") as number).toBe(93);
     });
 
     test("converts Phred+64 characters correctly", () => {
-      expect(charToScore("@", "phred64")).toBe(0);
-      expect(charToScore("h", "phred64")).toBe(40);
-      expect(charToScore("~", "phred64")).toBe(62);
+      expect(charToScore("@", "phred64") as number).toBe(0);
+      expect(charToScore("h", "phred64") as number).toBe(40);
+      expect(charToScore("~", "phred64") as number).toBe(62);
     });
 
     test("converts Solexa characters correctly", () => {
-      expect(charToScore(";", "solexa")).toBe(-5);
-      expect(charToScore("@", "solexa")).toBe(0);
-      expect(charToScore("h", "solexa")).toBe(40);
+      expect(charToScore(";", "solexa") as number).toBe(-5);
+      expect(charToScore("@", "solexa") as number).toBe(0);
+      expect(charToScore("h", "solexa") as number).toBe(40);
     });
 
     test("throws for invalid characters", () => {
@@ -670,9 +670,9 @@ describe("Quality Operations - Statistics", () => {
 describe("Quality Operations - Encoding Info", () => {
   test("provides correct encoding information", () => {
     const phred33Info = getEncodingInfo("phred33");
-    expect(phred33Info.offset).toBe(33);
-    expect(phred33Info.minScore).toBe(0);
-    expect(phred33Info.maxScore).toBe(93);
+    expect(phred33Info.offset as number).toBe(33);
+    expect(phred33Info.minScore as number).toBe(0);
+    expect(phred33Info.maxScore as number).toBe(93);
     expect(phred33Info.minChar).toBe("!");
     expect(phred33Info.maxChar).toBe("~");
   });
@@ -698,16 +698,16 @@ describe("Quality Operations - Edge Cases from Domain Research", () => {
   test("handles @ character in quality string (ASCII 64)", () => {
     const qualityWithAt = "@@@@@"; // Could be Q31 in Phred+33 or Q0 in Phred+64
     const scores = qualityToScores(qualityWithAt, "phred33");
-    expect(scores[0]).toBe(31);
+    expect(scores[0]! as number).toBe(31);
 
     const phred64Scores = qualityToScores(qualityWithAt, "phred64");
-    expect(phred64Scores[0]).toBe(0);
+    expect(phred64Scores[0]! as number).toBe(0);
   });
 
   test("handles + character in quality string (ASCII 43)", () => {
     const qualityWithPlus = "+++++"; // Q10 in Phred+33
     const scores = qualityToScores(qualityWithPlus, "phred33");
-    expect(scores[0]).toBe(10);
+    expect(scores[0]! as number).toBe(10);
   });
 
   // Domain research: Platform-specific patterns
@@ -727,7 +727,7 @@ describe("Quality Operations - Edge Cases from Domain Research", () => {
   test("handles Solexa negative quality scores", () => {
     const solexaNegative = ";;;;;"; // Q-5 in Solexa
     const scores = qualityToScores(solexaNegative, "solexa");
-    expect(scores[0]).toBe(-5);
+    expect(scores[0]! as number).toBe(-5);
   });
 
   // Domain research: Mixed encoding detection challenge

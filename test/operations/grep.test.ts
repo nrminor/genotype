@@ -8,7 +8,15 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { ValidationError } from "../../src/errors";
 import { GrepProcessor } from "../../src/operations/grep";
-import type { AbstractSequence, GrepOptions } from "../../src/types";
+import type { GrepOptions } from "../../src/operations/types";
+import type { AbstractSequence } from "../../src/types";
+
+/** Convert an array to an AsyncIterable for processor input */
+async function* toAsync<T>(arr: T[]): AsyncIterable<T> {
+  for (const item of arr) {
+    yield item;
+  }
+}
 
 describe("GrepProcessor", () => {
   let processor: GrepProcessor;
@@ -51,13 +59,13 @@ describe("GrepProcessor", () => {
         target: "sequence",
       };
 
-      const results = [];
-      for await (const seq of processor.process(testSequences, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(testSequences), options)) {
         results.push(seq);
       }
 
       expect(results).toHaveLength(1);
-      expect(results[0].id).toBe("chr1_gene1");
+      expect(results[0]!.id).toBe("chr1_gene1");
     });
 
     test("matches pattern in sequence ID", async () => {
@@ -66,14 +74,14 @@ describe("GrepProcessor", () => {
         target: "id",
       };
 
-      const results = [];
-      for await (const seq of processor.process(testSequences, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(testSequences), options)) {
         results.push(seq);
       }
 
       expect(results).toHaveLength(2);
-      expect(results[0].id).toBe("chr1_gene1");
-      expect(results[1].id).toBe("chr2_gene2");
+      expect(results[0]!.id).toBe("chr1_gene1");
+      expect(results[1]!.id).toBe("chr2_gene2");
     });
 
     test("matches pattern in description", async () => {
@@ -82,8 +90,8 @@ describe("GrepProcessor", () => {
         target: "description",
       };
 
-      const results = [];
-      for await (const seq of processor.process(testSequences, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(testSequences), options)) {
         results.push(seq);
       }
 
@@ -98,14 +106,14 @@ describe("GrepProcessor", () => {
         target: "id",
       };
 
-      const results = [];
-      for await (const seq of processor.process(testSequences, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(testSequences), options)) {
         results.push(seq);
       }
 
       expect(results).toHaveLength(2);
-      expect(results[0].id).toBe("chr1_gene1");
-      expect(results[1].id).toBe("chr2_gene2");
+      expect(results[0]!.id).toBe("chr1_gene1");
+      expect(results[1]!.id).toBe("chr2_gene2");
     });
 
     test("matches regex pattern in sequence", async () => {
@@ -114,13 +122,13 @@ describe("GrepProcessor", () => {
         target: "sequence",
       };
 
-      const results = [];
-      for await (const seq of processor.process(testSequences, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(testSequences), options)) {
         results.push(seq);
       }
 
       expect(results).toHaveLength(1);
-      expect(results[0].id).toBe("plasmid_vector");
+      expect(results[0]!.id).toBe("plasmid_vector");
     });
   });
 
@@ -131,8 +139,8 @@ describe("GrepProcessor", () => {
         target: "sequence",
       };
 
-      const results = [];
-      for await (const seq of processor.process(testSequences, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(testSequences), options)) {
         results.push(seq);
       }
 
@@ -146,13 +154,13 @@ describe("GrepProcessor", () => {
         ignoreCase: true,
       };
 
-      const results = [];
-      for await (const seq of processor.process(testSequences, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(testSequences), options)) {
         results.push(seq);
       }
 
       expect(results).toHaveLength(1);
-      expect(results[0].id).toBe("chr1_gene1");
+      expect(results[0]!.id).toBe("chr1_gene1");
     });
   });
 
@@ -164,14 +172,14 @@ describe("GrepProcessor", () => {
         invert: true,
       };
 
-      const results = [];
-      for await (const seq of processor.process(testSequences, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(testSequences), options)) {
         results.push(seq);
       }
 
       expect(results).toHaveLength(2);
-      expect(results[0].id).toBe("scaffold_1");
-      expect(results[1].id).toBe("plasmid_vector");
+      expect(results[0]!.id).toBe("scaffold_1");
+      expect(results[1]!.id).toBe("plasmid_vector");
     });
   });
 
@@ -183,13 +191,13 @@ describe("GrepProcessor", () => {
         allowMismatches: 1,
       };
 
-      const results = [];
-      for await (const seq of processor.process(testSequences, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(testSequences), options)) {
         results.push(seq);
       }
 
       expect(results).toHaveLength(1);
-      expect(results[0].id).toBe("chr1_gene1");
+      expect(results[0]!.id).toBe("chr1_gene1");
     });
 
     test("rejects patterns with too many mismatches", async () => {
@@ -199,8 +207,8 @@ describe("GrepProcessor", () => {
         allowMismatches: 2,
       };
 
-      const results = [];
-      for await (const seq of processor.process(testSequences, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(testSequences), options)) {
         results.push(seq);
       }
 
@@ -216,7 +224,7 @@ describe("GrepProcessor", () => {
 
       await expect(async () => {
         // Need to consume the generator to trigger validation
-        for await (const _ of processor.process(testSequences, options)) {
+        for await (const _ of processor.process(toAsync(testSequences), options)) {
           // Validation should throw before yielding
         }
       }).toThrow(ValidationError);
@@ -226,10 +234,10 @@ describe("GrepProcessor", () => {
       const options = {
         pattern: "test",
         target: "invalid",
-      } as GrepOptions;
+      } as unknown as GrepOptions;
 
       await expect(async () => {
-        for await (const _ of processor.process(testSequences, options)) {
+        for await (const _ of processor.process(toAsync(testSequences), options)) {
           // Validation should throw before yielding
         }
       }).toThrow(ValidationError);
@@ -243,7 +251,7 @@ describe("GrepProcessor", () => {
       };
 
       await expect(async () => {
-        for await (const _ of processor.process(testSequences, options)) {
+        for await (const _ of processor.process(toAsync(testSequences), options)) {
           // Validation should throw before yielding
         }
       }).toThrow(ValidationError);
@@ -257,7 +265,7 @@ describe("GrepProcessor", () => {
       };
 
       await expect(async () => {
-        for await (const _ of processor.process(testSequences, options)) {
+        for await (const _ of processor.process(toAsync(testSequences), options)) {
           // Validation should throw before yielding
         }
       }).toThrow(ValidationError);
@@ -277,8 +285,8 @@ describe("GrepProcessor", () => {
         target: "sequence",
       };
 
-      const results = [];
-      for await (const seq of processor.process([emptySeq], options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync([emptySeq]), options)) {
         results.push(seq);
       }
 
@@ -298,8 +306,8 @@ describe("GrepProcessor", () => {
         target: "description",
       };
 
-      const results = [];
-      for await (const seq of processor.process([seqNoDesc], options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync([seqNoDesc]), options)) {
         results.push(seq);
       }
 
@@ -313,8 +321,8 @@ describe("GrepProcessor", () => {
         ignoreCase: true, // Should work with regex that already has 'i' flag
       };
 
-      const results = [];
-      for await (const seq of processor.process(testSequences, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(testSequences), options)) {
         results.push(seq);
       }
 
@@ -342,8 +350,8 @@ describe("GrepProcessor", () => {
         searchBothStrands: true,
       };
 
-      const results = [];
-      for await (const seq of processor.process(seqs, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(seqs), options)) {
         results.push(seq);
       }
 
@@ -366,8 +374,8 @@ describe("GrepProcessor", () => {
         searchBothStrands: true,
       };
 
-      const results = [];
-      for await (const seq of processor.process(seqs, options)) {
+      const results: AbstractSequence[] = [];
+      for await (const seq of processor.process(toAsync(seqs), options)) {
         results.push(seq);
       }
 

@@ -9,28 +9,34 @@ import {
   findPattern,
   hasPattern,
   SequenceMatcher,
+  type SequenceMatch,
 } from "../../../src/operations/core/pattern-matching";
-import type { Sequence } from "../../../src/types";
+import type { AbstractSequence } from "../../../src/types";
 
 describe("SequenceMatcher", () => {
+  // Helper to create test sequences
+  function seq(id: string, sequence: string): AbstractSequence {
+    return { id, sequence, length: sequence.length };
+  }
+
   // Test data
-  const sequences: Sequence[] = [
-    { id: "seq1", sequence: "ATCGATCGATCGATCG", type: "dna" },
-    { id: "seq2", sequence: "GCGCGCGCATCGATCG", type: "dna" },
-    { id: "seq3", sequence: "NNNNNATCGNNNNNNN", type: "dna" }, // With N's
-    { id: "seq4", sequence: "atcgatcgatcgatcg", type: "dna" }, // Lowercase
+  const sequences: AbstractSequence[] = [
+    seq("seq1", "ATCGATCGATCGATCG"),
+    seq("seq2", "GCGCGCGCATCGATCG"),
+    seq("seq3", "NNNNNATCGNNNNNNN"), // With N's
+    seq("seq4", "atcgatcgatcgatcg"), // Lowercase
   ];
 
-  async function* createAsyncSequences(): AsyncGenerator<Sequence> {
-    for (const seq of sequences) {
-      yield seq;
+  async function* createAsyncSequences(): AsyncGenerator<AbstractSequence> {
+    for (const s of sequences) {
+      yield s;
     }
   }
 
   describe("Basic Pattern Matching", () => {
     test("finds exact matches with Boyer-Moore", () => {
       const matcher = new SequenceMatcher("ATCG");
-      const matches = matcher.findInSequence(sequences[0]);
+      const matches = matcher.findInSequence(sequences[0]!);
 
       expect(matches).toHaveLength(4);
       expect(matches[0]).toMatchObject({
@@ -46,16 +52,16 @@ describe("SequenceMatcher", () => {
 
     test("includes context in match results", () => {
       const matcher = new SequenceMatcher("ATCG", { contextWindow: 5 });
-      const matches = matcher.findInSequence(sequences[0]);
+      const matches = matcher.findInSequence(sequences[0]!);
 
-      expect(matches[0].context).toMatchObject({
+      expect(matches[0]!.context).toMatchObject({
         before: "",
         after: "ATCGA",
         contextStart: 0,
         contextEnd: 9,
       });
 
-      expect(matches[1].context).toMatchObject({
+      expect(matches[1]!.context).toMatchObject({
         before: "ATCG",
         after: "ATCGA",
         contextStart: 0,
@@ -65,15 +71,15 @@ describe("SequenceMatcher", () => {
 
     test("handles case-insensitive matching", () => {
       const matcher = new SequenceMatcher("ATCG", { caseSensitive: false });
-      const matches = matcher.findInSequence(sequences[3]);
+      const matches = matcher.findInSequence(sequences[3]!);
 
       expect(matches).toHaveLength(4);
-      expect(matches[0].matched).toBe("atcg");
+      expect(matches[0]!.matched).toBe("atcg");
     });
 
     test("returns empty array for no matches", () => {
       const matcher = new SequenceMatcher("TTTTTT");
-      const matches = matcher.findInSequence(sequences[0]);
+      const matches = matcher.findInSequence(sequences[0]!);
 
       expect(matches).toHaveLength(0);
     });
@@ -86,12 +92,7 @@ describe("SequenceMatcher", () => {
         maxMismatches: 1,
       });
 
-      const testSeq = {
-        id: "test",
-        sequence: "ATCGATAGTTCG",
-        type: "dna" as const,
-      };
-      const matches = matcher.findInSequence(testSeq);
+      const matches = matcher.findInSequence(seq("test", "ATCGATAGTTCG"));
 
       expect(matches.length).toBeGreaterThan(0);
 
@@ -110,26 +111,21 @@ describe("SequenceMatcher", () => {
         maxMismatches: 2,
       });
 
-      const testSeq = {
-        id: "test",
-        sequence: "AAAATTTTGGGG",
-        type: "dna" as const,
-      };
-      const matches = matcher.findInSequence(testSeq);
+      const matches = matcher.findInSequence(seq("test", "AAAATTTTGGGG"));
 
       // Should find AAAA (0 mismatches), AAAT (1 mismatch), AATT (2 mismatches)
       // Fuzzy matching with overlapping is expected
       expect(matches).toHaveLength(3);
-      expect(matches[0].mismatches).toBe(0); // AAAA at position 0
-      expect(matches[1].mismatches).toBe(1); // AAAT at position 1
-      expect(matches[2].mismatches).toBe(2); // AATT at position 2
+      expect(matches[0]!.mismatches).toBe(0); // AAAA at position 0
+      expect(matches[1]!.mismatches).toBe(1); // AAAT at position 1
+      expect(matches[2]!.mismatches).toBe(2); // AATT at position 2
     });
   });
 
   describe("IUPAC Ambiguity Codes", () => {
     test("matches N with any nucleotide", () => {
       const matcher = new SequenceMatcher("ATCN", { iupacAware: true });
-      const matches = matcher.findInSequence(sequences[0]);
+      const matches = matcher.findInSequence(sequences[0]!);
 
       // ATCN should match ATCG, ATCA, ATCT, ATCC
       expect(matches.length).toBeGreaterThan(0);
@@ -137,37 +133,28 @@ describe("SequenceMatcher", () => {
 
     test("handles N in sequence", () => {
       const matcher = new SequenceMatcher("ATCG", { iupacAware: true });
-      const matches = matcher.findInSequence(sequences[2]);
+      const matches = matcher.findInSequence(sequences[2]!);
 
       // Should match ATCG even with N's around it
       expect(matches).toHaveLength(1);
-      expect(matches[0].position).toBe(5);
+      expect(matches[0]!.position).toBe(5);
     });
 
     test("matches degenerate bases correctly", () => {
       const matcher = new SequenceMatcher("ATCR", { iupacAware: true }); // R = A or G
-      const testSeq = {
-        id: "test",
-        sequence: "ATCGATCA",
-        type: "dna" as const,
-      };
-      const matches = matcher.findInSequence(testSeq);
+      const matches = matcher.findInSequence(seq("test", "ATCGATCA"));
 
       // ATCR (R = A or G) should match both ATCG at position 0 and ATCA at position 4
       expect(matches).toHaveLength(2);
-      expect(matches[0].position).toBe(0); // ATCG matches ATCR
-      expect(matches[1].position).toBe(4); // ATCA matches ATCR
+      expect(matches[0]!.position).toBe(0); // ATCG matches ATCR
+      expect(matches[1]!.position).toBe(4); // ATCA matches ATCR
     });
   });
 
   describe("Streaming Support", () => {
     test("processes sequences as a stream", async () => {
       const matcher = new SequenceMatcher("ATCG");
-      const matches: Array<{
-        sequenceId: string;
-        position: number;
-        match: string;
-      }> = [];
+      const matches: SequenceMatch[] = [];
 
       for await (const match of matcher.findAll(createAsyncSequences())) {
         matches.push(match);
@@ -183,20 +170,16 @@ describe("SequenceMatcher", () => {
 
     test("handles large streams efficiently", async () => {
       // Create a large stream
-      async function* largeStream(): AsyncGenerator<Sequence> {
+      async function* largeStream(): AsyncGenerator<AbstractSequence> {
         for (let i = 0; i < 1000; i++) {
-          yield {
-            id: `seq${i}`,
-            sequence: "ATCG".repeat(100),
-            type: "dna",
-          };
+          yield seq(`seq${i}`, "ATCG".repeat(100));
         }
       }
 
       const matcher = new SequenceMatcher("ATCG");
       let matchCount = 0;
 
-      for await (const match of matcher.findAll(largeStream())) {
+      for await (const _match of matcher.findAll(largeStream())) {
         matchCount++;
         // Stop after finding some matches to avoid timeout
         if (matchCount > 100) break;
@@ -213,11 +196,7 @@ describe("SequenceMatcher", () => {
       }
 
       const matcher = new SequenceMatcher("ATCG");
-      const matches: Array<{
-        sequenceId: string;
-        position: number;
-        match: string;
-      }> = [];
+      const matches: SequenceMatch[] = [];
 
       for await (const match of matcher.streamMatches(chunkStream())) {
         matches.push(match);
@@ -226,9 +205,9 @@ describe("SequenceMatcher", () => {
       expect(matches).toHaveLength(6); // 2 per chunk
 
       // Check positions are globally adjusted
-      expect(matches[0].position).toBe(0);
-      expect(matches[2].position).toBe(8); // Start of second chunk
-      expect(matches[4].position).toBe(16); // Start of third chunk
+      expect(matches[0]!.position).toBe(0);
+      expect(matches[2]!.position).toBe(8); // Start of second chunk
+      expect(matches[4]!.position).toBe(16); // Start of third chunk
     });
   });
 
@@ -239,8 +218,8 @@ describe("SequenceMatcher", () => {
       });
       const kmpMatcher = new SequenceMatcher("ATCG", { algorithm: "kmp" });
 
-      const bmMatches = bmMatcher.findInSequence(sequences[0]);
-      const kmpMatches = kmpMatcher.findInSequence(sequences[0]);
+      const bmMatches = bmMatcher.findInSequence(sequences[0]!);
+      const kmpMatches = kmpMatcher.findInSequence(sequences[0]!);
 
       expect(kmpMatches).toHaveLength(bmMatches.length);
       expect(kmpMatches.map((m) => m.position)).toEqual(bmMatches.map((m) => m.position));
@@ -248,17 +227,17 @@ describe("SequenceMatcher", () => {
 
     test("regex algorithm supports complex patterns", () => {
       const matcher = new SequenceMatcher("ATC[GA]", { algorithm: "regex" });
-      const matches = matcher.findInSequence(sequences[0]);
+      const matches = matcher.findInSequence(sequences[0]!);
 
       expect(matches.length).toBeGreaterThan(0);
-      expect(matches[0].matched).toBe("ATCG");
+      expect(matches[0]!.matched).toBe("ATCG");
     });
   });
 
   describe("Convenience Methods", () => {
     test("findFirst returns only first match", () => {
       const matcher = new SequenceMatcher("ATCG");
-      const first = matcher.findFirst(sequences[0]);
+      const first = matcher.findFirst(sequences[0]!);
 
       expect(first).toBeDefined();
       expect(first?.position).toBe(0);
@@ -267,13 +246,13 @@ describe("SequenceMatcher", () => {
     test("test returns boolean for pattern existence", () => {
       const matcher = new SequenceMatcher("ATCG");
 
-      expect(matcher.test(sequences[0])).toBe(true);
-      expect(matcher.test({ id: "no", sequence: "TTTTTTTT", type: "dna" })).toBe(false);
+      expect(matcher.test(sequences[0]!)).toBe(true);
+      expect(matcher.test(seq("no", "TTTTTTTT"))).toBe(false);
     });
 
     test("count returns number of matches without objects", () => {
       const matcher = new SequenceMatcher("ATCG");
-      const count = matcher.count(sequences[0]);
+      const count = matcher.count(sequences[0]!);
 
       expect(count).toBe(4);
     });
@@ -281,19 +260,19 @@ describe("SequenceMatcher", () => {
 
   describe("Convenience Functions", () => {
     test("findPattern works as standalone function", () => {
-      const matches = findPattern("ATCG", sequences[0]);
+      const matches = findPattern("ATCG", sequences[0]!);
 
       expect(matches).toHaveLength(4);
-      expect(matches[0].pattern).toBe("ATCG");
+      expect(matches[0]!.pattern).toBe("ATCG");
     });
 
     test("hasPattern works as standalone function", () => {
-      expect(hasPattern("ATCG", sequences[0])).toBe(true);
-      expect(hasPattern("TTTTTT", sequences[0])).toBe(false);
+      expect(hasPattern("ATCG", sequences[0]!)).toBe(true);
+      expect(hasPattern("TTTTTT", sequences[0]!)).toBe(false);
     });
 
     test("convenience functions accept options", () => {
-      const matches = findPattern("atcg", sequences[3], {
+      const matches = findPattern("atcg", sequences[3]!, {
         caseSensitive: false,
       });
       expect(matches).toHaveLength(4);
@@ -313,33 +292,21 @@ describe("SequenceMatcher", () => {
 
     test("handles empty sequence", () => {
       const matcher = new SequenceMatcher("ATCG");
-      const matches = matcher.findInSequence({
-        id: "empty",
-        sequence: "",
-        type: "dna",
-      });
+      const matches = matcher.findInSequence(seq("empty", ""));
 
       expect(matches).toHaveLength(0);
     });
 
     test("handles pattern longer than sequence", () => {
       const matcher = new SequenceMatcher("ATCGATCGATCGATCGATCG");
-      const matches = matcher.findInSequence({
-        id: "short",
-        sequence: "ATCG",
-        type: "dna",
-      });
+      const matches = matcher.findInSequence(seq("short", "ATCG"));
 
       expect(matches).toHaveLength(0);
     });
 
     test("handles overlapping matches", () => {
       const matcher = new SequenceMatcher("AA");
-      const matches = matcher.findInSequence({
-        id: "test",
-        sequence: "AAAA",
-        type: "dna",
-      });
+      const matches = matcher.findInSequence(seq("test", "AAAA"));
 
       expect(matches).toHaveLength(3); // Positions 0, 1, 2
     });

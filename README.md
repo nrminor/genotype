@@ -184,7 +184,7 @@ const optimizedAmplicons = await seqops(nanoporeReads)
     outputMismatches: true, // Include debugging info
   })
   .filter({ minLength: 200, maxLength: 800 }) // Target region length
-  .rmdup({ by: "sequence" }) // Remove PCR duplicates
+  .rmdup("sequence") // Remove PCR duplicates
   .validate({ mode: "strict" }) // Biological validation
   .writeFasta("validated_amplicons.fasta");
 

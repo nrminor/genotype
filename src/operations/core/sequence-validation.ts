@@ -16,6 +16,7 @@
  */
 
 import { type } from "arktype";
+import { ValidationError, assertUnreachable } from "../../errors";
 
 /**
  * IUPAC DNA pattern including all standard bases and ambiguity codes
@@ -154,7 +155,11 @@ export const ValidationOptionsSchema = type({
   type: SequenceTypeSchema,
   "replaceChar?": type("string").pipe((char: string) => {
     if (char.length !== 1) {
-      throw new Error("replaceChar must be a single character");
+      throw new ValidationError(
+        "replaceChar must be a single character",
+        undefined,
+        "Expected exactly 1 character for replacement"
+      );
     }
     return char;
   }),
@@ -207,7 +212,7 @@ export class SequenceValidator {
    *
    * @param mode - Validation strictness level (default: NORMAL)
    * @param type - Sequence type for validation (default: DNA)
-   * @throws {Error} When mode or type parameters are invalid
+   * @throws {ValidationError} When mode or type parameters are invalid
    *
    * @example
    * ```typescript
@@ -233,10 +238,18 @@ export class SequenceValidator {
     const validTypes = Object.values(SequenceType) as readonly string[];
 
     if (!validModes.includes(mode)) {
-      throw new Error(`Invalid validation mode: ${mode}`);
+      throw new ValidationError(
+        `Invalid validation mode: ${mode}`,
+        undefined,
+        `Valid modes: ${validModes.join(", ")}`
+      );
     }
     if (!validTypes.includes(type)) {
-      throw new Error(`Invalid sequence type: ${type}`);
+      throw new ValidationError(
+        `Invalid sequence type: ${type}`,
+        undefined,
+        `Valid types: ${validTypes.join(", ")}`
+      );
     }
 
     this.mode = mode;
@@ -257,7 +270,8 @@ export class SequenceValidator {
       return /^.*$/;
     }
 
-    switch (this.type) {
+    const sequenceType = this.type;
+    switch (sequenceType) {
       case "dna":
         return this.mode === "strict" ? /^[ACGTacgt.\-*]*$/i : IUPAC_DNA;
 
@@ -272,7 +286,7 @@ export class SequenceValidator {
         return this.mode === "strict" ? /^[ACGTUacgtu.\-*]*$/i : IUPAC_DNA;
 
       default:
-        throw new Error(`Unsupported sequence type: ${this.type}`);
+        return assertUnreachable(sequenceType);
     }
   }
 
@@ -286,7 +300,8 @@ export class SequenceValidator {
       return /./;
     }
 
-    switch (this.mode) {
+    const mode = this.mode;
+    switch (mode) {
       case "strict":
         // Only standard bases, gaps, and stop codons
         return /[ACGTUacgtu.\-*]/;
@@ -296,7 +311,7 @@ export class SequenceValidator {
         return /[ACGTURYSWKMBDHVNacgturyswkmbdhvn.\-*]/;
 
       default:
-        throw new Error(`Unsupported validation mode for cleaning: ${this.mode}`);
+        return assertUnreachable(mode);
     }
   }
 
@@ -311,7 +326,7 @@ export class SequenceValidator {
    *
    * @param sequence - The sequence string to validate
    * @returns True if sequence matches the pattern for the configured mode and type
-   * @throws {Error} When sequence parameter is invalid
+   * @throws {ValidationError} When sequence parameter is invalid
    *
    * @example
    * ```typescript
@@ -331,7 +346,7 @@ export class SequenceValidator {
   validate(sequence: string): boolean {
     // Tiger Style: Assert preconditions
     if (typeof sequence !== "string") {
-      throw new Error("sequence must be a string");
+      throw new ValidationError("sequence must be a string");
     }
 
     // Empty sequences are valid
@@ -355,7 +370,7 @@ export class SequenceValidator {
    * @param sequence - The sequence string to clean
    * @param replaceChar - Character to replace invalid characters with (default: 'N')
    * @returns Cleaned sequence with invalid characters replaced
-   * @throws {Error} When parameters are invalid
+   * @throws {ValidationError} When parameters are invalid
    *
    * @example
    * ```typescript
@@ -376,13 +391,17 @@ export class SequenceValidator {
   clean(sequence: string, replaceChar: string = "N"): string {
     // Tiger Style: Assert preconditions
     if (typeof sequence !== "string") {
-      throw new Error("sequence must be a string");
+      throw new ValidationError("sequence must be a string");
     }
     if (typeof replaceChar !== "string") {
-      throw new Error("replaceChar must be a string");
+      throw new ValidationError("replaceChar must be a string");
     }
     if (replaceChar.length !== 1) {
-      throw new Error("replaceChar must be a single character");
+      throw new ValidationError(
+        "replaceChar must be a single character",
+        undefined,
+        "Expected exactly 1 character for replacement"
+      );
     }
 
     // PERMISSIVE mode returns sequence unchanged
@@ -533,7 +552,7 @@ export class SequenceValidator {
    *
    * @param base - Single character IUPAC code to expand (case-insensitive)
    * @returns Array of possible bases for the given code
-   * @throws {Error} When base parameter is invalid
+   * @throws {ValidationError} When base parameter is invalid
    *
    * @example
    * ```typescript
@@ -555,10 +574,10 @@ export class SequenceValidator {
   static expandAmbiguous(base: string): string[] {
     // Tiger Style: Assert preconditions
     if (typeof base !== "string") {
-      throw new Error("base must be a string");
+      throw new ValidationError("base must be a string");
     }
     if (base.length !== 1) {
-      throw new Error("base must be a single character");
+      throw new ValidationError("base must be a single character");
     }
 
     // Convert to uppercase for consistent lookup
@@ -680,7 +699,7 @@ export function detectSequenceType(sequence: string): SequenceType {
  *
  * @param base - Single character IUPAC code to expand
  * @returns Array of possible bases for the given code
- * @throws {Error} When base parameter is invalid
+ * @throws {ValidationError} When base parameter is invalid
  *
  * @example
  * ```typescript
@@ -694,7 +713,7 @@ export function detectSequenceType(sequence: string): SequenceType {
 export function expandAmbiguous(base: string): string[] {
   // Tiger Style: Assert meaningful constraints
   if (base.length !== 1) {
-    throw new Error("base must be a single character");
+    throw new ValidationError("base must be a single character");
   }
 
   // Convert to uppercase for consistent lookup

@@ -9,6 +9,7 @@ export {
 // Error types
 export {
   AlphabetValidationError,
+  assertUnreachable,
   BAIIndexError,
   BamError,
   BedError,

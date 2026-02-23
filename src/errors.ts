@@ -1025,3 +1025,30 @@ export function getErrorSuggestion(error: GenotypeError): string | undefined {
 
   return ERROR_SUGGESTIONS.MALFORMED_LINE;
 }
+
+/**
+ * Assert that a code path is unreachable. When used as the default case in a
+ * switch over a closed union, TypeScript will produce a compile-time error if
+ * any variant is unhandled — the parameter type narrows to `never` only when
+ * every member of the union has been covered by a prior `case`.
+ *
+ * At runtime, if this function is somehow reached (e.g. via untyped JS callers
+ * or a corrupted value), it throws a GenotypeError with code "UNREACHABLE".
+ *
+ * @param value - The value that should have been narrowed to `never`
+ *
+ * @example
+ * ```typescript
+ * switch (mode) {
+ *   case "strict": return strictPattern;
+ *   case "normal": return normalPattern;
+ *   default: return assertUnreachable(mode);
+ * }
+ * ```
+ */
+export function assertUnreachable(value: never): never {
+  throw new GenotypeError(
+    `Unreachable code reached with value: ${String(value)}`,
+    "UNREACHABLE"
+  );
+}

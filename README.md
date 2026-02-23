@@ -164,9 +164,9 @@ using PCR primers, with support for long reads and biological validation.
 ```typescript
 import { primer, seqops } from "genotype";
 
-// Define primers with validation and IUPAC support
-const forwardPrimer = primer`TCGTCGGCAGCGTCAGATGTGTATAAGAGACAG`; // Nextera adapter
-const reversePrimer = primer`GTCTCGTGGGCTCGGAGATGTGTATAAGAGACAG`; // Nextera adapter
+// Define primers with compile-time validation and IUPAC support
+const forwardPrimer = primer.literal("TCGTCGGCAGCGTCAGATGTGTATAAGAGACAG"); // Nextera adapter
+const reversePrimer = primer.literal("GTCTCGTGGGCTCGGAGATGTGTATAAGAGACAG"); // Nextera adapter
 
 // Simple amplicon extraction (90% use case)
 const basicAmplicons = await seqops(reads)
@@ -196,8 +196,8 @@ const covidResults = await seqops(
 )
   .quality({ minScore: 20, trim: true })
   .amplicon(
-    primer`ACCAGGAACTAATCAGACAAG`, // N gene forward
-    primer`CAAAGACCAATCCTACCATGAG`, // N gene reverse
+    primer.literal("ACCAGGAACTAATCAGACAAG"), // N gene forward
+    primer.literal("CAAAGACCAATCCTACCATGAG"), // N gene reverse
     3, // Allow for sequencing errors
   )
   .validate({ mode: "strict" })

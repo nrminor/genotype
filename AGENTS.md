@@ -562,10 +562,10 @@ leverage TypeScript's type system and tooling to prevent errors at compile time.
      | { status: "waiting"; buffer: "" }
      | { status: "reading_header"; buffer: string; headerStart: number }
      | {
-       status: "reading_sequence";
-       buffer: string;
-       currentSequence: Partial<FastaSequence>;
-     }
+         status: "reading_sequence";
+         buffer: string;
+         currentSequence: Partial<FastaSequence>;
+       }
      | { status: "complete"; result: FastaSequence };
 
    // Quality encoding detection with exhaustive matching
@@ -580,19 +580,7 @@ leverage TypeScript's type system and tooling to prevent errors at compile time.
    ```typescript
    // Bioinformatics constants with compile-time verification
    const NUCLEOTIDES = ["A", "T", "C", "G"] as const;
-   const IUPAC_CODES = [
-     "R",
-     "Y",
-     "S",
-     "W",
-     "K",
-     "M",
-     "B",
-     "D",
-     "H",
-     "V",
-     "N",
-   ] as const;
+   const IUPAC_CODES = ["R", "Y", "S", "W", "K", "M", "B", "D", "H", "V", "N"] as const;
    const AMINO_ACIDS = [
      "A",
      "C",
@@ -643,49 +631,53 @@ leverage TypeScript's type system and tooling to prevent errors at compile time.
 
    // BED coordinate validation at type level
    type BedCoordinate<T extends number> = T extends 0 ? never : T;
-   type ValidBedInterval =
-     & {
-       chromosome: ChromosomeName;
-       start: BedCoordinate<number>;
-       end: BedCoordinate<number>;
-     }
-     & (start extends infer S
-       ? end extends infer E
-         ? S extends number ? E extends number ? E extends 0 ? never
-             : S extends 0 ? never
-             : E extends S ? never
-             : {}
+   type ValidBedInterval = {
+     chromosome: ChromosomeName;
+     start: BedCoordinate<number>;
+     end: BedCoordinate<number>;
+   } & (start extends infer S
+     ? end extends infer E
+       ? S extends number
+         ? E extends number
+           ? E extends 0
+             ? never
+             : S extends 0
+               ? never
+               : E extends S
+                 ? never
+                 : {}
            : never
          : never
        : never
-       : never);
+     : never);
    ```
 
 5. **Conditional Types for Input Validation**
 
    ```typescript
    // Only allow valid parser configurations
-   type ParserOptions<T extends "fasta" | "fastq" | "bed"> =
-     & {
-       skipValidation?: boolean;
-       maxLineLength?: number;
-     }
-     & (T extends "fastq" ? {
+   type ParserOptions<T extends "fasta" | "fastq" | "bed"> = {
+     skipValidation?: boolean;
+     maxLineLength?: number;
+   } & (T extends "fastq"
+     ? {
          qualityEncoding: "phred33" | "phred64" | "solexa";
          parseQualityScores: boolean;
        }
-       : {})
-     & (T extends "bed" ? {
-         allowZeroBasedCoordinates: boolean;
-       }
+     : {}) &
+     (T extends "bed"
+       ? {
+           allowZeroBasedCoordinates: boolean;
+         }
        : {});
 
    // Prevent invalid sequence-quality combinations
    type SequenceWithQuality<S, Q> = S extends string
      ? Q extends string
-       ? S["length"] extends Q["length"] ? { sequence: S; quality: Q }
+       ? S["length"] extends Q["length"]
+         ? { sequence: S; quality: Q }
+         : never
        : never
-     : never
      : never;
    ```
 
@@ -717,7 +709,7 @@ leverage TypeScript's type system and tooling to prevent errors at compile time.
      }
 
      sequence<T extends string>(
-       seq: T,
+       seq: T
      ): T extends `${string}${Exclude<string, "ACGTURYSWKMBDHVN-.*">}${string}`
        ? never
        : FastaSequenceBuilder & { _sequence: T } {
@@ -739,12 +731,10 @@ leverage TypeScript's type system and tooling to prevent errors at compile time.
 
    function assertCoordinateOrder<T extends number, U extends number>(
      start: T,
-     end: U,
+     end: U
    ): asserts start is T & { __lessThan: U } {
      if (start >= end) {
-       throw new Error(
-         `Invalid coordinate order: start=${start} >= end=${end}`,
-       );
+       throw new Error(`Invalid coordinate order: start=${start} >= end=${end}`);
      }
    }
    ```
@@ -846,7 +836,7 @@ Explicit error types for different failure modes:
 export class GenotypeError extends Error {
   constructor(
     message: string,
-    public readonly code: string,
+    public readonly code: string
   ) {
     super(message);
     this.name = "GenotypeError";
@@ -862,7 +852,7 @@ export class ValidationError extends GenotypeError {
 export class ParseError extends GenotypeError {
   constructor(
     message: string,
-    public readonly line?: number,
+    public readonly line?: number
   ) {
     super(message, "PARSE_ERROR");
   }
@@ -1001,10 +991,7 @@ interface ParserConfig {
   readonly maxSequenceLength?: number;
 }
 
-export function parseFile(
-  path: string,
-  config: ParserConfig,
-): AsyncIterable<Sequence> {
+export function parseFile(path: string, config: ParserConfig): AsyncIterable<Sequence> {
   // Implementation
 }
 ```
@@ -1023,7 +1010,7 @@ if (!isValidSequence(seq)) {
     `Invalid nucleotide sequence: contains non-IUPAC characters`,
     seq.id,
     lineNumber,
-    `Valid characters are: A, C, G, T, U, R, Y, S, W, K, M, B, D, H, V, N`,
+    `Valid characters are: A, C, G, T, U, R, Y, S, W, K, M, B, D, H, V, N`
   );
 }
 ```
@@ -1157,11 +1144,7 @@ likelihood of bugs. Follow these strict anti-nesting guidelines:
      return sequences;
    }
 
-   function addSequenceIfValid(
-     sequences: Sequence[],
-     id: string,
-     seq: string,
-   ): void {
+   function addSequenceIfValid(sequences: Sequence[], id: string, seq: string): void {
      if (seq && id) {
        sequences.push({ id, sequence: seq });
      }
@@ -1278,9 +1261,7 @@ likelihood of bugs. Follow these strict anti-nesting guidelines:
        .filter((record) => record.active)
        .map((record) => ({
          id: record.id,
-         values: record.values.filter((value) => value > 0).map((value) =>
-           value * 2
-         ),
+         values: record.values.filter((value) => value > 0).map((value) => value * 2),
        }))
        .filter((record) => record.values.length > 0);
    }
@@ -1319,9 +1300,7 @@ function processGenomicVariants(variants: Variant[]): ProcessedVariant[] {
 
 // ✅ GOOD: De-nested with early returns and extraction
 function processGenomicVariants(variants: Variant[]): ProcessedVariant[] {
-  return variants.filter(isValidVariant).map(processVariant).filter(
-    hasAnnotation,
-  );
+  return variants.filter(isValidVariant).map(processVariant).filter(hasAnnotation);
 }
 
 function isValidVariant(variant: Variant): boolean {
@@ -1344,9 +1323,7 @@ function processVariant(variant: Variant): ProcessedVariant | null {
   return annotation ? { ...processed, annotation } : null;
 }
 
-function hasAnnotation(
-  variant: ProcessedVariant | null,
-): variant is ProcessedVariant {
+function hasAnnotation(variant: ProcessedVariant | null): variant is ProcessedVariant {
   return variant !== null && variant.annotation !== null;
 }
 ```

@@ -8,6 +8,7 @@ export {
 } from "./compression";
 // Error types
 export {
+  AlphabetValidationError,
   BAIIndexError,
   BamError,
   BedError,
@@ -164,6 +165,7 @@ export type {
   DecompressorOptions,
   // Alphabet validation types
   DNASequence,
+  DnaTag,
   // Alphabet validation template literal tags
   dna,
   FASTXSequence,
@@ -177,6 +179,7 @@ export type {
   FileValidationResult,
   FormatDetection,
   IUPACSequence,
+  IupacTag,
   isDNASequence,
   isIUPACSequence,
   isPrimerSequence,
@@ -189,9 +192,11 @@ export type {
   ParseResult,
   ParserOptions,
   PrimerSequence,
+  PrimerTag,
   primer,
   QualityEncoding,
   RNASequence,
+  RnaTag,
   rna,
   SAMAlignment,
   SAMFlag,

@@ -448,8 +448,8 @@ export class SeqOps<T extends AbstractSequence> {
    * seqops(samples)
    *   .quality({ minScore: 20 })
    *   .amplicon(
-   *     primer`ACCAGGAACTAATCAGACAAG`,     // N gene forward
-   *     primer`CAAAGACCAATCCTACCATGAG`,    // N gene reverse
+   *     primer.literal("ACCAGGAACTAATCAGACAAG"),     // N gene forward
+   *     primer.literal("CAAAGACCAATCCTACCATGAG"),    // N gene reverse
    *     2                                  // Allow sequencing errors
    *   )
    *   .validate({ mode: 'strict' });
@@ -463,8 +463,8 @@ export class SeqOps<T extends AbstractSequence> {
    * // Advanced features (10% use case)
    * seqops(sequences)
    *   .amplicon({
-   *     forwardPrimer: primer`ACCAGGAACTAATCAGACAAG`,
-   *     reversePrimer: primer`CAAAGACCAATCCTACCATGAG`,
+   *     forwardPrimer: primer.literal("ACCAGGAACTAATCAGACAAG"),
+   *     reversePrimer: primer.literal("CAAAGACCAATCCTACCATGAG"),
    *     maxMismatches: 3,                             // Long-read tolerance
    *     canonical: true,                              // BED-extracted primers
    *     flanking: true,                               // Include primer context

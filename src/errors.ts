@@ -274,6 +274,38 @@ export class SequenceError extends ValidationError {
 }
 
 /**
+ * Alphabet validation errors for tagged template and literal constructors.
+ *
+ * Thrown when a sequence string fails alphabet validation (invalid characters)
+ * or biological constraints (primer length). Carries structured fields so
+ * callers can programmatically inspect which alphabet failed and what the
+ * offending input was, without parsing the error message.
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   dna.literal("ATXG");
+ * } catch (e) {
+ *   if (e instanceof AlphabetValidationError) {
+ *     console.log(e.alphabet); // "dna"
+ *     console.log(e.input);    // "ATXG"
+ *   }
+ * }
+ * ```
+ */
+export class AlphabetValidationError extends ValidationError {
+  constructor(
+    message: string,
+    public readonly alphabet: "dna" | "iupac" | "rna" | "primer",
+    public readonly input: string,
+    context?: string
+  ) {
+    super(message, undefined, context);
+    this.name = "AlphabetValidationError";
+  }
+}
+
+/**
  * Quality score-specific errors for FASTQ data
  */
 export class QualityError extends ValidationError {

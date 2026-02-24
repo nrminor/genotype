@@ -1,0 +1,456 @@
+/**
+ * GenotypeString — a lazy dual-representation string type for genomic data.
+ *
+ * Holds either a JavaScript string or a Uint8Array internally, converting
+ * between them on demand. Common string operations (includes, indexOf, slice,
+ * toUpperCase, toLowerCase, startsWith, endsWith) are implemented directly on
+ * bytes when the data is in byte form, avoiding unnecessary conversion.
+ *
+ * The public API is immutable: toBytes() returns a copy. Library-internal code
+ * (specifically the Rust FFI layer) accesses the mutable backing buffer through
+ * static friend methods keyed by unexported symbols — the TypeScript analog of
+ * Rust's pub(crate). These symbols are not exported from the package root, so
+ * only library-internal code can reach them.
+ *
+ * This type assumes ASCII content (as is standard for nucleotide sequences,
+ * quality scores, and other genomic string data). Byte-native operations like
+ * case conversion use ASCII bit manipulation rather than full Unicode casing.
+ * Behavior is undefined for non-ASCII content.
+ *
+ * @module
+ */
+
+const textEnc = new TextEncoder();
+const textDec = new TextDecoder("utf-8");
+
+/**
+ * Unexported symbols for library-internal mutable access.
+ *
+ * Only code in this module can reference these symbols, which means only the
+ * static friend methods on the class (and the genotypeStringInternal object
+ * that will wrap them in a later commit) can use them.
+ */
+const kMutableBytes: unique symbol = Symbol("GenotypeString.mutableBytes");
+const kSetBytes: unique symbol = Symbol("GenotypeString.setBytes");
+
+type InternalRepr =
+  | { kind: "string"; value: string }
+  | { kind: "bytes"; value: Uint8Array };
+
+/**
+ * A lazy dual-representation string type for genomic sequence and quality data.
+ *
+ * GenotypeString holds either a JavaScript string or a Uint8Array internally,
+ * converting between them on demand. It presents a string-like interface so
+ * that call sites don't need to know or care which representation is active.
+ *
+ * When the data is in byte form, common operations like substring search,
+ * case conversion, and slicing are performed directly on bytes without
+ * converting to a JS string first. This avoids redundant encoding/decoding
+ * when chaining multiple operations that cross the Rust FFI boundary.
+ *
+ * Instances are created through the static factory methods {@link fromString}
+ * and {@link fromBytes}. The constructor is private.
+ *
+ * This type assumes ASCII content. Byte-native operations use ASCII semantics
+ * (e.g., case conversion via bit manipulation). For genomic data — nucleotide
+ * sequences, quality scores, IUPAC codes — this is always correct.
+ *
+ * @example
+ * ```typescript
+ * const gs = GenotypeString.fromString("ATCGATCG");
+ * gs.includes("CGA");     // true (byte scan when in byte form)
+ * gs.toUpperCase();       // new GenotypeString, no string allocation if bytes
+ * gs.slice(2, 6);         // GenotypeString("CGAT")
+ * `>${gs}`;               // ">ATCGATCG" (transparent coercion)
+ * ```
+ */
+export class GenotypeString {
+  #repr: InternalRepr;
+
+  private constructor(repr: InternalRepr) {
+    this.#repr = repr;
+  }
+
+  /**
+   * Creates a GenotypeString backed by a JavaScript string.
+   *
+   * The string is stored as-is with no copying or validation. Conversion to
+   * bytes happens lazily if and when a byte-native operation is called.
+   */
+  static fromString(s: string): GenotypeString {
+    return new GenotypeString({ kind: "string", value: s });
+  }
+
+  /**
+   * Creates a GenotypeString backed by a copy of the provided byte array.
+   *
+   * A defensive copy is made so that subsequent mutations to the original
+   * array do not affect the GenotypeString instance.
+   */
+  static fromBytes(b: Uint8Array): GenotypeString {
+    return new GenotypeString({ kind: "bytes", value: b.slice() });
+  }
+
+  /**
+   * The number of characters (or bytes) in the content.
+   *
+   * For ASCII content this is the same regardless of internal representation.
+   */
+  get length(): number {
+    return this.#repr.value.length;
+  }
+
+  /**
+   * Returns whether the content contains the given substring.
+   *
+   * When the data is in byte form, this performs a byte scan without
+   * converting to a JS string.
+   */
+  includes(pattern: string): boolean {
+    if (this.#repr.kind === "string") {
+      return this.#repr.value.includes(pattern);
+    }
+    return byteIncludes(this.#repr.value, textEnc.encode(pattern));
+  }
+
+  /**
+   * Returns the index of the first occurrence of the pattern, or -1 if not
+   * found. Follows the same semantics as {@link String.prototype.indexOf},
+   * including fromIndex clamping.
+   *
+   * When the data is in byte form, this performs a byte scan without
+   * converting to a JS string.
+   */
+  indexOf(pattern: string, fromIndex: number = 0): number {
+    if (this.#repr.kind === "string") {
+      return this.#repr.value.indexOf(pattern, fromIndex);
+    }
+    return byteIndexOf(this.#repr.value, textEnc.encode(pattern), fromIndex);
+  }
+
+  /**
+   * Returns a new GenotypeString containing a portion of the content.
+   *
+   * Follows the same semantics as {@link String.prototype.slice}. The
+   * returned instance is independent — mutating one does not affect the other.
+   */
+  slice(start: number, end?: number): GenotypeString {
+    if (this.#repr.kind === "string") {
+      return GenotypeString.fromString(this.#repr.value.slice(start, end));
+    }
+    return new GenotypeString({
+      kind: "bytes",
+      value: this.#repr.value.slice(start, end),
+    });
+  }
+
+  /**
+   * Returns a new GenotypeString with all ASCII lowercase letters converted
+   * to uppercase.
+   *
+   * When the data is in byte form, this uses bit manipulation (`byte & 0xDF`)
+   * rather than JS string casing. Only ASCII letters a-z are affected; all
+   * other byte values are preserved unchanged.
+   */
+  toUpperCase(): GenotypeString {
+    if (this.#repr.kind === "string") {
+      return GenotypeString.fromString(this.#repr.value.toUpperCase());
+    }
+    return new GenotypeString({
+      kind: "bytes",
+      value: asciiUppercase(this.#repr.value),
+    });
+  }
+
+  /**
+   * Returns a new GenotypeString with all ASCII uppercase letters converted
+   * to lowercase.
+   *
+   * When the data is in byte form, this uses bit manipulation (`byte | 0x20`)
+   * rather than JS string casing. Only ASCII letters A-Z are affected; all
+   * other byte values are preserved unchanged.
+   */
+  toLowerCase(): GenotypeString {
+    if (this.#repr.kind === "string") {
+      return GenotypeString.fromString(this.#repr.value.toLowerCase());
+    }
+    return new GenotypeString({
+      kind: "bytes",
+      value: asciiLowercase(this.#repr.value),
+    });
+  }
+
+  /**
+   * Returns the character at the given index, or an empty string if the
+   * index is out of range.
+   */
+  charAt(index: number): string {
+    if (this.#repr.kind === "string") {
+      return this.#repr.value.charAt(index);
+    }
+    if (index < 0 || index >= this.#repr.value.length) return "";
+    return String.fromCharCode(this.#repr.value[index]!);
+  }
+
+  /**
+   * Returns the ASCII/Unicode code point of the character at the given index,
+   * or NaN if the index is out of range.
+   */
+  charCodeAt(index: number): number {
+    if (this.#repr.kind === "string") {
+      return this.#repr.value.charCodeAt(index);
+    }
+    if (index < 0 || index >= this.#repr.value.length) return NaN;
+    return this.#repr.value[index]!;
+  }
+
+  /**
+   * Returns whether the content starts with the given prefix.
+   *
+   * When the data is in byte form, this compares bytes directly without
+   * converting to a JS string.
+   */
+  startsWith(pattern: string): boolean {
+    if (this.#repr.kind === "string") {
+      return this.#repr.value.startsWith(pattern);
+    }
+    return byteStartsWith(this.#repr.value, textEnc.encode(pattern));
+  }
+
+  /**
+   * Returns whether the content ends with the given suffix.
+   *
+   * When the data is in byte form, this compares bytes directly without
+   * converting to a JS string.
+   */
+  endsWith(pattern: string): boolean {
+    if (this.#repr.kind === "string") {
+      return this.#repr.value.endsWith(pattern);
+    }
+    return byteEndsWith(this.#repr.value, textEnc.encode(pattern));
+  }
+
+  /**
+   * Compares this instance for equality against another GenotypeString, a
+   * plain string, or a Uint8Array.
+   *
+   * When both sides are in byte form, comparison is done directly on bytes.
+   * Otherwise, both sides are converted to strings for comparison.
+   */
+  equals(other: GenotypeString | string | Uint8Array): boolean {
+    if (other === (this as unknown)) return true;
+
+    if (other instanceof GenotypeString) {
+      if (this.#repr.kind === "bytes" && other.#repr.kind === "bytes") {
+        return byteEquals(this.#repr.value, other.#repr.value);
+      }
+      return this.toString() === other.toString();
+    }
+
+    if (typeof other === "string") {
+      return this.toString() === other;
+    }
+
+    if (this.#repr.kind === "bytes") {
+      return byteEquals(this.#repr.value, other);
+    }
+    return this.toString() === textDec.decode(other);
+  }
+
+  /**
+   * Returns the content as a JavaScript string.
+   *
+   * If the data is currently in byte form, this triggers a UTF-8 decode and
+   * the byte representation is dropped. Subsequent calls return the cached
+   * string without re-decoding.
+   */
+  toString(): string {
+    return this.#ensureString();
+  }
+
+  /**
+   * Enables transparent coercion in template literals, string concatenation,
+   * and other JS primitive contexts.
+   *
+   * Returns the string representation for "string" and "default" hints, and
+   * NaN for the "number" hint.
+   */
+  [Symbol.toPrimitive](hint: "string" | "number" | "default"): string | number {
+    if (hint === "number") return NaN;
+    return this.toString();
+  }
+
+  /**
+   * Custom inspect output for console.log and util.inspect. Shows the type
+   * name, length, and a preview of the content (truncated at 60 characters).
+   */
+  [Symbol.for("nodejs.util.inspect.custom")](): string {
+    const preview =
+      this.length > 60
+        ? this.toString().slice(0, 57) + "..."
+        : this.toString();
+    return `GenotypeString(${this.length}) ${JSON.stringify(preview)}`;
+  }
+
+  /**
+   * Returns the content as a new Uint8Array.
+   *
+   * The returned array is a copy — mutating it does not affect this instance.
+   * If the data is currently in string form, this triggers a UTF-8 encode and
+   * the string representation is dropped.
+   */
+  toBytes(): Uint8Array {
+    return this.#ensureBytes().slice();
+  }
+
+  /**
+   * Matches the content against a regular expression.
+   *
+   * Converts to a JS string if not already in string form, since the JS
+   * regex engine operates on strings.
+   */
+  match(pattern: RegExp): RegExpMatchArray | null {
+    return this.toString().match(pattern);
+  }
+
+  /**
+   * Returns a new GenotypeString with occurrences of the pattern replaced.
+   *
+   * Converts to a JS string for the replacement operation, then wraps the
+   * result in a new GenotypeString.
+   */
+  replace(
+    pattern: string | RegExp,
+    replacement: string,
+  ): GenotypeString {
+    return GenotypeString.fromString(
+      this.toString().replace(pattern, replacement),
+    );
+  }
+
+  /**
+   * Returns the index of the first match of the regular expression, or -1
+   * if no match is found.
+   *
+   * Converts to a JS string if not already in string form.
+   */
+  search(pattern: RegExp): number {
+    return this.toString().search(pattern);
+  }
+
+  /**
+   * Splits the content on the given separator and returns an array of plain
+   * strings.
+   *
+   * Returns plain strings rather than GenotypeString instances because split
+   * results are typically short fragments used for parsing rather than
+   * sequences that would benefit from byte representation.
+   */
+  split(separator: string | RegExp, limit?: number): string[] {
+    return this.toString().split(separator, limit);
+  }
+
+  #ensureString(): string {
+    if (this.#repr.kind === "string") return this.#repr.value;
+    const s = textDec.decode(this.#repr.value);
+    this.#repr = { kind: "string", value: s };
+    return s;
+  }
+
+  #ensureBytes(): Uint8Array {
+    if (this.#repr.kind === "bytes") return this.#repr.value;
+    const b = textEnc.encode(this.#repr.value);
+    this.#repr = { kind: "bytes", value: b };
+    return b;
+  }
+
+  /** @internal */
+  static [kMutableBytes](gs: GenotypeString): Uint8Array {
+    return gs.#ensureBytes();
+  }
+
+  /** @internal */
+  static [kSetBytes](gs: GenotypeString, bytes: Uint8Array): void {
+    gs.#repr = { kind: "bytes", value: bytes };
+  }
+}
+
+function byteIncludes(
+  haystack: Uint8Array,
+  needle: Uint8Array,
+): boolean {
+  return byteIndexOf(haystack, needle, 0) !== -1;
+}
+
+function byteIndexOf(
+  haystack: Uint8Array,
+  needle: Uint8Array,
+  fromIndex: number,
+): number {
+  const len = haystack.length;
+
+  // Clamp fromIndex to [0, len] to match String.prototype.indexOf semantics.
+  const clamped = Math.max(0, Math.min(fromIndex, len));
+
+  if (needle.length === 0) return clamped;
+  if (needle.length > len) return -1;
+
+  const limit = len - needle.length;
+  outer: for (let i = clamped; i <= limit; i++) {
+    for (let j = 0; j < needle.length; j++) {
+      if (haystack[i + j] !== needle[j]) continue outer;
+    }
+    return i;
+  }
+  return -1;
+}
+
+function byteStartsWith(
+  haystack: Uint8Array,
+  prefix: Uint8Array,
+): boolean {
+  if (prefix.length > haystack.length) return false;
+  for (let i = 0; i < prefix.length; i++) {
+    if (haystack[i] !== prefix[i]) return false;
+  }
+  return true;
+}
+
+function byteEndsWith(
+  haystack: Uint8Array,
+  suffix: Uint8Array,
+): boolean {
+  if (suffix.length > haystack.length) return false;
+  const offset = haystack.length - suffix.length;
+  for (let i = 0; i < suffix.length; i++) {
+    if (haystack[offset + i] !== suffix[i]) return false;
+  }
+  return true;
+}
+
+function byteEquals(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+function asciiUppercase(src: Uint8Array): Uint8Array {
+  const out = new Uint8Array(src.length);
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i]!;
+    out[i] = c >= 0x61 && c <= 0x7a ? c & 0xdf : c;
+  }
+  return out;
+}
+
+function asciiLowercase(src: Uint8Array): Uint8Array {
+  const out = new Uint8Array(src.length);
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i]!;
+    out[i] = c >= 0x41 && c <= 0x5a ? c | 0x20 : c;
+  }
+  return out;
+}

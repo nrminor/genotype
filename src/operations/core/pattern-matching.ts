@@ -23,6 +23,8 @@
  */
 
 import type { AbstractSequence } from "../../types";
+import { GenotypeString, asString } from "../../genotype-string";
+import { ValidationError } from "../../errors";
 import { reverseComplement } from "./sequence-manipulation";
 import { expandAmbiguous } from "./sequence-validation";
 
@@ -233,21 +235,22 @@ export interface MatcherOptions {
  *
  * 🔥 NATIVE CRITICAL: Core string search algorithm
  */
-export function boyerMoore(text: string, pattern: string): number[] {
+export function boyerMoore(text: GenotypeString | string, pattern: string): number[] {
+  const t = asString(text);
   // Tiger Style: Assert inputs
   if (!pattern || pattern.length === 0) return [];
-  if (!text || pattern.length > text.length) return [];
+  if (!t || pattern.length > t.length) return [];
 
   // Build bad character table for skip optimization
   const badChar = buildBadCharTable(pattern);
   const matches: number[] = [];
 
   let shift = 0;
-  while (shift <= text.length - pattern.length) {
+  while (shift <= t.length - pattern.length) {
     let j = pattern.length - 1;
 
     // Match from right to left
-    while (j >= 0 && pattern[j] === text[shift + j]) {
+    while (j >= 0 && pattern[j] === t[shift + j]) {
       j--;
     }
 
@@ -256,8 +259,8 @@ export function boyerMoore(text: string, pattern: string): number[] {
       matches.push(shift);
 
       // Calculate next shift
-      if (shift + pattern.length < text.length) {
-        const nextChar = text.charCodeAt(shift + pattern.length);
+      if (shift + pattern.length < t.length) {
+        const nextChar = t.charCodeAt(shift + pattern.length);
         const skip = badChar.get(nextChar) ?? -1;
         shift += pattern.length - skip;
       } else {
@@ -265,7 +268,7 @@ export function boyerMoore(text: string, pattern: string): number[] {
       }
     } else {
       // Mismatch found, calculate shift
-      const mismatchChar = text.charCodeAt(shift + j);
+      const mismatchChar = t.charCodeAt(shift + j);
       const skip = badChar.get(mismatchChar) ?? -1;
       shift += Math.max(1, j - skip);
     }
@@ -333,26 +336,27 @@ export function boyerMoore(text: string, pattern: string): number[] {
  * 🔥 NATIVE CRITICAL: Approximate string matching
  */
 export function fuzzyMatch<T extends string>(
-  text: string,
+  text: GenotypeString | string,
   pattern: T,
   maxMismatches: number
 ): PatternMatch<T>[] {
+  const t = asString(text);
   // Tiger Style: Assert inputs
   if (!pattern || pattern.length === 0) return [];
-  if (!text || pattern.length > text.length) return [];
+  if (!t || pattern.length > t.length) return [];
   if (maxMismatches < 0) {
-    throw new Error("Max mismatches must be non-negative");
+    throw new ValidationError("Max mismatches must be non-negative");
   }
 
   const matches: PatternMatch<T>[] = [];
 
-  for (let i = 0; i <= text.length - pattern.length; i++) {
+  for (let i = 0; i <= t.length - pattern.length; i++) {
     let mismatches = 0;
     let j = 0;
 
     // Count mismatches at current position
     for (j = 0; j < pattern.length; j++) {
-      if (text[i + j] !== pattern[j]) {
+      if (t[i + j] !== pattern[j]) {
         mismatches++;
         if (mismatches > maxMismatches) break;
       }
@@ -364,7 +368,7 @@ export function fuzzyMatch<T extends string>(
         position: i,
         length: pattern.length,
         mismatches,
-        matched: text.substring(i, i + pattern.length),
+        matched: t.substring(i, i + pattern.length),
         pattern: pattern,
       });
     }
@@ -445,14 +449,15 @@ export function fuzzyMatch<T extends string>(
  *
  * 🔥 NATIVE OPTIMIZATION: Degenerate base matching
  */
-export function matchWithAmbiguous(sequence: string, pattern: string): number[] {
+export function matchWithAmbiguous(sequence: GenotypeString | string, pattern: string): number[] {
+  const seq = asString(sequence);
   // Tiger Style: Assert inputs
   if (!pattern || pattern.length === 0) return [];
-  if (!sequence || pattern.length > sequence.length) return [];
+  if (!seq || pattern.length > seq.length) return [];
 
   const matches: number[] = [];
   const patternUpper = pattern.toUpperCase();
-  const sequenceUpper = sequence.toUpperCase();
+  const sequenceUpper = seq.toUpperCase();
 
   for (let i = 0; i <= sequenceUpper.length - patternUpper.length; i++) {
     let isMatch = true;
@@ -540,10 +545,11 @@ export function matchWithAmbiguous(sequence: string, pattern: string): number[] 
  *
  * ⚡ NATIVE BENEFICIAL: Alternative to Boyer-Moore for specific patterns
  */
-export function kmpSearch(text: string, pattern: string): number[] {
+export function kmpSearch(text: GenotypeString | string, pattern: string): number[] {
+  const t = asString(text);
   // Tiger Style: Assert inputs
   if (!pattern || pattern.length === 0) return [];
-  if (!text || pattern.length > text.length) return [];
+  if (!t || pattern.length > t.length) return [];
 
   // Build failure function (partial match table)
   const lps = buildLPSArray(pattern);
@@ -552,8 +558,8 @@ export function kmpSearch(text: string, pattern: string): number[] {
   let i = 0; // Index for text
   let j = 0; // Index for pattern
 
-  while (i < text.length) {
-    if (pattern[j] === text[i]) {
+  while (i < t.length) {
+    if (pattern[j] === t[i]) {
       i++;
       j++;
     }
@@ -563,7 +569,7 @@ export function kmpSearch(text: string, pattern: string): number[] {
       matches.push(i - j);
       const prev = lps[j - 1];
       j = prev !== undefined ? prev : 0;
-    } else if (i < text.length && pattern[j] !== text[i]) {
+    } else if (i < t.length && pattern[j] !== t[i]) {
       // Mismatch after j matches
       if (j !== 0) {
         const prev = lps[j - 1];
@@ -647,14 +653,15 @@ export function kmpSearch(text: string, pattern: string): number[] {
  *
  * ⚡ NATIVE BENEFICIAL: Good for searching multiple patterns
  */
-export function rabinKarp(text: string, pattern: string, prime: number = 101): number[] {
+export function rabinKarp(text: GenotypeString | string, pattern: string, prime: number = 101): number[] {
+  const t = asString(text);
   // Tiger Style: Assert inputs
   if (!pattern || pattern.length === 0) return [];
-  if (!text || pattern.length > text.length) return [];
+  if (!t || pattern.length > t.length) return [];
 
   const matches: number[] = [];
   const patternLength = pattern.length;
-  const textLength = text.length;
+  const textLength = t.length;
 
   // Calculate hash value for pattern and first window
   let patternHash = 0;
@@ -669,7 +676,7 @@ export function rabinKarp(text: string, pattern: string, prime: number = 101): n
   // Calculate initial hash values
   for (let i = 0; i < patternLength; i++) {
     patternHash = (256 * patternHash + pattern.charCodeAt(i)) % prime;
-    textHash = (256 * textHash + text.charCodeAt(i)) % prime;
+    textHash = (256 * textHash + t.charCodeAt(i)) % prime;
   }
 
   // Slide pattern over text
@@ -679,7 +686,7 @@ export function rabinKarp(text: string, pattern: string, prime: number = 101): n
       // Verify character by character
       let match = true;
       for (let j = 0; j < patternLength; j++) {
-        if (text[i + j] !== pattern[j]) {
+        if (t[i + j] !== pattern[j]) {
           match = false;
           break;
         }
@@ -692,7 +699,7 @@ export function rabinKarp(text: string, pattern: string, prime: number = 101): n
     // Calculate hash for next window
     if (i < textLength - patternLength) {
       textHash =
-        (256 * (textHash - text.charCodeAt(i) * h) + text.charCodeAt(i + patternLength)) % prime;
+        (256 * (textHash - t.charCodeAt(i) * h) + t.charCodeAt(i + patternLength)) % prime;
 
       // Handle negative hash value
       if (textHash < 0) {
@@ -770,16 +777,17 @@ export function rabinKarp(text: string, pattern: string, prime: number = 101): n
  * @see {@link https://en.wikipedia.org/wiki/Tandem_repeat} Tandem Repeat Overview (Wikipedia)
  * @see {@link https://www.nature.com/articles/s41576-019-0122-z} Tandem Repeats in Disease (Nature Reviews Genetics)
  */
-export function findOverlapping(text: string, pattern: string): number[] {
+export function findOverlapping(text: GenotypeString | string, pattern: string): number[] {
+  const t = asString(text);
   // Tiger Style: Assert inputs
   if (!pattern || pattern.length === 0) return [];
-  if (!text || pattern.length > text.length) return [];
+  if (!t || pattern.length > t.length) return [];
 
   const matches: number[] = [];
   let pos = 0;
 
-  while (pos <= text.length - pattern.length) {
-    if (text.substring(pos, pos + pattern.length) === pattern) {
+  while (pos <= t.length - pattern.length) {
+    if (t.substring(pos, pos + pattern.length) === pattern) {
       matches.push(pos);
       pos++; // Move by 1 to find overlapping matches
     } else {
@@ -863,21 +871,23 @@ export function findOverlapping(text: string, pattern: string): number[] {
  * ⚡ NATIVE BENEFICIAL: Matrix operations could be optimized
  */
 export function longestCommonSubstring(
-  seq1: string,
-  seq2: string
+  seq1: GenotypeString | string,
+  seq2: GenotypeString | string
 ): {
   substring: string;
   position1: number;
   position2: number;
   length: number;
 } {
+  const s1 = asString(seq1);
+  const s2 = asString(seq2);
   // Tiger Style: Assert inputs
-  if (!seq1 || !seq2) {
+  if (!s1 || !s2) {
     return { substring: "", position1: -1, position2: -1, length: 0 };
   }
 
-  const m = seq1.length;
-  const n = seq2.length;
+  const m = s1.length;
+  const n = s2.length;
   let maxLength = 0;
   let endPos1 = 0;
 
@@ -887,7 +897,7 @@ export function longestCommonSubstring(
   // Fill DP table
   for (let i = 1; i <= m; i++) {
     for (let j = 1; j <= n; j++) {
-      if (seq1[i - 1] === seq2[j - 1]) {
+      if (s1[i - 1] === s2[j - 1]) {
         const prevRow = dp[i - 1];
         const prevValue = prevRow ? (prevRow[j - 1] ?? 0) : 0;
         const currentRow = dp[i];
@@ -904,12 +914,12 @@ export function longestCommonSubstring(
   }
 
   // Extract the longest common substring
-  const substring = seq1.substring(endPos1 - maxLength, endPos1);
+  const substring = s1.substring(endPos1 - maxLength, endPos1);
 
   return {
     substring,
     position1: endPos1 - maxLength,
-    position2: seq2.indexOf(substring),
+    position2: s2.indexOf(substring),
     length: maxLength,
   };
 }
@@ -985,20 +995,21 @@ export function longestCommonSubstring(
  * @see {@link https://en.wikipedia.org/wiki/Palindromic_sequence} Palindromic Sequences in Biology (Wikipedia)
  */
 export function findPalindromes(
-  sequence: string,
+  sequence: GenotypeString | string,
   minLength: number = 4,
   maxLength?: number
 ): PatternMatch[] {
+  const seq = asString(sequence);
   // Tiger Style: Assert inputs
-  if (!sequence || sequence.length < minLength) return [];
+  if (!seq || seq.length < minLength) return [];
 
   const palindromes: PatternMatch[] = [];
-  const maxLen = maxLength ?? sequence.length;
+  const maxLen = maxLength ?? seq.length;
 
   // Check all possible substrings
-  for (let length = minLength; length <= Math.min(maxLen, sequence.length); length++) {
-    for (let i = 0; i <= sequence.length - length; i++) {
-      const substring = sequence.substring(i, i + length);
+  for (let length = minLength; length <= Math.min(maxLen, seq.length); length++) {
+    for (let i = 0; i <= seq.length - length; i++) {
+      const substring = seq.substring(i, i + length);
 
       if (isPalindrome(substring)) {
         palindromes.push({
@@ -1090,7 +1101,7 @@ export function findPalindromes(
  * @see {@link https://en.wikipedia.org/wiki/Microsatellite} Microsatellites and STRs (Wikipedia)
  */
 export function findTandemRepeats(
-  sequence: string,
+  sequence: GenotypeString | string,
   minRepeatUnit: number = 1,
   maxRepeatUnit: number = 6,
   minRepeats: number = 2
@@ -1100,8 +1111,9 @@ export function findTandemRepeats(
   repeats: number;
   totalLength: number;
 }> {
+  const seq = asString(sequence);
   // Tiger Style: Assert inputs
-  if (!sequence || sequence.length < minRepeatUnit * minRepeats) return [];
+  if (!seq || seq.length < minRepeatUnit * minRepeats) return [];
 
   const repeats: Array<{
     position: number;
@@ -1112,14 +1124,14 @@ export function findTandemRepeats(
 
   // Try different repeat unit sizes
   for (let unitSize = minRepeatUnit; unitSize <= maxRepeatUnit; unitSize++) {
-    for (let i = 0; i <= sequence.length - unitSize * minRepeats; i++) {
-      const unit = sequence.substring(i, i + unitSize);
+    for (let i = 0; i <= seq.length - unitSize * minRepeats; i++) {
+      const unit = seq.substring(i, i + unitSize);
       let repeatCount = 1;
       let j = i + unitSize;
 
       // Count consecutive repeats
-      while (j + unitSize <= sequence.length) {
-        const nextUnit = sequence.substring(j, j + unitSize);
+      while (j + unitSize <= seq.length) {
+        const nextUnit = seq.substring(j, j + unitSize);
         if (nextUnit === unit) {
           repeatCount++;
           j += unitSize;
@@ -1179,7 +1191,7 @@ export class SequenceMatcher {
 
   constructor(pattern: string, options: MatcherOptions = {}) {
     if (!pattern || pattern.length === 0) {
-      throw new Error("Pattern cannot be empty");
+      throw new ValidationError("Pattern cannot be empty");
     }
 
     this.pattern = pattern;
@@ -1226,10 +1238,13 @@ export class SequenceMatcher {
    * @param sequence - Sequence object or raw sequence string to search
    * @returns Array of all matches found in the sequence
    */
-  findInSequence(sequence: AbstractSequence | string): SequenceMatch[] {
-    const isSequenceObject = typeof sequence === "object";
-    const seq = isSequenceObject ? sequence.sequence : sequence;
-    const seqId = isSequenceObject ? sequence.id : "unknown";
+  findInSequence(sequence: AbstractSequence | GenotypeString | string): SequenceMatch[] {
+    const normalized = typeof sequence === "string" || sequence instanceof GenotypeString
+      ? asString(sequence)
+      : sequence;
+    const isSequenceObject = typeof normalized === "object";
+    const seq = isSequenceObject ? normalized.sequence : normalized;
+    const seqId = isSequenceObject ? normalized.id : "unknown";
 
     const text = this.options.caseSensitive ? seq : seq.toUpperCase();
     const originalText = this.options.caseSensitive ? undefined : seq;
@@ -1259,7 +1274,7 @@ export class SequenceMatcher {
    * @param sequence - Sequence to search
    * @returns First match found, or null if no matches
    */
-  findFirst(sequence: AbstractSequence | string): SequenceMatch | null {
+  findFirst(sequence: AbstractSequence | GenotypeString | string): SequenceMatch | null {
     const matches = this.findInSequence(sequence);
     if (matches.length > 0) {
       const firstMatch = matches[0];
@@ -1275,7 +1290,7 @@ export class SequenceMatcher {
    * @param sequence - Sequence to test
    * @returns True if pattern exists in sequence
    */
-  test(sequence: AbstractSequence | string): boolean {
+  test(sequence: AbstractSequence | GenotypeString | string): boolean {
     return this.findFirst(sequence) !== null;
   }
 
@@ -1285,8 +1300,10 @@ export class SequenceMatcher {
    * @param sequence - Sequence to count matches in
    * @returns Number of pattern occurrences
    */
-  count(sequence: AbstractSequence | string): number {
-    const text = typeof sequence === "object" ? sequence.sequence : sequence;
+  count(sequence: AbstractSequence | GenotypeString | string): number {
+    const text = typeof sequence === "string" || sequence instanceof GenotypeString
+      ? asString(sequence)
+      : sequence.sequence;
     const searchText = this.options.caseSensitive ? text : text.toUpperCase();
 
     // Fast counting without building match objects
@@ -1397,7 +1414,7 @@ export class SequenceMatcher {
         matches.push(this.createMatch(textForMatch, i - j, sequenceId, 0));
         const prev = lps[j - 1];
         j = prev !== undefined ? prev : 0;
-      } else if (i < text.length && pattern[j] !== text[i]) {
+    } else if (i < text.length && pattern[j] !== text[i]) {
         if (j !== 0) {
           const prev = lps[j - 1];
           j = prev !== undefined ? prev : 0;
@@ -1451,7 +1468,7 @@ export class SequenceMatcher {
         match = regex.exec(text);
       }
     } catch (error) {
-      throw new Error(`Invalid regex pattern '${this.pattern}': ${error}"`);
+      throw new ValidationError(`Invalid regex pattern '${this.pattern}': ${error}`);
     }
 
     return matches;
@@ -1567,7 +1584,7 @@ export class SequenceMatcher {
  */
 export function findPattern(
   pattern: string,
-  sequence: AbstractSequence | string,
+  sequence: AbstractSequence | GenotypeString | string,
   options?: MatcherOptions
 ): SequenceMatch[] {
   const matcher = new SequenceMatcher(pattern, options);
@@ -1584,7 +1601,7 @@ export function findPattern(
  */
 export function hasPattern(
   pattern: string,
-  sequence: AbstractSequence | string,
+  sequence: AbstractSequence | GenotypeString | string,
   options?: MatcherOptions
 ): boolean {
   const matcher = new SequenceMatcher(pattern, options);
@@ -1603,7 +1620,7 @@ export function hasPattern(
  * @returns True if pattern matches within mismatch threshold
  */
 export function hasPatternWithMismatches(
-  sequence: string,
+  sequence: GenotypeString | string,
   pattern: string,
   maxMismatches: number,
   searchBothStrands: boolean = false
@@ -1700,14 +1717,15 @@ export function hasPatternWithMismatches(
  *
  * 🔥 NATIVE: Vectorized comparison could speed up palindrome checking
  */
-export function isPalindromic(sequence: string): boolean {
+export function isPalindromic(sequence: GenotypeString | string): boolean {
+  const seq = asString(sequence);
   // Tiger Style: Assert input
-  if (!sequence || typeof sequence !== "string") {
-    throw new Error("Sequence must be a non-empty string");
+  if (!seq) {
+    throw new ValidationError("Sequence must be a non-empty string");
   }
 
-  const revComp = reverseComplement(sequence);
-  return sequence.toUpperCase() === revComp.toUpperCase();
+  const revComp = reverseComplement(seq);
+  return seq.toUpperCase() === revComp.toUpperCase();
 }
 
 /**
@@ -1726,17 +1744,18 @@ export function isPalindromic(sequence: string): boolean {
  * @param pattern - Pattern to find
  * @returns Array of zero-based positions where pattern occurs
  */
-export function findSimplePattern(sequence: string, pattern: string): number[] {
+export function findSimplePattern(sequence: GenotypeString | string, pattern: string): number[] {
+  const seq = asString(sequence);
   // Tiger Style: Assert inputs
-  if (!sequence || typeof sequence !== "string") {
-    throw new Error("Sequence must be a non-empty string");
+  if (!seq) {
+    throw new ValidationError("Sequence must be a non-empty string");
   }
   if (!pattern || typeof pattern !== "string") {
-    throw new Error("Pattern must be a non-empty string");
+    throw new ValidationError("Pattern must be a non-empty string");
   }
 
   const positions: number[] = [];
-  const upperSeq = sequence.toUpperCase();
+  const upperSeq = seq.toUpperCase();
   const upperPat = pattern.toUpperCase();
 
   let index = upperSeq.indexOf(upperPat);
@@ -1772,20 +1791,21 @@ export function findSimplePattern(sequence: string, pattern: string): number[] {
  * ```
  */
 export function findPatternWithMismatches<T extends string>(
-  sequence: string,
+  sequence: GenotypeString | string,
   pattern: T,
   maxMismatches: number,
   searchBothStrands: boolean = false
 ): PatternMatch<T>[] {
+  const seq = asString(sequence);
   // Tiger Style: Assert inputs
-  if (!sequence || typeof sequence !== "string") {
-    throw new Error("Sequence must be a non-empty string");
+  if (!seq) {
+    throw new ValidationError("Sequence must be a non-empty string");
   }
   if (!pattern || typeof pattern !== "string") {
-    throw new Error("Pattern must be a non-empty string");
+    throw new ValidationError("Pattern must be a non-empty string");
   }
   if (maxMismatches < 0) {
-    throw new Error("Max mismatches must be non-negative");
+    throw new ValidationError("Max mismatches must be non-negative");
   }
 
   // Auto-detect IUPAC degenerate bases for biological accuracy
@@ -1793,10 +1813,10 @@ export function findPatternWithMismatches<T extends string>(
 
   if (hasDegenerate) {
     // Use IUPAC-aware matching for biological accuracy
-    return findWithIUPACMatching(sequence, pattern, maxMismatches, searchBothStrands);
+    return findWithIUPACMatching(seq, pattern, maxMismatches, searchBothStrands);
   } else {
     // Fast path for exact nucleotides
-    return findWithExactMatching(sequence, pattern, maxMismatches, searchBothStrands);
+    return findWithExactMatching(seq, pattern, maxMismatches, searchBothStrands);
   }
 }
 

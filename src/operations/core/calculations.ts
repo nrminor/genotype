@@ -6,6 +6,8 @@
  *
  */
 
+import { type GenotypeString, asString } from "../../genotype-string";
+import { ValidationError } from "../../errors";
 import { getGeneticCode } from "./genetic-codes";
 import { calculateAverageQuality } from "./quality";
 
@@ -26,13 +28,13 @@ import { calculateAverageQuality } from "./quality";
  *
  * 🔥 NATIVE: Base counting could use SIMD population count
  */
-export function gcContent(sequence: string): number {
-  // Tiger Style: Assert input
-  if (!sequence || typeof sequence !== "string") {
-    throw new Error("Sequence must be a non-empty string");
+export function gcContent(sequence: GenotypeString | string): number {
+  const seq = asString(sequence);
+  if (seq.length === 0) {
+    throw new ValidationError("Sequence must be non-empty");
   }
 
-  const upper = sequence.toUpperCase();
+  const upper = seq.toUpperCase();
   let gcCount = 0;
   let totalBases = 0;
 
@@ -78,13 +80,13 @@ export function gcContent(sequence: string): number {
  *
  * 🔥 NATIVE: Base counting could use SIMD population count
  */
-export function atContent(sequence: string): number {
-  // Tiger Style: Assert input
-  if (!sequence || typeof sequence !== "string") {
-    throw new Error("Sequence must be a non-empty string");
+export function atContent(sequence: GenotypeString | string): number {
+  const seq = asString(sequence);
+  if (seq.length === 0) {
+    throw new ValidationError("Sequence must be non-empty");
   }
 
-  const upper = sequence.toUpperCase();
+  const upper = seq.toUpperCase();
   let atCount = 0;
   let totalBases = 0;
 
@@ -130,17 +132,17 @@ export function atContent(sequence: string): number {
  *
  * 🔥 NATIVE: Character histogram - perfect for SIMD
  */
-export function baseComposition(sequence: string): Record<string, number> {
-  // Tiger Style: Assert input
-  if (!sequence || typeof sequence !== "string") {
-    throw new Error("Sequence must be a non-empty string");
+export function baseComposition(sequence: GenotypeString | string): Record<string, number> {
+  const seq = asString(sequence);
+  if (seq.length === 0) {
+    throw new ValidationError("Sequence must be non-empty");
   }
 
   const composition: Record<string, number> = {};
 
   // 🔥 NATIVE: SIMD histogram calculation
-  for (let i = 0; i < sequence.length; i++) {
-    const base = sequence[i]?.toUpperCase();
+  for (let i = 0; i < seq.length; i++) {
+    const base = seq[i]?.toUpperCase();
     if (base !== undefined && base !== null && base !== "" && /[A-Z\-.*]/.test(base)) {
       composition[base] =
         (composition[base] !== undefined &&
@@ -170,19 +172,19 @@ export function baseComposition(sequence: string): Record<string, number> {
  *
  * 🔥 NATIVE: Codon lookup could be optimized with perfect hashing
  */
-export function translateSimple(sequence: string, geneticCodeId: number = 1): string[] {
-  // Tiger Style: Assert input
-  if (!sequence || typeof sequence !== "string") {
-    throw new Error("Sequence must be a non-empty string");
+export function translateSimple(sequence: GenotypeString | string, geneticCodeId: number = 1): string[] {
+  const seq = asString(sequence);
+  if (seq.length === 0) {
+    throw new ValidationError("Sequence must be non-empty");
   }
 
   const geneticCode = getGeneticCode(geneticCodeId);
   if (!geneticCode) {
-    throw new Error(`Unknown genetic code: ${geneticCodeId}`);
+    throw new ValidationError(`Unknown genetic code: ${geneticCodeId}`);
   }
 
   const table = geneticCode.codons;
-  const upper = sequence.toUpperCase().replace(/U/g, "T"); // Convert RNA to DNA
+  const upper = seq.toUpperCase().replace(/U/g, "T"); // Convert RNA to DNA
   const results: string[] = [];
 
   // Translate all 3 reading frames
@@ -227,22 +229,22 @@ export function translateSimple(sequence: string, geneticCodeId: number = 1): st
  * 🔥 NATIVE: Sliding window quality analysis - vectorizable
  */
 export function findQualityTrimStart(
-  quality: string,
+  quality: GenotypeString | string,
   threshold: number,
   windowSize: number,
   encoding: "phred33" | "phred64" | "solexa"
 ): number {
-  // Tiger Style: Assert inputs
-  if (!quality || typeof quality !== "string") {
-    throw new Error("Quality string must be non-empty");
+  const qual = asString(quality);
+  if (qual.length === 0) {
+    throw new ValidationError("Quality string must be non-empty");
   }
   if (windowSize <= 0) {
-    throw new Error("Window size must be positive");
+    throw new ValidationError("Window size must be positive");
   }
 
   // 🔥 NATIVE: Sliding window analysis with quality score conversion
-  for (let i = 0; i <= quality.length - windowSize; i++) {
-    const window = quality.slice(i, i + windowSize);
+  for (let i = 0; i <= qual.length - windowSize; i++) {
+    const window = qual.slice(i, i + windowSize);
     const avgQual = calculateAverageQuality(window, encoding);
 
     if (avgQual >= threshold) {
@@ -250,7 +252,7 @@ export function findQualityTrimStart(
     }
   }
 
-  return quality.length; // No good quality found
+  return qual.length; // No good quality found
 }
 
 /**
@@ -272,26 +274,26 @@ export function findQualityTrimStart(
  * 🔥 NATIVE: Sliding window quality analysis - vectorizable
  */
 export function findQualityTrimEnd(
-  quality: string,
+  quality: GenotypeString | string,
   threshold: number,
   windowSize: number,
   encoding: "phred33" | "phred64" | "solexa",
   start: number
 ): number {
-  // Tiger Style: Assert inputs
-  if (!quality || typeof quality !== "string") {
-    throw new Error("Quality string must be non-empty");
+  const qual = asString(quality);
+  if (qual.length === 0) {
+    throw new ValidationError("Quality string must be non-empty");
   }
   if (windowSize <= 0) {
-    throw new Error("Window size must be positive");
+    throw new ValidationError("Window size must be positive");
   }
-  if (start < 0 || start > quality.length) {
-    throw new Error("Start position out of range");
+  if (start < 0 || start > qual.length) {
+    throw new ValidationError("Start position out of range");
   }
 
   // 🔥 NATIVE: Sliding window analysis from end
-  for (let i = quality.length - windowSize; i >= start; i--) {
-    const window = quality.slice(i, i + windowSize);
+  for (let i = qual.length - windowSize; i >= start; i--) {
+    const window = qual.slice(i, i + windowSize);
     const avgQual = calculateAverageQuality(window, encoding);
 
     if (avgQual >= threshold) {
@@ -323,16 +325,16 @@ export function findQualityTrimEnd(
  *
  * 🔥 NATIVE: SIMD character counting for specific base sets
  */
-export function baseContent(sequence: string, bases: string, caseSensitive = false): number {
-  // Tiger Style: Assert input
-  if (!sequence || typeof sequence !== "string") {
-    throw new Error("Sequence must be a non-empty string");
+export function baseContent(sequence: GenotypeString | string, bases: string, caseSensitive = false): number {
+  const normalized = asString(sequence);
+  if (normalized.length === 0) {
+    throw new ValidationError("Sequence must be non-empty");
   }
   if (!bases || typeof bases !== "string") {
-    throw new Error("Bases must be a non-empty string");
+    throw new ValidationError("Bases must be a non-empty string");
   }
 
-  const seq = caseSensitive ? sequence : sequence.toUpperCase();
+  const seq = caseSensitive ? normalized : normalized.toUpperCase();
   const baseSet = new Set(caseSensitive ? bases : bases.toUpperCase());
   let count = 0;
 
@@ -364,16 +366,16 @@ export function baseContent(sequence: string, bases: string, caseSensitive = fal
  *
  * 🔥 NATIVE: SIMD population count for base matching
  */
-export function baseCount(sequence: string, bases: string, caseSensitive = false): number {
-  // Tiger Style: Assert input
-  if (!sequence || typeof sequence !== "string") {
-    throw new Error("Sequence must be a non-empty string");
+export function baseCount(sequence: GenotypeString | string, bases: string, caseSensitive = false): number {
+  const normalized = asString(sequence);
+  if (normalized.length === 0) {
+    throw new ValidationError("Sequence must be non-empty");
   }
   if (!bases || typeof bases !== "string") {
-    throw new Error("Bases must be a non-empty string");
+    throw new ValidationError("Bases must be a non-empty string");
   }
 
-  const seq = caseSensitive ? sequence : sequence.toUpperCase();
+  const seq = caseSensitive ? normalized : normalized.toUpperCase();
   const baseSet = new Set(caseSensitive ? bases : bases.toUpperCase());
   let count = 0;
 
@@ -408,13 +410,13 @@ export function baseCount(sequence: string, bases: string, caseSensitive = false
  *
  * 🔥 NATIVE: Bit vector for character presence
  */
-export function sequenceAlphabet(sequence: string, caseSensitive = false): string {
-  // Tiger Style: Assert input
-  if (!sequence || typeof sequence !== "string") {
-    throw new Error("Sequence must be a non-empty string");
+export function sequenceAlphabet(sequence: GenotypeString | string, caseSensitive = false): string {
+  const normalized = asString(sequence);
+  if (normalized.length === 0) {
+    throw new ValidationError("Sequence must be non-empty");
   }
 
-  const seq = caseSensitive ? sequence : sequence.toUpperCase();
+  const seq = caseSensitive ? normalized : normalized.toUpperCase();
   const chars = new Set<string>();
 
   // 🔥 NATIVE: Bit vector character accumulation

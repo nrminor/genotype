@@ -5,6 +5,9 @@
  * text normalization, calculations, and data manipulation.
  */
 
+import { type GenotypeString, asString } from "../../genotype-string";
+import { ValidationError } from "../../errors";
+
 /**
  * Remove Byte Order Mark (BOM) from text
  * Handles UTF-8, UTF-16 BE, and UTF-16 LE BOMs
@@ -59,7 +62,7 @@ export function handleRaggedRow(
 
   switch (handling) {
     case "error":
-      throw new Error(`Row has ${fields.length} columns, expected ${expectedColumns}`);
+      throw new ValidationError(`Row has ${fields.length} columns, expected ${expectedColumns}`);
     case "pad":
       // Add empty fields
       while (fields.length < expectedColumns) {
@@ -80,10 +83,11 @@ export function handleRaggedRow(
  * @param sequence - DNA/RNA sequence
  * @returns Map of base to count
  */
-export function calculateBaseCount(sequence: string): Record<string, number> {
+export function calculateBaseCount(sequence: GenotypeString | string): Record<string, number> {
+  const seq = asString(sequence);
   const counts: Record<string, number> = {};
 
-  for (const base of sequence.toUpperCase()) {
+  for (const base of seq.toUpperCase()) {
     counts[base] = (counts[base] || 0) + 1;
   }
 
@@ -96,14 +100,14 @@ export function calculateBaseCount(sequence: string): Record<string, number> {
  * @param sequence - DNA/RNA sequence
  * @returns GC percentage (0-100)
  */
-export function calculateGC(sequence: string): number {
-  // Handle empty sequence
-  if (!sequence || sequence.length === 0) {
+export function calculateGC(sequence: GenotypeString | string): number {
+  const seq = asString(sequence);
+  if (seq.length === 0) {
     return 0;
   }
 
   // Count only A, T, C, G (ignore ambiguous bases)
-  const upper = sequence.toUpperCase();
+  const upper = seq.toUpperCase();
   let gcCount = 0;
   let totalBases = 0;
 
@@ -128,8 +132,8 @@ export function calculateGC(sequence: string): number {
  * @param sequence - DNA sequence
  * @returns GC skew value (-1 to 1)
  */
-export function calculateGCSkew(sequence: string): number {
-  const seq = sequence.toUpperCase();
+export function calculateGCSkew(sequence: GenotypeString | string): number {
+  const seq = asString(sequence).toUpperCase();
   let g = 0;
   let c = 0;
 

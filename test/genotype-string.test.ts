@@ -352,6 +352,31 @@ describe("GenotypeString", () => {
     });
   });
 
+  describe("toJSON", () => {
+    test("returns string value for JSON serialization", () => {
+      const gs = GenotypeString.fromString("ATCG");
+      expect(gs.toJSON()).toBe("ATCG");
+    });
+
+    test("serializes correctly inside an object", () => {
+      const gs = GenotypeString.fromString("ATCG");
+      const json = JSON.stringify({ sequence: gs });
+      expect(json).toBe('{"sequence":"ATCG"}');
+    });
+
+    test("serializes correctly from bytes-backed instance", () => {
+      const gs = GenotypeString.fromBytes(new TextEncoder().encode("GCTA"));
+      const json = JSON.stringify({ sequence: gs });
+      expect(json).toBe('{"sequence":"GCTA"}');
+    });
+
+    test("round-trips through JSON", () => {
+      const gs = GenotypeString.fromString("ATCGATCG");
+      const parsed = JSON.parse(JSON.stringify({ seq: gs }));
+      expect(parsed.seq).toBe("ATCGATCG");
+    });
+  });
+
   describe("Symbol.toPrimitive", () => {
     test("coerces to string in template literals", () => {
       const gs = GenotypeString.fromString("ATCG");

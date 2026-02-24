@@ -50,6 +50,20 @@ type InternalRepr =
  * (e.g., case conversion via bit manipulation). For genomic data — nucleotide
  * sequences, quality scores, IUPAC codes — this is always correct.
  *
+ * Most string contexts work transparently: template literals, string
+ * concatenation with `+`, `RegExp.test()`, `RegExp.exec()`, `String()`,
+ * `JSON.stringify()`, and default array sorting all coerce automatically.
+ *
+ * A few JavaScript mechanisms do not work with wrapper types and cannot be
+ * overridden. These are inherent limitations of wrapping a non-primitive:
+ *
+ * - **Strict equality (`===`) and `switch`** compare by reference, not
+ *   value. Use the {@link equals} method for content comparison.
+ * - **`Set` and `Map`** use identity semantics for object keys. To use
+ *   sequence content as a key, call `.toString()` first.
+ * - **Numeric indexing (`gs[0]`)** does not return a character. Use
+ *   {@link charAt} instead.
+ *
  * @example
  * ```typescript
  * const gs = GenotypeString.fromString("ATCGATCG");
@@ -57,6 +71,8 @@ type InternalRepr =
  * gs.toUpperCase();       // new GenotypeString, no string allocation if bytes
  * gs.slice(2, 6);         // GenotypeString("CGAT")
  * `>${gs}`;               // ">ATCGATCG" (transparent coercion)
+ * gs.equals("ATCGATCG");  // true (use instead of ===)
+ * gs.charAt(0);           // "A" (use instead of gs[0])
  * ```
  */
 export class GenotypeString {
@@ -264,6 +280,18 @@ export class GenotypeString {
   }
 
   /**
+   * Returns the string representation for JSON serialization.
+   *
+   * Without this method, `JSON.stringify()` would serialize the object's
+   * (empty) public shape rather than its string content. With it,
+   * `JSON.stringify({ sequence: gs })` produces `{"sequence":"ATCG"}`
+   * as expected.
+   */
+  toJSON(): string {
+    return this.#ensureString();
+  }
+
+  /**
    * Enables transparent coercion in template literals, string concatenation,
    * and other JS primitive contexts.
    *
@@ -368,6 +396,20 @@ export class GenotypeString {
   static [kSetBytes](gs: GenotypeString, bytes: Uint8Array): void {
     gs.#repr = { kind: "bytes", value: bytes };
   }
+}
+
+/**
+ * Converts a GenotypeString or plain string to a plain string.
+ *
+ * This is the standard normalization helper for functions that accept
+ * `GenotypeString | string` but operate on string internals. When the input
+ * is already a string it is returned as-is with no overhead.
+ *
+ * @param value - A GenotypeString or plain string
+ * @returns The string content
+ */
+export function asString(value: GenotypeString | string): string {
+  return typeof value === "string" ? value : value.toString();
 }
 
 /**

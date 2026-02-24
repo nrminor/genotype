@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { GenotypeString } from "../src/genotype-string";
+import {
+  GenotypeString,
+  genotypeStringInternal,
+} from "../src/genotype-string";
 
 describe("GenotypeString", () => {
   describe("factory methods", () => {
@@ -574,6 +577,100 @@ describe("GenotypeString", () => {
       expect(gs.includes("-")).toBe(true);
       expect(gs.includes(".")).toBe(true);
       expect(gs.indexOf("-")).toBe(3);
+    });
+  });
+});
+
+describe("genotypeStringInternal", () => {
+  describe("mutableBytes", () => {
+    test("returns the live backing buffer, not a copy", () => {
+      const gs = GenotypeString.fromBytes(new TextEncoder().encode("ATCG"));
+      const buf = genotypeStringInternal.mutableBytes(gs);
+      buf[0] = 0x58; // 'X'
+      expect(gs.toString()).toBe("XTCG");
+    });
+
+    test("converts string-backed instance to bytes and returns the buffer", () => {
+      const gs = GenotypeString.fromString("ATCG");
+      const buf = genotypeStringInternal.mutableBytes(gs);
+      expect(buf).toBeInstanceOf(Uint8Array);
+      expect(buf.length).toBe(4);
+      expect(buf[0]).toBe(65); // 'A'
+    });
+
+    test("mutations through buffer are visible via toBytes()", () => {
+      const gs = GenotypeString.fromString("ATCG");
+      const buf = genotypeStringInternal.mutableBytes(gs);
+      buf[1] = 0x41; // 'A' replacing 'T'
+      genotypeStringInternal.invalidate(gs, buf);
+      expect(gs.toBytes()).toEqual(new TextEncoder().encode("AACG"));
+    });
+
+    test("mutations through buffer are visible via toString()", () => {
+      const gs = GenotypeString.fromBytes(new TextEncoder().encode("ATCG"));
+      const buf = genotypeStringInternal.mutableBytes(gs);
+      buf[0] = 0x47; // 'G'
+      buf[3] = 0x41; // 'A'
+      genotypeStringInternal.invalidate(gs, buf);
+      expect(gs.toString()).toBe("GTCA");
+    });
+
+    test("successive calls return the same buffer", () => {
+      const gs = GenotypeString.fromBytes(new TextEncoder().encode("ATCG"));
+      const a = genotypeStringInternal.mutableBytes(gs);
+      const b = genotypeStringInternal.mutableBytes(gs);
+      expect(a).toBe(b);
+    });
+  });
+
+  describe("invalidate", () => {
+    test("drops stale string cache after byte mutation", () => {
+      const gs = GenotypeString.fromString("ATCG");
+      const buf = genotypeStringInternal.mutableBytes(gs);
+      // At this point repr is bytes. Force a string cache by reading toString().
+      expect(gs.toString()).toBe("ATCG");
+      // Now mutate the buffer. The string cache is stale because toString()
+      // converted the repr to string and dropped the byte reference.
+      buf[0] = 0x58; // 'X'
+      // Passing the buffer back to invalidate() restores it as the authoritative
+      // representation, dropping the stale string cache.
+      genotypeStringInternal.invalidate(gs, buf);
+      expect(gs.toString()).toBe("XTCG");
+    });
+
+    test("is safe to call when repr is already bytes", () => {
+      const gs = GenotypeString.fromBytes(new TextEncoder().encode("ATCG"));
+      const buf = genotypeStringInternal.mutableBytes(gs);
+      genotypeStringInternal.invalidate(gs, buf);
+      expect(gs.toString()).toBe("ATCG");
+    });
+
+    test("is safe to call multiple times", () => {
+      const gs = GenotypeString.fromString("ATCG");
+      const buf = genotypeStringInternal.mutableBytes(gs);
+      buf[0] = 0x58;
+      genotypeStringInternal.invalidate(gs, buf);
+      genotypeStringInternal.invalidate(gs, buf);
+      expect(gs.toString()).toBe("XTCG");
+    });
+  });
+
+  describe("object integrity", () => {
+    test("accessor object is frozen", () => {
+      expect(Object.isFrozen(genotypeStringInternal)).toBe(true);
+    });
+
+    test("cannot add new properties", () => {
+      expect(() => {
+        (genotypeStringInternal as Record<string, unknown>)["hack"] = () => {};
+      }).toThrow();
+    });
+
+    test("cannot overwrite existing methods", () => {
+      expect(() => {
+        (genotypeStringInternal as Record<string, unknown>)["mutableBytes"] =
+          () => {};
+      }).toThrow();
     });
   });
 });

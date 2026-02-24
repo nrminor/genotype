@@ -23,13 +23,7 @@
 const textEnc = new TextEncoder();
 const textDec = new TextDecoder("utf-8");
 
-/**
- * Unexported symbols for library-internal mutable access.
- *
- * Only code in this module can reference these symbols, which means only the
- * static friend methods on the class (and the genotypeStringInternal object
- * that will wrap them in a later commit) can use them.
- */
+/** Unexported symbols for library-internal mutable access. */
 const kMutableBytes: unique symbol = Symbol("GenotypeString.mutableBytes");
 const kSetBytes: unique symbol = Symbol("GenotypeString.setBytes");
 
@@ -375,6 +369,48 @@ export class GenotypeString {
     gs.#repr = { kind: "bytes", value: bytes };
   }
 }
+
+/**
+ * Library-internal accessor for GenotypeString's mutable backing buffer.
+ *
+ * This object provides type-safe access to GenotypeString internals for the
+ * Rust FFI layer and other library-internal code. It calls the symbol-keyed
+ * static friend methods on the class, so no `as any` casts are needed.
+ *
+ * Exported from this module but NOT from the package root. Only library code
+ * that imports directly from this module can use it.
+ *
+ * The caller contract for mutation is: call `mutableBytes()`, perform all
+ * mutations on the returned buffer, then pass the buffer back to
+ * `invalidate()` when done. This is the manual equivalent of Rust's RAII
+ * borrow guard — the caller explicitly returns the buffer to restore the
+ * GenotypeString's invariants.
+ */
+export const genotypeStringInternal = Object.freeze({
+  /**
+   * Returns the actual backing Uint8Array for in-place mutation.
+   *
+   * Unlike `toBytes()`, this is NOT a copy. Mutations to the returned array
+   * directly affect the GenotypeString's internal state. The caller MUST call
+   * `invalidate()` with this buffer after mutation is complete.
+   */
+  mutableBytes(gs: GenotypeString): Uint8Array {
+    return GenotypeString[kMutableBytes](gs);
+  },
+
+  /**
+   * Restores the GenotypeString's internal state after in-place byte mutation.
+   *
+   * Forces the internal representation to the provided byte buffer and drops
+   * any cached string. The buffer passed here should be the same one returned
+   * by `mutableBytes()`. This is safe even if other GenotypeString methods
+   * were called between `mutableBytes()` and `invalidate()` — the buffer
+   * the caller holds is authoritative.
+   */
+  invalidate(gs: GenotypeString, bytes: Uint8Array): void {
+    GenotypeString[kSetBytes](gs, bytes);
+  },
+});
 
 function byteIncludes(
   haystack: Uint8Array,

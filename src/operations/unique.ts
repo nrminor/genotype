@@ -152,12 +152,15 @@ export class UniqueProcessor<
 
     switch (by) {
       case "sequence":
-        return (seq) => (caseSensitive ? seq.sequence : seq.sequence.toLowerCase());
+        return (seq) =>
+          caseSensitive ? seq.sequence.toString() : seq.sequence.toString().toLowerCase();
       case "id":
         return (seq) => seq.id;
       case "both":
         return (seq) => {
-          const seqKey = caseSensitive ? seq.sequence : seq.sequence.toLowerCase();
+          const seqKey = caseSensitive
+            ? seq.sequence.toString()
+            : seq.sequence.toString().toLowerCase();
           return `${seq.id}:${seqKey}`;
         };
     }

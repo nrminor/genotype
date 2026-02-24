@@ -1,0 +1,221 @@
+/**
+ * Centralized record constructor functions for genomic data types.
+ *
+ * These functions are the single normalization point where plain strings
+ * become GenotypeString instances. They accept `GenotypeString | string`
+ * for sequence and quality fields, compute derived fields like `length`,
+ * and return fully typed record objects.
+ *
+ * @module
+ */
+
+import { GenotypeString } from "./genotype-string";
+import type {
+  AbstractSequence,
+  BAMAlignment,
+  CIGARString,
+  FastaSequence,
+  FastqSequence,
+  KmerSequence,
+  MAPQScore,
+  QualityEncoding,
+  SAMAlignment,
+  SAMFlag,
+  SAMTag,
+} from "./types";
+
+/**
+ * Input fields for creating a FASTA record.
+ *
+ * The `sequence` field accepts either a plain string or an existing
+ * GenotypeString. Plain strings are wrapped automatically.
+ */
+export interface FastaRecordInput {
+  readonly id: string;
+  readonly sequence: GenotypeString | string;
+  readonly description?: string | undefined;
+  readonly lineNumber?: number | undefined;
+  readonly gcContent?: number | undefined;
+}
+
+/**
+ * Creates a fully typed FASTA record from the given fields.
+ *
+ * The `length` field is derived from the sequence. The `format`
+ * discriminant is set automatically. Optional fields from the input
+ * are carried through as-is.
+ */
+export function createFastaRecord(input: FastaRecordInput): FastaSequence {
+  const sequence = GenotypeString.fromString(input.sequence);
+  const { sequence: _, ...rest } = input;
+  return { ...rest, format: "fasta", sequence, length: sequence.length } as FastaSequence;
+}
+
+/**
+ * Input fields for creating a FASTQ record.
+ *
+ * Both `sequence` and `quality` accept either a plain string or an
+ * existing GenotypeString. Plain strings are wrapped automatically.
+ */
+export interface FastqRecordInput {
+  readonly id: string;
+  readonly sequence: GenotypeString | string;
+  readonly quality: GenotypeString | string;
+  readonly qualityEncoding: QualityEncoding;
+  readonly description?: string | undefined;
+  readonly lineNumber?: number | undefined;
+  readonly qualityScores?: number[] | undefined;
+  readonly qualityStats?:
+    | {
+        readonly mean: number;
+        readonly min: number;
+        readonly max: number;
+        readonly lowQualityBases: number;
+      }
+    | undefined;
+}
+
+/**
+ * Creates a fully typed FASTQ record from the given fields.
+ *
+ * The `length` field is derived from the sequence. The `format`
+ * discriminant is set automatically. Optional fields from the input
+ * are carried through as-is.
+ */
+export function createFastqRecord(input: FastqRecordInput): FastqSequence {
+  const sequence = GenotypeString.fromString(input.sequence);
+  const quality = GenotypeString.fromString(input.quality);
+  const { sequence: _s, quality: _q, ...rest } = input;
+  return { ...rest, format: "fastq", sequence, quality, length: sequence.length } as FastqSequence;
+}
+
+/**
+ * Input fields for creating a k-mer record.
+ *
+ * The `sequence` field accepts either a plain string or an existing
+ * GenotypeString. The generic parameter `K` tracks k-mer size at
+ * compile time.
+ */
+export interface KmerRecordInput<K extends number> {
+  readonly id: string;
+  readonly sequence: GenotypeString | string;
+  readonly kmerSize: K;
+  readonly stepSize: number;
+  readonly originalId: string;
+  readonly startPosition: number;
+  readonly endPosition: number;
+  readonly coordinateSystem: "0-based" | "1-based";
+  readonly suffix: string;
+  readonly isWrapped: boolean;
+  readonly windowIndex: number;
+  readonly description?: string | undefined;
+  readonly lineNumber?: number | undefined;
+}
+
+/**
+ * Creates a fully typed k-mer record from the given fields.
+ *
+ * The `length` field is derived from the sequence. The generic
+ * parameter `K` is inferred from the `kmerSize` value.
+ */
+export function createKmerRecord<K extends number>(input: KmerRecordInput<K>): KmerSequence<K> {
+  const sequence = GenotypeString.fromString(input.sequence);
+  const { sequence: _, ...rest } = input;
+  return { ...rest, sequence, length: sequence.length } as KmerSequence<K>;
+}
+
+/**
+ * Input fields for creating a SAM alignment record.
+ *
+ * The `seq` and `qual` fields accept either a plain string or an
+ * existing GenotypeString. The branded types (`SAMFlag`, `MAPQScore`,
+ * `CIGARString`) are required — callers must validate and brand these
+ * values before passing them to the constructor.
+ */
+export interface SamAlignmentInput {
+  readonly qname: string;
+  readonly flag: SAMFlag;
+  readonly rname: string;
+  readonly pos: number;
+  readonly mapq: MAPQScore;
+  readonly cigar: CIGARString;
+  readonly rnext: string;
+  readonly pnext: number;
+  readonly tlen: number;
+  readonly seq: GenotypeString | string;
+  readonly qual: GenotypeString | string;
+  readonly tags?: SAMTag[] | undefined;
+  readonly lineNumber?: number | undefined;
+}
+
+/**
+ * Creates a fully typed SAM alignment record from the given fields.
+ *
+ * The `format` discriminant is set to `"sam"`. Optional fields from
+ * the input are carried through as-is.
+ */
+export function createSamAlignment(input: SamAlignmentInput): SAMAlignment {
+  const { seq: rawSeq, qual: rawQual, ...rest } = input;
+  return {
+    ...rest,
+    format: "sam",
+    seq: GenotypeString.fromString(rawSeq),
+    qual: GenotypeString.fromString(rawQual),
+  } as SAMAlignment;
+}
+
+/**
+ * Input fields for creating a BAM alignment record.
+ *
+ * Extends the SAM alignment input with BAM-specific binary metadata.
+ */
+export interface BamAlignmentInput extends SamAlignmentInput {
+  readonly blockStart?: number | undefined;
+  readonly blockEnd?: number | undefined;
+  readonly binIndex?: number | undefined;
+}
+
+/**
+ * Creates a fully typed BAM alignment record from the given fields.
+ *
+ * The `format` discriminant is set to `"bam"`. Optional fields from
+ * the input are carried through as-is.
+ */
+export function createBamAlignment(input: BamAlignmentInput): BAMAlignment {
+  const { seq: rawSeq, qual: rawQual, ...rest } = input;
+  return {
+    ...rest,
+    format: "bam",
+    seq: GenotypeString.fromString(rawSeq),
+    qual: GenotypeString.fromString(rawQual),
+  } as BAMAlignment;
+}
+
+/**
+ * Returns a copy of the record with a new sequence value.
+ *
+ * The `length` field is updated to match the new sequence. All other
+ * fields are preserved. Accepts either a plain string or an existing
+ * GenotypeString — plain strings are wrapped automatically.
+ */
+export function withSequence<T extends AbstractSequence>(
+  record: T,
+  sequence: GenotypeString | string
+): T {
+  const gs = GenotypeString.fromString(sequence);
+  return { ...record, sequence: gs, length: gs.length } as T;
+}
+
+/**
+ * Returns a copy of the record with a new quality value.
+ *
+ * All other fields (including `length`) are preserved. Accepts either
+ * a plain string or an existing GenotypeString — plain strings are
+ * wrapped automatically.
+ */
+export function withQuality<T extends { quality: GenotypeString }>(
+  record: T,
+  quality: GenotypeString | string
+): T {
+  return { ...record, quality: GenotypeString.fromString(quality) } as T;
+}

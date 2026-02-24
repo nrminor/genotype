@@ -10,19 +10,14 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import "../matchers";
+import { createFastaRecord, createFastqRecord } from "../../src/constructors";
 import { binQuality } from "../../src/operations/quality";
 import type { AbstractSequence, FastqSequence } from "../../src/types";
 
 // Helper to create test FASTQ sequences
 function createFastqSequence(id: string, sequence: string, quality: string): FastqSequence {
-  return {
-    format: "fastq",
-    id,
-    sequence,
-    quality,
-    qualityEncoding: "phred33",
-    length: sequence.length,
-  };
+  return createFastqRecord({ id, sequence, quality, qualityEncoding: "phred33" });
 }
 
 // Helper to convert array to async iterable
@@ -62,9 +57,9 @@ describe("binQuality - Platform Presets", () => {
 
     // Illumina 3-bin uses [15, 30] boundaries
     // Representatives: [7, 22, 40] → ASCII chars ['(', '7', 'I']
-    expect((binned[0] as FastqSequence).quality).toBe("(((("); // Q0 → bin 0 → rep 7
-    expect((binned[1] as FastqSequence).quality).toBe("7777"); // Q22 → bin 1 → rep 22
-    expect((binned[2] as FastqSequence).quality).toBe("IIII"); // Q40 → bin 2 → rep 40
+    expect((binned[0] as FastqSequence).quality).toEqualSequence("(((("); // Q0 → bin 0 → rep 7
+    expect((binned[1] as FastqSequence).quality).toEqualSequence("7777"); // Q22 → bin 1 → rep 22
+    expect((binned[2] as FastqSequence).quality).toEqualSequence("IIII"); // Q40 → bin 2 → rep 40
   });
 
   test("bins PacBio data with 2-bin preset", async () => {
@@ -84,8 +79,8 @@ describe("binQuality - Platform Presets", () => {
 
     // PacBio 2-bin uses [13] boundary
     // Representatives: [6, 23] → ASCII chars ['\'', '8']
-    expect((binned[0] as FastqSequence).quality).toBe("''''"); // Q0 → bin 0
-    expect((binned[1] as FastqSequence).quality).toBe("8888"); // Q20 → bin 1
+    expect((binned[0] as FastqSequence).quality).toEqualSequence("''''"); // Q0 → bin 0
+    expect((binned[1] as FastqSequence).quality).toEqualSequence("8888"); // Q20 → bin 1
   });
 
   test("bins Nanopore data with 5-bin preset", async () => {
@@ -130,8 +125,8 @@ describe("binQuality - Custom Boundaries", () => {
     );
 
     expect(binned).toHaveLength(2);
-    expect((binned[0] as FastqSequence).quality).toBe("++++"); // Q0 → bin 0 → rep 10 → '+'
-    expect((binned[1] as FastqSequence).quality).toBe("????"); // Q20 → bin 1 → rep 30 → '?'
+    expect((binned[0] as FastqSequence).quality).toEqualSequence("++++"); // Q0 → bin 0 → rep 10 → '+'
+    expect((binned[1] as FastqSequence).quality).toEqualSequence("????"); // Q20 → bin 1 → rep 30 → '?'
   });
 
   test("bins with custom 3-bin boundaries", async () => {
@@ -152,7 +147,7 @@ describe("binQuality - Custom Boundaries", () => {
     // Q0 → bin 0 → rep 9 → '*'
     // Q20 → bin 1 → rep 23 → '8'
     // Q40 → bin 2 → rep 38 → 'G'
-    expect((binned[0] as FastqSequence).quality).toBe("*8G");
+    expect((binned[0] as FastqSequence).quality).toEqualSequence("*8G");
   });
 });
 
@@ -186,19 +181,13 @@ describe("binQuality - Encoding Detection", () => {
     );
 
     expect(binned).toHaveLength(1);
-    expect((binned[0] as FastqSequence).quality).toBe("++++");
+    expect((binned[0] as FastqSequence).quality).toEqualSequence("++++");
   });
 });
 
 describe("binQuality - Non-FASTQ Sequences", () => {
   test("passes through FASTA sequences unchanged", async () => {
-    const sequences = [
-      {
-        id: "fasta_seq",
-        sequence: "ATCGATCG",
-        length: 8,
-      },
-    ];
+    const sequences = [createFastaRecord({ id: "fasta_seq", sequence: "ATCGATCG" })];
 
     const binned = await collectSequences(
       binQuality(toAsyncIterable(sequences), {
@@ -208,16 +197,14 @@ describe("binQuality - Non-FASTQ Sequences", () => {
     );
 
     expect(binned).toHaveLength(1);
-    expect(binned[0]).toEqual(sequences[0]);
+    expect(binned[0]!.id).toBe("fasta_seq");
+    expect(binned[0]!.sequence).toEqualSequence("ATCGATCG");
+    expect(binned[0]!.length).toBe(8);
   });
 
   test("handles mixed FASTA/FASTQ sequences", async () => {
     const sequences = [
-      {
-        id: "fasta_seq",
-        sequence: "ATCG",
-        length: 4,
-      },
+      createFastaRecord({ id: "fasta_seq", sequence: "ATCG" }),
       createFastqSequence("fastq_seq", "ATCG", "!!!!"),
     ];
 
@@ -229,8 +216,9 @@ describe("binQuality - Non-FASTQ Sequences", () => {
     );
 
     expect(binned).toHaveLength(2);
-    expect(binned[0]).toEqual(sequences[0]); // FASTA unchanged
-    expect((binned[1] as FastqSequence).quality).toBe("++++"); // FASTQ binned
+    expect(binned[0]!.id).toBe("fasta_seq"); // FASTA unchanged
+    expect(binned[0]!.sequence).toEqualSequence("ATCG");
+    expect((binned[1] as FastqSequence).quality).toEqualSequence("++++"); // FASTQ binned
   });
 });
 
@@ -277,7 +265,7 @@ describe("binQuality - Compression Effectiveness", () => {
 
     // All scores below 20 should map to same character
     const binnedQuality = (binned[0] as FastqSequence).quality;
-    expect(binnedQuality).toMatch(/^\++$/); // All should be '+' (rep for bin 0)
+    expect(binnedQuality.match(/^\++$/)).not.toBeNull(); // All should be '+' (rep for bin 0)
   });
 });
 
@@ -353,7 +341,7 @@ describe("binQuality - Preserves Sequence Properties", () => {
       })
     );
 
-    expect(binned[0]!.sequence).toBe("ATCGATCGATCG");
+    expect(binned[0]!.sequence).toEqualSequence("ATCGATCGATCG");
     expect(binned[0]!.length).toBe(12);
   });
 
@@ -376,14 +364,12 @@ describe("binQuality - Preserves Sequence Properties", () => {
 describe("binQuality - Edge Cases", () => {
   test("handles Solexa encoding with negative scores", async () => {
     const sequences = [
-      {
-        format: "fastq" as const,
+      createFastqRecord({
         id: "solexa_seq",
         sequence: "ATCG",
         quality: ";;;;",
-        qualityEncoding: "solexa" as const,
-        length: 4,
-      },
+        qualityEncoding: "solexa",
+      }),
     ];
 
     const binned = await collectSequences(
@@ -401,14 +387,12 @@ describe("binQuality - Edge Cases", () => {
 
   test("handles Phred64 encoding", async () => {
     const sequences = [
-      {
-        format: "fastq" as const,
+      createFastqRecord({
         id: "phred64_seq",
         sequence: "ATCGATCG",
         quality: "hhhhhhhh",
-        qualityEncoding: "phred64" as const,
-        length: 8,
-      },
+        qualityEncoding: "phred64",
+      }),
     ];
 
     const binned = await collectSequences(

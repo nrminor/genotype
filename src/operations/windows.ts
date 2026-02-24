@@ -3,6 +3,7 @@
  */
 
 import { type } from "arktype";
+import { createKmerRecord } from "../constructors";
 import { ValidationError } from "../errors";
 import type { AbstractSequence, KmerSequence } from "../types";
 import type { Processor, WindowOptions } from "./types";
@@ -150,9 +151,10 @@ export class WindowsProcessor<K extends number = number> implements Processor<Wi
     // Extract sequence (handle wrapping for circular mode)
     let seq: string;
     if (isWrapped) {
-      seq = source.sequence.slice(start) + source.sequence.slice(0, end - length);
+      seq =
+        source.sequence.slice(start).toString() + source.sequence.slice(0, end - length).toString();
     } else {
-      seq = source.sequence.slice(start, end);
+      seq = source.sequence.slice(start, end).toString();
     }
 
     // Calculate display coordinates
@@ -162,11 +164,10 @@ export class WindowsProcessor<K extends number = number> implements Processor<Wi
     // Format ID with suffix and coordinates
     const id = `${source.id}${suffix}:${displayStart}-${displayEnd}`;
 
-    return {
+    return createKmerRecord({
       id,
       description: source.description,
       sequence: seq,
-      length: seq.length,
       lineNumber: source.lineNumber,
       kmerSize: size,
       stepSize: step,
@@ -177,6 +178,6 @@ export class WindowsProcessor<K extends number = number> implements Processor<Wi
       suffix,
       isWrapped,
       windowIndex,
-    } as KmerSequence<K>;
+    });
   }
 }

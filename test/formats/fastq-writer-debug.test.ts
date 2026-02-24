@@ -3,6 +3,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
+import { createFastqRecord } from "../../src/constructors";
 import { PARSING_DEFAULTS } from "../../src/formats/fastq/constants";
 import { FastqWriter } from "../../src/formats/fastq/writer";
 import type { FastqSequence } from "../../src/types";
@@ -48,14 +49,12 @@ describe("FASTQ Writer Debug and Constants", () => {
     test("logs strategy selection", () => {
       const writer = new FastqWriter({ debug: true, outputStrategy: "auto", lineLength: 80 });
 
-      const shortSequence: FastqSequence = {
-        format: "fastq",
+      const shortSequence: FastqSequence = createFastqRecord({
         id: "seq1",
         sequence: "ATCG",
         quality: "IIII",
         qualityEncoding: "phred33",
-        length: 4,
-      };
+      });
 
       writer.formatSequence(shortSequence);
 
@@ -70,15 +69,13 @@ describe("FASTQ Writer Debug and Constants", () => {
     test("logs platform detection", () => {
       const writer = new FastqWriter({ debug: true, preservePlatformFormat: true });
 
-      const illuminaSequence: FastqSequence = {
-        format: "fastq",
+      const illuminaSequence: FastqSequence = createFastqRecord({
         id: "M00100:21:000000000-A1234:1:1101:15589:1758",
         description: "1:N:0:1",
         sequence: "ATCGATCG",
         quality: "IIIIIIII",
         qualityEncoding: "phred33",
-        length: 8,
-      };
+      });
 
       writer.formatSequence(illuminaSequence);
 
@@ -90,14 +87,12 @@ describe("FASTQ Writer Debug and Constants", () => {
     test("logs quality encoding conversion", () => {
       const writer = new FastqWriter({ debug: true, qualityEncoding: "phred64" });
 
-      const sequence: FastqSequence = {
-        format: "fastq",
+      const sequence: FastqSequence = createFastqRecord({
         id: "seq1",
         sequence: "ATCG",
         quality: "IIII",
         qualityEncoding: "phred33",
-        length: 4,
-      };
+      });
 
       writer.formatSequence(sequence);
 
@@ -111,14 +106,12 @@ describe("FASTQ Writer Debug and Constants", () => {
     test("logs when no quality conversion needed", () => {
       const writer = new FastqWriter({ debug: true, qualityEncoding: "phred33" });
 
-      const sequence: FastqSequence = {
-        format: "fastq",
+      const sequence: FastqSequence = createFastqRecord({
         id: "seq1",
         sequence: "ATCG",
         quality: "IIII",
         qualityEncoding: "phred33",
-        length: 4,
-      };
+      });
 
       writer.formatSequence(sequence);
 
@@ -132,14 +125,12 @@ describe("FASTQ Writer Debug and Constants", () => {
     test("logs wrapped strategy selection for long sequences", () => {
       const writer = new FastqWriter({ debug: true, outputStrategy: "auto", lineLength: 10 });
 
-      const longSequence: FastqSequence = {
-        format: "fastq",
+      const longSequence: FastqSequence = createFastqRecord({
         id: "seq1",
         sequence: "A".repeat(150), // Long sequence
         quality: "I".repeat(150),
         qualityEncoding: "phred33",
-        length: 150,
-      };
+      });
 
       writer.formatSequence(longSequence);
 
@@ -157,14 +148,12 @@ describe("FASTQ Writer Debug and Constants", () => {
         lineLength: 80,
       });
 
-      const unknownPlatformSequence: FastqSequence = {
-        format: "fastq",
+      const unknownPlatformSequence: FastqSequence = createFastqRecord({
         id: "custom_seq_001",
         sequence: "ATCG",
         quality: "IIII",
         qualityEncoding: "phred33",
-        length: 4,
-      };
+      });
 
       writer.formatSequence(unknownPlatformSequence);
 
@@ -180,14 +169,12 @@ describe("FASTQ Writer Debug and Constants", () => {
       const writer = new FastqWriter({});
 
       // The writer should use the constant from PARSING_DEFAULTS
-      const sequence: FastqSequence = {
-        format: "fastq",
+      const sequence: FastqSequence = createFastqRecord({
         id: "seq1",
         sequence: "ATCG",
         quality: "IIII",
         qualityEncoding: PARSING_DEFAULTS.DEFAULT_ENCODING,
-        length: 4,
-      };
+      });
 
       const result = writer.formatSequence(sequence);
 
@@ -199,14 +186,12 @@ describe("FASTQ Writer Debug and Constants", () => {
       const writer = new FastqWriter({ validateOutput: true, debug: true });
 
       // The writer should use the default validation level from constants
-      const sequence: FastqSequence = {
-        format: "fastq",
+      const sequence: FastqSequence = createFastqRecord({
         id: "seq1",
         sequence: "ATCG",
         quality: "IIII",
         qualityEncoding: "phred33",
-        length: 4,
-      };
+      });
 
       // This should succeed with quick validation
       expect(() => writer.formatSequence(sequence)).not.toThrow();
@@ -230,14 +215,12 @@ describe("FASTQ Writer Debug and Constants", () => {
         lineLength: 50,
       });
 
-      const pacbioSequence: FastqSequence = {
-        format: "fastq",
+      const pacbioSequence: FastqSequence = createFastqRecord({
         id: "m54006_160210_020549/4194369/0_2273",
         sequence: "A".repeat(1500), // Long PacBio read
         quality: "I".repeat(1500),
         qualityEncoding: "phred33",
-        length: 1500,
-      };
+      });
 
       writer.formatSequence(pacbioSequence);
 

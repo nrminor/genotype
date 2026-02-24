@@ -6,6 +6,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import { createFastaRecord } from "../../src/constructors";
 import { seqops } from "../../src/operations";
 import type { AbstractSequence } from "../../src/types";
 
@@ -17,57 +18,21 @@ async function* toAsync<T>(arr: T[]): AsyncGenerator<T> {
 }
 
 describe("Complete SeqOps Pipeline Integration", () => {
+  function createSequence(id: string, sequence: string, description?: string): AbstractSequence {
+    return createFastaRecord({ id, sequence, description });
+  }
+
   test("Unix philosophy pipeline: grep → sample → sort → rmdup", async () => {
     // Create test dataset with realistic genomic characteristics
     const genomeSequences: AbstractSequence[] = [
-      {
-        id: "chr1_gene1",
-        sequence: "ATCGATCGATCG",
-        length: 12,
-        description: "Chromosome 1 gene",
-      },
-      {
-        id: "chr1_gene2",
-        sequence: "GGCCAATTGGCC",
-        length: 12,
-        description: "Chromosome 1 gene",
-      },
-      {
-        id: "chr2_gene1",
-        sequence: "TTAACCGGTTAA",
-        length: 12,
-        description: "Chromosome 2 gene",
-      },
-      {
-        id: "scaffold_1",
-        sequence: "GCGCGCGCGCGC",
-        length: 12,
-        description: "Scaffold sequence",
-      },
-      {
-        id: "chr1_gene1",
-        sequence: "ATCGATCGATCG",
-        length: 12,
-        description: "Duplicate ID",
-      }, // Duplicate
-      {
-        id: "chr1_gene3",
-        sequence: "GGCCAATTGGCC",
-        length: 12,
-        description: "Same sequence, different ID",
-      }, // Duplicate sequence
-      {
-        id: "chr2_gene2",
-        sequence: "AAAATTTTCCCC",
-        length: 12,
-        description: "Chromosome 2 gene",
-      },
-      {
-        id: "chr1_gene4",
-        sequence: "ATCGATCGATCGATCG",
-        length: 16,
-        description: "Longer chromosome 1 gene",
-      },
+      createSequence("chr1_gene1", "ATCGATCGATCG", "Chromosome 1 gene"),
+      createSequence("chr1_gene2", "GGCCAATTGGCC", "Chromosome 1 gene"),
+      createSequence("chr2_gene1", "TTAACCGGTTAA", "Chromosome 2 gene"),
+      createSequence("scaffold_1", "GCGCGCGCGCGC", "Scaffold sequence"),
+      createSequence("chr1_gene1", "ATCGATCGATCG", "Duplicate ID"), // Duplicate
+      createSequence("chr1_gene3", "GGCCAATTGGCC", "Same sequence, different ID"), // Duplicate sequence
+      createSequence("chr2_gene2", "AAAATTTTCCCC", "Chromosome 2 gene"),
+      createSequence("chr1_gene4", "ATCGATCGATCGATCG", "Longer chromosome 1 gene"),
     ];
 
     // Build comprehensive pipeline using all 4 critical operations
@@ -107,13 +72,13 @@ describe("Complete SeqOps Pipeline Integration", () => {
 
   test("Quality control pipeline for genomic data", async () => {
     const rawSequences: AbstractSequence[] = [
-      { id: "good_seq_1", sequence: "ATCGATCGATCG", length: 12 },
-      { id: "short_seq", sequence: "ATCG", length: 4 }, // Too short
-      { id: "good_seq_2", sequence: "GGCCAATTGGCC", length: 12 },
-      { id: "duplicate", sequence: "ATCGATCGATCG", length: 12 }, // Duplicate of good_seq_1
-      { id: "at_rich", sequence: "AAAAAATTTTTT", length: 12 }, // Low GC
-      { id: "gc_rich", sequence: "GGGGGGCCCCCC", length: 12 }, // High GC
-      { id: "good_seq_3", sequence: "TTAACCGGTTAA", length: 12 },
+      createSequence("good_seq_1", "ATCGATCGATCG"),
+      createSequence("short_seq", "ATCG"), // Too short
+      createSequence("good_seq_2", "GGCCAATTGGCC"),
+      createSequence("duplicate", "ATCGATCGATCG"), // Duplicate of good_seq_1
+      createSequence("at_rich", "AAAAAATTTTTT"), // Low GC
+      createSequence("gc_rich", "GGGGGGCCCCCC"), // High GC
+      createSequence("good_seq_3", "TTAACCGGTTAA"),
     ];
 
     const cleanedSequences = await seqops(toAsync(rawSequences))
@@ -152,12 +117,13 @@ describe("Complete SeqOps Pipeline Integration", () => {
   });
 
   test("Comprehensive analysis pipeline", async () => {
-    const analysisSequences: AbstractSequence[] = Array.from({ length: 50 }, (_, i) => ({
-      id: `gene_${i.toString().padStart(3, "0")}`,
-      sequence: i % 2 === 0 ? "ATCGATCG".repeat((i % 5) + 1) : "GGCCAATT".repeat((i % 5) + 1),
-      length: ((i % 5) + 1) * 8,
-      description: i % 3 === 0 ? "Important gene" : "Regular gene",
-    }));
+    const analysisSequences: AbstractSequence[] = Array.from({ length: 50 }, (_, i) =>
+      createSequence(
+        `gene_${i.toString().padStart(3, "0")}`,
+        i % 2 === 0 ? "ATCGATCG".repeat((i % 5) + 1) : "GGCCAATT".repeat((i % 5) + 1),
+        i % 3 === 0 ? "Important gene" : "Regular gene"
+      )
+    );
 
     // Complex pipeline combining all operations
     const analysisResults = await seqops(toAsync(analysisSequences))
@@ -195,12 +161,11 @@ describe("Complete SeqOps Pipeline Integration", () => {
     // Create moderately large dataset
     const performanceDataset: AbstractSequence[] = Array.from({ length: 1000 }, (_, i) => {
       const sequence = "ATCG".repeat((i % 50) + 1);
-      const base: AbstractSequence = {
-        id: `seq_${i.toString().padStart(4, "0")}`,
+      return createSequence(
+        `seq_${i.toString().padStart(4, "0")}`,
         sequence,
-        length: sequence.length,
-      };
-      return i % 10 === 0 ? { ...base, description: "Special sequence" } : base;
+        i % 10 === 0 ? "Special sequence" : undefined
+      );
     });
 
     const startTime = Date.now();

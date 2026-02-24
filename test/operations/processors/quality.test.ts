@@ -6,6 +6,8 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import "../../matchers";
+import { createFastqRecord } from "../../../src/constructors";
 import { QualityProcessor } from "../../../src/operations/quality";
 import type { FastqSequence } from "../../../src/types";
 
@@ -14,14 +16,7 @@ describe("QualityProcessor", () => {
 
   // Helper to create test FASTQ sequences
   function createFastqSequence(id: string, sequence: string, quality: string): FastqSequence {
-    return {
-      format: "fastq",
-      id,
-      sequence,
-      quality,
-      qualityEncoding: "phred33",
-      length: sequence.length,
-    };
+    return createFastqRecord({ id, sequence, quality, qualityEncoding: "phred33" });
   }
 
   // Helper to collect results
@@ -55,7 +50,7 @@ describe("QualityProcessor", () => {
       expect(processed[0]!.quality).toBeDefined();
       expect(processed[0]!.quality.length).toBe(8); // Same length
       expect(processed[0]!.id).toBe("seq1");
-      expect(processed[0]!.sequence).toBe("ATCGATCG");
+      expect(processed[0]!.sequence).toEqualSequence("ATCGATCG");
     });
 
     test("bins quality with custom boundaries", async () => {
@@ -151,7 +146,7 @@ describe("QualityProcessor", () => {
       );
 
       expect(processed).toHaveLength(1);
-      expect(processed[0]!.sequence).toBe("ATCG"); // Unchanged
+      expect(processed[0]!.sequence).toEqualSequence("ATCG"); // Unchanged
       expect(processed[0]!.quality.length).toBe(4); // Binned but same length
     });
   });
@@ -235,7 +230,7 @@ describe("QualityProcessor", () => {
         })
       );
 
-      expect(processed[0]!.sequence).toBe("ATCGATCG");
+      expect(processed[0]!.sequence).toEqualSequence("ATCGATCG");
     });
 
     test("preserves quality string length", async () => {

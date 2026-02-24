@@ -6,7 +6,9 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import "../matchers";
 import { type } from "arktype";
+import { createFastaRecord } from "../../src/constructors";
 import { ParseError } from "../../src/errors";
 import {
   deserializeJSON,
@@ -410,18 +412,16 @@ describe("JSON Format - JSONParser", () => {
       const sequences = await Array.fromAsync(parser.parseString(json));
 
       expect(sequences).toHaveLength(2);
-      expect(sequences[0]).toMatchObject({
-        format: "fasta",
-        id: "seq1",
-        sequence: "ATCG",
-        length: 4,
-      });
-      expect(sequences[1]).toMatchObject({
-        format: "fasta",
-        id: "seq2",
-        sequence: "GCTA",
-        length: 4,
-      });
+      const seq1 = sequences[0] as FastaSequence;
+      const seq2 = sequences[1] as FastaSequence;
+      expect(seq1.format).toBe("fasta");
+      expect(seq1.id).toBe("seq1");
+      expect(seq1.sequence).toEqualSequence("ATCG");
+      expect(seq1.length).toBe(4);
+      expect(seq2.format).toBe("fasta");
+      expect(seq2.id).toBe("seq2");
+      expect(seq2.sequence).toEqualSequence("GCTA");
+      expect(seq2.length).toBe(4);
     });
 
     test("parses wrapped JSON format with metadata", async () => {
@@ -462,7 +462,7 @@ describe("JSON Format - JSONParser", () => {
       expect(sequences).toHaveLength(1);
       const seq = sequences[0] as FastqSequence;
       expect(seq.format).toBe("fastq");
-      expect(seq.quality).toBe("IIII");
+      expect(seq.quality).toEqualSequence("IIII");
       expect(seq.qualityEncoding).toBe("phred33");
     });
 
@@ -547,7 +547,7 @@ describe("JSON Format - JSONParser", () => {
 
       expect(sequences).toHaveLength(3);
       expect(sequences[0]!.id).toBe("seq1");
-      expect(sequences[0]!.sequence).toBe("ATCGATCG");
+      expect(sequences[0]!.sequence).toEqualSequence("ATCGATCG");
       expect(sequences[1]!.id).toBe("seq2");
       expect(sequences[2]!.id).toBe("seq3");
     });
@@ -572,7 +572,7 @@ describe("JSON Format - JSONParser", () => {
       expect(sequences).toHaveLength(2);
       const seq = sequences[0] as FastqSequence;
       expect(seq.format).toBe("fastq");
-      expect(seq.quality).toBe("IIIIIIII");
+      expect(seq.quality).toEqualSequence("IIIIIIII");
     });
   });
 });
@@ -589,7 +589,7 @@ describe("JSON Format - JSONLParser", () => {
 
       expect(sequences).toHaveLength(4);
       expect(sequences[0]!.id).toBe("seq1");
-      expect(sequences[0]!.sequence).toBe("ATCGATCG");
+      expect(sequences[0]!.sequence).toEqualSequence("ATCGATCG");
       expect(sequences[1]!.id).toBe("seq2");
       expect(sequences[2]!.id).toBe("seq3");
       expect(sequences[3]!.id).toBe("seq4");
@@ -604,7 +604,7 @@ describe("JSON Format - JSONLParser", () => {
       expect(sequences).toHaveLength(3);
       const seq = sequences[0] as FastqSequence;
       expect(seq.format).toBe("fastq");
-      expect(seq.quality).toBe("IIIIIIII");
+      expect(seq.quality).toEqualSequence("IIIIIIII");
       expect(seq.qualityEncoding).toBe("phred33");
     });
 
@@ -651,9 +651,9 @@ describe("JSON Format - Edge Cases", () => {
   describe("Special Characters in IDs", () => {
     test("handles Unicode characters in sequence IDs", async () => {
       const sequences = [
-        { id: "seq_αβγ", sequence: "ATCG", length: 4, format: "fasta" as const },
-        { id: "seq_中文", sequence: "GCTA", length: 4, format: "fasta" as const },
-        { id: "seq_🧬", sequence: "TTAA", length: 4, format: "fasta" as const },
+        createFastaRecord({ id: "seq_αβγ", sequence: "ATCG" }),
+        createFastaRecord({ id: "seq_中文", sequence: "GCTA" }),
+        createFastaRecord({ id: "seq_🧬", sequence: "TTAA" }),
       ];
 
       const tempFile = "/tmp/genotype-test-unicode-ids.json";
@@ -667,14 +667,9 @@ describe("JSON Format - Edge Cases", () => {
 
     test("handles spaces and special chars in IDs", async () => {
       const sequences = [
-        { id: "seq with spaces", sequence: "ATCG", length: 4, format: "fasta" as const },
-        { id: "seq-with-dashes", sequence: "GCTA", length: 4, format: "fasta" as const },
-        {
-          id: "seq_with_underscores",
-          sequence: "TTAA",
-          length: 4,
-          format: "fasta" as const,
-        },
+        createFastaRecord({ id: "seq with spaces", sequence: "ATCG" }),
+        createFastaRecord({ id: "seq-with-dashes", sequence: "GCTA" }),
+        createFastaRecord({ id: "seq_with_underscores", sequence: "TTAA" }),
       ];
 
       const tempFile = "/tmp/genotype-test-special-chars.json";
@@ -687,13 +682,8 @@ describe("JSON Format - Edge Cases", () => {
 
     test("handles quotes in IDs (properly escaped)", async () => {
       const sequences = [
-        { id: 'seq"with"quotes', sequence: "ATCG", length: 4, format: "fasta" as const },
-        {
-          id: "seq'with'apostrophes",
-          sequence: "GCTA",
-          length: 4,
-          format: "fasta" as const,
-        },
+        createFastaRecord({ id: 'seq"with"quotes', sequence: "ATCG" }),
+        createFastaRecord({ id: "seq'with'apostrophes", sequence: "GCTA" }),
       ];
 
       const tempFile = "/tmp/genotype-test-quotes.json";
@@ -712,14 +702,7 @@ describe("JSON Format - Edge Cases", () => {
   describe("Very Long Sequences", () => {
     test("handles sequences over 100KB", async () => {
       const longSequence = "A".repeat(100000);
-      const sequences = [
-        {
-          id: "long_seq",
-          sequence: longSequence,
-          length: 100000,
-          format: "fasta" as const,
-        },
-      ];
+      const sequences = [createFastaRecord({ id: "long_seq", sequence: longSequence })];
 
       const tempFile = "/tmp/genotype-test-long-seq.json";
       await SeqOps.from(sequences).writeJSON(tempFile);
@@ -727,7 +710,7 @@ describe("JSON Format - Edge Cases", () => {
       const recovered = await SeqOps.fromJSON(tempFile).collect();
       expect(recovered).toHaveLength(1);
       expect(recovered[0]!.sequence).toHaveLength(100000);
-      expect(recovered[0]!.sequence).toBe(longSequence);
+      expect(recovered[0]!.sequence).toEqualSequence(longSequence);
     });
 
     test("handles multiple long sequences in JSONL", async () => {
@@ -735,8 +718,8 @@ describe("JSON Format - Edge Cases", () => {
       const longSeq2 = "GCTA".repeat(25000);
 
       const sequences = [
-        { id: "long1", sequence: longSeq1, length: 100000, format: "fasta" as const },
-        { id: "long2", sequence: longSeq2, length: 100000, format: "fasta" as const },
+        createFastaRecord({ id: "long1", sequence: longSeq1 }),
+        createFastaRecord({ id: "long2", sequence: longSeq2 }),
       ];
 
       const tempFile = "/tmp/genotype-test-long-jsonl.jsonl";
@@ -761,9 +744,7 @@ describe("JSON Format - Edge Cases", () => {
     });
 
     test("handles single sequence", async () => {
-      const sequences = [
-        { id: "only_one", sequence: "ATCGATCG", length: 8, format: "fasta" as const },
-      ];
+      const sequences = [createFastaRecord({ id: "only_one", sequence: "ATCGATCG" })];
 
       const tempFile = "/tmp/genotype-test-single.json";
       await SeqOps.from(sequences).writeJSON(tempFile);
@@ -825,7 +806,7 @@ describe("JSON Format - Edge Cases", () => {
 
   describe("Computed Columns with NaN/Infinity", () => {
     test("handles NaN in computed columns", async () => {
-      const sequences = [{ id: "seq1", sequence: "NNNN", length: 4, format: "fasta" as const }];
+      const sequences = [createFastaRecord({ id: "seq1", sequence: "NNNN" })];
 
       const tempFile = "/tmp/genotype-test-nan.json";
       await SeqOps.from(sequences).writeJSON(tempFile, {
@@ -839,7 +820,7 @@ describe("JSON Format - Edge Cases", () => {
     });
 
     test("pretty printing works with special values", async () => {
-      const sequences = [{ id: "seq1", sequence: "ATCG", length: 4, format: "fasta" as const }];
+      const sequences = [createFastaRecord({ id: "seq1", sequence: "ATCG" })];
 
       const tempFile = "/tmp/genotype-test-pretty.json";
       await SeqOps.from(sequences).writeJSON(tempFile, {

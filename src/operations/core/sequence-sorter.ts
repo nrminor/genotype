@@ -55,6 +55,7 @@
  *
  */
 
+import { createFastaRecord, createFastqRecord } from "../../constructors";
 import type { AbstractSequence, FastqSequence, QualityEncoding } from "../../types";
 import { ExternalSorter } from "./memory";
 import { calculateAverageQuality } from "./quality";
@@ -497,34 +498,22 @@ export class SequenceSorter {
       const obj = JSON.parse(line);
 
       if ("q" in obj) {
-        // FASTQ
-        const fastq: FastqSequence = {
+        return createFastqRecord({
           id: obj.id,
           sequence: obj.s,
           quality: obj.q,
           description: obj.d,
-          format: "fastq",
           qualityEncoding: this.options.qualityEncoding,
-          length: obj.s.length,
-        };
-        return fastq;
+        });
       } else {
-        // FASTA
-        const fasta: AbstractSequence = {
+        return createFastaRecord({
           id: obj.id,
           sequence: obj.s,
           description: obj.d,
-          length: obj.s.length,
-        };
-        return fasta;
+        });
       }
     } catch {
-      // Fallback for malformed data
-      return {
-        id: "unknown",
-        sequence: "",
-        length: 0,
-      };
+      return createFastaRecord({ id: "unknown", sequence: "" });
     }
   }
 

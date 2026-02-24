@@ -34,6 +34,19 @@ describe("GenotypeString", () => {
       expect(gs.length).toBe(0);
       expect(gs.toString()).toBe("");
     });
+
+    test("fromString is idempotent — returns existing GenotypeString as-is", () => {
+      const gs = GenotypeString.fromString("ATCG");
+      const same = GenotypeString.fromString(gs);
+      expect(same).toBe(gs); // same reference, not a copy
+    });
+
+    test("fromString idempotent with bytes-backed instance", () => {
+      const gs = GenotypeString.fromBytes(new TextEncoder().encode("ATCG"));
+      const same = GenotypeString.fromString(gs);
+      expect(same).toBe(gs);
+      expect(same.toString()).toBe("ATCG");
+    });
   });
 
   describe("length", () => {
@@ -661,9 +674,18 @@ describe("GenotypeString", () => {
       const gsBytes = GenotypeString.fromBytes(new TextEncoder().encode(str));
 
       const cases: [number, number | undefined][] = [
-        [0, 4], [2, 6], [4, undefined], [0, 0], [0, 100],
-        [-5, 3], [6, 2], [NaN, 3],
-        [1.9, 5.1], [-1.9, 3], [Infinity, 3], [0, Infinity],
+        [0, 4],
+        [2, 6],
+        [4, undefined],
+        [0, 0],
+        [0, 100],
+        [-5, 3],
+        [6, 2],
+        [NaN, 3],
+        [1.9, 5.1],
+        [-1.9, 3],
+        [Infinity, 3],
+        [0, Infinity],
       ];
 
       for (const [start, end] of cases) {

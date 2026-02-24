@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import "../matchers";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -496,7 +497,7 @@ GGGGGGGGGGGGGGGG
 
       expect(chr1.format).toBe("fasta");
       expect(chr1.id).toBe("chr1");
-      expect(chr1.sequence).toBe(
+      expect(chr1.sequence).toEqualSequence(
         "ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT"
       );
       expect(chr1.length).toBe(64);
@@ -508,12 +509,12 @@ GGGGGGGGGGGGGGGG
 
       const chr2 = await faidx.extract("chr2");
       expect(chr2.id).toBe("chr2");
-      expect(chr2.sequence).toBe("TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT");
+      expect(chr2.sequence).toEqualSequence("TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT");
       expect(chr2.length).toBe(32);
 
       const chrM = await faidx.extract("chrM");
       expect(chrM.id).toBe("chrM");
-      expect(chrM.sequence).toBe("GGGGGGGGGGGGGGGG");
+      expect(chrM.sequence).toEqualSequence("GGGGGGGGGGGGGGGG");
       expect(chrM.length).toBe(16);
     });
 
@@ -541,7 +542,7 @@ GGGGGGGGGGGGGGGG
 
       const region = await faidx.extract("chr1:1-8");
       expect(region.id).toBe("chr1:1-8");
-      expect(region.sequence).toBe("ACGTACGT");
+      expect(region.sequence).toEqualSequence("ACGTACGT");
       expect(region.length).toBe(8);
     });
 
@@ -551,7 +552,7 @@ GGGGGGGGGGGGGGGG
 
       const base = await faidx.extract("chr1:1");
       expect(base.id).toBe("chr1:1-1");
-      expect(base.sequence).toBe("A");
+      expect(base.sequence).toEqualSequence("A");
       expect(base.length).toBe(1);
     });
 
@@ -561,7 +562,7 @@ GGGGGGGGGGGGGGGG
 
       const tail = await faidx.extract("chr1:60-");
       expect(tail.id).toBe("chr1:60-64");
-      expect(tail.sequence).toBe("TACGT");
+      expect(tail.sequence).toEqualSequence("TACGT");
       expect(tail.length).toBe(5);
     });
 
@@ -571,7 +572,7 @@ GGGGGGGGGGGGGGGG
 
       const head = await faidx.extract("chr1:-5");
       expect(head.id).toBe("chr1:1-5");
-      expect(head.sequence).toBe("ACGTA");
+      expect(head.sequence).toEqualSequence("ACGTA");
       expect(head.length).toBe(5);
     });
 
@@ -581,7 +582,7 @@ GGGGGGGGGGGGGGGG
 
       const lastFour = await faidx.extract("chr1:-4:-1");
       expect(lastFour.id).toBe("chr1:61-64");
-      expect(lastFour.sequence).toBe("ACGT");
+      expect(lastFour.sequence).toEqualSequence("ACGT");
       expect(lastFour.length).toBe(4);
     });
 
@@ -591,7 +592,7 @@ GGGGGGGGGGGGGGGG
 
       const spanning = await faidx.extract("chr1:30-35");
       expect(spanning.id).toBe("chr1:30-35");
-      expect(spanning.sequence).toBe("CGTACG");
+      expect(spanning.sequence).toEqualSequence("CGTACG");
       expect(spanning.length).toBe(6);
     });
 
@@ -624,7 +625,7 @@ GGGGGGGGGGGGGGGG
       // Reverse complement of "ACGTAC" = "GTACGT"
       const rc = await faidx.extract("chr1:10-5");
       expect(rc.id).toBe("chr1:10-5");
-      expect(rc.sequence).toBe("GTACGT");
+      expect(rc.sequence).toEqualSequence("GTACGT");
       expect(rc.length).toBe(6);
     });
 
@@ -646,7 +647,7 @@ GGGGGGGGGGGGGGGG
       // Reverse complement of "ACGTAC" = "GTACGT"
       const rc = await faidx.extract("chr1:10-5");
       expect(rc.id).toBe("chr1:10-5");
-      expect(rc.sequence).toBe("GTACGT");
+      expect(rc.sequence).toEqualSequence("GTACGT");
       expect(rc.length).toBe(6);
     });
 
@@ -656,12 +657,12 @@ GGGGGGGGGGGGGGGG
 
       // chr1:1 = "A", reverse complement = "T"
       const rc = await faidx.extract("chr1:1-1");
-      expect(rc.sequence).toBe("A");
+      expect(rc.sequence).toEqualSequence("A");
 
       // But when reversed: chr1:1-1 is same as chr1:1
       // Single base doesn't trigger reverse complement (start == end after swap)
       const forward = await faidx.extract("chr1:1");
-      expect(forward.sequence).toBe("A");
+      expect(forward.sequence).toEqualSequence("A");
     });
 
     test("extracts reverse complement with negative indices", async () => {
@@ -673,7 +674,7 @@ GGGGGGGGGGGGGGGG
       // Reverse complement should be "ACGT" (palindrome)
       const rc = await faidx.extract("chr1:-1:-4");
       expect(rc.id).toBe("chr1:-1:-4");
-      expect(rc.sequence).toBe("ACGT");
+      expect(rc.sequence).toEqualSequence("ACGT");
       expect(rc.length).toBe(4);
     });
 
@@ -684,7 +685,7 @@ GGGGGGGGGGGGGGGG
       // chr1:35-30 should extract chr1:30-35 and reverse complement
       const rc = await faidx.extract("chr1:35-30");
       expect(rc.id).toBe("chr1:35-30");
-      expect(rc.sequence).toBe("CGTACG"); // Palindrome
+      expect(rc.sequence).toEqualSequence("CGTACG"); // Palindrome
       expect(rc.length).toBe(6);
     });
 
@@ -708,11 +709,11 @@ GGGGGGGGGGGGGGGG
 
       expect(sequences).toHaveLength(3);
       expect(sequences[0]!.id).toBe("chr1:1-8");
-      expect(sequences[0]!.sequence).toBe("ACGTACGT");
+      expect(sequences[0]!.sequence).toEqualSequence("ACGTACGT");
       expect(sequences[1]!.id).toBe("chr2:1-10");
-      expect(sequences[1]!.sequence).toBe("TTTTTTTTTT");
+      expect(sequences[1]!.sequence).toEqualSequence("TTTTTTTTTT");
       expect(sequences[2]!.id).toBe("chrM:1-5");
-      expect(sequences[2]!.sequence).toBe("GGGGG");
+      expect(sequences[2]!.sequence).toEqualSequence("GGGGG");
     });
 
     test("returns results in order", async () => {

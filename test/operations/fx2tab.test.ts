@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import "../matchers";
 import { rm } from "node:fs/promises";
+import { createFastaRecord, createFastqRecord } from "../../src/constructors";
 import { FileError } from "../../src/errors";
 import { seqops } from "../../src/operations";
 import { baseContent, baseCount, sequenceAlphabet } from "../../src/operations/core/calculations";
@@ -8,26 +10,18 @@ import { type ColumnId, type Fx2TabRow, fx2tab, TabularOps } from "../../src/ope
 import type { AbstractSequence } from "../../src/types";
 
 describe("fx2tab", () => {
+  const createFasta = (id: string, sequence: string, description?: string) =>
+    createFastaRecord({ id, sequence, description });
+
   const testSequences: AbstractSequence[] = [
-    {
-      id: "seq1",
-      sequence: "ATCGATCG",
-      length: 8,
-      description: "test sequence 1",
-    },
-    {
-      id: "SEPT1",
-      sequence: "GCTAGCTA",
-      length: 8,
-      description: "septin gene",
-    },
-    {
+    createFasta("seq1", "ATCGATCG", "test sequence 1"),
+    createFasta("SEPT1", "GCTAGCTA", "septin gene"),
+    createFastqRecord({
       id: "seq3",
       sequence: "ATGC",
-      length: 4,
       quality: "IIII",
       qualityEncoding: "phred33", // FASTQ-specific fields
-    } as AbstractSequence,
+    }),
   ];
 
   async function* asyncSequences() {
@@ -130,7 +124,7 @@ describe("fx2tab", () => {
 
     test("works with empty sequences", async () => {
       async function* emptyGen() {
-        yield { id: "empty", sequence: "", length: 0 } as AbstractSequence;
+        yield createFasta("empty", "");
       }
 
       const rows: string[] = [];
@@ -149,7 +143,7 @@ describe("fx2tab", () => {
   describe("SeqKit fx2tab column parity", () => {
     // Helper to create async sequence generators
     function* sequences() {
-      yield { id: "seq1", sequence: "ATCGATCGNNatcg", description: "test", length: 14 };
+      yield createFasta("seq1", "ATCGATCGNNatcg", "test");
     }
 
     async function* asyncSeqKitSequences() {
@@ -158,7 +152,7 @@ describe("fx2tab", () => {
 
     describe("static new columns", () => {
       test("alphabet column extracts unique characters", async () => {
-        const rows = [];
+        const rows: Fx2TabRow<readonly string[]>[] = [];
         for await (const row of fx2tab(asyncSeqKitSequences(), {
           columns: ["id", "alphabet"],
           header: false,
@@ -173,7 +167,7 @@ describe("fx2tab", () => {
       });
 
       test("seq_hash column generates consistent MD5", async () => {
-        const rows = [];
+        const rows: Fx2TabRow<readonly string[]>[] = [];
         for await (const row of fx2tab(asyncSeqKitSequences(), {
           columns: ["id", "seq_hash"],
           header: false,
@@ -190,7 +184,7 @@ describe("fx2tab", () => {
 
     describe("dynamic columns", () => {
       test("baseContent creates percentage columns", async () => {
-        const rows = [];
+        const rows: Fx2TabRow<readonly string[]>[] = [];
         for await (const row of fx2tab(asyncSeqKitSequences(), {
           baseContent: ["AT", "GC", "N"],
           header: false,
@@ -214,7 +208,7 @@ describe("fx2tab", () => {
       });
 
       test("baseCount creates count columns", async () => {
-        const rows = [];
+        const rows: Fx2TabRow<readonly string[]>[] = [];
         for await (const row of fx2tab(asyncSeqKitSequences(), {
           baseCount: ["AT", "GC", "N"],
           header: false,
@@ -243,7 +237,7 @@ describe("fx2tab", () => {
         const testSeq = "ATCGatcg";
 
         function* caseTestSequences() {
-          yield { id: "test", sequence: testSeq, length: 8 };
+          yield createFasta("test", testSeq);
         }
 
         async function* asyncCaseTest() {
@@ -251,7 +245,7 @@ describe("fx2tab", () => {
         }
 
         // Case insensitive (default)
-        const insensitiveRows = [];
+        const insensitiveRows: Fx2TabRow<readonly string[]>[] = [];
         for await (const row of fx2tab(asyncCaseTest(), {
           columns: ["alphabet", "seq_hash"],
           baseContent: ["AT"],
@@ -262,7 +256,7 @@ describe("fx2tab", () => {
         }
 
         // Case sensitive
-        const sensitiveRows = [];
+        const sensitiveRows: Fx2TabRow<readonly string[]>[] = [];
         for await (const row of fx2tab(asyncCaseTest(), {
           columns: ["alphabet", "seq_hash"],
           baseContent: ["AT"],
@@ -289,7 +283,7 @@ describe("fx2tab", () => {
 
     describe("round-trip preservation", () => {
       test("new columns don't interfere with core data", async () => {
-        const rows = [];
+        const rows: Fx2TabRow<readonly string[]>[] = [];
         for await (const row of fx2tab(asyncSeqKitSequences(), {
           columns: ["id", "sequence", "description", "alphabet", "seq_hash"],
           baseContent: ["AT"],
@@ -303,7 +297,7 @@ describe("fx2tab", () => {
 
         // Core data must be preserved exactly
         expect(dataRow.id).toBe("seq1");
-        expect(dataRow.sequence).toBe("ATCGATCGNNatcg");
+        expect(dataRow.sequence).toEqualSequence("ATCGATCGNNatcg");
         expect(dataRow.description).toBe("test");
 
         // Computed columns are present
@@ -316,7 +310,7 @@ describe("fx2tab", () => {
       });
 
       test("headers format correctly for all column types", async () => {
-        const rows = [];
+        const rows: Fx2TabRow<readonly string[]>[] = [];
         for await (const row of fx2tab(asyncSeqKitSequences(), {
           columns: ["id", "alphabet", "seq_hash"],
           baseContent: ["AT", "GC"],
@@ -343,7 +337,7 @@ describe("fx2tab", () => {
 
     describe("formatting", () => {
       test("base_content uses precision, base_count is integer", async () => {
-        const rows = [];
+        const rows: Fx2TabRow<readonly string[]>[] = [];
         for await (const row of fx2tab(asyncSeqKitSequences(), {
           baseContent: ["AT"],
           baseCount: ["AT"],
@@ -373,7 +367,7 @@ describe("fx2tab", () => {
 
   describe("SeqOps integration", () => {
     test("works with fx2tab function directly", async () => {
-      const rows = [];
+      const rows: Fx2TabRow<readonly string[]>[] = [];
       for await (const row of fx2tab(asyncSequences(), {
         columns: ["id", "length", "gc"],
         header: false,
@@ -412,12 +406,10 @@ describe("fx2tab", () => {
 
       expect(toTabularResults).toEqual(fx2tabResults);
       expect(toTabularResults).toHaveLength(3);
-      expect(toTabularResults[0]).toMatchObject({
-        id: "seq1",
-        sequence: "ATCGATCG",
-        length: 8,
-        gc: 50,
-      });
+      expect(toTabularResults[0]!.id).toBe("seq1");
+      expect(toTabularResults[0]!.sequence).toEqualSequence("ATCGATCG");
+      expect(toTabularResults[0]!.length).toBe(8);
+      expect(toTabularResults[0]!.gc).toBe(50);
     });
 
     test("toTabular() works with default columns", async () => {
@@ -426,11 +418,9 @@ describe("fx2tab", () => {
       // Default includes header
       expect(result).toHaveLength(4);
       // Check first data row
-      expect(result[1]).toMatchObject({
-        id: "seq1",
-        sequence: "ATCGATCG",
-        length: 8,
-      });
+      expect(result[1]!.id).toBe("seq1");
+      expect(result[1]!.__raw).toContain("ATCGATCG");
+      expect(result[1]!.length).toBe(8);
     });
 
     test("toTabular() supports custom columns", async () => {
@@ -445,11 +435,9 @@ describe("fx2tab", () => {
         .toArray();
 
       expect(result).toHaveLength(3);
-      expect(result[0]).toMatchObject({
-        id: "seq1",
-        gc: 50,
-        custom: "seq1_custom",
-      });
+      expect(result[0]!.id).toBe("seq1");
+      expect(result[0]!.gc).toBe(50);
+      expect(result[0]!.custom).toBe("seq1_custom");
     });
   });
 
@@ -505,11 +493,7 @@ describe("fx2tab", () => {
   describe("Edge case coverage", () => {
     test("handles sequences with special characters", async () => {
       async function* specialSeqs() {
-        yield {
-          id: "seq\twith\ttabs",
-          sequence: "ATCG",
-          description: "has\ttabs",
-        } as AbstractSequence;
+        yield createFasta("seq\twith\ttabs", "ATCG", "has\ttabs");
       }
 
       const rows: string[] = [];
@@ -526,11 +510,7 @@ describe("fx2tab", () => {
 
     test("handles null/undefined fields", async () => {
       async function* incompleteSeqs() {
-        yield {
-          id: "seq1",
-          sequence: "ATCG",
-          length: 4,
-        } as AbstractSequence;
+        yield createFasta("seq1", "ATCG");
       }
 
       const rows: string[] = [];
@@ -547,14 +527,10 @@ describe("fx2tab", () => {
     test("handles very large sequences", async () => {
       const largeSeq = "ATCG".repeat(250000); // 1MB sequence
       async function* largeSeqs() {
-        yield {
-          id: "large",
-          sequence: largeSeq,
-          length: largeSeq.length,
-        } as AbstractSequence;
+        yield createFasta("large", largeSeq);
       }
 
-      const rows = [];
+      const rows: Fx2TabRow<readonly string[]>[] = [];
       for await (const row of fx2tab(largeSeqs(), {
         columns: ["id", "length"],
         header: false,
@@ -567,15 +543,10 @@ describe("fx2tab", () => {
 
     test("handles custom sequence formats", async () => {
       async function* customSeqs() {
-        yield {
-          format: "custom",
-          id: "custom1",
-          sequence: "ATCG",
-          length: 4,
-        } as AbstractSequence;
+        yield createFasta("custom1", "ATCG");
       }
 
-      const rows = [];
+      const rows: Fx2TabRow<readonly string[]>[] = [];
       for await (const row of fx2tab(customSeqs(), {
         columns: ["id", "sequence"],
         header: false,
@@ -590,11 +561,11 @@ describe("fx2tab", () => {
   describe("Round-trip preservation (Step 7.4)", () => {
     test("maintains Excel protection through round-trip", async () => {
       async function* geneSeqs() {
-        yield { id: "SEPT1", sequence: "ATCG" } as AbstractSequence;
-        yield { id: "MARCH1", sequence: "GCTA" } as AbstractSequence;
+        yield createFasta("SEPT1", "ATCG");
+        yield createFasta("MARCH1", "GCTA");
       }
 
-      const protectedRows = [];
+      const protectedRows: Fx2TabRow<readonly string[]>[] = [];
       for await (const row of fx2tab(geneSeqs(), {
         columns: ["id", "sequence"],
         excelSafe: true,
@@ -615,7 +586,7 @@ describe("fx2tab", () => {
         yield { length: 0 } as unknown as AbstractSequence;
       }
 
-      const rows = [];
+      const rows: Fx2TabRow<readonly string[]>[] = [];
       for await (const row of fx2tab(seqs(), {
         columns: ["id", "sequence"],
         header: false,
@@ -627,7 +598,7 @@ describe("fx2tab", () => {
     });
 
     test("validates column names", async () => {
-      const rows = [];
+      const rows: Fx2TabRow<readonly string[]>[] = [];
       for await (const row of fx2tab(asyncSequences(), {
         columns: ["id", "invalid_column" as unknown as ColumnId],
         header: false,
@@ -641,11 +612,11 @@ describe("fx2tab", () => {
 
     test("handles streaming errors", async () => {
       async function* errorGen() {
-        yield { id: "seq1", sequence: "ATCG" } as AbstractSequence;
+        yield createFasta("seq1", "ATCG");
         throw new Error("Stream error");
       }
 
-      const rows = [];
+      const rows: Fx2TabRow<readonly string[]>[] = [];
       try {
         for await (const row of fx2tab(errorGen())) {
           rows.push(row);
@@ -672,14 +643,12 @@ describe("fx2tab", () => {
 
   describe("Quality encoding support", () => {
     test("handles Solexa encoding with min_qual and max_qual columns", async () => {
-      const solexaSeq = {
+      const solexaSeq = createFastqRecord({
         id: "solexa_seq",
         sequence: "ATCG",
-        length: 4,
         quality: ";@AB", // Solexa: -5, 0, 1, 2
-        qualityEncoding: "solexa" as const,
-        format: "fastq" as const,
-      };
+        qualityEncoding: "solexa",
+      });
 
       async function* solexaSequences() {
         yield solexaSeq;
@@ -700,14 +669,12 @@ describe("fx2tab", () => {
     });
 
     test("handles Phred33 encoding with quality columns", async () => {
-      const phred33Seq = {
+      const phred33Seq = createFastqRecord({
         id: "phred33_seq",
         sequence: "ATCG",
-        length: 4,
         quality: "!+5?", // Phred33: 0, 10, 20, 30
-        qualityEncoding: "phred33" as const,
-        format: "fastq" as const,
-      };
+        qualityEncoding: "phred33",
+      });
 
       async function* phred33Sequences() {
         yield phred33Seq;
@@ -726,14 +693,12 @@ describe("fx2tab", () => {
     });
 
     test("handles Phred64 encoding with quality columns", async () => {
-      const phred64Seq = {
+      const phred64Seq = createFastqRecord({
         id: "phred64_seq",
         sequence: "ATCG",
-        length: 4,
         quality: "@JT^", // Phred64: 0, 10, 20, 30
-        qualityEncoding: "phred64" as const,
-        format: "fastq" as const,
-      };
+        qualityEncoding: "phred64",
+      });
 
       async function* phred64Sequences() {
         yield phred64Seq;

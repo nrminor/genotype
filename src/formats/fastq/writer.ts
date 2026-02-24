@@ -10,6 +10,7 @@
 
 import { type } from "arktype";
 import { ValidationError } from "../../errors";
+import { createFastqRecord } from "../../constructors";
 import { qualityToScores, scoresToQuality } from "../../operations/core/quality";
 import type { FastqSequence, QualityEncoding } from "../../types";
 import { PARSING_DEFAULTS } from "./constants";
@@ -299,7 +300,7 @@ export class FastqWriter {
     const quality = this.convertQuality(sequence);
 
     // Assemble the complete record
-    return assembleFastqRecord(header, sequence.sequence, separator, quality);
+    return assembleFastqRecord(header, sequence.sequence.toString(), separator, quality);
   }
 
   /**
@@ -313,7 +314,7 @@ export class FastqWriter {
     const separator = this.formatPlatformSeparator(sequence);
 
     // Chunk the sequence into lines of specified width
-    const seqChunks = chunkSequence(sequence.sequence, this.lineLength);
+    const seqChunks = chunkSequence(sequence.sequence.toString(), this.lineLength);
 
     // Convert and chunk the quality string
     const quality = this.convertQuality(sequence);
@@ -335,7 +336,7 @@ export class FastqWriter {
           `[FastqWriter] Quality encoding: no conversion needed (${this.qualityEncoding})`
         );
       }
-      return sequence.quality;
+      return sequence.quality.toString();
     }
 
     if (this.debug) {
@@ -408,18 +409,14 @@ export class FastqWriter {
 
     const [, id, description] = headerMatch;
 
-    // Create a FastqSequence object for validation
-    const reconstructed: Partial<FastqSequence> = {
-      format: "fastq",
+    const reconstructed = createFastqRecord({
       id: id || "",
-      ...(description !== undefined && { description }),
+      description,
       sequence,
       quality,
       qualityEncoding: this.qualityEncoding,
-      length: sequence.length,
-    };
+    });
 
-    // Use the same validation function as the parser
     const result = validateFastqRecord(reconstructed, this.validationLevel);
 
     if (!result.valid) {

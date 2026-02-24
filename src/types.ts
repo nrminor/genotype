@@ -12,10 +12,38 @@ import {
   ChromosomeNamingError,
   CigarValidationError,
   GenomicCoordinateError,
+  QualityError,
   ResourceLimitError,
   SecurityPathError,
+  SequenceError,
   ValidationError,
 } from "./errors";
+import { GenotypeString } from "./genotype-string";
+
+/**
+ * ArkType validators that accept both plain strings and GenotypeString.
+ *
+ * ArkType's built-in `"string"` and `"string>0"` constraints use
+ * `typeof x === "string"` internally, which returns false for GenotypeString
+ * instances. These union types teach ArkType to accept either representation
+ * without forcing a conversion between them.
+ */
+export const stringLike = type("string").or(
+  type("unknown")
+    .narrow(
+      (value): value is GenotypeString => value instanceof GenotypeString
+    )
+    .describe("a GenotypeString")
+);
+
+export const nonEmptyStringLike = type("string > 0").or(
+  type("unknown")
+    .narrow(
+      (value): value is GenotypeString =>
+        value instanceof GenotypeString && value.length > 0
+    )
+    .describe("a non-empty GenotypeString")
+);
 
 /**
  * Helper functions for validation to reduce nesting
@@ -30,7 +58,7 @@ export interface AbstractSequence {
   /** Optional description/comment line */
   readonly description?: string;
   /** The actual sequence data */
-  readonly sequence: string;
+  readonly sequence: GenotypeString;
   /** Cached sequence length for performance */
   readonly length: number;
   /** Original line number where this sequence started (for error reporting) */
@@ -44,7 +72,7 @@ export interface AbstractSequence {
  */
 export interface FASTXSequence extends AbstractSequence {
   /** Quality scores as ASCII string (present if FASTQ) */
-  readonly quality?: string;
+  readonly quality?: GenotypeString;
   /** Quality encoding system (present if FASTQ) */
   readonly qualityEncoding?: QualityEncoding;
   /** Computed sequence statistics */
@@ -90,8 +118,8 @@ export type QualityEncoding = (typeof QualityEncoding)[keyof typeof QualityEncod
  */
 export interface FastqSequence extends FASTXSequence {
   readonly format: "fastq";
-  /** Quality scores as ASCII string - required for FASTQ */
-  readonly quality: string;
+  /** Quality scores - required for FASTQ */
+  readonly quality: GenotypeString;
   /** Quality encoding system detected or specified - required for FASTQ */
   readonly qualityEncoding: QualityEncoding;
   /** Parsed numeric quality scores (lazy-loaded) */
@@ -235,8 +263,8 @@ export interface SAMAlignment {
   readonly rnext: string; // Reference name of mate
   readonly pnext: number; // Position of mate
   readonly tlen: number; // Template length
-  readonly seq: string; // Segment sequence
-  readonly qual: string; // Quality scores (Phred+33)
+  readonly seq: GenotypeString; // Segment sequence
+  readonly qual: GenotypeString; // Quality scores (Phred+33)
   readonly tags?: SAMTag[]; // Optional fields
   readonly lineNumber?: number;
 }
@@ -265,9 +293,9 @@ export interface SamRecord {
   /** Observed template length */
   readonly tlen: number;
   /** Segment sequence */
-  readonly seq: string;
+  readonly seq: GenotypeString;
   /** ASCII of Phred-scaled base quality+33 */
-  readonly qual: string;
+  readonly qual: GenotypeString;
   /** Optional fields */
   readonly tags: Record<string, unknown>;
   /** Original line number for error reporting */
@@ -643,7 +671,7 @@ export const SequenceSchema = type("string").pipe((seq: string) => {
 
   if (!validPattern.test(cleaned)) {
     const invalidChars = cleaned.match(/[^ACGTURYSWKMBDHVN\-.*]/g);
-    throw new Error(`Invalid sequence characters: ${invalidChars?.join(", ")}`);
+    throw new SequenceError(`Invalid sequence characters: ${invalidChars?.join(", ")}`);
   }
 
   return cleaned;
@@ -662,7 +690,11 @@ export const QualitySchema = type({
   for (let i = 0; i < quality.length; i++) {
     const ascii = quality.charCodeAt(i);
     if (ascii < minChar || ascii > maxChar) {
-      throw new Error(`Invalid quality character '${quality[i]}' (ASCII ${ascii}) for ${encoding}`);
+      throw new QualityError(
+        `Invalid quality character '${quality[i]}' (ASCII ${ascii}) for ${encoding}`,
+        undefined,
+        encoding
+      );
     }
   }
 
@@ -759,8 +791,9 @@ export const FastaSequenceSchema = type({
 }).pipe((fasta) => {
   // Validate sequence length matches actual length
   if (fasta.sequence.length !== fasta.length) {
-    throw new Error(
-      `Sequence length mismatch: declared ${fasta.length}, actual ${fasta.sequence.length}`
+    throw new SequenceError(
+      `Length mismatch: declared ${fasta.length}, actual ${fasta.sequence.length}`,
+      fasta.id
     );
   }
 
@@ -796,8 +829,10 @@ export const FastqSequenceSchema = type({
 }).pipe((fastq) => {
   // Validate sequence and quality lengths match
   if (fastq.sequence.length !== fastq.quality.length) {
-    throw new Error(
-      `Sequence/quality length mismatch: seq=${fastq.sequence.length}, qual=${fastq.quality.length}`
+    throw new QualityError(
+      `Sequence/quality length mismatch: seq=${fastq.sequence.length}, qual=${fastq.quality.length}`,
+      fastq.id,
+      fastq.qualityEncoding
     );
   }
 

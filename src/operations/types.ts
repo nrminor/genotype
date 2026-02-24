@@ -1287,7 +1287,7 @@ export class SequenceSet<T extends AbstractSequence = AbstractSequence> {
     if (typeof sequenceOrKey === "string") {
       return this.sequences.has(sequenceOrKey);
     }
-    return this.sequences.has(sequenceOrKey.sequence);
+    return this.sequences.has(sequenceOrKey.sequence.toString());
   }
 
   get(key: string): T | undefined {

@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import "../matchers";
+import { createFastaRecord, createFastqRecord } from "../../src/constructors";
 import { seqops } from "../../src/operations";
 import { UniqueProcessor } from "../../src/operations/unique";
 import type { AbstractSequence, FastqSequence } from "../../src/types";
@@ -10,12 +12,43 @@ describe("UniqueProcessor", () => {
     }
   }
 
+  function createSequence(
+    id: string,
+    sequence: string,
+    lineNumber?: number,
+    description?: string
+  ): AbstractSequence {
+    return createFastaRecord({
+      id,
+      sequence,
+      ...(lineNumber !== undefined && { lineNumber }),
+      ...(description !== undefined && { description }),
+    });
+  }
+
+  function createFastq(
+    id: string,
+    sequence: string,
+    quality: string,
+    lineNumber?: number,
+    description?: string
+  ): FastqSequence {
+    return createFastqRecord({
+      id,
+      sequence,
+      quality,
+      qualityEncoding: "phred33",
+      ...(lineNumber !== undefined && { lineNumber }),
+      ...(description !== undefined && { description }),
+    });
+  }
+
   describe("basic deduplication", () => {
     test("removes duplicate sequences (by sequence content)", async () => {
       const sequences: AbstractSequence[] = [
-        { id: "seq1", sequence: "ATCG", length: 4, lineNumber: 1, description: "" },
-        { id: "seq2", sequence: "ATCG", length: 4, lineNumber: 2, description: "" },
-        { id: "seq3", sequence: "GCTA", length: 4, lineNumber: 3, description: "" },
+        createSequence("seq1", "ATCG", 1, ""),
+        createSequence("seq2", "ATCG", 2, ""),
+        createSequence("seq3", "GCTA", 3, ""),
       ];
 
       const processor = new UniqueProcessor();
@@ -31,9 +64,9 @@ describe("UniqueProcessor", () => {
 
     test("removes duplicate IDs (by id)", async () => {
       const sequences: AbstractSequence[] = [
-        { id: "seq1", sequence: "ATCG", length: 4, lineNumber: 1, description: "" },
-        { id: "seq1", sequence: "GCTA", length: 4, lineNumber: 2, description: "" },
-        { id: "seq2", sequence: "TTTT", length: 4, lineNumber: 3, description: "" },
+        createSequence("seq1", "ATCG", 1, ""),
+        createSequence("seq1", "GCTA", 2, ""),
+        createSequence("seq2", "TTTT", 3, ""),
       ];
 
       const processor = new UniqueProcessor();
@@ -44,16 +77,16 @@ describe("UniqueProcessor", () => {
 
       expect(result.length).toBe(2);
       expect(result[0]!.id).toBe("seq1");
-      expect(result[0]!.sequence).toBe("ATCG");
+      expect(result[0]!.sequence).toEqualSequence("ATCG");
       expect(result[1]!.id).toBe("seq2");
     });
 
     test("deduplicates by both id and sequence", async () => {
       const sequences: AbstractSequence[] = [
-        { id: "seq1", sequence: "ATCG", length: 4, lineNumber: 1, description: "" },
-        { id: "seq1", sequence: "ATCG", length: 4, lineNumber: 2, description: "" },
-        { id: "seq1", sequence: "GCTA", length: 4, lineNumber: 3, description: "" },
-        { id: "seq2", sequence: "ATCG", length: 4, lineNumber: 4, description: "" },
+        createSequence("seq1", "ATCG", 1, ""),
+        createSequence("seq1", "ATCG", 2, ""),
+        createSequence("seq1", "GCTA", 3, ""),
+        createSequence("seq2", "ATCG", 4, ""),
       ];
 
       const processor = new UniqueProcessor();
@@ -64,9 +97,9 @@ describe("UniqueProcessor", () => {
 
       expect(result.length).toBe(3);
       expect(result[0]!.id).toBe("seq1");
-      expect(result[0]!.sequence).toBe("ATCG");
+      expect(result[0]!.sequence).toEqualSequence("ATCG");
       expect(result[1]!.id).toBe("seq1");
-      expect(result[1]!.sequence).toBe("GCTA");
+      expect(result[1]!.sequence).toEqualSequence("GCTA");
       expect(result[2]!.id).toBe("seq2");
     });
   });
@@ -74,8 +107,8 @@ describe("UniqueProcessor", () => {
   describe("conflict resolution strategies", () => {
     test("keeps first occurrence (default)", async () => {
       const sequences: AbstractSequence[] = [
-        { id: "first", sequence: "ATCG", length: 4, lineNumber: 1, description: "first" },
-        { id: "second", sequence: "ATCG", length: 4, lineNumber: 2, description: "second" },
+        createSequence("first", "ATCG", 1, "first"),
+        createSequence("second", "ATCG", 2, "second"),
       ];
 
       const processor = new UniqueProcessor();
@@ -93,8 +126,8 @@ describe("UniqueProcessor", () => {
 
     test("keeps last occurrence", async () => {
       const sequences: AbstractSequence[] = [
-        { id: "first", sequence: "ATCG", length: 4, lineNumber: 1, description: "first" },
-        { id: "second", sequence: "ATCG", length: 4, lineNumber: 2, description: "second" },
+        createSequence("first", "ATCG", 1, "first"),
+        createSequence("second", "ATCG", 2, "second"),
       ];
 
       const processor = new UniqueProcessor();
@@ -112,8 +145,8 @@ describe("UniqueProcessor", () => {
 
     test("keeps longest sequence", async () => {
       const sequences: AbstractSequence[] = [
-        { id: "short", sequence: "ATCG", length: 4, lineNumber: 1, description: "" },
-        { id: "long", sequence: "ATCGAAAA", length: 8, lineNumber: 2, description: "" },
+        createSequence("short", "ATCG", 1, ""),
+        createSequence("long", "ATCGAAAA", 2, ""),
       ];
 
       const processor = new UniqueProcessor();
@@ -130,8 +163,8 @@ describe("UniqueProcessor", () => {
 
       // Now test with same ID
       const sameIdSeqs: AbstractSequence[] = [
-        { id: "seq1", sequence: "ATCG", length: 4, lineNumber: 1, description: "" },
-        { id: "seq1", sequence: "ATCGAAAA", length: 8, lineNumber: 2, description: "" },
+        createSequence("seq1", "ATCG", 1, ""),
+        createSequence("seq1", "ATCGAAAA", 2, ""),
       ];
 
       const result2: AbstractSequence[] = [];
@@ -144,31 +177,13 @@ describe("UniqueProcessor", () => {
 
       expect(result2.length).toBe(1);
       expect(result2[0]!.length).toBe(8);
-      expect(result2[0]!.sequence).toBe("ATCGAAAA");
+      expect(result2[0]!.sequence).toEqualSequence("ATCGAAAA");
     });
 
     test("keeps highest quality for FASTQ sequences", async () => {
       const sequences: FastqSequence[] = [
-        {
-          id: "low",
-          sequence: "ATCG",
-          quality: "!!!!", // Phred+33: 0,0,0,0 (avg=0)
-          length: 4,
-          lineNumber: 1,
-          description: "",
-          format: "fastq",
-          qualityEncoding: "phred33",
-        },
-        {
-          id: "high",
-          sequence: "ATCG",
-          quality: "IIII", // Phred+33: 40,40,40,40 (avg=40)
-          length: 4,
-          lineNumber: 2,
-          description: "",
-          format: "fastq",
-          qualityEncoding: "phred33",
-        },
+        createFastq("low", "ATCG", "!!!!", 1, ""), // Phred+33: 0,0,0,0 (avg=0)
+        createFastq("high", "ATCG", "IIII", 2, ""), // Phred+33: 40,40,40,40 (avg=40)
       ];
 
       const processor = new UniqueProcessor<FastqSequence>();
@@ -181,15 +196,15 @@ describe("UniqueProcessor", () => {
 
       expect(result.length).toBe(1);
       expect(result[0]!.id).toBe("high");
-      expect(result[0]!.quality).toBe("IIII");
+      expect(result[0]!.quality).toEqualSequence("IIII");
     });
   });
 
   describe("case sensitivity", () => {
     test("case-sensitive deduplication (default)", async () => {
       const sequences: AbstractSequence[] = [
-        { id: "seq1", sequence: "ATCG", length: 4, lineNumber: 1, description: "" },
-        { id: "seq2", sequence: "atcg", length: 4, lineNumber: 2, description: "" },
+        createSequence("seq1", "ATCG", 1, ""),
+        createSequence("seq2", "atcg", 2, ""),
       ];
 
       const processor = new UniqueProcessor();
@@ -205,8 +220,8 @@ describe("UniqueProcessor", () => {
 
     test("case-insensitive deduplication", async () => {
       const sequences: AbstractSequence[] = [
-        { id: "seq1", sequence: "ATCG", length: 4, lineNumber: 1, description: "" },
-        { id: "seq2", sequence: "atcg", length: 4, lineNumber: 2, description: "" },
+        createSequence("seq1", "ATCG", 1, ""),
+        createSequence("seq2", "atcg", 2, ""),
       ];
 
       const processor = new UniqueProcessor();
@@ -218,7 +233,7 @@ describe("UniqueProcessor", () => {
       }
 
       expect(result.length).toBe(1);
-      expect(result[0]!.sequence).toBe("ATCG");
+      expect(result[0]!.sequence).toEqualSequence("ATCG");
     });
   });
 
@@ -227,21 +242,21 @@ describe("UniqueProcessor", () => {
       const sequences: AbstractSequence[] = [
         {
           id: "sample1_read1",
-          sequence: "ATCG",
+          sequence: createFastaRecord({ id: "sample1_read1_seq", sequence: "ATCG" }).sequence,
           length: 4,
           lineNumber: 1,
           description: "",
         },
         {
           id: "sample1_read2",
-          sequence: "GCTA",
+          sequence: createFastaRecord({ id: "sample1_read2_seq", sequence: "GCTA" }).sequence,
           length: 4,
           lineNumber: 2,
           description: "",
         },
         {
           id: "sample2_read1",
-          sequence: "TTTT",
+          sequence: createFastaRecord({ id: "sample2_read1_seq", sequence: "TTTT" }).sequence,
           length: 4,
           lineNumber: 3,
           description: "",
@@ -277,9 +292,9 @@ describe("UniqueProcessor", () => {
 
     test("handles all duplicates", async () => {
       const sequences: AbstractSequence[] = [
-        { id: "seq1", sequence: "ATCG", length: 4, lineNumber: 1, description: "" },
-        { id: "seq2", sequence: "ATCG", length: 4, lineNumber: 2, description: "" },
-        { id: "seq3", sequence: "ATCG", length: 4, lineNumber: 3, description: "" },
+        createSequence("seq1", "ATCG", 1, ""),
+        createSequence("seq2", "ATCG", 2, ""),
+        createSequence("seq3", "ATCG", 3, ""),
       ];
 
       const processor = new UniqueProcessor();
@@ -293,9 +308,9 @@ describe("UniqueProcessor", () => {
 
     test("handles no duplicates", async () => {
       const sequences: AbstractSequence[] = [
-        { id: "seq1", sequence: "ATCG", length: 4, lineNumber: 1, description: "" },
-        { id: "seq2", sequence: "GCTA", length: 4, lineNumber: 2, description: "" },
-        { id: "seq3", sequence: "TTTT", length: 4, lineNumber: 3, description: "" },
+        createSequence("seq1", "ATCG", 1, ""),
+        createSequence("seq2", "GCTA", 2, ""),
+        createSequence("seq3", "TTTT", 3, ""),
       ];
 
       const processor = new UniqueProcessor();
@@ -311,9 +326,9 @@ describe("UniqueProcessor", () => {
   describe("SeqOps integration", () => {
     test(".unique() method works via SeqOps", async () => {
       const sequences: AbstractSequence[] = [
-        { id: "seq1", sequence: "ATCG", length: 4, lineNumber: 1, description: "" },
-        { id: "seq2", sequence: "ATCG", length: 4, lineNumber: 2, description: "" },
-        { id: "seq3", sequence: "GCTA", length: 4, lineNumber: 3, description: "" },
+        createSequence("seq1", "ATCG", 1, ""),
+        createSequence("seq2", "ATCG", 2, ""),
+        createSequence("seq3", "GCTA", 3, ""),
       ];
 
       const unique = await seqops(makeAsync(sequences)).unique().collect();
@@ -325,8 +340,8 @@ describe("UniqueProcessor", () => {
 
     test(".unique() with options works via SeqOps", async () => {
       const sequences: AbstractSequence[] = [
-        { id: "seq1", sequence: "ATCG", length: 4, lineNumber: 1, description: "first" },
-        { id: "seq2", sequence: "ATCG", length: 4, lineNumber: 2, description: "second" },
+        createSequence("seq1", "ATCG", 1, "first"),
+        createSequence("seq2", "ATCG", 2, "second"),
       ];
 
       const unique = await seqops(makeAsync(sequences))
@@ -340,17 +355,17 @@ describe("UniqueProcessor", () => {
 
     test(".unique() can be chained with other operations", async () => {
       const sequences: AbstractSequence[] = [
-        { id: "seq1", sequence: "ATCG", length: 4, lineNumber: 1, description: "" },
-        { id: "seq2", sequence: "ATCG", length: 4, lineNumber: 2, description: "" },
-        { id: "seq3", sequence: "GCTA", length: 4, lineNumber: 3, description: "" },
-        { id: "seq4", sequence: "AT", length: 2, lineNumber: 4, description: "" },
+        createSequence("seq1", "ATCG", 1, ""),
+        createSequence("seq2", "ATCG", 2, ""),
+        createSequence("seq3", "GCTA", 3, ""),
+        createSequence("seq4", "AT", 4, ""),
       ];
 
       const result = await seqops(makeAsync(sequences)).filter({ minLength: 4 }).unique().collect();
 
       expect(result.length).toBe(2);
-      expect(result[0]!.sequence).toBe("ATCG");
-      expect(result[1]!.sequence).toBe("GCTA");
+      expect(result[0]!.sequence).toEqualSequence("ATCG");
+      expect(result[1]!.sequence).toEqualSequence("GCTA");
     });
   });
 });

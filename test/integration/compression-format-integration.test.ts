@@ -17,6 +17,7 @@ import { BedParser } from "../../src/formats/bed";
 import { FastaParser } from "../../src/formats/fasta";
 import { FastqParser } from "../../src/formats/fastq";
 import type { BedInterval, FastaSequence, FastqSequence } from "../../src/types";
+import "../matchers";
 
 describe("Compression-Format Integration Tests", () => {
   // Test data generators for realistic genomic content
@@ -55,9 +56,9 @@ describe("Compression-Format Integration Tests", () => {
       // Verify parsing worked correctly
       expect(sequences).toHaveLength(2);
       expect(sequences[0]!.id).toBe("chr1_fragment");
-      expect(sequences[0]!.sequence).toBe("ATCGATCGATCGATCGATCGATCGATCGATCGATCG");
+      expect(sequences[0]!.sequence).toEqualSequence("ATCGATCGATCGATCGATCGATCGATCGATCGATCG");
       expect(sequences[1]!.id).toBe("chr2_fragment");
-      expect(sequences[1]!.sequence).toBe("GGGGCCCCAAAATTTTGGGGCCCCAAAATTTT");
+      expect(sequences[1]!.sequence).toEqualSequence("GGGGCCCCAAAATTTTGGGGCCCCAAAATTTT");
     });
 
     test("streaming compression-decompression pipeline with FASTA", async () => {
@@ -132,11 +133,11 @@ describe("Compression-Format Integration Tests", () => {
       // Verify FASTQ parsing with quality preservation
       expect(reads).toHaveLength(2);
       expect(reads[0]!.id).toBe("read1");
-      expect(reads[0]!.sequence).toBe("ATCGATCGATCGATCG");
-      expect(reads[0]!.quality).toBe("!!!!!!!!!!!!!!!!");
+      expect(reads[0]!.sequence).toEqualSequence("ATCGATCGATCGATCG");
+      expect(reads[0]!.quality).toEqualSequence("!!!!!!!!!!!!!!!!");
       expect(reads[1]!.id).toBe("read2");
-      expect(reads[1]!.sequence).toBe("GGGGCCCCAAAATTTT");
-      expect(reads[1]!.quality).toBe("################");
+      expect(reads[1]!.sequence).toEqualSequence("GGGGCCCCAAAATTTT");
+      expect(reads[1]!.quality).toEqualSequence("################");
     });
   });
 

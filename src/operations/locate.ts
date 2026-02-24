@@ -111,7 +111,7 @@ export class LocateProcessor {
    */
   private findPatternInSequence(seq: AbstractSequence, options: LocateOptions): MotifLocation[] {
     const results: MotifLocation[] = [];
-    const sequence = seq.sequence;
+    const sequence = seq.sequence.toString();
 
     if (!sequence || sequence.length === 0) {
       return results;
@@ -165,6 +165,7 @@ export class LocateProcessor {
   private findRegexMatches(seq: AbstractSequence, options: LocateOptions): MotifLocation[] {
     const results: MotifLocation[] = [];
     const pattern = options.pattern as RegExp;
+    const seqStr = seq.sequence.toString();
 
     // Create case-insensitive version if needed
     let searchPattern = pattern;
@@ -177,7 +178,7 @@ export class LocateProcessor {
       searchPattern = new RegExp(searchPattern.source, `${searchPattern.flags}g`);
     }
 
-    let match: RegExpExecArray | null = searchPattern.exec(seq.sequence);
+    let match: RegExpExecArray | null = searchPattern.exec(seqStr);
     while (match !== null) {
       const location: MotifLocation = {
         sequenceId: seq.id,
@@ -190,7 +191,7 @@ export class LocateProcessor {
         score: 1.0,
         pattern: pattern.source,
         ...(options.outputFormat !== "bed" && {
-          context: this.extractContext(seq.sequence, match.index, match[0].length),
+          context: this.extractContext(seqStr, match.index, match[0].length),
         }),
       };
 
@@ -202,7 +203,7 @@ export class LocateProcessor {
       }
 
       // Get next match for next iteration
-      match = searchPattern.exec(seq.sequence);
+      match = searchPattern.exec(seqStr);
     }
 
     return results;
@@ -228,16 +229,14 @@ export class LocateProcessor {
 
     // Use core fuzzy matching function instead of reimplementing
     const matches = fuzzyMatch(searchSequence, pattern, maxMismatches);
+    const seqStr = seq.sequence.toString();
 
     return matches
       .map((match) => {
         const score = this.calculateScore(match.mismatches, pattern.length);
 
         // Preserve original case from the source sequence, not the search sequence
-        const originalMatchedSequence = seq.sequence.slice(
-          match.position,
-          match.position + match.length
-        );
+        const originalMatchedSequence = seqStr.slice(match.position, match.position + match.length);
 
         const location: MotifLocation = {
           sequenceId: seq.id,
@@ -250,7 +249,7 @@ export class LocateProcessor {
           score,
           pattern: options.pattern as string,
           ...(options.outputFormat !== "bed" && {
-            context: this.extractContext(seq.sequence, match.position, match.length),
+            context: this.extractContext(seqStr, match.position, match.length),
           }),
         };
 

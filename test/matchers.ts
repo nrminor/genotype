@@ -12,26 +12,28 @@ function describeValue(value: unknown): string {
 }
 
 expect.extend({
-  toEqualSequence(received: unknown, expected: string) {
+  toEqualSequence(received: unknown, expected: GenotypeString | string) {
+    const expectedStr = expected instanceof GenotypeString ? expected.toString() : expected;
+
     if (received instanceof GenotypeString) {
-      const pass = received.equals(expected);
+      const pass = received.equals(expectedStr);
       return {
         pass,
         message: () =>
           pass
-            ? `expected sequence not to equal ${JSON.stringify(expected)}, but it does`
-            : `expected sequence to equal ${JSON.stringify(expected)}, got ${JSON.stringify(received.toString())}`,
+            ? `expected sequence not to equal ${JSON.stringify(expectedStr)}, but it does`
+            : `expected sequence to equal ${JSON.stringify(expectedStr)}, got ${JSON.stringify(received.toString())}`,
       };
     }
 
     if (typeof received === "string") {
-      const pass = received === expected;
+      const pass = received === expectedStr;
       return {
         pass,
         message: () =>
           pass
-            ? `expected sequence not to equal ${JSON.stringify(expected)}, but it does`
-            : `expected sequence to equal ${JSON.stringify(expected)}, got ${JSON.stringify(received)}`,
+            ? `expected sequence not to equal ${JSON.stringify(expectedStr)}, but it does`
+            : `expected sequence to equal ${JSON.stringify(expectedStr)}, got ${JSON.stringify(received)}`,
       };
     }
 
@@ -45,6 +47,6 @@ expect.extend({
 declare module "bun:test" {
   // eslint-disable-next-line no-unused-vars -- T must match bun:test's Matchers<T> declaration
   interface Matchers<T> {
-    toEqualSequence(expected: string): void;
+    toEqualSequence(expected: GenotypeString | string): void;
   }
 }

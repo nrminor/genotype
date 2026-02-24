@@ -4,6 +4,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import "../matchers";
 
 // Test individual exports from new module structure
 import {
@@ -108,8 +109,8 @@ IIII`;
     }
 
     expect(sequences).toHaveLength(1);
-    expect(sequences[0]!.sequence).toBe("ATCGATCG");
-    expect(sequences[0]!.quality).toBe("IIIIIIII");
+    expect(sequences[0]!.sequence).toEqualSequence("ATCGATCG");
+    expect(sequences[0]!.quality).toEqualSequence("IIIIIIII");
   });
 
   describe("Paired-End Integration", () => {
@@ -168,8 +169,8 @@ IIII`;
       }
 
       expect(pairs).toHaveLength(1);
-      expect(pairs[0]!.r1.quality).toBe("IIII");
-      expect(pairs[0]!.r2.quality).toBe("IIII");
+      expect(pairs[0]!.r1.quality).toEqualSequence("IIII");
+      expect(pairs[0]!.r2.quality).toEqualSequence("IIII");
     });
 
     test("parser metrics collection works for paired parsing", async () => {

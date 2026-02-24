@@ -6,6 +6,7 @@
  *
  */
 
+import { withSequence } from "../constructors";
 import type { AbstractSequence } from "../types";
 // Import IUPAC constants and validation primitives from core
 import {
@@ -347,7 +348,7 @@ export class ValidateProcessor implements Processor<ValidateOptions> {
     const action = options.action || "reject";
 
     // Check if sequence is valid
-    let validSequence = seq.sequence;
+    let validSequence = seq.sequence.toString();
 
     // Apply additional validation constraints
     if (options.allowGaps !== true) {
@@ -360,15 +361,10 @@ export class ValidateProcessor implements Processor<ValidateOptions> {
 
     if (isValid) {
       // Return sequence as-is if valid
-      if (validSequence === seq.sequence) {
+      if (validSequence === seq.sequence.toString()) {
         return seq;
       }
-      // Return modified sequence if gaps were removed
-      return {
-        ...seq,
-        sequence: validSequence,
-        length: validSequence.length,
-      };
+      return withSequence(seq, validSequence);
     }
 
     // Handle invalid sequences based on action
@@ -381,11 +377,7 @@ export class ValidateProcessor implements Processor<ValidateOptions> {
         // Fix invalid sequences
         // NATIVE_CANDIDATE: clean() replaces invalid characters
         const fixed = validator.clean(validSequence, options.fixChar ?? "N");
-        return {
-          ...seq,
-          sequence: fixed,
-          length: fixed.length,
-        };
+        return withSequence(seq, fixed);
       }
 
       case "warn":

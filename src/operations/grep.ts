@@ -117,7 +117,7 @@ export class GrepProcessor implements Processor<GrepOptions> {
   private getSearchTarget(seq: AbstractSequence, target: string): string | null {
     switch (target) {
       case "sequence":
-        return seq.sequence;
+        return seq.sequence.toString();
       case "id":
         return seq.id;
       case "description":

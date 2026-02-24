@@ -3,24 +3,18 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import { createFastaRecord, createFastqRecord } from "../../src/constructors";
 import { SequenceStatsCalculator } from "../../src/operations/stats";
 import type { AbstractSequence, FastqSequence } from "../../src/types";
 
 describe("SequenceStatsCalculator", () => {
   // Helper functions
   function createSequence(id: string, sequence: string): AbstractSequence {
-    return { id, sequence, length: sequence.length };
+    return createFastaRecord({ id, sequence });
   }
 
   function createFastq(id: string, sequence: string, quality: string): FastqSequence {
-    return {
-      format: "fastq",
-      id,
-      sequence,
-      quality,
-      qualityEncoding: "phred33",
-      length: sequence.length,
-    };
+    return createFastqRecord({ id, sequence, quality, qualityEncoding: "phred33" });
   }
 
   async function* arrayToAsync<T>(items: T[]): AsyncIterable<T> {

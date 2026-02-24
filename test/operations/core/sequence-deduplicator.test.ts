@@ -11,16 +11,12 @@ import {
   findDuplicates,
   SequenceDeduplicator,
 } from "../../../src/operations/core/sequence-deduplicator";
+import { createFastaRecord } from "../../../src/constructors";
 import type { AbstractSequence } from "../../../src/types";
 
 /** Helper to create test sequences with required length field */
 function seq(id: string, sequence: string, description?: string): AbstractSequence {
-  return {
-    id,
-    sequence,
-    length: sequence.length,
-    ...(description !== undefined && { description }),
-  };
+  return createFastaRecord({ id, sequence, description });
 }
 
 describe("SequenceDeduplicator", () => {
@@ -155,7 +151,7 @@ describe("SequenceDeduplicator", () => {
   describe("Custom Deduplication Strategy", () => {
     test("custom key function", async () => {
       // Deduplicate by first 4 bases only
-      const customKey = (seq: AbstractSequence) => seq.sequence.slice(0, 4);
+      const customKey = (seq: AbstractSequence) => seq.sequence.slice(0, 4).toString();
 
       const dedup = new SequenceDeduplicator({ strategy: customKey });
       const unique: AbstractSequence[] = [];

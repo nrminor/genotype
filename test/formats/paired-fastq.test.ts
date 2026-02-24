@@ -3,6 +3,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import "../matchers";
 import { PairSyncError } from "../../src/errors";
 import { defaultExtractPairId, PairedFastqParser } from "../../src/formats/fastq/paired";
 import type { PairedFastqRead } from "../../src/formats/fastq/types";
@@ -453,8 +454,8 @@ describe("PairedFastqParser", () => {
 
       expect(pairs[0]!.r1.id).toBe("read1/1");
       expect(pairs[0]!.r1.description).toBe("description");
-      expect(pairs[0]!.r1.sequence).toBe("ATCG");
-      expect(pairs[0]!.r1.quality).toBe("IIII");
+      expect(pairs[0]!.r1.sequence).toEqualSequence("ATCG");
+      expect(pairs[0]!.r1.quality).toEqualSequence("IIII");
       expect(pairs[0]!.r1.length).toBe(4);
     });
 
@@ -470,8 +471,8 @@ describe("PairedFastqParser", () => {
 
       expect(pairs[0]!.r2.id).toBe("read1/2");
       expect(pairs[0]!.r2.description).toBe("description");
-      expect(pairs[0]!.r2.sequence).toBe("CGAT");
-      expect(pairs[0]!.r2.quality).toBe("JJJJ");
+      expect(pairs[0]!.r2.sequence).toEqualSequence("CGAT");
+      expect(pairs[0]!.r2.quality).toEqualSequence("JJJJ");
       expect(pairs[0]!.r2.length).toBe(4);
     });
   });
@@ -793,10 +794,10 @@ describe("PairedFastqParser", () => {
         pairs.push(pair);
       }
 
-      expect(pairs[0]!.r1.sequence).toBe("ATCGATCGATCG");
-      expect(pairs[0]!.r2.sequence).toBe("CGTAGCTAGCTA");
-      expect(pairs[0]!.r1.quality).toBe("IIIIIIIIIIII");
-      expect(pairs[0]!.r2.quality).toBe("IIIIIIIIIIII");
+      expect(pairs[0]!.r1.sequence).toEqualSequence("ATCGATCGATCG");
+      expect(pairs[0]!.r2.sequence).toEqualSequence("CGTAGCTAGCTA");
+      expect(pairs[0]!.r1.quality).toEqualSequence("IIIIIIIIIIII");
+      expect(pairs[0]!.r2.quality).toEqualSequence("IIIIIIIIIIII");
     });
 
     test("calculates totalLength correctly from files", async () => {
@@ -843,10 +844,10 @@ describe("PairedFastqParser", () => {
       }
 
       expect(pairs).toHaveLength(2);
-      expect(pairs[0]!.r1.sequence).toBe("ATCG");
-      expect(pairs[0]!.r2.sequence).toBe("TAGC");
-      expect(pairs[1]!.r1.sequence).toBe("GGGG");
-      expect(pairs[1]!.r2.sequence).toBe("CCCC");
+      expect(pairs[0]!.r1.sequence).toEqualSequence("ATCG");
+      expect(pairs[0]!.r2.sequence).toEqualSequence("TAGC");
+      expect(pairs[1]!.r1.sequence).toEqualSequence("GGGG");
+      expect(pairs[1]!.r2.sequence).toEqualSequence("CCCC");
       expect(pairs[0]!.pairId).toBeUndefined();
     });
 
@@ -1061,10 +1062,10 @@ describe("PairedFastqParser", () => {
       }
 
       expect(pairs).toHaveLength(1);
-      expect(pairs[0]!.r1.sequence).toBe("ATCGATCGATCG");
-      expect(pairs[0]!.r2.sequence).toBe("CGATCGATCGAT");
-      expect(pairs[0]!.r1.quality).toBe("IIIIIIIIIIII");
-      expect(pairs[0]!.r2.quality).toBe("IIIIIIIIIIII");
+      expect(pairs[0]!.r1.sequence).toEqualSequence("ATCGATCGATCG");
+      expect(pairs[0]!.r2.sequence).toEqualSequence("CGATCGATCGAT");
+      expect(pairs[0]!.r1.quality).toEqualSequence("IIIIIIIIIIII");
+      expect(pairs[0]!.r2.quality).toEqualSequence("IIIIIIIIIIII");
       expect(pairs[0]!.totalLength).toBe(24);
     });
 
@@ -1083,8 +1084,8 @@ describe("PairedFastqParser", () => {
       }
 
       expect(pairs).toHaveLength(1);
-      expect(pairs[0]!.r1.quality).toBe("!@#$");
-      expect(pairs[0]!.r2.quality).toBe("%^&*");
+      expect(pairs[0]!.r1.quality).toEqualSequence("!@#$");
+      expect(pairs[0]!.r2.quality).toEqualSequence("%^&*");
     });
 
     test("error propagation from internal parsers for malformed FASTQ", async () => {

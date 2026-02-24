@@ -3,6 +3,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import "../matchers";
 import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 import { FileError, ParseError } from "../../src/errors";
@@ -125,8 +126,8 @@ describe("Parser File Integration", () => {
       expect(sequences).toHaveLength(3);
       expect(sequences[0]!.id).toBe("seq1");
       expect(sequences[0]!.description).toBe("First sequence");
-      expect(sequences[0]!.sequence).toBe("ATCGATCGATCG");
-      expect(sequences[1]!.sequence).toBe("GGGGAAAACCCCTTTTTTTT");
+      expect(sequences[0]!.sequence).toEqualSequence("ATCGATCGATCG");
+      expect(sequences[1]!.sequence).toEqualSequence("GGGGAAAACCCCTTTTTTTT");
       expect(sequences[2]!.id).toBe("seq3");
     });
 
@@ -234,8 +235,8 @@ describe("Parser File Integration", () => {
       expect(sequences).toHaveLength(2);
       expect(sequences[0]!.id).toBe("seq1");
       expect(sequences[0]!.description).toBe("First read");
-      expect(sequences[0]!.sequence).toBe("ATCGATCGATCG");
-      expect(sequences[0]!.quality).toBe("IIIIIIIIIIII");
+      expect(sequences[0]!.sequence).toEqualSequence("ATCGATCGATCG");
+      expect(sequences[0]!.quality).toEqualSequence("IIIIIIIIIIII");
       expect(sequences[0]!.qualityEncoding).toBe("phred33");
     });
 

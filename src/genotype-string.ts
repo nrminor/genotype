@@ -83,10 +83,17 @@ export class GenotypeString {
   /**
    * Creates a GenotypeString backed by a JavaScript string.
    *
-   * The string is stored as-is with no copying or validation. Conversion to
-   * bytes happens lazily if and when a byte-native operation is called.
+   * If the argument is already a GenotypeString, it is returned as-is with
+   * no copying or wrapping. This makes the method idempotent and safe to
+   * call in contexts where the input may be either a plain string or an
+   * existing GenotypeString.
+   *
+   * When a plain string is passed, it is stored as-is with no copying or
+   * validation. Conversion to bytes happens lazily if and when a byte-native
+   * operation is called.
    */
-  static fromString(s: string): GenotypeString {
+  static fromString(s: GenotypeString | string): GenotypeString {
+    if (s instanceof GenotypeString) return s;
     return new GenotypeString({ kind: "string", value: s });
   }
 
@@ -330,7 +337,7 @@ export class GenotypeString {
   localeCompare(
     other: GenotypeString | string,
     locales?: string | string[],
-    options?: Intl.CollatorOptions,
+    options?: Intl.CollatorOptions
   ): number {
     return this.toString().localeCompare(other.toString(), locales, options);
   }

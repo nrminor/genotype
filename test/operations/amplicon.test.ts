@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import "../matchers";
+import { createFastaRecord } from "../../src/constructors";
 import { AmpliconProcessor } from "../../src/operations/amplicon";
 import { primer } from "../../src/operations/core/alphabet";
 import type { FastaSequence, PrimerSequence } from "../../src/types";
@@ -12,12 +14,7 @@ async function* toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
 
 // Helper to create typed FASTA sequences
 function createFasta(id: string, sequence: string): FastaSequence {
-  return {
-    format: "fasta" as const,
-    id,
-    sequence,
-    length: sequence.length,
-  };
+  return createFastaRecord({ id, sequence });
 }
 
 describe("AmpliconProcessor", () => {
@@ -473,7 +470,9 @@ describe("AmpliconProcessor", () => {
 
       expect(results.length).toBe(1);
       // Should include both primers + amplicon
-      expect(results[0]!.sequence).toBe("ATCGATCGATCGATCG" + "TTTTTTTT" + "CGATCGATCGATCGAT");
+      expect(results[0]!.sequence).toEqualSequence(
+        "ATCGATCGATCGATCG" + "TTTTTTTT" + "CGATCGATCGATCGAT"
+      );
       expect(results[0]!.sequence.length).toBe(40); // 16 + 8 + 16
       expect(results[0]!.description).toContain("flanking");
       expect(results[0]!.description).toContain("includes primers");
@@ -498,7 +497,7 @@ describe("AmpliconProcessor", () => {
 
       expect(results.length).toBe(1);
       // Should only include amplicon between primers
-      expect(results[0]!.sequence).toBe("TTTTTTTT");
+      expect(results[0]!.sequence).toEqualSequence("TTTTTTTT");
       expect(results[0]!.sequence.length).toBe(8);
       expect(results[0]!.description).toContain("inner");
       expect(results[0]!.description).not.toContain("includes primers");
@@ -708,7 +707,7 @@ describe("AmpliconProcessor", () => {
       }
 
       expect(results.length).toBe(1);
-      expect(results[0]!.sequence).toBe("CAGACAAGTCGTTCTACAGGTACGTTAATAGTTAATAGCGT"); // Inner amplicon
+      expect(results[0]!.sequence).toEqualSequence("CAGACAAGTCGTTCTACAGGTACGTTAATAGTTAATAGCGT"); // Inner amplicon
       expect(results[0]!.description).toContain("inner");
       expect(results[0]!.description).toContain("mismatches");
     });

@@ -34,6 +34,7 @@
  */
 
 import { type } from "arktype";
+import { createFastqRecord } from "../../constructors";
 import {
   getErrorSuggestion,
   ParseError,
@@ -842,19 +843,17 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
       }
     }
 
-    // Build FASTQ sequence object with all properties in one step
-    const fastqSequence: FastqSequence = {
-      format: "fastq",
+    // Build FASTQ sequence object via centralized constructor
+    const fastqSequence = createFastqRecord({
       id,
       ...(description && { description }),
       sequence,
       quality,
       qualityEncoding,
-      length: sequence.length,
       ...(qualityScores && { qualityScores }),
       ...(qualityStats && { qualityStats }),
       ...(this.options.trackLineNumbers && { lineNumber: startLineNumber }),
-    };
+    });
 
     // Validate if required (all validation logic consolidated)
     this.validateIfRequired(fastqSequence, { id, startLineNumber });
@@ -1151,7 +1150,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
       `${level} validation`,
       context.id,
       context.startLineNumber,
-      sequence.sequence.slice(0, 50)
+      sequence.sequence.slice(0, 50).toString()
     );
 
     const suggestion = getValidationErrorSuggestion(result.errors);
@@ -1404,28 +1403,15 @@ export async function* parseFastPath(
           );
         }
 
-        // Build the record conditionally (all required fields are present)
-        const fastqRecord: FastqSequence =
-          record.description !== undefined
-            ? {
-                format: "fastq" as const,
-                id: record.id,
-                description: record.description,
-                sequence: record.sequence,
-                quality: record.quality,
-                qualityEncoding,
-                length: record.sequence.length,
-                lineNumber: lineNumber - 3,
-              }
-            : {
-                format: "fastq" as const,
-                id: record.id,
-                sequence: record.sequence,
-                quality: record.quality,
-                qualityEncoding,
-                length: record.sequence.length,
-                lineNumber: lineNumber - 3,
-              };
+        // Build the record via centralized constructor
+        const fastqRecord = createFastqRecord({
+          id: record.id,
+          ...(record.description !== undefined && { description: record.description }),
+          sequence: record.sequence,
+          quality: record.quality,
+          qualityEncoding,
+          lineNumber: lineNumber - 3,
+        });
 
         // Validate if requested
         if (validationLevel !== "none") {

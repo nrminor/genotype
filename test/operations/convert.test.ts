@@ -10,6 +10,8 @@
  */
 
 import { beforeAll, describe, expect, spyOn, test } from "bun:test";
+import "../matchers";
+import { createFastaRecord, createFastqRecord } from "../../src/constructors";
 import { ValidationError } from "../../src/errors";
 import { seqops } from "../../src/operations";
 import {
@@ -29,23 +31,17 @@ function createFastqSequence(
   encoding: "phred33" | "phred64" | "solexa" = "phred33",
   description?: string
 ): FastqSequence {
-  return {
-    format: "fastq",
+  return createFastqRecord({
     id,
     sequence,
     quality,
     qualityEncoding: encoding,
-    length: sequence.length,
     ...(description !== undefined && { description }),
-  };
+  });
 }
 
-function createFastaSequence(id: string, sequence: string): AbstractSequence {
-  return {
-    id,
-    sequence,
-    length: sequence.length,
-  };
+function createFastaSequence(id: string, sequence: string): FastaSequence {
+  return createFastaRecord({ id, sequence });
 }
 
 /**
@@ -58,13 +54,14 @@ function createFastqSequenceForAutoDetection(
   description?: string
 ): FastqSequence {
   return {
-    format: "fastq",
-    id,
-    sequence,
-    quality,
+    ...createFastqRecord({
+      id,
+      sequence,
+      quality,
+      qualityEncoding: "phred33",
+      ...(description !== undefined && { description }),
+    }),
     qualityEncoding: undefined as unknown as "phred33", // Force undefined to trigger detection
-    length: sequence.length,
-    ...(description !== undefined && { description }),
   };
 }
 
@@ -113,9 +110,9 @@ describe("ConvertProcessor", () => {
 
       expect(results).toHaveLength(1);
       const converted = results[0] as FastqSequence;
-      expect(converted.quality).toBe("!!!!"); // Phred+33: ASCII 33 = Q0
+      expect(converted.quality).toEqualSequence("!!!!"); // Phred+33: ASCII 33 = Q0
       expect(converted.qualityEncoding).toBe("phred33");
-      expect(converted.sequence).toBe("ATCG");
+      expect(converted.sequence).toEqualSequence("ATCG");
     });
 
     test("converts Phred+33 to Phred+64", async () => {
@@ -132,7 +129,7 @@ describe("ConvertProcessor", () => {
 
       expect(results).toHaveLength(1);
       const converted = results[0] as FastqSequence;
-      expect(converted.quality).toBe("@@@@"); // Phred+64: ASCII 64 = Q0
+      expect(converted.quality).toEqualSequence("@@@@"); // Phred+64: ASCII 64 = Q0
       expect(converted.qualityEncoding).toBe("phred64");
     });
 
@@ -145,7 +142,7 @@ describe("ConvertProcessor", () => {
 
       expect(results).toHaveLength(1);
       const result = results[0] as FastqSequence;
-      expect(result.quality).toBe("!!!!");
+      expect(result.quality).toEqualSequence("!!!!");
       expect(result.qualityEncoding).toBe("phred33");
     });
 
@@ -159,7 +156,9 @@ describe("ConvertProcessor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]).toEqual(fastaSeq);
+      expect(results[0]!.id).toBe(fastaSeq.id);
+      expect(results[0]!.length).toBe(fastaSeq.length);
+      expect(results[0]!.sequence).toEqualSequence(fastaSeq.sequence);
     });
   });
 
@@ -189,7 +188,7 @@ describe("ConvertProcessor", () => {
       expect(converted.qualityEncoding).toBe("solexa");
       // Solexa conversion uses non-linear math, should produce different result than ASCII offset
       expect(converted.quality).not.toBe("!!!!"); // Should be mathematically converted
-      expect(converted.sequence).toBe("ATCG"); // Sequence unchanged
+      expect(converted.sequence).toEqualSequence("ATCG"); // Sequence unchanged
     });
 
     test("handles malformed FASTQ sequences gracefully", async () => {
@@ -197,7 +196,7 @@ describe("ConvertProcessor", () => {
       const malformed = {
         format: "fastq" as const,
         id: "malformed",
-        sequence: "ATCG",
+        sequence: createFastaRecord({ id: "malformed_seq", sequence: "ATCG" }).sequence,
         length: 4,
         // Missing quality and qualityEncoding fields intentionally
       };
@@ -209,7 +208,9 @@ describe("ConvertProcessor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]).toEqual(malformed); // Pass through unchanged
+      expect(results[0]!.id).toBe(malformed.id); // Pass through unchanged
+      expect(results[0]!.length).toBe(malformed.length);
+      expect(results[0]!.sequence).toEqualSequence(malformed.sequence);
     });
   });
 
@@ -230,7 +231,7 @@ describe("ConvertProcessor", () => {
       );
 
       const modernRead = results[0] as FastqSequence;
-      expect(modernRead.quality).toBe("############"); // Phred+33: ASCII 35 = Q2
+      expect(modernRead.quality).toEqualSequence("############"); // Phred+33: ASCII 35 = Q2
       expect(modernRead.qualityEncoding).toBe("phred33");
     });
 
@@ -275,8 +276,8 @@ describe("ConvertProcessor", () => {
 
       const converted = results[0] as FastqSequence;
       expect(converted.qualityEncoding).toBe("phred33");
-      expect(converted.quality).toBe("############"); // Correctly converted from phred64
-      expect(converted.sequence).toBe("ATCGATCGATCG"); // Sequence preserved
+      expect(converted.quality).toEqualSequence("############"); // Correctly converted from phred64
+      expect(converted.sequence).toEqualSequence("ATCGATCGATCG"); // Sequence preserved
     });
 
     test("handles mixed sequence types in workflow", async () => {
@@ -293,17 +294,17 @@ describe("ConvertProcessor", () => {
       expect(results).toHaveLength(3);
 
       // FASTA unchanged
-      expect(results[0]?.sequence).toBe("ATCG");
+      expect(results[0]?.sequence).toEqualSequence("ATCG");
       expect("quality" in results[0]!).toBe(false);
 
       // FASTQ sequences converted
       const fastq1 = results[1] as FastqSequence;
       expect(fastq1.qualityEncoding).toBe("phred33");
-      expect(fastq1.quality).toBe("!!!!"); // @ (64) → ! (33)
+      expect(fastq1.quality).toEqualSequence("!!!!"); // @ (64) → ! (33)
 
       const fastq2 = results[2] as FastqSequence;
       expect(fastq2.qualityEncoding).toBe("phred33");
-      expect(fastq2.quality).toBe("####"); // BBBB (66) → #### (35)
+      expect(fastq2.quality).toEqualSequence("####"); // BBBB (66) → #### (35)
     });
   });
 
@@ -319,7 +320,7 @@ describe("ConvertProcessor", () => {
       const converted = results[0] as FastqSequence;
       expect(converted.qualityEncoding).toBe("solexa");
       // Q0 Phred maps to Q-5 Solexa (minimum), ASCII 64-5 = 59
-      expect(converted.quality).toBe(";;;;"); // ASCII 59 = Solexa -5
+      expect(converted.quality).toEqualSequence(";;;;"); // ASCII 59 = Solexa -5
     });
 
     test("converts Solexa to Phred+33 with mathematical accuracy", async () => {
@@ -348,7 +349,7 @@ describe("ConvertProcessor", () => {
       const converted = results[0] as FastqSequence;
       expect(converted.qualityEncoding).toBe("phred33");
       // Solexa Q-5 mathematically converts to approximately Phred Q1 (not Q0)
-      expect(converted.quality).toBe('""""'); // ASCII 34 = Q1 (mathematically correct)
+      expect(converted.quality).toEqualSequence('""""'); // ASCII 34 = Q1 (mathematically correct)
     });
   });
 
@@ -481,7 +482,7 @@ describe("ConvertProcessor", () => {
 
       const converted = results[0] as FastqSequence;
       expect(converted.qualityEncoding).toBe("phred33");
-      expect(converted.sequence).toBe(illumina15Read.sequence); // Sequence preserved including Ns
+      expect(converted.sequence).toEqualSequence(illumina15Read.sequence); // Sequence preserved including Ns
       expect(converted.quality.length).toBe(100); // Quality string length matches sequence
 
       // Validate conversion of authentic quality characters
@@ -545,10 +546,10 @@ describe("ConvertProcessor", () => {
 
         if (fastq.id === "HiSeq_legacy") {
           legacyConverted = true;
-          expect(fastq.quality).toBe("!".repeat(100)); // Q0 converted correctly
+          expect(fastq.quality).toEqualSequence("!".repeat(100)); // Q0 converted correctly
         } else if (fastq.id === "NovaSeq_modern") {
           modernConverted = true;
-          expect(fastq.quality).toBe("J".repeat(100)); // Q40 unchanged
+          expect(fastq.quality).toEqualSequence("J".repeat(100)); // Q40 unchanged
         }
       }
 
@@ -600,7 +601,7 @@ describe("ConvertProcessor", () => {
             targetEncoding: "phred64",
           })
         );
-        expect((to64[0] as FastqSequence).quality).toBe(benchmark.phred64);
+        expect((to64[0] as FastqSequence).quality).toEqualSequence(benchmark.phred64);
 
         // Test Phred64 → Phred33 (specify source to prevent auto-detection override)
         const phred64Seq = createFastqSequence("bench64", "A", benchmark.phred64, "phred64");
@@ -610,7 +611,7 @@ describe("ConvertProcessor", () => {
             targetEncoding: "phred33",
           })
         );
-        expect((to33[0] as FastqSequence).quality).toBe(benchmark.phred33);
+        expect((to33[0] as FastqSequence).quality).toEqualSequence(benchmark.phred33);
       }
     });
   });
@@ -708,14 +709,12 @@ describe("ConvertProcessor", () => {
   describe("Industry Edge Cases and Corruption Patterns", () => {
     test("handles quality string corruption with graceful error recovery", async () => {
       // Test invalid ASCII characters (common file corruption scenario)
-      const corruptedSeq = {
-        format: "fastq" as const,
-        id: "corrupted_read",
-        sequence: "ATCGATCG",
-        length: 8,
-        quality: "!!!!\x00!!!!", // Null byte corruption (ASCII 0)
-        qualityEncoding: "phred33" as const,
-      };
+      const corruptedSeq = createFastqSequence(
+        "corrupted_read",
+        "ATCGATCG",
+        "!!!!\x00!!!!", // Null byte corruption (ASCII 0)
+        "phred33"
+      );
 
       // Should either process gracefully or throw helpful error
       try {
@@ -802,15 +801,7 @@ describe("Format conversions", () => {
   describe("fq2fa", () => {
     test("converts FASTQ to FASTA", async () => {
       const fastqSeqs: FastqSequence[] = [
-        {
-          format: "fastq",
-          id: "read1",
-          sequence: "ATCGATCG",
-          quality: "IIIIIIII",
-          qualityEncoding: "phred33",
-          length: 8,
-          description: "test read",
-        },
+        createFastqSequence("read1", "ATCGATCG", "IIIIIIII", "phred33", "test read"),
       ];
 
       const results: FastaSequence[] = [];
@@ -819,27 +810,18 @@ describe("Format conversions", () => {
       }
 
       expect(results).toHaveLength(1);
-      expect(results[0]!).toMatchObject({
-        format: "fasta",
-        id: "read1",
-        sequence: "ATCGATCG",
-        description: "test read",
-        length: 8,
-      });
+      expect(results[0]!.format).toBe("fasta");
+      expect(results[0]!.id).toBe("read1");
+      expect(results[0]!.sequence).toEqualSequence("ATCGATCG");
+      expect(results[0]!.description).toBe("test read");
+      expect(results[0]!.length).toBe(8);
       expect("quality" in results[0]!).toBe(false);
       expect("qualityEncoding" in results[0]!).toBe(false);
     });
 
     test("includes quality statistics when requested", async () => {
       const fastqSeqs: FastqSequence[] = [
-        {
-          format: "fastq",
-          id: "read1",
-          sequence: "ATCG",
-          quality: "IIHH", // Mix of scores (40, 40, 39, 39)
-          qualityEncoding: "phred33",
-          length: 4,
-        },
+        createFastqSequence("read1", "ATCG", "IIHH", "phred33"), // Mix of scores (40, 40, 39, 39)
       ];
 
       const results: FastaSequence[] = [];
@@ -855,16 +837,7 @@ describe("Format conversions", () => {
     });
 
     test("handles empty description", async () => {
-      const fastqSeqs: FastqSequence[] = [
-        {
-          format: "fastq",
-          id: "read1",
-          sequence: "ATCG",
-          quality: "IIII",
-          qualityEncoding: "phred33",
-          length: 4,
-        },
-      ];
+      const fastqSeqs: FastqSequence[] = [createFastqSequence("read1", "ATCG", "IIII", "phred33")];
 
       const results: FastaSequence[] = [];
       for await (const seq of fq2fa(singleFastqSequence(fastqSeqs[0]!), {
@@ -878,16 +851,7 @@ describe("Format conversions", () => {
     });
 
     test("validates options with ArkType", async () => {
-      const fastqSeqs: FastqSequence[] = [
-        {
-          format: "fastq",
-          id: "read1",
-          sequence: "ATCG",
-          quality: "IIII",
-          qualityEncoding: "phred33",
-          length: 4,
-        },
-      ];
+      const fastqSeqs: FastqSequence[] = [createFastqSequence("read1", "ATCG", "IIII", "phred33")];
 
       // Test with an invalid option value rather than unknown property
       let errorThrown = false;
@@ -910,13 +874,7 @@ describe("Format conversions", () => {
   describe("fa2fq", () => {
     test("converts FASTA to FASTQ with default quality", async () => {
       const fastaSeqs: FastaSequence[] = [
-        {
-          format: "fasta",
-          id: "seq1",
-          sequence: "ATCGATCG",
-          length: 8,
-          description: "test sequence",
-        },
+        { ...createFastaSequence("seq1", "ATCGATCG"), description: "test sequence" },
       ];
 
       const results: FastqSequence[] = [];
@@ -925,26 +883,17 @@ describe("Format conversions", () => {
       }
 
       expect(results).toHaveLength(1);
-      expect(results[0]!).toMatchObject({
-        format: "fastq",
-        id: "seq1",
-        sequence: "ATCGATCG",
-        quality: "IIIIIIII", // Default quality
-        qualityEncoding: "phred33",
-        description: "test sequence",
-        length: 8,
-      });
+      expect(results[0]!.format).toBe("fastq");
+      expect(results[0]!.id).toBe("seq1");
+      expect(results[0]!.sequence).toEqualSequence("ATCGATCG");
+      expect(results[0]!.quality).toEqualSequence("IIIIIIII"); // Default quality
+      expect(results[0]!.qualityEncoding).toBe("phred33");
+      expect(results[0]!.description).toBe("test sequence");
+      expect(results[0]!.length).toBe(8);
     });
 
     test("uses custom quality score", async () => {
-      const fastaSeqs: FastaSequence[] = [
-        {
-          format: "fasta",
-          id: "seq1",
-          sequence: "ATCG",
-          length: 4,
-        },
-      ];
+      const fastaSeqs: FastaSequence[] = [createFastaSequence("seq1", "ATCG")];
 
       const results: FastqSequence[] = [];
       for await (const seq of fa2fq(singleFastaSequence(fastaSeqs[0]!), {
@@ -955,18 +904,11 @@ describe("Format conversions", () => {
       }
 
       // Score 30 in Phred+33 = ASCII 63 = '?'
-      expect(results[0]!.quality).toBe("????");
+      expect(results[0]!.quality).toEqualSequence("????");
     });
 
     test("uses custom quality character", async () => {
-      const fastaSeqs: FastaSequence[] = [
-        {
-          format: "fasta",
-          id: "seq1",
-          sequence: "ATCG",
-          length: 4,
-        },
-      ];
+      const fastaSeqs: FastaSequence[] = [createFastaSequence("seq1", "ATCG")];
 
       const results: FastqSequence[] = [];
       for await (const seq of fa2fq(singleFastaSequence(fastaSeqs[0]!), {
@@ -975,18 +917,11 @@ describe("Format conversions", () => {
         results.push(seq);
       }
 
-      expect(results[0]!.quality).toBe("JJJJ");
+      expect(results[0]!.quality).toEqualSequence("JJJJ");
     });
 
     test("rejects both quality and qualityScore", async () => {
-      const fastaSeqs: FastaSequence[] = [
-        {
-          format: "fasta",
-          id: "seq1",
-          sequence: "ATCG",
-          length: 4,
-        },
-      ];
+      const fastaSeqs: FastaSequence[] = [createFastaSequence("seq1", "ATCG")];
 
       // The validation happens when we start iterating
       let errorThrown = false;
@@ -1006,14 +941,7 @@ describe("Format conversions", () => {
     });
 
     test("rejects multi-character quality string", async () => {
-      const fastaSeqs: FastaSequence[] = [
-        {
-          format: "fasta",
-          id: "seq1",
-          sequence: "ATCG",
-          length: 4,
-        },
-      ];
+      const fastaSeqs: FastaSequence[] = [createFastaSequence("seq1", "ATCG")];
 
       // The validation happens when we start iterating
       let errorThrown = false;
@@ -1034,14 +962,7 @@ describe("Format conversions", () => {
 
   describe("SeqOps integration", () => {
     test("fq2fa only available on FastqSequence", async () => {
-      const fastqSeq: FastqSequence = {
-        format: "fastq",
-        id: "test",
-        sequence: "ATCG",
-        quality: "IIII",
-        qualityEncoding: "phred33",
-        length: 4,
-      };
+      const fastqSeq: FastqSequence = createFastqSequence("test", "ATCG", "IIII", "phred33");
 
       // This should compile and work
       const results: FastaSequence[] = [];
@@ -1056,12 +977,7 @@ describe("Format conversions", () => {
       expect(results[0]!.format).toBe("fasta");
 
       // Test that it's not available on FastaSequence
-      const _fastaSeq: FastaSequence = {
-        format: "fasta",
-        id: "test",
-        sequence: "ATCG",
-        length: 4,
-      };
+      const _fastaSeq: FastaSequence = createFastaSequence("test", "ATCG");
 
       // This would be a compile-time error, but we can't test that in runtime
       // So we just verify the correct type constraint works
@@ -1069,12 +985,7 @@ describe("Format conversions", () => {
     });
 
     test("fa2fq only available on FastaSequence", async () => {
-      const fastaSeq: FastaSequence = {
-        format: "fasta",
-        id: "test",
-        sequence: "ATCG",
-        length: 4,
-      };
+      const fastaSeq: FastaSequence = createFastaSequence("test", "ATCG");
 
       // This should compile and work
       const results: FastqSequence[] = [];
@@ -1087,19 +998,17 @@ describe("Format conversions", () => {
       }
 
       expect(results[0]!.format).toBe("fastq");
-      expect(results[0]!.quality).toBe("IIII");
+      expect(results[0]!.quality).toEqualSequence("IIII");
     });
 
     test("conversion pipeline works correctly", async () => {
-      const fastqSeq: FastqSequence = {
-        format: "fastq",
-        id: "test",
-        sequence: "ATCGATCG",
-        quality: "IIIIIIII",
-        qualityEncoding: "phred33",
-        length: 8,
-        description: "original",
-      };
+      const fastqSeq: FastqSequence = createFastqSequence(
+        "test",
+        "ATCGATCG",
+        "IIIIIIII",
+        "phred33",
+        "original"
+      );
 
       // FASTQ -> FASTA -> FASTQ round-trip
       const results: FastqSequence[] = [];
@@ -1115,10 +1024,10 @@ describe("Format conversions", () => {
 
       expect(results[0]!.format).toBe("fastq");
       expect(results[0]!.id).toBe("test");
-      expect(results[0]!.sequence).toBe("ATCGATCG");
+      expect(results[0]!.sequence).toEqualSequence("ATCGATCG");
       expect(results[0]!.description).toBe("original");
       // New quality should be uniform score 35
-      expect(results[0]!.quality).toBe("DDDDDDDD"); // ASCII 68 = score 35
+      expect(results[0]!.quality).toEqualSequence("DDDDDDDD"); // ASCII 68 = score 35
     });
   });
 });

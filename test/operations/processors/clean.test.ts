@@ -5,6 +5,8 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import "../../matchers";
+import { createFastaRecord } from "../../../src/constructors";
 import { CleanProcessor } from "../../../src/operations/clean";
 import { ValidationError } from "../../../src/errors";
 import type { CleanOptions } from "../../../src/operations/types";
@@ -15,12 +17,7 @@ describe("CleanProcessor", () => {
 
   // Helper to create test sequence
   function createSequence(sequence: string, description?: string): AbstractSequence {
-    return {
-      id: "test",
-      sequence,
-      length: sequence.length,
-      ...(description && { description }),
-    };
+    return createFastaRecord({ id: "test", sequence, ...(description && { description }) });
   }
 
   // Helper to process single sequence
@@ -31,7 +28,7 @@ describe("CleanProcessor", () => {
     };
 
     for await (const result of processor.process(source(), options)) {
-      return result.sequence;
+      return result.sequence.toString();
     }
 
     throw new Error("No result");
@@ -131,8 +128,8 @@ describe("CleanProcessor", () => {
       const result = await collect(processor.process(source(), { removeEmpty: true }));
 
       expect(result).toHaveLength(2);
-      expect(result[0]!.sequence).toBe("ATCG");
-      expect(result[1]!.sequence).toBe("GCTA");
+      expect(result[0]!.sequence).toEqualSequence("ATCG");
+      expect(result[1]!.sequence).toEqualSequence("GCTA");
     });
 
     test("removes sequences that become empty after cleaning", async () => {
@@ -150,8 +147,8 @@ describe("CleanProcessor", () => {
       );
 
       expect(result).toHaveLength(2);
-      expect(result[0]!.sequence).toBe("ATCG");
-      expect(result[1]!.sequence).toBe("GCTA");
+      expect(result[0]!.sequence).toEqualSequence("ATCG");
+      expect(result[1]!.sequence).toEqualSequence("GCTA");
     });
   });
 
@@ -199,7 +196,7 @@ describe("CleanProcessor", () => {
         removeGaps: true,
       })) {
         expect(result).not.toBe(input); // Different reference
-        expect(result.sequence).toBe("ATCG");
+        expect(result.sequence).toEqualSequence("ATCG");
       }
     });
   });

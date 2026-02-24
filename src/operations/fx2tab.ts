@@ -9,6 +9,7 @@
  */
 
 import { type } from "arktype";
+import { createFastaRecord, createFastqRecord } from "../constructors";
 import { FileError, ParseError } from "../errors";
 import {
   CSVParser,
@@ -557,28 +558,15 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
       const description = descValue ? String(descValue) : undefined;
       const qualValue = getRowValue(row, "quality");
       const quality = qualValue ? String(qualValue) : undefined;
-      const lengthValue = getRowValue(row, "length");
-      const length = typeof lengthValue === "number" ? lengthValue : sequence.length;
-
       if (!id || !sequence) {
         throw new ParseError(`Missing required fields (id, sequence) in row`, "fx2tab");
       }
 
-      // Build sequence object based on format
-      const seq: AbstractSequence = {
-        id,
-        sequence,
-        length,
-        ...(description && { description }),
-        ...(format === "fastq" &&
-          quality && {
-            quality,
-            qualityEncoding,
-            format: "fastq" as const,
-          }),
-      };
-
-      yield seq;
+      if (format === "fastq" && quality) {
+        yield createFastqRecord({ id, sequence, quality, qualityEncoding, description });
+      } else {
+        yield createFastaRecord({ id, sequence, description });
+      }
     }
   }
 
@@ -953,26 +941,12 @@ export function convertRecordToSequence(
   format: "fasta" | "fastq" = "fasta",
   qualityEncoding: "phred33" | "phred64" | "solexa" = "phred33"
 ): AbstractSequence {
-  const { id, sequence, quality, description, length } = record;
+  const { id, sequence, quality, description } = record;
 
-  // Build sequence object with conditional fields
-  const seq: AbstractSequence = {
-    id,
-    sequence,
-    length: length || sequence.length,
-    ...(description && { description }),
-    ...(format === "fastq" &&
-      quality && {
-        quality,
-        qualityEncoding,
-        format: "fastq" as const,
-      }),
-    ...(format === "fasta" && {
-      format: "fasta" as const,
-    }),
-  };
-
-  return seq;
+  if (format === "fastq" && quality) {
+    return createFastqRecord({ id, sequence, quality, qualityEncoding, description });
+  }
+  return createFastaRecord({ id, sequence, description });
 }
 
 /**
@@ -1109,15 +1083,15 @@ function computeColumn(
     case "id":
       return seq.id;
     case "sequence":
-      return seq.sequence;
+      return seq.sequence?.toString() ?? options.nullValue;
     case "quality":
-      return (seq as FastqSequence).quality || options.nullValue;
+      return (seq as FastqSequence).quality?.toString() || options.nullValue;
     case "description":
       return seq.description || options.nullValue;
 
     // Computed columns
     case "length":
-      return seq.length || seq.sequence.length;
+      return seq.length || seq.sequence?.length || 0;
     case "gc":
       return gcContent(seq.sequence);
     case "at":
@@ -1139,7 +1113,7 @@ function computeColumn(
     case "complexity": {
       // Linguistic complexity = (number of unique kmers) / (total kmers)
       // Using k=2 (dinucleotides) for simplicity
-      const seq_upper = seq.sequence.toUpperCase();
+      const seq_upper = seq.sequence.toString().toUpperCase();
       if (seq_upper.length < 2) return 0;
 
       const dinucs = new Set<string>();
@@ -1207,7 +1181,7 @@ function computeColumn(
     case "alphabet":
       return sequenceAlphabet(seq.sequence, options.caseSensitive || false);
     case "seq_hash":
-      return hashMD5(seq.sequence, options.caseSensitive || false);
+      return hashMD5(seq.sequence.toString(), options.caseSensitive || false);
 
     default:
       // Check for dynamic column patterns

@@ -3,6 +3,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import "../matchers";
 import {
   FastaParser,
   type FastaSequence,
@@ -10,6 +11,7 @@ import {
   FastaWriter,
   ParseError,
 } from "../../src/index";
+import { createFastaRecord } from "../../src/constructors";
 
 describe("FastaParser", () => {
   const parser = new FastaParser();
@@ -23,13 +25,11 @@ describe("FastaParser", () => {
     }
 
     expect(sequences).toHaveLength(1);
-    expect(sequences[0]!).toMatchObject({
-      format: "fasta",
-      id: "seq1",
-      sequence: "ATCG",
-      length: 4,
-      lineNumber: 1,
-    });
+    expect(sequences[0]!.format).toBe("fasta");
+    expect(sequences[0]!.id).toBe("seq1");
+    expect(sequences[0]!.sequence).toEqualSequence("ATCG");
+    expect(sequences[0]!.length).toBe(4);
+    expect(sequences[0]!.lineNumber).toBe(1);
     expect(sequences[0]!.description).toBeUndefined();
   });
 
@@ -43,7 +43,7 @@ describe("FastaParser", () => {
 
     expect(sequences[0]!.id).toBe("seq1");
     expect(sequences[0]!.description).toBe("Sample sequence description");
-    expect(sequences[0]!.sequence).toBe("ATCGATCG");
+    expect(sequences[0]!.sequence).toEqualSequence("ATCGATCG");
   });
 
   test("should parse multiline sequences", async () => {
@@ -54,7 +54,7 @@ describe("FastaParser", () => {
       sequences.push(seq);
     }
 
-    expect(sequences[0]!.sequence).toBe("ATCGATCGATCG");
+    expect(sequences[0]!.sequence).toEqualSequence("ATCGATCGATCG");
     expect(sequences[0]!.length).toBe(12);
   });
 
@@ -80,7 +80,7 @@ describe("FastaParser", () => {
       sequences.push(seq);
     }
 
-    expect(sequences[0]!.sequence).toBe("ATCGRYSWKMBDHVN");
+    expect(sequences[0]!.sequence).toEqualSequence("ATCGRYSWKMBDHVN");
   });
 
   test("should skip comments and empty lines", async () => {
@@ -167,7 +167,7 @@ describe("FastaParser", () => {
       sequences.push(seq);
     }
 
-    expect(sequences[0]!.sequence).toBe("ATCGXYZ123");
+    expect(sequences[0]!.sequence).toEqualSequence("ATCGXYZ123");
   });
 
   test("should handle case-insensitive sequences", async () => {
@@ -178,7 +178,7 @@ describe("FastaParser", () => {
       sequences.push(seq);
     }
 
-    expect(sequences[0]!.sequence).toBe("atcgATCG");
+    expect(sequences[0]!.sequence).toEqualSequence("atcgATCG");
   });
 
   test("should remove whitespace from sequences", async () => {
@@ -189,7 +189,7 @@ describe("FastaParser", () => {
       sequences.push(seq);
     }
 
-    expect(sequences[0]!.sequence).toBe("ATCGATCG");
+    expect(sequences[0]!.sequence).toEqualSequence("ATCGATCG");
   });
 });
 
@@ -197,25 +197,18 @@ describe("FastaWriter", () => {
   const writer = new FastaWriter();
 
   test("should format simple sequence", () => {
-    const sequence: FastaSequence = {
-      format: "fasta",
-      id: "seq1",
-      sequence: "ATCGATCGATCG",
-      length: 12,
-    };
+    const sequence: FastaSequence = createFastaRecord({ id: "seq1", sequence: "ATCGATCGATCG" });
 
     const formatted = writer.formatSequence(sequence);
     expect(formatted).toBe(">seq1\nATCGATCGATCG");
   });
 
   test("should format sequence with description", () => {
-    const sequence: FastaSequence = {
-      format: "fasta",
+    const sequence: FastaSequence = createFastaRecord({
       id: "seq1",
       description: "Sample sequence",
       sequence: "ATCGATCGATCG",
-      length: 12,
-    };
+    });
 
     const formatted = writer.formatSequence(sequence);
     expect(formatted).toBe(">seq1 Sample sequence\nATCGATCGATCG");
@@ -223,12 +216,7 @@ describe("FastaWriter", () => {
 
   test("should wrap long sequences", () => {
     const wrappingWriter = new FastaWriter({ lineWidth: 8 });
-    const sequence: FastaSequence = {
-      format: "fasta",
-      id: "seq1",
-      sequence: "ATCGATCGATCGATCG",
-      length: 16,
-    };
+    const sequence: FastaSequence = createFastaRecord({ id: "seq1", sequence: "ATCGATCGATCGATCG" });
 
     const formatted = wrappingWriter.formatSequence(sequence);
     expect(formatted).toBe(">seq1\nATCGATCG\nATCGATCG");
@@ -236,8 +224,8 @@ describe("FastaWriter", () => {
 
   test("should format multiple sequences", () => {
     const sequences: FastaSequence[] = [
-      { format: "fasta", id: "seq1", sequence: "ATCG", length: 4 },
-      { format: "fasta", id: "seq2", sequence: "GGGG", length: 4 },
+      createFastaRecord({ id: "seq1", sequence: "ATCG" }),
+      createFastaRecord({ id: "seq2", sequence: "GGGG" }),
     ];
 
     const formatted = writer.formatSequences(sequences);
@@ -246,13 +234,11 @@ describe("FastaWriter", () => {
 
   test("should exclude description when configured", () => {
     const noDescWriter = new FastaWriter({ includeDescription: false });
-    const sequence: FastaSequence = {
-      format: "fasta",
+    const sequence: FastaSequence = createFastaRecord({
       id: "seq1",
       description: "Should be excluded",
       sequence: "ATCG",
-      length: 4,
-    };
+    });
 
     const formatted = noDescWriter.formatSequence(sequence);
     expect(formatted).toBe(">seq1\nATCG");

@@ -129,8 +129,9 @@ export function sequenceUnique<T extends AbstractSequence>(sequences: T[]): T[] 
   const result: T[] = [];
 
   for (const seq of sequences) {
-    if (!seen.has(seq.sequence)) {
-      seen.add(seq.sequence);
+    const seqStr = seq.sequence.toString();
+    if (!seen.has(seqStr)) {
+      seen.add(seqStr);
       result.push(seq);
     }
   }
@@ -152,8 +153,9 @@ export function sequenceArrayToMap<T extends AbstractSequence>(sequences: T[]): 
   const map = new Map<string, T>();
 
   for (const seq of sequences) {
-    if (!map.has(seq.sequence)) {
-      map.set(seq.sequence, seq);
+    const seqStr = seq.sequence.toString();
+    if (!map.has(seqStr)) {
+      map.set(seqStr, seq);
     }
   }
 

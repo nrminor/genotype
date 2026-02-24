@@ -7,6 +7,8 @@
  *
  */
 
+import { withSequence } from "../constructors";
+import type { GenotypeString } from "../genotype-string";
 import type { AbstractSequence } from "../types";
 import * as seqManip from "./core/sequence-manipulation";
 import type { Processor, TransformOptions } from "./types";
@@ -57,33 +59,25 @@ export class TransformProcessor implements Processor<TransformOptions> {
    * @returns Transformed sequence
    */
   private transformSequence(seq: AbstractSequence, options: TransformOptions): AbstractSequence {
-    let sequence = seq.sequence;
-
-    // Apply transformations in logical order
+    let sequence: GenotypeString | string = seq.sequence;
 
     // 1. Reverse complement (combines reverse + complement)
     if (options.reverseComplement === true) {
-      // NATIVE_CANDIDATE: reverseComplement is called from transforms module
-      // which already has NATIVE_CANDIDATE markers
       sequence = seqManip.reverseComplement(sequence);
     } else {
       // 2. Individual reverse or complement
       if (options.complement === true) {
-        // NATIVE_CANDIDATE: complement mapping is CPU-intensive
         sequence = seqManip.complement(sequence);
       }
       if (options.reverse === true) {
-        // NATIVE_CANDIDATE: string reversal allocates new string
         sequence = seqManip.reverse(sequence);
       }
     }
 
     // 3. RNA/DNA conversion
     if (options.toRNA === true) {
-      // NATIVE_CANDIDATE: Character replacement loop
       sequence = seqManip.toRNA(sequence);
     } else if (options.toDNA === true) {
-      // NATIVE_CANDIDATE: Character replacement loop
       sequence = seqManip.toDNA(sequence);
     }
 
@@ -96,18 +90,13 @@ export class TransformProcessor implements Processor<TransformOptions> {
 
     // 5. Custom transformation
     if (options.custom) {
-      sequence = options.custom(sequence);
+      sequence = options.custom(sequence.toString());
     }
 
-    // If unchanged, return the original sequence object
     if (sequence === seq.sequence) {
       return seq;
     }
 
-    return {
-      ...seq,
-      sequence,
-      length: sequence.length,
-    };
+    return withSequence(seq, sequence);
   }
 }

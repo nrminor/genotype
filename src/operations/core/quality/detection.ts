@@ -6,6 +6,8 @@
  */
 
 import { QualityError } from "../../../errors";
+import { asString } from "../../../genotype-string";
+import type { GenotypeString } from "../../../genotype-string";
 import type { QualityEncoding } from "../../../types";
 import type { DetectionResult } from "./types";
 
@@ -25,8 +27,9 @@ import type { DetectionResult } from "./types";
  * const encoding = detectEncoding('hhhhhhhhhh'); // 'phred64'
  * ```
  */
-export function detectEncoding(quality: string): QualityEncoding {
-  if (!quality || quality.length === 0) {
+export function detectEncoding(quality: GenotypeString | string): QualityEncoding {
+  const q = asString(quality);
+  if (!q || q.length === 0) {
     return "phred33"; // Default to modern standard
   }
 
@@ -34,8 +37,8 @@ export function detectEncoding(quality: string): QualityEncoding {
   let minAscii = 255;
   let maxAscii = 0;
 
-  for (let i = 0; i < quality.length; i++) {
-    const ascii = quality.charCodeAt(i);
+  for (let i = 0; i < q.length; i++) {
+    const ascii = q.charCodeAt(i);
     minAscii = Math.min(minAscii, ascii);
     maxAscii = Math.max(maxAscii, ascii);
   }
@@ -95,8 +98,9 @@ export function detectEncoding(quality: string): QualityEncoding {
  * console.log(result.evidence); // ['ASCII range: 73-73', ...]
  * ```
  */
-export function detectEncodingWithConfidence(quality: string): DetectionResult {
-  if (!quality || quality.length === 0) {
+export function detectEncodingWithConfidence(quality: GenotypeString | string): DetectionResult {
+  const q = asString(quality);
+  if (!q || q.length === 0) {
     return {
       encoding: "phred33",
       confidence: 0.5,
@@ -112,15 +116,15 @@ export function detectEncodingWithConfidence(quality: string): DetectionResult {
   let maxAscii = 0;
   const asciiCounts = new Map<number, number>();
 
-  for (let i = 0; i < quality.length; i++) {
-    const ascii = quality.charCodeAt(i);
+  for (let i = 0; i < q.length; i++) {
+    const ascii = q.charCodeAt(i);
     minAscii = Math.min(minAscii, ascii);
     maxAscii = Math.max(maxAscii, ascii);
     asciiCounts.set(ascii, (asciiCounts.get(ascii) || 0) + 1);
   }
 
   evidence.push(`ASCII range: ${minAscii}-${maxAscii}`);
-  evidence.push(`Quality string length: ${quality.length}`);
+  evidence.push(`Quality string length: ${q.length}`);
 
   // Analyze distribution patterns
   const range = maxAscii - minAscii;

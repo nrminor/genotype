@@ -20,6 +20,7 @@ import {
 } from "../errors";
 import { createStream, exists, getMetadata } from "../io/file-reader";
 import { StreamUtils } from "../io/stream-utils";
+import { createFastaRecord } from "../constructors";
 import type { FastaSequence, ParserOptions } from "../types";
 import { FastaSequenceSchema, SequenceIdSchema, SequenceSchema } from "../types";
 import { AbstractParser } from "./abstract-parser";
@@ -651,7 +652,7 @@ class FastaWriter {
     }
 
     // Wrap sequence to specified line width
-    const wrappedSequence = this.wrapText(sequence.sequence, this.lineWidth);
+    const wrappedSequence = this.wrapText(sequence.sequence.toString(), this.lineWidth);
 
     return `${header}${this.lineEnding}${wrappedSequence}`;
   }
@@ -879,22 +880,17 @@ function extractFastaIds(data: string): string[] {
 function buildFastaRecord(
   partialSequence: Partial<FastaSequence>,
   sequence: string,
-  length: number
+  _length: number
 ): FastaSequence {
   const id = partialSequence.id && partialSequence.id !== "unknown" ? partialSequence.id : "";
+  const { description, lineNumber } = partialSequence;
 
-  return {
-    format: "fasta",
+  return createFastaRecord({
     id,
-    ...(partialSequence.description && {
-      description: partialSequence.description,
-    }),
     sequence,
-    length,
-    ...(partialSequence.lineNumber && {
-      lineNumber: partialSequence.lineNumber,
-    }),
-  };
+    ...(description !== undefined && { description }),
+    ...(lineNumber !== undefined && { lineNumber }),
+  });
 }
 
 /**
@@ -1046,7 +1042,16 @@ function validateFastaFinalSequence(
 ): void {
   if (skipValidation) return;
 
-  const validation = FastaSequenceSchema(fastaSequence);
+  // Normalize GenotypeString fields to plain strings for ArkType validation.
+  // ArkType's pipe() internally clones validated values, which breaks
+  // GenotypeString's #private fields. The FASTQ validators avoid this by
+  // using narrow() instead of pipe(), but FastaSequenceSchema uses pipe()
+  // for its transformation logic.
+  const normalized = {
+    ...fastaSequence,
+    sequence: String(fastaSequence.sequence),
+  };
+  const validation = FastaSequenceSchema(normalized);
   if (validation instanceof type.errors) {
     throw new SequenceError(
       `Invalid FASTA sequence structure: ${validation.summary}`,

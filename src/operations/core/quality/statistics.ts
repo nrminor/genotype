@@ -5,6 +5,7 @@
  * including basic statistics and error probability calculations.
  */
 
+import type { GenotypeString } from "../../../genotype-string";
 import type { QualityEncoding } from "../../../types";
 import { qualityToScores } from "./conversion";
 import type { QualityStats } from "./types";
@@ -97,7 +98,7 @@ export function calculateQualityStats(scores: number[]): QualityStats {
  * ```
  */
 export function calculateAverageQuality(
-  quality: string,
+  quality: GenotypeString | string,
   encoding: QualityEncoding = "phred33"
 ): number {
   if (!quality || quality.length === 0) {
@@ -165,7 +166,10 @@ export function errorProbabilityToScore(probability: number): number {
  * console.log(`Average error rate: ${(errorRate * 100).toFixed(2)}%`);
  * ```
  */
-export function calculateErrorRate(quality: string, encoding: QualityEncoding = "phred33"): number {
+export function calculateErrorRate(
+  quality: GenotypeString | string,
+  encoding: QualityEncoding = "phred33"
+): number {
   if (!quality || quality.length === 0) {
     return 0;
   }
@@ -197,7 +201,7 @@ export function calculateErrorRate(quality: string, encoding: QualityEncoding = 
  * ```
  */
 export function percentAboveThreshold(
-  quality: string,
+  quality: GenotypeString | string,
   threshold: number,
   encoding: QualityEncoding = "phred33"
 ): number {

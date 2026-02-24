@@ -10,6 +10,7 @@
  *
  */
 
+import { createFastqRecord } from "../constructors";
 import { FastaWriter, FastqWriter } from "../formats";
 import {
   JSONLParser,
@@ -387,7 +388,7 @@ export class SeqOps<T extends AbstractSequence> {
         let inSet: boolean;
         if (by === "sequence") {
           // Check by sequence content (SequenceSet's native key)
-          inSet = set.has(seq.sequence);
+          inSet = set.has(seq.sequence.toString());
         } else {
           // Check by ID - need to iterate through set to find matching ID
           inSet = set.toArray().some((s) => s.id === seq.id);
@@ -1760,19 +1761,14 @@ export class SeqOps<T extends AbstractSequence> {
         if (this.isFastqSequence(seq)) {
           fastqSeq = seq;
         } else {
-          // Convert to FASTQ with default quality
           const qualityString = defaultQuality.repeat(seq.length).substring(0, seq.length);
-          fastqSeq = {
-            format: "fastq",
+          fastqSeq = createFastqRecord({
             id: seq.id,
             sequence: seq.sequence,
             quality: qualityString,
             qualityEncoding: "phred33",
-            length: seq.length,
-            ...(seq.description !== undefined && {
-              description: seq.description,
-            }),
-          };
+            description: seq.description,
+          });
         }
 
         const formatted = writer.formatSequence(fastqSeq);

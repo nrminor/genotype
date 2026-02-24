@@ -3,29 +3,24 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import "../matchers";
+import { createFastaRecord, createFastqRecord } from "../../src/constructors";
 import { seqops } from "../../src/operations";
 import type { FastaSequence, FastqSequence } from "../../src/types";
 
 // Helper to create test FASTA sequences
 async function* createFastaSource(): AsyncIterable<FastaSequence> {
-  yield {
-    format: "fasta",
-    id: "test",
-    sequence: "ATCG",
-    length: 4,
-  };
+  yield createFastaRecord({ id: "test", sequence: "ATCG" });
 }
 
 // Helper to create test FASTQ sequences
 async function* createFastqSource(): AsyncIterable<FastqSequence> {
-  yield {
-    format: "fastq",
+  yield createFastqRecord({
     id: "test",
     sequence: "ATCG",
     quality: "IIII",
     qualityEncoding: "phred33",
-    length: 4,
-  };
+  });
 }
 
 describe("SeqOps Conversion Methods", () => {
@@ -35,7 +30,7 @@ describe("SeqOps Conversion Methods", () => {
 
       expect(result).toHaveLength(1);
       const fastq = result[0] as FastqSequence;
-      expect(fastq.quality).toBe("IIII");
+      expect(fastq.quality).toEqualSequence("IIII");
     });
 
     test("accepts valid quality scores", async () => {
@@ -46,7 +41,7 @@ describe("SeqOps Conversion Methods", () => {
       expect(result).toHaveLength(1);
       // Score 40 is 'I' in Phred+33
       const fastq = result[0] as FastqSequence;
-      expect(fastq.quality).toBe("IIII");
+      expect(fastq.quality).toEqualSequence("IIII");
     });
 
     test("works with no options", async () => {
@@ -54,7 +49,7 @@ describe("SeqOps Conversion Methods", () => {
 
       expect(result).toHaveLength(1);
       const fastq = result[0] as FastqSequence;
-      expect(fastq.quality).toBe("IIII"); // Default quality
+      expect(fastq.quality).toEqualSequence("IIII"); // Default quality
     });
 
     test("works with Solexa encoding", async () => {
@@ -78,7 +73,7 @@ describe("SeqOps Conversion Methods", () => {
       }
 
       expect(sequences).toHaveLength(1);
-      expect(sequences[0]!.quality).toBe("IIII");
+      expect(sequences[0]!.quality).toEqualSequence("IIII");
     });
   });
 
@@ -89,7 +84,7 @@ describe("SeqOps Conversion Methods", () => {
       expect(result).toHaveLength(1);
       const fasta = result[0] as FastaSequence;
       expect(fasta.format).toBe("fasta");
-      expect(fasta.sequence).toBe("ATCG");
+      expect(fasta.sequence).toEqualSequence("ATCG");
       expect("quality" in fasta).toBe(false);
     });
   });

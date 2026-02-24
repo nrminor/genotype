@@ -14,13 +14,15 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import { createFastaRecord } from "../../src/constructors";
 import { SubseqExtractor } from "../../src/operations/subseq";
 import type { AbstractSequence } from "../../src/types";
+import "../matchers";
 
 describe("SubseqExtractor", () => {
   // Helper functions
   function createSequence(id: string, sequence: string): AbstractSequence {
-    return { id, sequence, length: sequence.length };
+    return createFastaRecord({ id, sequence });
   }
 
   async function* arrayToAsync<T>(items: T[]): AsyncIterable<T> {
@@ -49,7 +51,7 @@ describe("SubseqExtractor", () => {
 
       expect(results).toHaveLength(1);
       // Region 3:6 in 1-based coords = positions 3,4,5,6 = 'CGAT'
-      expect(results[0]?.sequence).toBe("CGAT");
+      expect(results[0]?.sequence).toEqualSequence("CGAT");
       expect(results[0]?.length).toBe(4);
     });
 
@@ -65,7 +67,7 @@ describe("SubseqExtractor", () => {
 
       expect(results).toHaveLength(1);
       // Start:3, End:6 in 1-based = positions 3,4,5,6 = 'CGAT'
-      expect(results[0]?.sequence).toBe("CGAT");
+      expect(results[0]?.sequence).toEqualSequence("CGAT");
     });
 
     test("extracts from start to end of sequence", async () => {
@@ -78,7 +80,7 @@ describe("SubseqExtractor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("CGATCG");
+      expect(results[0]?.sequence).toEqualSequence("CGATCG");
     });
 
     test("extracts from beginning to position", async () => {
@@ -91,7 +93,7 @@ describe("SubseqExtractor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("ATCGA");
+      expect(results[0]?.sequence).toEqualSequence("ATCGA");
     });
   });
 
@@ -107,7 +109,7 @@ describe("SubseqExtractor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("CGATC"); // 2 upstream + region
+      expect(results[0]?.sequence).toEqualSequence("CGATC"); // 2 upstream + region
     });
 
     test("extracts with downstream context", async () => {
@@ -122,7 +124,7 @@ describe("SubseqExtractor", () => {
 
       expect(results).toHaveLength(1);
       // Region 5:7 = "ATC" + 2 downstream = "ATCGA"
-      expect(results[0]?.sequence).toBe("ATCGA"); // region + 2 downstream
+      expect(results[0]?.sequence).toEqualSequence("ATCGA"); // region + 2 downstream
     });
 
     test("extracts with both upstream and downstream", async () => {
@@ -138,7 +140,7 @@ describe("SubseqExtractor", () => {
 
       expect(results).toHaveLength(1);
       // 2 upstream (CG) + region 5:7 (ATC) + 2 downstream (GA) = CGATCGA
-      expect(results[0]?.sequence).toBe("CGATCGA"); // 2 up + region + 2 down
+      expect(results[0]?.sequence).toEqualSequence("CGATCGA"); // 2 up + region + 2 down
     });
 
     test("handles upstream beyond sequence start", async () => {
@@ -152,7 +154,7 @@ describe("SubseqExtractor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("ATCG"); // From beginning
+      expect(results[0]?.sequence).toEqualSequence("ATCG"); // From beginning
     });
 
     test("handles downstream beyond sequence end", async () => {
@@ -166,7 +168,7 @@ describe("SubseqExtractor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("TCG"); // To end
+      expect(results[0]?.sequence).toEqualSequence("TCG"); // To end
     });
   });
 
@@ -187,8 +189,8 @@ describe("SubseqExtractor", () => {
       );
 
       expect(results).toHaveLength(2);
-      expect(results[0]?.sequence).toBe("CGA");
-      expect(results[1]?.sequence).toBe("CCCC");
+      expect(results[0]?.sequence).toEqualSequence("CGA");
+      expect(results[1]?.sequence).toEqualSequence("CCCC");
     });
 
     test("filters sequences not in bed regions", async () => {
@@ -222,8 +224,8 @@ describe("SubseqExtractor", () => {
       );
 
       expect(results).toHaveLength(2);
-      expect(results[0]?.sequence).toBe("ATCG");
-      expect(results[1]?.sequence).toBe("ATCG");
+      expect(results[0]?.sequence).toEqualSequence("ATCG");
+      expect(results[1]?.sequence).toEqualSequence("ATCG");
     });
   });
 
@@ -282,9 +284,9 @@ describe("SubseqExtractor", () => {
 
       expect(results).toHaveLength(2);
       expect(results[0]?.id).toBe("gene1");
-      expect(results[0]?.sequence).toBe("CGAT"); // Region 3:6 from gene1
+      expect(results[0]?.sequence).toEqualSequence("CGAT"); // Region 3:6 from gene1
       expect(results[1]?.id).toBe("gene2");
-      expect(results[1]?.sequence).toBe("TTCC"); // Region 3:6 from gene2
+      expect(results[1]?.sequence).toEqualSequence("TTCC"); // Region 3:6 from gene2
     });
   });
 
@@ -300,7 +302,7 @@ describe("SubseqExtractor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("CGATC"); // Wraps around
+      expect(results[0]?.sequence).toEqualSequence("CGATC"); // Wraps around
     });
 
     test("handles upstream across circular boundary", async () => {
@@ -315,7 +317,7 @@ describe("SubseqExtractor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("CGATCG"); // Wraps for upstream
+      expect(results[0]?.sequence).toEqualSequence("CGATCG"); // Wraps for upstream
     });
 
     test("handles downstream across circular boundary", async () => {
@@ -330,7 +332,7 @@ describe("SubseqExtractor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("TCGATC"); // Wraps for downstream
+      expect(results[0]?.sequence).toEqualSequence("TCGATC"); // Wraps for downstream
     });
   });
 
@@ -346,7 +348,7 @@ describe("SubseqExtractor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("ATCG"); // Reverse complement of CGAT
+      expect(results[0]?.sequence).toEqualSequence("ATCG"); // Reverse complement of CGAT
     });
 
     test("handles upstream/downstream on negative strand", async () => {
@@ -363,7 +365,7 @@ describe("SubseqExtractor", () => {
 
       expect(results).toHaveLength(1);
       // Negative strand: extract, then reverse complement
-      expect(results[0]?.sequence).toBe("TCGATCG"); // Rev comp of CGATCGA
+      expect(results[0]?.sequence).toEqualSequence("TCGATCG"); // Rev comp of CGATCGA
     });
   });
 
@@ -382,7 +384,7 @@ describe("SubseqExtractor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("ATCGATCG"); // Concatenated
+      expect(results[0]?.sequence).toEqualSequence("ATCGATCG"); // Concatenated
     });
 
     test("does not concatenate when false", async () => {
@@ -399,8 +401,8 @@ describe("SubseqExtractor", () => {
       );
 
       expect(results).toHaveLength(2);
-      expect(results[0]?.sequence).toBe("ATCG");
-      expect(results[1]?.sequence).toBe("ATCG");
+      expect(results[0]?.sequence).toEqualSequence("ATCG");
+      expect(results[1]?.sequence).toEqualSequence("ATCG");
     });
   });
 
@@ -420,7 +422,7 @@ describe("SubseqExtractor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("CGATCGTCG"); // Concatenated exons
+      expect(results[0]?.sequence).toEqualSequence("CGATCGTCG"); // Concatenated exons
     });
 
     test("filters by feature type", async () => {
@@ -437,7 +439,7 @@ describe("SubseqExtractor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("CGATCG"); // Only exon
+      expect(results[0]?.sequence).toEqualSequence("CGATCG"); // Only exon
     });
 
     test("handles GTF coordinate conversion (1-based to 0-based)", async () => {
@@ -452,7 +454,7 @@ describe("SubseqExtractor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("ATCG"); // First 4 bases
+      expect(results[0]?.sequence).toEqualSequence("ATCG"); // First 4 bases
     });
   });
 
@@ -468,7 +470,7 @@ describe("SubseqExtractor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("CGAT"); // Reverse complement of ATCG
+      expect(results[0]?.sequence).toEqualSequence("CGAT"); // Reverse complement of ATCG
     });
 
     test("handles strand with flanking regions", async () => {
@@ -486,7 +488,7 @@ describe("SubseqExtractor", () => {
       expect(results).toHaveLength(1);
       // Region 3:6 (CGAT) + upstream 1 (T) + downstream 1 (C) = TCGATC
       // Reverse complement = GATCGA
-      expect(results[0]?.sequence).toBe("GATCGA");
+      expect(results[0]?.sequence).toEqualSequence("GATCGA");
     });
   });
 
@@ -502,7 +504,7 @@ describe("SubseqExtractor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("CGA"); // 0-based indices 2,3,4
+      expect(results[0]?.sequence).toEqualSequence("CGA"); // 0-based indices 2,3,4
     });
 
     test("includes coordinates in sequence ID", async () => {
@@ -517,7 +519,7 @@ describe("SubseqExtractor", () => {
 
       expect(results).toHaveLength(1);
       expect(results[0]?.id).toBe("seq1:2:5"); // Includes region coordinates
-      expect(results[0]?.sequence).toBe("TCGA"); // 1-based positions 2,3,4,5
+      expect(results[0]?.sequence).toEqualSequence("TCGA"); // 1-based positions 2,3,4,5
     });
 
     test("uses custom coordinate separator", async () => {
@@ -547,8 +549,8 @@ describe("SubseqExtractor", () => {
       );
 
       expect(results).toHaveLength(2);
-      expect(results[0]?.sequence).toBe("ATCG"); // First 4 bases (1:4)
-      expect(results[1]?.sequence).toBe("GATCG"); // Positions 8-12
+      expect(results[0]?.sequence).toEqualSequence("ATCG"); // First 4 bases (1:4)
+      expect(results[1]?.sequence).toEqualSequence("GATCG"); // Positions 8-12
     });
 
     test("validates mutually exclusive region specifications", async () => {
@@ -683,7 +685,7 @@ describe("SubseqExtractor", () => {
       });
 
       expect(result).not.toBeNull();
-      expect(result?.sequence).toBe("CGAT");
+      expect(result?.sequence).toEqualSequence("CGAT");
       expect(result?.id).toBe("seq1:3:6");
     });
 
@@ -699,7 +701,7 @@ describe("SubseqExtractor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("CGATCG"); // 2 upstream + region 5:8
+      expect(results[0]?.sequence).toEqualSequence("CGATCG"); // 2 upstream + region 5:8
     });
 
     test("createSubseqExtractor factory function", async () => {

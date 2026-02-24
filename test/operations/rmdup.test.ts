@@ -6,9 +6,15 @@
  */
 
 import { beforeEach, describe, expect, test } from "bun:test";
+import "../matchers";
+import { createFastaRecord } from "../../src/constructors";
 import { RmdupProcessor } from "../../src/operations/rmdup";
 import type { RmdupOptions } from "../../src/operations/types";
 import type { AbstractSequence } from "../../src/types";
+
+function createSequence(id: string, sequence: string, description?: string): AbstractSequence {
+  return createFastaRecord({ id, sequence, description });
+}
 
 /** Convert an array to an async iterable */
 async function* toAsync<T>(arr: T[]): AsyncGenerator<T> {
@@ -27,46 +33,21 @@ describe("RmdupProcessor", () => {
 
     // Test sequences with intentional duplicates
     testSequences = [
-      {
-        id: "unique_1",
-        sequence: "ATCGATCGATCG",
-        length: 12,
-        description: "First unique sequence",
-      },
-      {
-        id: "duplicate_id",
-        sequence: "GGCCAATTGGCC",
-        length: 12,
-        description: "First occurrence",
-      },
-      {
-        id: "duplicate_id", // Same ID as above
-        sequence: "TTAACCGGTTAA", // Different sequence
-        length: 12,
-        description: "Second occurrence with same ID",
-      },
-      {
-        id: "unique_2",
-        sequence: "GGCCAATTGGCC", // Same sequence as duplicate_id
-        length: 12,
-        description: "Different ID, same sequence",
-      },
-      {
-        id: "unique_3",
-        sequence: "GCGCGCGCGCGC",
-        length: 12,
-        description: "Another unique sequence",
-      },
+      createSequence("unique_1", "ATCGATCGATCG", "First unique sequence"),
+      createSequence("duplicate_id", "GGCCAATTGGCC", "First occurrence"),
+      createSequence("duplicate_id", "TTAACCGGTTAA", "Second occurrence with same ID"),
+      createSequence("unique_2", "GGCCAATTGGCC", "Different ID, same sequence"),
+      createSequence("unique_3", "GCGCGCGCGCGC", "Another unique sequence"),
     ];
 
     // Sequences with exact duplicates for testing
     duplicateSequences = [
-      { id: "seq1", sequence: "ATCGATCG", length: 8 },
-      { id: "seq2", sequence: "GGCCAATT", length: 8 },
-      { id: "seq1", sequence: "ATCGATCG", length: 8 }, // Exact duplicate
-      { id: "seq3", sequence: "TTAACCGG", length: 8 },
-      { id: "seq2", sequence: "GGCCAATT", length: 8 }, // Exact duplicate
-      { id: "seq4", sequence: "ATCGATCG", length: 8 }, // Same sequence, different ID
+      createSequence("seq1", "ATCGATCG"),
+      createSequence("seq2", "GGCCAATT"),
+      createSequence("seq1", "ATCGATCG"), // Exact duplicate
+      createSequence("seq3", "TTAACCGG"),
+      createSequence("seq2", "GGCCAATT"), // Exact duplicate
+      createSequence("seq4", "ATCGATCG"), // Same sequence, different ID
     ];
   });
 
@@ -85,16 +66,16 @@ describe("RmdupProcessor", () => {
       expect(results).toHaveLength(3);
 
       // Check that first occurrences are kept
-      expect(results.find((s) => s.sequence === "ATCGATCG")?.id).toBe("seq1");
-      expect(results.find((s) => s.sequence === "GGCCAATT")?.id).toBe("seq2");
-      expect(results.find((s) => s.sequence === "TTAACCGG")?.id).toBe("seq3");
+      expect(results.find((s) => s.sequence.equals("ATCGATCG"))?.id).toBe("seq1");
+      expect(results.find((s) => s.sequence.equals("GGCCAATT"))?.id).toBe("seq2");
+      expect(results.find((s) => s.sequence.equals("TTAACCGG"))?.id).toBe("seq3");
     });
 
     test("case-insensitive sequence deduplication", async () => {
       const caseTestSeqs: AbstractSequence[] = [
-        { id: "seq1", sequence: "ATCG", length: 4 },
-        { id: "seq2", sequence: "atcg", length: 4 }, // Same sequence, different case
-        { id: "seq3", sequence: "GGCC", length: 4 },
+        createSequence("seq1", "ATCG"),
+        createSequence("seq2", "atcg"), // Same sequence, different case
+        createSequence("seq3", "GGCC"),
       ];
 
       const options: RmdupOptions = {
@@ -128,10 +109,10 @@ describe("RmdupProcessor", () => {
 
       // Check that first occurrences are kept
       const seq1Result = results.find((s) => s.id === "seq1");
-      expect(seq1Result?.sequence).toBe("ATCGATCG");
+      expect(seq1Result?.sequence).toEqualSequence("ATCGATCG");
 
       const seq2Result = results.find((s) => s.id === "seq2");
-      expect(seq2Result?.sequence).toBe("GGCCAATT");
+      expect(seq2Result?.sequence).toEqualSequence("GGCCAATT");
     });
   });
 
@@ -197,21 +178,13 @@ describe("RmdupProcessor", () => {
 
       // Add 100 unique sequences
       for (let i = 0; i < 100; i++) {
-        largeDataset.push({
-          id: `unique_${i}`,
-          sequence: `ATCG${"N".repeat(i)}CGTA`,
-          length: 8 + i,
-        });
+        largeDataset.push(createSequence(`unique_${i}`, `ATCG${"N".repeat(i)}CGTA`));
       }
 
       // Add 100 duplicates of the first 10 sequences
       for (let i = 0; i < 10; i++) {
         for (let j = 0; j < 10; j++) {
-          largeDataset.push({
-            id: `duplicate_${i}_${j}`,
-            sequence: `ATCG${"N".repeat(i)}CGTA`, // Same sequence as unique_i
-            length: 8 + i,
-          });
+          largeDataset.push(createSequence(`duplicate_${i}_${j}`, `ATCG${"N".repeat(i)}CGTA`)); // Same sequence as unique_i
         }
       }
 
@@ -306,9 +279,9 @@ describe("RmdupProcessor", () => {
 
     test("handles sequences with empty descriptions", async () => {
       const seqsNoDesc: AbstractSequence[] = [
-        { id: "seq_1", sequence: "ATCGATCG", length: 8 },
-        { id: "seq_2", sequence: "ATCGATCG", length: 8 }, // Duplicate sequence
-        { id: "seq_3", sequence: "GGCCAATT", length: 8 },
+        createSequence("seq_1", "ATCGATCG"),
+        createSequence("seq_2", "ATCGATCG"), // Duplicate sequence
+        createSequence("seq_3", "GGCCAATT"),
       ];
 
       const options: RmdupOptions = {
@@ -328,12 +301,12 @@ describe("RmdupProcessor", () => {
     test("PCR duplicate removal simulation", async () => {
       // Simulate PCR duplicates - same sequence, different IDs
       const pcrDuplicates: AbstractSequence[] = [
-        { id: "read_1", sequence: "ATCGATCGATCG", length: 12 },
-        { id: "read_2", sequence: "GGCCAATTGGCC", length: 12 },
-        { id: "read_1_dup1", sequence: "ATCGATCGATCG", length: 12 }, // PCR duplicate
-        { id: "read_1_dup2", sequence: "ATCGATCGATCG", length: 12 }, // PCR duplicate
-        { id: "read_3", sequence: "TTAACCGGTTAA", length: 12 },
-        { id: "read_2_dup1", sequence: "GGCCAATTGGCC", length: 12 }, // PCR duplicate
+        createSequence("read_1", "ATCGATCGATCG"),
+        createSequence("read_2", "GGCCAATTGGCC"),
+        createSequence("read_1_dup1", "ATCGATCGATCG"), // PCR duplicate
+        createSequence("read_1_dup2", "ATCGATCGATCG"), // PCR duplicate
+        createSequence("read_3", "TTAACCGGTTAA"),
+        createSequence("read_2_dup1", "GGCCAATTGGCC"), // PCR duplicate
       ];
 
       const options: RmdupOptions = {
@@ -349,18 +322,18 @@ describe("RmdupProcessor", () => {
       expect(results).toHaveLength(3); // 3 unique sequences
 
       // Should keep first occurrence of each unique sequence
-      expect(results.find((s) => s.sequence === "ATCGATCGATCG")?.id).toBe("read_1");
-      expect(results.find((s) => s.sequence === "GGCCAATTGGCC")?.id).toBe("read_2");
-      expect(results.find((s) => s.sequence === "TTAACCGGTTAA")?.id).toBe("read_3");
+      expect(results.find((s) => s.sequence.equals("ATCGATCGATCG"))?.id).toBe("read_1");
+      expect(results.find((s) => s.sequence.equals("GGCCAATTGGCC"))?.id).toBe("read_2");
+      expect(results.find((s) => s.sequence.equals("TTAACCGGTTAA"))?.id).toBe("read_3");
     });
 
     test("assembly redundancy removal simulation", async () => {
       // Simulate assembly contigs with redundant sequences
       const assemblyContigs: AbstractSequence[] = [
-        { id: "contig_1", sequence: "ATCGATCGATCGATCG", length: 16 },
-        { id: "contig_2", sequence: "GGCCAATTGGCCAATT", length: 16 },
-        { id: "contig_1_v2", sequence: "ATCGATCGATCGATCG", length: 16 }, // Redundant
-        { id: "contig_3", sequence: "TTAACCGGTTAACCGG", length: 16 },
+        createSequence("contig_1", "ATCGATCGATCGATCG"),
+        createSequence("contig_2", "GGCCAATTGGCCAATT"),
+        createSequence("contig_1_v2", "ATCGATCGATCGATCG"), // Redundant
+        createSequence("contig_3", "TTAACCGGTTAACCGG"),
       ];
 
       const options: RmdupOptions = {
@@ -374,7 +347,7 @@ describe("RmdupProcessor", () => {
       }
 
       expect(results).toHaveLength(3); // Remove redundant contig
-      expect(results.find((s) => s.sequence === "ATCGATCGATCGATCG")?.id).toBe("contig_1");
+      expect(results.find((s) => s.sequence.equals("ATCGATCGATCGATCG"))?.id).toBe("contig_1");
     });
   });
 
@@ -385,18 +358,10 @@ describe("RmdupProcessor", () => {
 
       // 500 unique sequences + 500 duplicates
       for (let i = 0; i < 500; i++) {
-        largeDataset.push({
-          id: `unique_${i}`,
-          sequence: `ATCG${"N".repeat(i % 100)}CGTA`,
-          length: 8 + (i % 100),
-        });
+        largeDataset.push(createSequence(`unique_${i}`, `ATCG${"N".repeat(i % 100)}CGTA`));
 
         // Add duplicate
-        largeDataset.push({
-          id: `dup_${i}`,
-          sequence: `ATCG${"N".repeat(i % 100)}CGTA`, // Same sequence
-          length: 8 + (i % 100),
-        });
+        largeDataset.push(createSequence(`dup_${i}`, `ATCG${"N".repeat(i % 100)}CGTA`)); // Same sequence
       }
 
       const options: RmdupOptions = {
@@ -435,7 +400,7 @@ describe("RmdupProcessor", () => {
       expect(results).toHaveLength(3);
 
       // Verify no duplicates remain
-      const sequences = results.map((s) => s.sequence);
+      const sequences = results.map((s) => s.sequence.toString());
       const uniqueSequences = new Set(sequences);
       expect(sequences.length).toBe(uniqueSequences.size);
     });

@@ -3,6 +3,8 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import "../matchers";
+import { createFastqRecord } from "../../src/constructors";
 import { parseFastPath } from "../../src/formats/fastq/";
 import { FastqParser, type FastqSequence, FastqUtils, FastqWriter } from "../../src/index";
 import {
@@ -82,15 +84,13 @@ IIIIIIIIIIII`;
       const sequences = parser.parseMultiLineString(multiLineFastq);
 
       expect(sequences).toHaveLength(1);
-      expect(sequences[0]).toMatchObject({
-        format: "fastq",
-        id: "read1",
-        description: "wrapped sequence example",
-        sequence: "ATCGATCGATCGATCGATCGATCG", // Concatenated from multi-line
-        quality: "IIIIIIIIIIIIIIIIIIIIIIII", // Concatenated quality
-        qualityEncoding: "phred33",
-        length: 24,
-      });
+      expect(sequences[0]!.format).toBe("fastq");
+      expect(sequences[0]!.id).toBe("read1");
+      expect(sequences[0]!.description).toBe("wrapped sequence example");
+      expect(sequences[0]!.sequence).toEqualSequence("ATCGATCGATCGATCGATCGATCG");
+      expect(sequences[0]!.quality).toEqualSequence("IIIIIIIIIIIIIIIIIIIIIIII");
+      expect(sequences[0]!.qualityEncoding).toBe("phred33");
+      expect(sequences[0]!.length).toBe(24);
     });
 
     test("should handle multi-line quality contaminated with @ marker", async () => {
@@ -104,8 +104,8 @@ ATCGATCG
       const sequences = parser.parseMultiLineString(contaminatedQuality);
 
       expect(sequences).toHaveLength(1);
-      expect(sequences[0]!.quality).toBe("@@@@IIII");
-      expect(sequences[0]!.sequence).toBe("ATCGATCG");
+      expect(sequences[0]!.quality).toEqualSequence("@@@@IIII");
+      expect(sequences[0]!.sequence).toEqualSequence("ATCGATCG");
     });
 
     test("should handle multi-line quality contaminated with + marker", async () => {
@@ -119,8 +119,8 @@ ATCGATCG
       const sequences = parser.parseMultiLineString(contaminatedPlus);
 
       expect(sequences).toHaveLength(1);
-      expect(sequences[0]!.quality).toBe("+++IIIII");
-      expect(sequences[0]!.sequence).toBe("ATCGATCG");
+      expect(sequences[0]!.quality).toEqualSequence("+++IIIII");
+      expect(sequences[0]!.sequence).toEqualSequence("ATCGATCG");
     });
   });
 
@@ -144,7 +144,7 @@ ATCGATCG
 
       expect(sequences).toHaveLength(1);
       expect(sequences[0]!.qualityEncoding).toBe("phred64"); // Should detect as Phred+64
-      expect(sequences[0]!.quality).toBe("@ABCDEFG");
+      expect(sequences[0]!.quality).toEqualSequence("@ABCDEFG");
     });
 
     test("should detect modern high-quality Illumina pattern", async () => {
@@ -159,7 +159,7 @@ IIIIIIII`; // ASCII 73 = Q40, modern high quality
 
       expect(sequences).toHaveLength(1);
       expect(sequences[0]!.qualityEncoding).toBe("phred33");
-      expect(sequences[0]!.quality).toBe("IIIIIIII");
+      expect(sequences[0]!.quality).toEqualSequence("IIIIIIII");
     });
 
     test("should detect legacy Solexa quality pattern", async () => {
@@ -174,7 +174,7 @@ ATCGATCG
 
       expect(sequences).toHaveLength(1);
       expect(sequences[0]!.qualityEncoding).toBe("solexa");
-      expect(sequences[0]!.quality).toBe(";;;;;;;;");
+      expect(sequences[0]!.quality).toEqualSequence(";;;;;;;;");
     });
 
     // TODO: Implement confidence warning test - need to determine exact trigger conditions
@@ -204,7 +204,7 @@ ATCGATCGATCGATCGATCGATCGATCG
 
       expect(sequences).toHaveLength(1);
       expect(sequences[0]!.qualityEncoding).toBe("solexa"); // Algorithm detects as Solexa based on pattern
-      expect(sequences[0]!.quality).toBe("????????????????????????????");
+      expect(sequences[0]!.quality).toEqualSequence("????????????????????????????");
     });
 
     test("should handle PacBio CCS high-accuracy reads", async () => {
@@ -451,15 +451,13 @@ IIIIIIII`;
     }
 
     expect(sequences).toHaveLength(1);
-    expect(sequences[0]).toMatchObject({
-      format: "fastq",
-      id: "read1",
-      sequence: "ATCG",
-      quality: "IIII",
-      qualityEncoding: "phred33",
-      length: 4,
-      lineNumber: 2,
-    });
+    expect(sequences[0]!.format).toBe("fastq");
+    expect(sequences[0]!.id).toBe("read1");
+    expect(sequences[0]!.sequence).toEqualSequence("ATCG");
+    expect(sequences[0]!.quality).toEqualSequence("IIII");
+    expect(sequences[0]!.qualityEncoding).toBe("phred33");
+    expect(sequences[0]!.length).toBe(4);
+    expect(sequences[0]!.lineNumber).toBe(2);
     expect(sequences[0]!.description).toBeUndefined();
   });
 
@@ -573,7 +571,7 @@ IIIIIIII`;
       sequences.push(seq);
     }
 
-    expect(sequences[0]!.sequence).toBe("ATCGXYZ");
+    expect(sequences[0]!.sequence).toEqualSequence("ATCGXYZ");
   });
 });
 
@@ -595,8 +593,8 @@ describe("parseFastPath", () => {
     expect(sequences).toHaveLength(1);
     expect(sequences[0]!.id).toBe("read1");
     expect(sequences[0]!.description).toBe("description");
-    expect(sequences[0]!.sequence).toBe("ATCGATCG");
-    expect(sequences[0]!.quality).toBe("IIIIIIII");
+    expect(sequences[0]!.sequence).toEqualSequence("ATCGATCG");
+    expect(sequences[0]!.quality).toEqualSequence("IIIIIIII");
     expect(sequences[0]!.qualityEncoding).toBe("phred33");
     expect(sequences[0]!.length).toBe(8);
   });
@@ -617,9 +615,9 @@ describe("parseFastPath", () => {
 
     expect(sequences).toHaveLength(2);
     expect(sequences[0]!.id).toBe("read1");
-    expect(sequences[0]!.sequence).toBe("ATCG");
+    expect(sequences[0]!.sequence).toEqualSequence("ATCG");
     expect(sequences[1]!.id).toBe("read2");
-    expect(sequences[1]!.sequence).toBe("GCTA");
+    expect(sequences[1]!.sequence).toEqualSequence("GCTA");
   });
 
   test("should throw on incomplete record", async () => {
@@ -671,29 +669,25 @@ describe("FastqWriter", () => {
   const writer = new FastqWriter();
 
   test("should format simple FASTQ record", () => {
-    const sequence: FastqSequence = {
-      format: "fastq",
+    const sequence = createFastqRecord({
       id: "read1",
       sequence: "ATCG",
       quality: "IIII",
       qualityEncoding: "phred33",
-      length: 4,
-    };
+    });
 
     const formatted = writer.formatSequence(sequence);
     expect(formatted).toBe("@read1\nATCG\n+\nIIII");
   });
 
   test("should format FASTQ with description", () => {
-    const sequence: FastqSequence = {
-      format: "fastq",
+    const sequence = createFastqRecord({
       id: "read1",
       description: "Sample read",
       sequence: "ATCG",
       quality: "IIII",
       qualityEncoding: "phred33",
-      length: 4,
-    };
+    });
 
     const formatted = writer.formatSequence(sequence);
     expect(formatted).toBe("@read1 Sample read\nATCG\n+\nIIII");
@@ -701,14 +695,12 @@ describe("FastqWriter", () => {
 
   test("should convert quality encoding", () => {
     const phred64Writer = new FastqWriter({ qualityEncoding: "phred64" });
-    const sequence: FastqSequence = {
-      format: "fastq",
+    const sequence = createFastqRecord({
       id: "read1",
       sequence: "ATCG",
       quality: "!+5?", // Phred+33
       qualityEncoding: "phred33",
-      length: 4,
-    };
+    });
 
     const formatted = phred64Writer.formatSequence(sequence);
     expect(formatted).toBe("@read1\nATCG\n+\n@JT^"); // Converted to Phred+64
@@ -716,15 +708,13 @@ describe("FastqWriter", () => {
 
   test("should exclude description when configured", () => {
     const noDescWriter = new FastqWriter({ includeDescription: false });
-    const sequence: FastqSequence = {
-      format: "fastq",
+    const sequence = createFastqRecord({
       id: "read1",
       description: "Should be excluded",
       sequence: "ATCG",
       quality: "IIII",
       qualityEncoding: "phred33",
-      length: 4,
-    };
+    });
 
     const formatted = noDescWriter.formatSequence(sequence);
     expect(formatted).toBe("@read1\nATCG\n+\nIIII");

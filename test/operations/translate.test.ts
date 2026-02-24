@@ -12,19 +12,16 @@
  */
 
 import { beforeAll, describe, expect, test } from "bun:test";
+import { createFastaRecord } from "../../src/constructors";
 import { ValidationError } from "../../src/errors";
 import { GeneticCode } from "../../src/operations/core/genetic-codes";
 import { TranslateProcessor } from "../../src/operations/translate";
 import type { AbstractSequence } from "../../src/types";
+import "../matchers";
 
 // Test data generator
 function createTestSequence(id: string, sequence: string, description?: string): AbstractSequence {
-  return {
-    id,
-    sequence,
-    length: sequence.length,
-    ...(description !== undefined && { description }),
-  };
+  return createFastaRecord({ id, sequence, ...(description !== undefined && { description }) });
 }
 
 async function* singleSequence(seq: AbstractSequence): AsyncIterable<AbstractSequence> {
@@ -56,7 +53,7 @@ describe("TranslateProcessor", () => {
       const results = await collectResults(processor.process(source, {}));
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("MGS");
+      expect(results[0]?.sequence).toEqualSequence("MGS");
       expect(results[0]?.id).toBe("test1");
     });
 
@@ -67,7 +64,7 @@ describe("TranslateProcessor", () => {
       const results = await collectResults(processor.process(source, {}));
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("MGS");
+      expect(results[0]?.sequence).toEqualSequence("MGS");
     });
 
     test("handles incomplete codons at end", async () => {
@@ -77,7 +74,7 @@ describe("TranslateProcessor", () => {
       const results = await collectResults(processor.process(source, {}));
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("MG"); // Only complete codons translated
+      expect(results[0]?.sequence).toEqualSequence("MG"); // Only complete codons translated
     });
 
     test("translates empty sequence", async () => {
@@ -87,7 +84,7 @@ describe("TranslateProcessor", () => {
       const results = await collectResults(processor.process(source, {}));
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("");
+      expect(results[0]?.sequence).toEqualSequence("");
     });
   });
 
@@ -99,7 +96,7 @@ describe("TranslateProcessor", () => {
       const results = await collectResults(processor.process(source, { frames: [2] }));
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("MGS"); // ATG GGA TCC from position 1
+      expect(results[0]?.sequence).toEqualSequence("MGS"); // ATG GGA TCC from position 1
     });
 
     test("translates in frame +3", async () => {
@@ -109,7 +106,7 @@ describe("TranslateProcessor", () => {
       const results = await collectResults(processor.process(source, { frames: [3] }));
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("MGS"); // ATG GGA TCC from position 2
+      expect(results[0]?.sequence).toEqualSequence("MGS"); // ATG GGA TCC from position 2
     });
 
     test("translates in negative frames", async () => {
@@ -119,7 +116,7 @@ describe("TranslateProcessor", () => {
       const results = await collectResults(processor.process(source, { frames: [-1] }));
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("NGI"); // AAT=N, GGG=G, ATC=I
+      expect(results[0]?.sequence).toEqualSequence("NGI"); // AAT=N, GGG=G, ATC=I
     });
 
     test("translates multiple frames", async () => {
@@ -129,9 +126,9 @@ describe("TranslateProcessor", () => {
       const results = await collectResults(processor.process(source, { frames: [1, 2, 3] }));
 
       expect(results).toHaveLength(3);
-      expect(results[0]?.sequence).toBe("MGSM*"); // Frame +1: ATG GGA TCC ATG TAG
-      expect(results[1]?.sequence).toBe("WDPC"); // Frame +2: TGG GAT CCA TGT AG
-      expect(results[2]?.sequence).toBe("GIHV"); // Frame +3: GGG ATC CAT GTA G
+      expect(results[0]?.sequence).toEqualSequence("MGSM*"); // Frame +1: ATG GGA TCC ATG TAG
+      expect(results[1]?.sequence).toEqualSequence("WDPC"); // Frame +2: TGG GAT CCA TGT AG
+      expect(results[2]?.sequence).toEqualSequence("GIHV"); // Frame +3: GGG ATC CAT GTA G
     });
 
     test("translates all 6 frames", async () => {
@@ -153,7 +150,7 @@ describe("TranslateProcessor", () => {
       const results = await collectResults(processor.process(source, {}));
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("*W");
+      expect(results[0]?.sequence).toEqualSequence("*W");
     });
 
     test("uses vertebrate mitochondrial code", async () => {
@@ -167,7 +164,7 @@ describe("TranslateProcessor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("WW");
+      expect(results[0]?.sequence).toEqualSequence("WW");
     });
 
     test("uses ciliate nuclear code", async () => {
@@ -181,7 +178,7 @@ describe("TranslateProcessor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("QQ"); // TAA->Q, TAG->Q in ciliate nuclear code
+      expect(results[0]?.sequence).toEqualSequence("QQ"); // TAA->Q, TAG->Q in ciliate nuclear code
     });
   });
 
@@ -198,7 +195,7 @@ describe("TranslateProcessor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("MGS"); // CTG->M instead of L
+      expect(results[0]?.sequence).toEqualSequence("MGS"); // CTG->M instead of L
     });
 
     test("preserves original amino acids when not converting starts", async () => {
@@ -208,7 +205,7 @@ describe("TranslateProcessor", () => {
       const results = await collectResults(processor.process(source, {}));
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("LGS"); // CTG->L as normal
+      expect(results[0]?.sequence).toEqualSequence("LGS"); // CTG->L as normal
     });
 
     test("handles standard ATG start codons", async () => {
@@ -222,7 +219,7 @@ describe("TranslateProcessor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("MGS"); // ATG->M (already M)
+      expect(results[0]?.sequence).toEqualSequence("MGS"); // ATG->M (already M)
     });
   });
 
@@ -234,7 +231,7 @@ describe("TranslateProcessor", () => {
       const results = await collectResults(processor.process(source, {}));
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("M*GS");
+      expect(results[0]?.sequence).toEqualSequence("M*GS");
     });
 
     test("removes stop codons when requested", async () => {
@@ -248,7 +245,7 @@ describe("TranslateProcessor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("MGS"); // TAG removed
+      expect(results[0]?.sequence).toEqualSequence("MGS"); // TAG removed
     });
 
     test("replaces stop codons with custom character", async () => {
@@ -262,7 +259,7 @@ describe("TranslateProcessor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("MXGS"); // TAG->X
+      expect(results[0]?.sequence).toEqualSequence("MXGS"); // TAG->X
     });
 
     test("trims at first stop codon", async () => {
@@ -276,7 +273,7 @@ describe("TranslateProcessor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("M"); // Stops at TAG
+      expect(results[0]?.sequence).toEqualSequence("M"); // Stops at TAG
     });
   });
 
@@ -288,7 +285,7 @@ describe("TranslateProcessor", () => {
       const results = await collectResults(processor.process(source, {}));
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("MGS"); // GGN->G
+      expect(results[0]?.sequence).toEqualSequence("MGS"); // GGN->G
     });
 
     test("returns X for truly ambiguous codons", async () => {
@@ -298,7 +295,7 @@ describe("TranslateProcessor", () => {
       const results = await collectResults(processor.process(source, {}));
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("MX"); // NNN->X
+      expect(results[0]?.sequence).toEqualSequence("MX"); // NNN->X
     });
 
     test("handles IUPAC ambiguity codes", async () => {
@@ -322,7 +319,7 @@ describe("TranslateProcessor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("M?"); // NNN->?
+      expect(results[0]?.sequence).toEqualSequence("M?"); // NNN->?
     });
   });
 
@@ -339,7 +336,7 @@ describe("TranslateProcessor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("MG*"); // ATG GGA TAG -> M G *
+      expect(results[0]?.sequence).toEqualSequence("MG*"); // ATG GGA TAG -> M G *
     });
 
     test("requires minimum ORF length", async () => {
@@ -369,7 +366,7 @@ describe("TranslateProcessor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("MG*"); // TTG->M
+      expect(results[0]?.sequence).toEqualSequence("MG*"); // TTG->M
     });
 
     test("handles ORFs extending to sequence end", async () => {
@@ -383,7 +380,7 @@ describe("TranslateProcessor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("MGSK"); // Extends to end
+      expect(results[0]?.sequence).toEqualSequence("MGSK"); // Extends to end
     });
   });
 
@@ -505,7 +502,7 @@ describe("TranslateProcessor", () => {
 
       expect(results).toHaveLength(1);
       // TTG->M (start), GGN->G, TCC->S, TAG removed, AAA->K
-      expect(results[0]?.sequence).toBe("MGSK");
+      expect(results[0]?.sequence).toEqualSequence("MGSK");
       expect(results[0]?.id).toBe("complex_frame_+1");
     });
 
@@ -525,9 +522,9 @@ describe("TranslateProcessor", () => {
       );
 
       expect(results).toHaveLength(3);
-      expect(results[0]?.sequence).toBe("MGS"); // ATG->M
-      expect(results[1]?.sequence).toBe("MK*"); // TTG->M
-      expect(results[2]?.sequence).toBe("MP*"); // CTG->L (not alternative start in this context)
+      expect(results[0]?.sequence).toEqualSequence("MGS"); // ATG->M
+      expect(results[1]?.sequence).toEqualSequence("MK*"); // TTG->M
+      expect(results[2]?.sequence).toEqualSequence("MP*"); // CTG->L (not alternative start in this context)
     });
   });
 
@@ -544,7 +541,7 @@ describe("TranslateProcessor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("MTK"); // CTG->T in yeast mito
+      expect(results[0]?.sequence).toEqualSequence("MTK"); // CTG->T in yeast mito
     });
 
     test("handles bacterial/plastid genetic code", async () => {
@@ -559,7 +556,7 @@ describe("TranslateProcessor", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("MGS"); // Same as standard
+      expect(results[0]?.sequence).toEqualSequence("MGS"); // Same as standard
     });
   });
 });

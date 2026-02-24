@@ -5,33 +5,33 @@
  * including edge cases, malformed data, and real-world sequencing patterns.
  */
 
+import { createSamAlignment, type SamAlignmentInput } from "../../src/constructors";
 import type { CIGARString, MAPQScore, SAMAlignment, SAMFlag, SAMHeader } from "../../src/types";
+
+const samDefaults: SamAlignmentInput = {
+  qname: "read_001",
+  flag: 99 as SAMFlag,
+  rname: "chr1",
+  pos: 1000,
+  mapq: 60 as MAPQScore,
+  cigar: "150M" as CIGARString,
+  rnext: "=",
+  pnext: 1200,
+  tlen: 350,
+  seq: "A".repeat(150),
+  qual: "I".repeat(150),
+  tags: [
+    { tag: "NM", type: "i", value: 0 },
+    { tag: "MD", type: "Z", value: "150" },
+    { tag: "AS", type: "i", value: 150 },
+  ],
+};
 
 /**
  * Generate a valid SAM alignment record with realistic defaults
  */
-export function createValidSAMAlignment(overrides: Partial<SAMAlignment> = {}): SAMAlignment {
-  const defaults: SAMAlignment = {
-    format: "sam",
-    qname: "read_001",
-    flag: 99 as SAMFlag, // Paired, properly mapped, first in pair
-    rname: "chr1",
-    pos: 1000,
-    mapq: 60 as MAPQScore,
-    cigar: "150M" as CIGARString,
-    rnext: "=",
-    pnext: 1200,
-    tlen: 350,
-    seq: "A".repeat(150),
-    qual: "I".repeat(150),
-    tags: [
-      { tag: "NM", type: "i", value: 0 },
-      { tag: "MD", type: "Z", value: "150" },
-      { tag: "AS", type: "i", value: 150 },
-    ],
-  };
-
-  return { ...defaults, ...overrides };
+export function createValidSAMAlignment(overrides: Partial<SamAlignmentInput> = {}): SAMAlignment {
+  return createSamAlignment({ ...samDefaults, ...overrides });
 }
 
 /**

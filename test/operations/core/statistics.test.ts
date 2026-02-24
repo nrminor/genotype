@@ -7,7 +7,16 @@ import {
   calculateSequenceStats,
   SequenceStatsAccumulator,
 } from "../../../src/operations/core/statistics";
+import { createFastaRecord, createFastqRecord } from "../../../src/constructors";
 import type { AbstractSequence, FastaSequence, FastqSequence } from "../../../src/types";
+
+function createSequence(id: string, sequence: string): AbstractSequence {
+  return createFastaRecord({ id, sequence });
+}
+
+function createFastqSequence(id: string, sequence: string, quality: string): FastqSequence {
+  return createFastqRecord({ id, sequence, quality, qualityEncoding: "phred33" });
+}
 
 describe("SequenceStatsAccumulator", () => {
   describe("basic statistics", () => {
@@ -15,9 +24,9 @@ describe("SequenceStatsAccumulator", () => {
       const accumulator = new SequenceStatsAccumulator();
 
       const sequences: AbstractSequence[] = [
-        { id: "1", sequence: "ATCG", length: 4 },
-        { id: "2", sequence: "ATCGATCG", length: 8 },
-        { id: "3", sequence: "AT", length: 2 },
+        createSequence("1", "ATCG"),
+        createSequence("2", "ATCGATCG"),
+        createSequence("3", "AT"),
       ];
 
       accumulator.addMany(sequences);
@@ -44,7 +53,7 @@ describe("SequenceStatsAccumulator", () => {
 
     test("should handle single sequence", () => {
       const accumulator = new SequenceStatsAccumulator();
-      accumulator.add({ id: "1", sequence: "ATCGATCG", length: 8 });
+      accumulator.add(createSequence("1", "ATCGATCG"));
 
       const stats = accumulator.getStats();
       expect(stats.count).toBe(1);
@@ -59,9 +68,9 @@ describe("SequenceStatsAccumulator", () => {
     test("should calculate GC content correctly", () => {
       const accumulator = new SequenceStatsAccumulator();
 
-      accumulator.add({ id: "1", sequence: "GGCC", length: 4 }); // 100% GC
-      accumulator.add({ id: "2", sequence: "AATT", length: 4 }); // 0% GC
-      accumulator.add({ id: "3", sequence: "ATCG", length: 4 }); // 50% GC
+      accumulator.add(createSequence("1", "GGCC")); // 100% GC
+      accumulator.add(createSequence("2", "AATT")); // 0% GC
+      accumulator.add(createSequence("3", "ATCG")); // 50% GC
 
       const stats = accumulator.getStats();
       expect(stats.gcContent).toBeCloseTo(0.5, 2); // Overall 50%
@@ -69,7 +78,7 @@ describe("SequenceStatsAccumulator", () => {
 
     test("should count base composition", () => {
       const accumulator = new SequenceStatsAccumulator();
-      accumulator.add({ id: "1", sequence: "AATTTCCCGGGG", length: 12 });
+      accumulator.add(createSequence("1", "AATTTCCCGGGG"));
 
       const stats = accumulator.getStats();
       expect(stats.baseComposition["A"]).toBe(2);
@@ -80,7 +89,7 @@ describe("SequenceStatsAccumulator", () => {
 
     test("should handle IUPAC ambiguity codes", () => {
       const accumulator = new SequenceStatsAccumulator();
-      accumulator.add({ id: "1", sequence: "ATCGNRYS", length: 8 });
+      accumulator.add(createSequence("1", "ATCGNRYS"));
 
       const stats = accumulator.getStats();
       expect(stats.baseComposition["N"]).toBe(1);
@@ -92,7 +101,7 @@ describe("SequenceStatsAccumulator", () => {
 
     test("should handle lowercase sequences", () => {
       const accumulator = new SequenceStatsAccumulator();
-      accumulator.add({ id: "1", sequence: "atcg", length: 4 });
+      accumulator.add(createSequence("1", "atcg"));
 
       const stats = accumulator.getStats();
       expect(stats.baseComposition["A"]).toBe(1);
@@ -110,11 +119,11 @@ describe("SequenceStatsAccumulator", () => {
       // Total: 30 bp, 50% = 15 bp
       // Cumulative: 10, 18, 24, 28, 30
       // N50 should be 8 (first length where cumsum >= 15)
-      accumulator.add({ id: "1", sequence: "A".repeat(10), length: 10 });
-      accumulator.add({ id: "2", sequence: "A".repeat(8), length: 8 });
-      accumulator.add({ id: "3", sequence: "A".repeat(6), length: 6 });
-      accumulator.add({ id: "4", sequence: "A".repeat(4), length: 4 });
-      accumulator.add({ id: "5", sequence: "AA", length: 2 });
+      accumulator.add(createSequence("1", "A".repeat(10)));
+      accumulator.add(createSequence("2", "A".repeat(8)));
+      accumulator.add(createSequence("3", "A".repeat(6)));
+      accumulator.add(createSequence("4", "A".repeat(4)));
+      accumulator.add(createSequence("5", "AA"));
 
       const stats = accumulator.getStats();
       expect(stats.n50).toBe(8);
@@ -125,11 +134,11 @@ describe("SequenceStatsAccumulator", () => {
 
       // Same sequences, 90% of 30 = 27 bp
       // N90 should be 4
-      accumulator.add({ id: "1", sequence: "A".repeat(10), length: 10 });
-      accumulator.add({ id: "2", sequence: "A".repeat(8), length: 8 });
-      accumulator.add({ id: "3", sequence: "A".repeat(6), length: 6 });
-      accumulator.add({ id: "4", sequence: "A".repeat(4), length: 4 });
-      accumulator.add({ id: "5", sequence: "AA", length: 2 });
+      accumulator.add(createSequence("1", "A".repeat(10)));
+      accumulator.add(createSequence("2", "A".repeat(8)));
+      accumulator.add(createSequence("3", "A".repeat(6)));
+      accumulator.add(createSequence("4", "A".repeat(4)));
+      accumulator.add(createSequence("5", "AA"));
 
       const stats = accumulator.getStats();
       expect(stats.n90).toBe(4);
@@ -139,15 +148,15 @@ describe("SequenceStatsAccumulator", () => {
       const accumulator = new SequenceStatsAccumulator();
 
       // Odd number of sequences
-      accumulator.add({ id: "1", sequence: "A".repeat(5), length: 5 });
-      accumulator.add({ id: "2", sequence: "A".repeat(3), length: 3 });
-      accumulator.add({ id: "3", sequence: "A".repeat(7), length: 7 });
+      accumulator.add(createSequence("1", "A".repeat(5)));
+      accumulator.add(createSequence("2", "A".repeat(3)));
+      accumulator.add(createSequence("3", "A".repeat(7)));
 
       let stats = accumulator.getStats();
       expect(stats.medianLength).toBe(5); // Middle value when sorted: 3, 5, 7
 
       // Even number of sequences
-      accumulator.add({ id: "4", sequence: "A".repeat(9), length: 9 });
+      accumulator.add(createSequence("4", "A".repeat(9)));
       stats = accumulator.getStats();
       expect(stats.medianLength).toBe(6); // Average of middle two: (5+7)/2
     });
@@ -157,14 +166,7 @@ describe("SequenceStatsAccumulator", () => {
     test("should calculate quality stats for FASTQ sequences", () => {
       const accumulator = new SequenceStatsAccumulator();
 
-      const fastqSeq: FastqSequence = {
-        id: "1",
-        sequence: "ATCG",
-        quality: "IIII", // All Q40 (73 - 33 = 40)
-        length: 4,
-        format: "fastq",
-        qualityEncoding: "phred33",
-      };
+      const fastqSeq: FastqSequence = createFastqSequence("1", "ATCG", "IIII"); // All Q40 (73 - 33 = 40)
 
       accumulator.add(fastqSeq as AbstractSequence);
       const stats = accumulator.getStats();
@@ -178,14 +180,7 @@ describe("SequenceStatsAccumulator", () => {
     test("should handle mixed quality scores", () => {
       const accumulator = new SequenceStatsAccumulator();
 
-      const fastqSeq: FastqSequence = {
-        id: "1",
-        sequence: "ATCG",
-        quality: '!"#I', // Q0, Q1, Q2, Q40
-        length: 4,
-        format: "fastq",
-        qualityEncoding: "phred33",
-      };
+      const fastqSeq: FastqSequence = createFastqSequence("1", "ATCG", '!"#I'); // Q0, Q1, Q2, Q40
 
       accumulator.add(fastqSeq as AbstractSequence);
       const stats = accumulator.getStats();
@@ -198,7 +193,7 @@ describe("SequenceStatsAccumulator", () => {
     test("should handle sequences without quality", () => {
       const accumulator = new SequenceStatsAccumulator();
 
-      accumulator.add({ id: "1", sequence: "ATCG", length: 4 });
+      accumulator.add(createSequence("1", "ATCG"));
       const stats = accumulator.getStats();
 
       expect(stats.qualityStats).toBeUndefined();
@@ -211,11 +206,11 @@ describe("SequenceStatsAccumulator", () => {
 
       // Lengths: 2, 4, 6, 8, 10
       // Mean: 6, Variance: 10
-      accumulator.add({ id: "1", sequence: "AA", length: 2 });
-      accumulator.add({ id: "2", sequence: "A".repeat(4), length: 4 });
-      accumulator.add({ id: "3", sequence: "A".repeat(6), length: 6 });
-      accumulator.add({ id: "4", sequence: "A".repeat(8), length: 8 });
-      accumulator.add({ id: "5", sequence: "A".repeat(10), length: 10 });
+      accumulator.add(createSequence("1", "AA"));
+      accumulator.add(createSequence("2", "A".repeat(4)));
+      accumulator.add(createSequence("3", "A".repeat(6)));
+      accumulator.add(createSequence("4", "A".repeat(8)));
+      accumulator.add(createSequence("5", "A".repeat(10)));
 
       expect(accumulator.getVariance()).toBeCloseTo(10, 1);
       expect(accumulator.getStandardDeviation()).toBeCloseTo(3.16, 1);
@@ -223,7 +218,7 @@ describe("SequenceStatsAccumulator", () => {
 
     test("should handle single sequence variance", () => {
       const accumulator = new SequenceStatsAccumulator();
-      accumulator.add({ id: "1", sequence: "ATCG", length: 4 });
+      accumulator.add(createSequence("1", "ATCG"));
 
       expect(accumulator.getVariance()).toBe(0);
       expect(accumulator.getStandardDeviation()).toBe(0);
@@ -235,9 +230,9 @@ describe("SequenceStatsAccumulator", () => {
       const accumulator = new SequenceStatsAccumulator();
 
       async function* generateSequences(): AsyncGenerator<AbstractSequence> {
-        yield { id: "1", sequence: "ATCG", length: 4 };
-        yield { id: "2", sequence: "GGCCAATT", length: 8 };
-        yield { id: "3", sequence: "AT", length: 2 };
+        yield createSequence("1", "ATCG");
+        yield createSequence("2", "GGCCAATT");
+        yield createSequence("3", "AT");
       }
 
       await accumulator.addStream(generateSequences());
@@ -249,8 +244,8 @@ describe("SequenceStatsAccumulator", () => {
 
     test("should work with calculateSequenceStats utility", async () => {
       const sequences: AbstractSequence[] = [
-        { id: "1", sequence: "GGCC", length: 4 },
-        { id: "2", sequence: "AATT", length: 4 },
+        createSequence("1", "GGCC"),
+        createSequence("2", "AATT"),
       ];
 
       const stats = await calculateSequenceStats(sequences);
@@ -265,12 +260,12 @@ describe("SequenceStatsAccumulator", () => {
       const acc2 = new SequenceStatsAccumulator();
 
       // First accumulator
-      acc1.add({ id: "1", sequence: "ATCG", length: 4 });
-      acc1.add({ id: "2", sequence: "GG", length: 2 });
+      acc1.add(createSequence("1", "ATCG"));
+      acc1.add(createSequence("2", "GG"));
 
       // Second accumulator
-      acc2.add({ id: "3", sequence: "AAAAAA", length: 6 });
-      acc2.add({ id: "4", sequence: "CCCCCCCC", length: 8 });
+      acc2.add(createSequence("3", "AAAAAA"));
+      acc2.add(createSequence("4", "CCCCCCCC"));
 
       // Merge
       acc1.merge(acc2);
@@ -287,7 +282,7 @@ describe("SequenceStatsAccumulator", () => {
       const acc1 = new SequenceStatsAccumulator();
       const acc2 = new SequenceStatsAccumulator();
 
-      acc1.add({ id: "1", sequence: "ATCG", length: 4 });
+      acc1.add(createSequence("1", "ATCG"));
       acc1.merge(acc2); // Merge empty
 
       const stats = acc1.getStats();
@@ -299,8 +294,8 @@ describe("SequenceStatsAccumulator", () => {
       const acc1 = new SequenceStatsAccumulator();
       const acc2 = new SequenceStatsAccumulator();
 
-      acc1.add({ id: "1", sequence: "AAA", length: 3 });
-      acc2.add({ id: "2", sequence: "TTT", length: 3 });
+      acc1.add(createSequence("1", "AAA"));
+      acc2.add(createSequence("2", "TTT"));
 
       acc1.merge(acc2);
       const stats = acc1.getStats();
@@ -314,8 +309,8 @@ describe("SequenceStatsAccumulator", () => {
     test("should reset all statistics", () => {
       const accumulator = new SequenceStatsAccumulator();
 
-      accumulator.add({ id: "1", sequence: "ATCGATCG", length: 8 });
-      accumulator.add({ id: "2", sequence: "GGCC", length: 4 });
+      accumulator.add(createSequence("1", "ATCGATCG"));
+      accumulator.add(createSequence("2", "GGCC"));
 
       accumulator.reset();
       const stats = accumulator.getStats();
@@ -330,8 +325,8 @@ describe("SequenceStatsAccumulator", () => {
     test("should generate readable summary", () => {
       const accumulator = new SequenceStatsAccumulator();
 
-      accumulator.add({ id: "1", sequence: "ATCGATCG", length: 8 });
-      accumulator.add({ id: "2", sequence: "GGCC", length: 4 });
+      accumulator.add(createSequence("1", "ATCGATCG"));
+      accumulator.add(createSequence("2", "GGCC"));
 
       const summary = accumulator.toString();
 
@@ -347,7 +342,7 @@ describe("SequenceStatsAccumulator", () => {
       const accumulator = new SequenceStatsAccumulator();
       const longSeq = "A".repeat(1000000);
 
-      accumulator.add({ id: "1", sequence: longSeq, length: 1000000 });
+      accumulator.add(createSequence("1", longSeq));
       const stats = accumulator.getStats();
 
       expect(stats.totalLength).toBe(1000000);
@@ -369,7 +364,7 @@ describe("SequenceStatsAccumulator", () => {
     test("should handle sequences with special characters", () => {
       const accumulator = new SequenceStatsAccumulator();
 
-      accumulator.add({ id: "1", sequence: "ATCG-N.", length: 7 });
+      accumulator.add(createSequence("1", "ATCG-N."));
       const stats = accumulator.getStats();
 
       expect(stats.baseComposition["-"]).toBe(1);

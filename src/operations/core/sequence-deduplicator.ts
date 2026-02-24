@@ -600,8 +600,8 @@ export class SequenceDeduplicator {
     }
 
     const processSequence = this.options.caseSensitive
-      ? (s: string): string => s
-      : (s: string): string => s.toUpperCase();
+      ? (s: { toString(): string }): string => s.toString()
+      : (s: { toString(): string }): string => s.toString().toUpperCase();
 
     switch (strategy) {
       case "sequence":
@@ -662,8 +662,8 @@ export class ExactDeduplicator {
 
   constructor(strategy: DeduplicationStrategy = "both", caseSensitive: boolean = true) {
     const processSequence = caseSensitive
-      ? (s: string): string => s
-      : (s: string): string => s.toUpperCase();
+      ? (s: { toString(): string }): string => s.toString()
+      : (s: { toString(): string }): string => s.toString().toUpperCase();
 
     if (typeof strategy === "function") {
       this.getKey = strategy;

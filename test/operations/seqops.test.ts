@@ -3,9 +3,16 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import "../matchers";
 import { promises as fs } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
+import {
+  createFastaRecord,
+  createFastqRecord,
+  type FastaRecordInput,
+  type FastqRecordInput,
+} from "../../src/constructors";
 import { SeqOps, seqops } from "../../src/operations";
 import type { UnpairedStats } from "../../src/operations/interleave";
 import type { AbstractSequence, FastqSequence } from "../../src/types";
@@ -13,21 +20,26 @@ import type { AbstractSequence, FastqSequence } from "../../src/types";
 describe("SeqOps", () => {
   // Helper functions
   function createSequence(id: string, sequence: string): AbstractSequence {
-    return { id, sequence, length: sequence.length };
+    return createFastaRecord({ id, sequence });
   }
 
   function createFastq(id: string, sequence: string, quality: string): FastqSequence {
-    return {
-      format: "fastq",
-      id,
-      sequence,
-      quality,
-      qualityEncoding: "phred33",
-      length: sequence.length,
-    };
+    return createFastqRecord({ id, sequence, quality, qualityEncoding: "phred33" });
   }
 
-  async function* arrayToAsync<T>(items: T[]): AsyncIterable<T> {
+  async function* fastaToAsync(items: FastaRecordInput[]): AsyncIterable<AbstractSequence> {
+    for (const item of items) {
+      yield createFastaRecord(item);
+    }
+  }
+
+  async function* fastqToAsync(items: FastqRecordInput[]): AsyncIterable<FastqSequence> {
+    for (const item of items) {
+      yield createFastqRecord(item);
+    }
+  }
+
+  async function* toAsync<T>(items: T[]): AsyncIterable<T> {
     for (const item of items) {
       yield item;
     }
@@ -35,13 +47,13 @@ describe("SeqOps", () => {
 
   describe("constructor and factory", () => {
     test("creates SeqOps instance with constructor", () => {
-      const sequences = arrayToAsync([createSequence("seq1", "ATCG")]);
+      const sequences = toAsync([createSequence("seq1", "ATCG")]);
       const ops = new SeqOps(sequences);
       expect(ops).toBeInstanceOf(SeqOps);
     });
 
     test("creates SeqOps instance with factory function", () => {
-      const sequences = arrayToAsync([createSequence("seq1", "ATCG")]);
+      const sequences = toAsync([createSequence("seq1", "ATCG")]);
       const ops = seqops(sequences);
       expect(ops).toBeInstanceOf(SeqOps);
     });
@@ -55,7 +67,7 @@ describe("SeqOps", () => {
         createSequence("seq3", "ggccaatt"),
       ];
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .filter({ minLength: 4 })
         .transform({ upperCase: true })
         .filter((s) => s.sequence.includes("A"))
@@ -63,20 +75,20 @@ describe("SeqOps", () => {
         .collect();
 
       expect(results).toHaveLength(2);
-      expect(results[0]?.sequence).toBe("ATCGATCG");
-      expect(results[1]?.sequence).toBe("GGCCAATT");
+      expect(results[0]?.sequence).toEqualSequence("ATCGATCG");
+      expect(results[1]?.sequence).toEqualSequence("GGCCAATT");
     });
 
     test("chains multiple transform operations", async () => {
       const sequences = [createSequence("seq1", "atcgatcg")];
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .transform({ upperCase: true })
         .transform({ reverseComplement: true })
         .collect();
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("CGATCGAT");
+      expect(results[0]?.sequence).toEqualSequence("CGATCGAT");
     });
   });
 
@@ -88,7 +100,7 @@ describe("SeqOps", () => {
         createSequence("seq3", "AAAA"),
       ];
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .filter((s) => s.sequence.includes("G"))
         .collect();
 
@@ -104,7 +116,7 @@ describe("SeqOps", () => {
         createSequence("seq3", "AAAATTTT"),
       ];
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .filter((s) => s.length > 4)
         .filter((s) => s.sequence.includes("G"))
         .collect();
@@ -120,7 +132,7 @@ describe("SeqOps", () => {
         createSequence("seq3", "AAAA"),
       ];
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .filter(async (seq) => {
           await new Promise((resolve) => setTimeout(resolve, 1));
           return seq.length === 4;
@@ -137,20 +149,20 @@ describe("SeqOps", () => {
         createFastq("read3", "AAAA", "####"),
       ];
 
-      const results = await seqops<FastqSequence>(arrayToAsync(sequences))
+      const results = await seqops<FastqSequence>(fastqToAsync(sequences))
         .filter((seq) => seq.sequence.includes("G"))
         .collect();
 
       expect(results).toHaveLength(2);
-      expect(results[0]?.quality).toBe("IIII");
-      expect(results[1]?.quality).toBe("!!!!");
+      expect(results[0]?.quality).toEqualSequence("IIII");
+      expect(results[1]?.quality).toEqualSequence("!!!!");
     });
 
     test("propagates errors from filter predicate", async () => {
       const sequences = [createSequence("seq1", "ATCG")];
 
       await expect(async () => {
-        await seqops(arrayToAsync(sequences))
+        await seqops(toAsync(sequences))
           .filter(() => {
             throw new Error("Filter error");
           })
@@ -168,7 +180,7 @@ describe("SeqOps", () => {
         createSequence("seq4", "TTTT"),
       ];
 
-      const results = await seqops(arrayToAsync(sequences)).head(2).collect();
+      const results = await seqops(toAsync(sequences)).head(2).collect();
 
       expect(results).toHaveLength(2);
       expect(results[0]?.id).toBe("seq1");
@@ -178,7 +190,7 @@ describe("SeqOps", () => {
     test("handles n greater than sequence count", async () => {
       const sequences = [createSequence("seq1", "ATCG"), createSequence("seq2", "GGGG")];
 
-      const results = await seqops(arrayToAsync(sequences)).head(10).collect();
+      const results = await seqops(toAsync(sequences)).head(10).collect();
 
       expect(results).toHaveLength(2);
     });
@@ -186,7 +198,7 @@ describe("SeqOps", () => {
     test("handles zero n", async () => {
       const sequences = [createSequence("seq1", "ATCG")];
 
-      const results = await seqops(arrayToAsync(sequences)).head(0).collect();
+      const results = await seqops(toAsync(sequences)).head(0).collect();
 
       expect(results).toHaveLength(0);
     });
@@ -200,7 +212,7 @@ describe("SeqOps", () => {
         createSequence("seq3", "CCCC"),
       ];
 
-      const results = await seqops(arrayToAsync(sequences)).take(2).collect();
+      const results = await seqops(toAsync(sequences)).take(2).collect();
 
       expect(results).toHaveLength(2);
       expect(results[0]?.id).toBe("seq1");
@@ -214,8 +226,8 @@ describe("SeqOps", () => {
         createSequence("seq3", "CCCC"),
       ];
 
-      const headResults = await seqops(arrayToAsync(sequences)).head(2).collect();
-      const takeResults = await seqops(arrayToAsync(sequences)).take(2).collect();
+      const headResults = await seqops(toAsync(sequences)).head(2).collect();
+      const takeResults = await seqops(toAsync(sequences)).take(2).collect();
 
       expect(takeResults).toEqual(headResults);
     });
@@ -229,7 +241,7 @@ describe("SeqOps", () => {
         createSequence("seq3", "AT"),
       ];
 
-      const stats = await seqops(arrayToAsync(sequences)).stats();
+      const stats = await seqops(toAsync(sequences)).stats();
 
       expect(stats.numSequences).toBe(3);
       expect(stats.totalLength).toBe(14);
@@ -245,7 +257,7 @@ describe("SeqOps", () => {
         createSequence("seq3", "C".repeat(300)),
       ];
 
-      const stats = await seqops(arrayToAsync(sequences)).stats({
+      const stats = await seqops(toAsync(sequences)).stats({
         detailed: true,
       });
 
@@ -261,7 +273,7 @@ describe("SeqOps", () => {
         createSequence("seq3", "ATCGATCG"),
       ];
 
-      const stats = await seqops(arrayToAsync(sequences)).filter({ minLength: 4 }).stats();
+      const stats = await seqops(toAsync(sequences)).filter({ minLength: 4 }).stats();
 
       expect(stats.numSequences).toBe(2);
       expect(stats.totalLength).toBe(12);
@@ -272,7 +284,7 @@ describe("SeqOps", () => {
     test("collects all sequences into array", async () => {
       const sequences = [createSequence("seq1", "ATCG"), createSequence("seq2", "GGGG")];
 
-      const results = await seqops(arrayToAsync(sequences)).collect();
+      const results = await seqops(toAsync(sequences)).collect();
 
       expect(results).toBeInstanceOf(Array);
       expect(results).toHaveLength(2);
@@ -283,7 +295,7 @@ describe("SeqOps", () => {
     test("collects empty result", async () => {
       const sequences = [createSequence("seq1", "ATCG")];
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .filter(() => false)
         .collect();
 
@@ -299,7 +311,7 @@ describe("SeqOps", () => {
         createSequence("seq3", "CCCC"),
       ];
 
-      const count = await seqops(arrayToAsync(sequences)).count();
+      const count = await seqops(toAsync(sequences)).count();
 
       expect(count).toBe(3);
     });
@@ -311,7 +323,7 @@ describe("SeqOps", () => {
         createSequence("seq3", "AAAA"),
       ];
 
-      const count = await seqops(arrayToAsync(sequences))
+      const count = await seqops(toAsync(sequences))
         .filter((s) => s.sequence.includes("G"))
         .count();
 
@@ -321,7 +333,7 @@ describe("SeqOps", () => {
     test("counts empty pipeline", async () => {
       const sequences: AbstractSequence[] = [];
 
-      const count = await seqops(arrayToAsync(sequences)).count();
+      const count = await seqops(toAsync(sequences)).count();
 
       expect(count).toBe(0);
     });
@@ -332,7 +344,7 @@ describe("SeqOps", () => {
       const sequences = [createSequence("seq1", "ATCG"), createSequence("seq2", "GGGG")];
 
       const processed: string[] = [];
-      await seqops(arrayToAsync(sequences)).forEach((seq) => {
+      await seqops(toAsync(sequences)).forEach((seq) => {
         processed.push(seq.id);
       });
 
@@ -343,7 +355,7 @@ describe("SeqOps", () => {
       const sequences = [createSequence("seq1", "ATCG"), createSequence("seq2", "GGGG")];
 
       const processed: string[] = [];
-      await seqops(arrayToAsync(sequences)).forEach(async (seq) => {
+      await seqops(toAsync(sequences)).forEach(async (seq) => {
         await new Promise((resolve) => setTimeout(resolve, 1));
         processed.push(seq.id);
       });
@@ -357,10 +369,10 @@ describe("SeqOps", () => {
       const sequences = [createSequence("seq1", "ATCG"), createSequence("seq2", "GGGG")];
 
       const results: string[] = [];
-      for await (const seq of seqops(arrayToAsync(sequences)).transform({
+      for await (const seq of seqops(toAsync(sequences)).transform({
         upperCase: true,
       })) {
-        results.push(seq.sequence);
+        results.push(seq.sequence.toString());
       }
 
       expect(results).toEqual(["ATCG", "GGGG"]);
@@ -373,7 +385,7 @@ describe("SeqOps", () => {
 
       const tempFile = join(tmpdir(), `test-${Date.now()}.fasta`);
 
-      await seqops(arrayToAsync(sequences)).writeFasta(tempFile);
+      await seqops(toAsync(sequences)).writeFasta(tempFile);
 
       const content = await fs.readFile(tempFile, "utf-8");
       expect(content).toContain(">seq1");
@@ -389,7 +401,7 @@ describe("SeqOps", () => {
 
       const tempFile = join(tmpdir(), `test-${Date.now()}.fasta`);
 
-      await seqops(arrayToAsync(sequences)).writeFasta(tempFile, {
+      await seqops(toAsync(sequences)).writeFasta(tempFile, {
         wrapWidth: 10,
       });
 
@@ -408,7 +420,7 @@ describe("SeqOps", () => {
 
       const tempFile = join(tmpdir(), `test-${Date.now()}.fastq`);
 
-      await seqops(arrayToAsync(sequences)).writeFastq(tempFile);
+      await seqops(toAsync(sequences)).writeFastq(tempFile);
 
       const content = await fs.readFile(tempFile, "utf-8");
       expect(content).toContain("@seq1");
@@ -424,7 +436,7 @@ describe("SeqOps", () => {
 
       const tempFile = join(tmpdir(), `test-${Date.now()}.fastq`);
 
-      await seqops(arrayToAsync(sequences)).writeFastq(tempFile, "I");
+      await seqops(toAsync(sequences)).writeFastq(tempFile, "I");
 
       const content = await fs.readFile(tempFile, "utf-8");
       expect(content).toContain("@seq1");
@@ -445,7 +457,7 @@ describe("SeqOps", () => {
         createSequence("control2", "ttttaaaa"),
       ];
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .filter((s) => s.id.startsWith("gene"))
         .filter({ minLength: 4 })
         .transform({ upperCase: true })
@@ -454,8 +466,8 @@ describe("SeqOps", () => {
         .collect();
 
       expect(results).toHaveLength(2);
-      expect(results[0]?.sequence).toBe("CGATCGATCGAT"); // Full reversed complement
-      expect(results[1]?.sequence).toBe("GGGGAAAATTTT"); // Full reversed complement
+      expect(results[0]?.sequence).toEqualSequence("CGATCGATCGAT"); // Full reversed complement
+      expect(results[1]?.sequence).toEqualSequence("GGGGAAAATTTT"); // Full reversed complement
     });
 
     test("statistics after complex pipeline", async () => {
@@ -465,7 +477,7 @@ describe("SeqOps", () => {
         createFastq("seq3", "AAAATTTT", "55555555"),
       ];
 
-      const stats = await seqops(arrayToAsync(sequences))
+      const stats = await seqops(toAsync(sequences))
         .quality({ minScore: 20 })
         .transform({ reverseComplement: true })
         .stats({ detailed: true, includeQuality: true });
@@ -484,7 +496,7 @@ describe("SeqOps", () => {
 
       const tempFile = join(tmpdir(), `test-${Date.now()}.fasta`);
 
-      await seqops(arrayToAsync(sequences))
+      await seqops(toAsync(sequences))
         .filter({ minLength: 4 })
         .transform({ upperCase: true })
         .transform({ reverseComplement: true })
@@ -511,7 +523,7 @@ describe("SeqOps", () => {
         createSequence("seq3", "AAAA"),
       ];
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .map((seq) => ({ ...seq, id: `prefix_${seq.id}` }))
         .collect();
 
@@ -527,20 +539,20 @@ describe("SeqOps", () => {
         createFastq("read2", "GGGG", "!!!!"),
       ];
 
-      const results = await seqops<FastqSequence>(arrayToAsync(sequences))
+      const results = await seqops<FastqSequence>(toAsync(sequences))
         .map((seq) => ({ ...seq, id: `sample1_${seq.id}` }))
         .collect();
 
       expect(results).toHaveLength(2);
-      expect((results[0] as FastqSequence)?.quality).toBe("IIII");
-      expect((results[1] as FastqSequence)?.quality).toBe("!!!!");
+      expect((results[0] as FastqSequence)?.quality).toEqualSequence("IIII");
+      expect((results[1] as FastqSequence)?.quality).toEqualSequence("!!!!");
       expect(results[0]?.id).toBe("sample1_read1");
     });
 
     test("transforms with async function", async () => {
       const sequences = [createSequence("seq1", "ATCG"), createSequence("seq2", "GGGG")];
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .map(async (seq) => {
           await new Promise((resolve) => setTimeout(resolve, 1));
           return { ...seq, description: "processed" };
@@ -555,7 +567,7 @@ describe("SeqOps", () => {
     test("handles empty stream", async () => {
       const sequences: AbstractSequence[] = [];
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .map((seq) => ({ ...seq, id: `prefix_${seq.id}` }))
         .collect();
 
@@ -569,7 +581,7 @@ describe("SeqOps", () => {
         createSequence("seq3", "gggg"),
       ];
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .filter({ minLength: 3 })
         .map((seq) => ({ ...seq, id: `filtered_${seq.id}` }))
         .transform({ upperCase: true })
@@ -577,33 +589,37 @@ describe("SeqOps", () => {
 
       expect(results).toHaveLength(2);
       expect(results[0]?.id).toBe("filtered_seq1");
-      expect(results[0]?.sequence).toBe("ATCG");
+      expect(results[0]?.sequence).toEqualSequence("ATCG");
       expect(results[1]?.id).toBe("filtered_seq3");
-      expect(results[1]?.sequence).toBe("GGGG");
+      expect(results[1]?.sequence).toEqualSequence("GGGG");
     });
 
     test("transforms to different type", async () => {
       const sequences = [createSequence("seq1", "ATCG"), createSequence("seq2", "GGGG")];
 
-      const results = await seqops(arrayToAsync(sequences))
-        .map<FastqSequence>((seq) => ({
-          ...seq,
-          format: "fastq" as const,
-          quality: "I".repeat(seq.length),
-          qualityEncoding: "phred33" as const,
-        }))
+      const results = await seqops(toAsync(sequences))
+        .map<FastqSequence>((seq) =>
+          createFastqRecord({
+            id: seq.id,
+            sequence: seq.sequence,
+            quality: "I".repeat(seq.length),
+            qualityEncoding: "phred33",
+            description: seq.description,
+            lineNumber: seq.lineNumber,
+          })
+        )
         .collect();
 
       expect(results).toHaveLength(2);
-      expect(results[0]?.quality).toBe("IIII");
-      expect(results[1]?.quality).toBe("IIII");
+      expect(results[0]?.quality).toEqualSequence("IIII");
+      expect(results[1]?.quality).toEqualSequence("IIII");
     });
 
     test("propagates errors from mapping function", async () => {
       const sequences = [createSequence("seq1", "ATCG")];
 
       await expect(async () => {
-        await seqops(arrayToAsync(sequences))
+        await seqops(toAsync(sequences))
           .map(() => {
             throw new Error("Mapping error");
           })
@@ -618,7 +634,7 @@ describe("SeqOps", () => {
 
       const sideEffects: string[] = [];
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .tap((seq) => {
           sideEffects.push(seq.id);
         })
@@ -639,7 +655,7 @@ describe("SeqOps", () => {
 
       const logged: Array<{ id: string; idx: number }> = [];
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .enumerate()
         .tap((seq, idx) => {
           logged.push({ id: seq.id, idx });
@@ -659,7 +675,7 @@ describe("SeqOps", () => {
 
       const asyncLog: string[] = [];
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .tap(async (seq) => {
           await new Promise((resolve) => setTimeout(resolve, 1));
           asyncLog.push(seq.id);
@@ -679,7 +695,7 @@ describe("SeqOps", () => {
 
       let tappedCount = 0;
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .filter({ minLength: 3 })
         .tap(() => {
           tappedCount++;
@@ -698,7 +714,7 @@ describe("SeqOps", () => {
         createFastq("read2", "GGGG", "!!!!"),
       ];
 
-      const results = await seqops<FastqSequence>(arrayToAsync(sequences))
+      const results = await seqops<FastqSequence>(toAsync(sequences))
         .tap((seq) => {
           // Side effect - just accessing property
           const _quality = seq.quality;
@@ -706,14 +722,14 @@ describe("SeqOps", () => {
         .collect();
 
       expect(results).toHaveLength(2);
-      expect(results[0]?.quality).toBe("IIII");
+      expect(results[0]?.quality).toEqualSequence("IIII");
     });
 
     test("handles empty stream", async () => {
       const sequences: AbstractSequence[] = [];
       let called = false;
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .tap(() => {
           called = true;
         })
@@ -732,7 +748,7 @@ describe("SeqOps", () => {
 
       const stats = { totalLength: 0, count: 0 };
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .tap((seq) => {
           stats.totalLength += seq.length;
           stats.count++;
@@ -750,7 +766,7 @@ describe("SeqOps", () => {
 
       const milestones: number[] = [];
 
-      await seqops(arrayToAsync(sequences))
+      await seqops(toAsync(sequences))
         .enumerate()
         .tap((seq, idx) => {
           if (idx % 5 === 0) milestones.push(idx);
@@ -765,7 +781,7 @@ describe("SeqOps", () => {
     test("maps and flattens array results", async () => {
       const sequences = [createSequence("seq1", "ATCG"), createSequence("seq2", "GGGG")];
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .flatMap((seq) => [
           { ...seq, id: `${seq.id}_a` },
           { ...seq, id: `${seq.id}_b` },
@@ -782,7 +798,7 @@ describe("SeqOps", () => {
     test("handles empty array results", async () => {
       const sequences = [createSequence("seq1", "ATCG"), createSequence("seq2", "GGGG")];
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .flatMap((seq) => (seq.id === "seq1" ? [{ ...seq, id: "expanded" }] : []))
         .collect();
 
@@ -798,7 +814,7 @@ describe("SeqOps", () => {
         yield { ...seq, id: `${seq.id}_2` };
       }
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .flatMap((seq) => expand(seq))
         .collect();
 
@@ -810,7 +826,7 @@ describe("SeqOps", () => {
     test("enables index parameter after enumerate", async () => {
       const sequences = [createSequence("seq1", "ATCG"), createSequence("seq2", "GGGG")];
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .enumerate()
         .flatMap((seq, idx) => {
           const count = idx + 1; // First seq: 1 copy, second seq: 2 copies
@@ -830,7 +846,7 @@ describe("SeqOps", () => {
     test("supports async array results", async () => {
       const sequences = [createSequence("seq1", "ATCG")];
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .flatMap(async (seq) => {
           await new Promise((resolve) => setTimeout(resolve, 1));
           return [
@@ -848,7 +864,7 @@ describe("SeqOps", () => {
     test("preserves type through flatMap", async () => {
       const sequences = [createFastq("read1", "ATCG", "IIII")];
 
-      const results = await seqops<FastqSequence>(arrayToAsync(sequences))
+      const results = await seqops<FastqSequence>(toAsync(sequences))
         .flatMap((seq) => [
           { ...seq, id: `${seq.id}_1` },
           { ...seq, id: `${seq.id}_2` },
@@ -856,14 +872,14 @@ describe("SeqOps", () => {
         .collect();
 
       expect(results).toHaveLength(2);
-      expect(results[0]?.quality).toBe("IIII");
-      expect(results[1]?.quality).toBe("IIII");
+      expect(results[0]?.quality).toEqualSequence("IIII");
+      expect(results[1]?.quality).toEqualSequence("IIII");
     });
 
     test("handles empty stream", async () => {
       const sequences: AbstractSequence[] = [];
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .flatMap((seq) => [seq, seq])
         .collect();
 
@@ -873,7 +889,7 @@ describe("SeqOps", () => {
     test("chains with other operations", async () => {
       const sequences = [createSequence("seq1", "ATCG"), createSequence("seq2", "AA")];
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .filter({ minLength: 3 })
         .flatMap((seq) => [{ ...seq, id: `${seq.id}_expanded` }])
         .collect();
@@ -889,7 +905,7 @@ describe("SeqOps", () => {
         createSequence("seq3", "AAAA"),
       ];
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .flatMap((seq) => {
           const copies = seq.length / 2; // 2, 2, 2
           return Array.from({ length: copies }, () => ({ ...seq }));
@@ -903,13 +919,13 @@ describe("SeqOps", () => {
   describe("forEach method", () => {
     test("executes callback for each sequence without modifying", async () => {
       const sequences = [
-        { format: "fasta" as const, id: "seq1", sequence: "ATCG", length: 4 },
-        { format: "fasta" as const, id: "seq2", sequence: "GCTA", length: 4 },
-        { format: "fasta" as const, id: "seq3", sequence: "TTAA", length: 4 },
+        { id: "seq1", sequence: "ATCG" },
+        { id: "seq2", sequence: "GCTA" },
+        { id: "seq3", sequence: "TTAA" },
       ];
 
       const collected: string[] = [];
-      await seqops(arrayToAsync(sequences)).forEach((seq) => {
+      await seqops(fastaToAsync(sequences)).forEach((seq) => {
         collected.push(seq.id);
       });
 
@@ -918,13 +934,13 @@ describe("SeqOps", () => {
 
     test("enables index parameter after enumerate", async () => {
       const sequences = [
-        { format: "fasta" as const, id: "seq1", sequence: "ATCG", length: 4 },
-        { format: "fasta" as const, id: "seq2", sequence: "GCTA", length: 4 },
-        { format: "fasta" as const, id: "seq3", sequence: "TTAA", length: 4 },
+        { id: "seq1", sequence: "ATCG" },
+        { id: "seq2", sequence: "GCTA" },
+        { id: "seq3", sequence: "TTAA" },
       ];
 
       const collected: Array<{ id: string; index: number }> = [];
-      await seqops(arrayToAsync(sequences))
+      await seqops(fastaToAsync(sequences))
         .enumerate()
         .forEach((seq, idx) => {
           collected.push({ id: seq.id, index: idx });
@@ -939,12 +955,12 @@ describe("SeqOps", () => {
 
     test("supports async callbacks", async () => {
       const sequences = [
-        { format: "fasta" as const, id: "seq1", sequence: "ATCG", length: 4 },
-        { format: "fasta" as const, id: "seq2", sequence: "GCTA", length: 4 },
+        { id: "seq1", sequence: "ATCG" },
+        { id: "seq2", sequence: "GCTA" },
       ];
 
       const collected: string[] = [];
-      await seqops(arrayToAsync(sequences)).forEach(async (seq) => {
+      await seqops(fastaToAsync(sequences)).forEach(async (seq) => {
         await new Promise((resolve) => setTimeout(resolve, 1));
         collected.push(seq.id);
       });
@@ -953,19 +969,10 @@ describe("SeqOps", () => {
     });
 
     test("preserves FastqSequence type", async () => {
-      const sequences: FastqSequence[] = [
-        {
-          format: "fastq",
-          id: "read1",
-          sequence: "ATCG",
-          quality: "IIII",
-          qualityEncoding: "phred33",
-          length: 4,
-        },
-      ];
+      const sequences = [createFastq("read1", "ATCG", "IIII")];
 
       let qualityFound = false;
-      await seqops<FastqSequence>(arrayToAsync(sequences)).forEach((seq) => {
+      await seqops<FastqSequence>(toAsync(sequences)).forEach((seq) => {
         if (seq.quality !== undefined) {
           qualityFound = true;
         }
@@ -978,7 +985,7 @@ describe("SeqOps", () => {
       const sequences: AbstractSequence[] = [];
       let count = 0;
 
-      await seqops(arrayToAsync(sequences)).forEach(() => {
+      await seqops(toAsync(sequences)).forEach(() => {
         count++;
       });
 
@@ -987,13 +994,13 @@ describe("SeqOps", () => {
 
     test("executes in order", async () => {
       const sequences = [
-        { format: "fasta" as const, id: "seq1", sequence: "ATCG", length: 4 },
-        { format: "fasta" as const, id: "seq2", sequence: "GCTA", length: 4 },
-        { format: "fasta" as const, id: "seq3", sequence: "TTAA", length: 4 },
+        { id: "seq1", sequence: "ATCG" },
+        { id: "seq2", sequence: "GCTA" },
+        { id: "seq3", sequence: "TTAA" },
       ];
 
       const order: string[] = [];
-      await seqops(arrayToAsync(sequences)).forEach((seq) => {
+      await seqops(fastaToAsync(sequences)).forEach((seq) => {
         order.push(seq.id);
       });
 
@@ -1002,12 +1009,12 @@ describe("SeqOps", () => {
 
     test("propagates errors from callback", async () => {
       const sequences = [
-        { format: "fasta" as const, id: "seq1", sequence: "ATCG", length: 4 },
-        { format: "fasta" as const, id: "seq2", sequence: "GCTA", length: 4 },
+        { id: "seq1", sequence: "ATCG" },
+        { id: "seq2", sequence: "GCTA" },
       ];
 
       await expect(async () => {
-        await seqops(arrayToAsync(sequences)).forEach((seq) => {
+        await seqops(fastaToAsync(sequences)).forEach((seq) => {
           if (seq.id === "seq2") {
             throw new Error("Test error");
           }
@@ -1017,13 +1024,13 @@ describe("SeqOps", () => {
 
     test("works with progress tracking using index", async () => {
       const sequences = [
-        { format: "fasta" as const, id: "seq1", sequence: "ATCG", length: 4 },
-        { format: "fasta" as const, id: "seq2", sequence: "GCTA", length: 4 },
-        { format: "fasta" as const, id: "seq3", sequence: "TTAA", length: 4 },
+        { id: "seq1", sequence: "ATCG" },
+        { id: "seq2", sequence: "GCTA" },
+        { id: "seq3", sequence: "TTAA" },
       ];
 
       const progress: number[] = [];
-      await seqops(arrayToAsync(sequences))
+      await seqops(fastaToAsync(sequences))
         .enumerate()
         .forEach((seq, idx) => {
           if (idx % 1 === 0) {
@@ -1038,12 +1045,12 @@ describe("SeqOps", () => {
   describe("reduce method", () => {
     test("finds longest sequence without index", async () => {
       const sequences = [
-        { format: "fasta" as const, id: "seq1", sequence: "ATCG", length: 4 },
-        { format: "fasta" as const, id: "seq2", sequence: "ATCGATCG", length: 8 },
-        { format: "fasta" as const, id: "seq3", sequence: "ATG", length: 3 },
+        { id: "seq1", sequence: "ATCG" },
+        { id: "seq2", sequence: "ATCGATCG" },
+        { id: "seq3", sequence: "ATG" },
       ];
 
-      const longest = await seqops(arrayToAsync(sequences)).reduce((acc, seq) =>
+      const longest = await seqops(fastaToAsync(sequences)).reduce((acc, seq) =>
         seq.length > acc.length ? seq : acc
       );
 
@@ -1053,13 +1060,13 @@ describe("SeqOps", () => {
 
     test("enables index parameter after enumerate", async () => {
       const sequences = [
-        { format: "fasta" as const, id: "seq1", sequence: "ATCG", length: 4 },
-        { format: "fasta" as const, id: "seq2", sequence: "GCTA", length: 4 },
-        { format: "fasta" as const, id: "seq3", sequence: "TTAA", length: 4 },
+        { id: "seq1", sequence: "ATCG" },
+        { id: "seq2", sequence: "GCTA" },
+        { id: "seq3", sequence: "TTAA" },
       ];
 
       const indices: number[] = [];
-      const result = await seqops(arrayToAsync(sequences))
+      const result = await seqops(fastaToAsync(sequences))
         .enumerate()
         .reduce((acc, seq, idx) => {
           indices.push(idx);
@@ -1073,7 +1080,7 @@ describe("SeqOps", () => {
     test("returns undefined for empty stream", async () => {
       const sequences: AbstractSequence[] = [];
 
-      const result = await seqops(arrayToAsync(sequences)).reduce((acc, seq) =>
+      const result = await seqops(toAsync(sequences)).reduce((acc, seq) =>
         seq.length > acc.length ? seq : acc
       );
 
@@ -1081,9 +1088,9 @@ describe("SeqOps", () => {
     });
 
     test("returns first element when stream has only one element", async () => {
-      const sequences = [{ format: "fasta" as const, id: "seq1", sequence: "ATCG", length: 4 }];
+      const sequences = [{ id: "seq1", sequence: "ATCG" }];
 
-      const result = await seqops(arrayToAsync(sequences)).reduce((acc, seq) =>
+      const result = await seqops(fastaToAsync(sequences)).reduce((acc, seq) =>
         seq.length > acc.length ? seq : acc
       );
 
@@ -1091,26 +1098,12 @@ describe("SeqOps", () => {
     });
 
     test("preserves FastqSequence type", async () => {
-      const sequences: FastqSequence[] = [
-        {
-          format: "fastq",
-          id: "read1",
-          sequence: "ATCG",
-          quality: "IIII",
-          qualityEncoding: "phred33",
-          length: 4,
-        },
-        {
-          format: "fastq",
-          id: "read2",
-          sequence: "ATCGATCG",
-          quality: "IIIIIIII",
-          qualityEncoding: "phred33",
-          length: 8,
-        },
+      const sequences = [
+        createFastq("read1", "ATCG", "IIII"),
+        createFastq("read2", "ATCGATCG", "IIIIIIII"),
       ];
 
-      const longest = await seqops<FastqSequence>(arrayToAsync(sequences)).reduce((acc, seq) =>
+      const longest = await seqops<FastqSequence>(toAsync(sequences)).reduce((acc, seq) =>
         seq.length > acc.length ? seq : acc
       );
 
@@ -1120,12 +1113,12 @@ describe("SeqOps", () => {
 
     test("supports async reducer function", async () => {
       const sequences = [
-        { format: "fasta" as const, id: "seq1", sequence: "ATCG", length: 4 },
-        { format: "fasta" as const, id: "seq2", sequence: "GCTA", length: 4 },
-        { format: "fasta" as const, id: "seq3", sequence: "TTAA", length: 4 },
+        { id: "seq1", sequence: "ATCG" },
+        { id: "seq2", sequence: "GCTA" },
+        { id: "seq3", sequence: "TTAA" },
       ];
 
-      const result = await seqops(arrayToAsync(sequences)).reduce(async (acc, seq) => {
+      const result = await seqops(fastaToAsync(sequences)).reduce(async (acc, seq) => {
         await new Promise((resolve) => setTimeout(resolve, 1));
         return seq.id > acc.id ? seq : acc;
       });
@@ -1135,13 +1128,13 @@ describe("SeqOps", () => {
 
     test("accumulates correctly through all elements", async () => {
       const sequences = [
-        { format: "fasta" as const, id: "seq1", sequence: "A", length: 1 },
-        { format: "fasta" as const, id: "seq2", sequence: "AT", length: 2 },
-        { format: "fasta" as const, id: "seq3", sequence: "ATG", length: 3 },
-        { format: "fasta" as const, id: "seq4", sequence: "ATGC", length: 4 },
+        { id: "seq1", sequence: "A" },
+        { id: "seq2", sequence: "AT" },
+        { id: "seq3", sequence: "ATG" },
+        { id: "seq4", sequence: "ATGC" },
       ];
 
-      const result = await seqops(arrayToAsync(sequences)).reduce((acc, seq) =>
+      const result = await seqops(fastaToAsync(sequences)).reduce((acc, seq) =>
         seq.length > acc.length ? seq : acc
       );
 
@@ -1151,12 +1144,12 @@ describe("SeqOps", () => {
 
     test("propagates errors from reducer function", async () => {
       const sequences = [
-        { format: "fasta" as const, id: "seq1", sequence: "ATCG", length: 4 },
-        { format: "fasta" as const, id: "seq2", sequence: "GCTA", length: 4 },
+        { id: "seq1", sequence: "ATCG" },
+        { id: "seq2", sequence: "GCTA" },
       ];
 
       await expect(async () => {
-        await seqops(arrayToAsync(sequences)).reduce((acc, seq) => {
+        await seqops(fastaToAsync(sequences)).reduce((acc, seq) => {
           if (seq.id === "seq2") {
             throw new Error("Test error");
           }
@@ -1167,13 +1160,13 @@ describe("SeqOps", () => {
 
     test("uses index from enumerate correctly", async () => {
       const sequences = [
-        { format: "fasta" as const, id: "seq1", sequence: "ATCG", length: 4 },
-        { format: "fasta" as const, id: "seq2", sequence: "GCTA", length: 4 },
-        { format: "fasta" as const, id: "seq3", sequence: "TTAA", length: 4 },
+        { id: "seq1", sequence: "ATCG" },
+        { id: "seq2", sequence: "GCTA" },
+        { id: "seq3", sequence: "TTAA" },
       ];
 
       let lastIndex = -1;
-      const result = await seqops(arrayToAsync(sequences))
+      const result = await seqops(fastaToAsync(sequences))
         .enumerate()
         .reduce((acc, seq, idx) => {
           lastIndex = idx;
@@ -1188,12 +1181,12 @@ describe("SeqOps", () => {
   describe("fold method", () => {
     test("calculates total length", async () => {
       const sequences = [
-        { format: "fasta" as const, id: "seq1", sequence: "ATCG", length: 4 },
-        { format: "fasta" as const, id: "seq2", sequence: "ATCGATCG", length: 8 },
-        { format: "fasta" as const, id: "seq3", sequence: "ATG", length: 3 },
+        { id: "seq1", sequence: "ATCG" },
+        { id: "seq2", sequence: "ATCGATCG" },
+        { id: "seq3", sequence: "ATG" },
       ];
 
-      const totalLength = await seqops(arrayToAsync(sequences)).fold(
+      const totalLength = await seqops(fastaToAsync(sequences)).fold(
         (sum, seq) => sum + seq.length,
         0
       );
@@ -1202,43 +1195,29 @@ describe("SeqOps", () => {
     });
 
     test("builds index mapping", async () => {
-      const sequences: FastqSequence[] = [
-        {
-          format: "fastq",
-          id: "read1",
-          sequence: "ATCG",
-          quality: "IIII",
-          qualityEncoding: "phred33",
-          length: 4,
-        },
-        {
-          format: "fastq",
-          id: "read2",
-          sequence: "GCTA",
-          quality: "JJJJ",
-          qualityEncoding: "phred33",
-          length: 4,
-        },
+      const sequences = [
+        createFastq("read1", "ATCG", "IIII"),
+        createFastq("read2", "GCTA", "JJJJ"),
       ];
 
-      const index = await seqops<FastqSequence>(arrayToAsync(sequences)).fold(
+      const index = await seqops<FastqSequence>(toAsync(sequences)).fold(
         (map, seq) => map.set(seq.id, seq),
         new Map<string, FastqSequence>()
       );
 
       expect(index.size).toBe(2);
-      expect(index.get("read1")?.sequence).toBe("ATCG");
-      expect(index.get("read2")?.sequence).toBe("GCTA");
+      expect(index.get("read1")?.sequence).toEqualSequence("ATCG");
+      expect(index.get("read2")?.sequence).toEqualSequence("GCTA");
     });
 
     test("enables index parameter after enumerate", async () => {
       const sequences = [
-        { format: "fasta" as const, id: "seq1", sequence: "ATCG", length: 4 },
-        { format: "fasta" as const, id: "seq2", sequence: "GCTA", length: 4 },
-        { format: "fasta" as const, id: "seq3", sequence: "TTAA", length: 4 },
+        { id: "seq1", sequence: "ATCG" },
+        { id: "seq2", sequence: "GCTA" },
+        { id: "seq3", sequence: "TTAA" },
       ];
 
-      const result = await seqops(arrayToAsync(sequences))
+      const result = await seqops(fastaToAsync(sequences))
         .enumerate()
         .fold(
           (acc, seq, idx) => {
@@ -1256,7 +1235,7 @@ describe("SeqOps", () => {
     test("returns initial value for empty stream", async () => {
       const sequences: AbstractSequence[] = [];
 
-      const result = await seqops(arrayToAsync(sequences)).fold(
+      const result = await seqops(toAsync(sequences)).fold(
         (sum, seq) => sum + seq.length,
         100
       );
@@ -1266,11 +1245,11 @@ describe("SeqOps", () => {
 
     test("transforms to different type", async () => {
       const sequences = [
-        { format: "fasta" as const, id: "seq1", sequence: "ATCG", length: 4 },
-        { format: "fasta" as const, id: "seq2", sequence: "GCTA", length: 4 },
+        { id: "seq1", sequence: "ATCG" },
+        { id: "seq2", sequence: "GCTA" },
       ];
 
-      const ids = await seqops(arrayToAsync(sequences)).fold(
+      const ids = await seqops(fastaToAsync(sequences)).fold(
         (arr, seq) => [...arr, seq.id],
         [] as string[]
       );
@@ -1280,11 +1259,11 @@ describe("SeqOps", () => {
 
     test("supports async folder function", async () => {
       const sequences = [
-        { format: "fasta" as const, id: "seq1", sequence: "ATCG", length: 4 },
-        { format: "fasta" as const, id: "seq2", sequence: "GCTA", length: 4 },
+        { id: "seq1", sequence: "ATCG" },
+        { id: "seq2", sequence: "GCTA" },
       ];
 
-      const result = await seqops(arrayToAsync(sequences)).fold(async (sum, seq) => {
+      const result = await seqops(fastaToAsync(sequences)).fold(async (sum, seq) => {
         await new Promise((resolve) => setTimeout(resolve, 1));
         return sum + seq.length;
       }, 0);
@@ -1294,12 +1273,12 @@ describe("SeqOps", () => {
 
     test("collects statistics", async () => {
       const sequences = [
-        { format: "fasta" as const, id: "seq1", sequence: "ATCG", length: 4 },
-        { format: "fasta" as const, id: "seq2", sequence: "ATCGATCG", length: 8 },
-        { format: "fasta" as const, id: "seq3", sequence: "AT", length: 2 },
+        { id: "seq1", sequence: "ATCG" },
+        { id: "seq2", sequence: "ATCGATCG" },
+        { id: "seq3", sequence: "AT" },
       ];
 
-      const stats = await seqops(arrayToAsync(sequences)).fold(
+      const stats = await seqops(fastaToAsync(sequences)).fold(
         (acc, seq) => ({
           min: Math.min(acc.min, seq.length),
           max: Math.max(acc.max, seq.length),
@@ -1319,12 +1298,12 @@ describe("SeqOps", () => {
 
     test("propagates errors from folder function", async () => {
       const sequences = [
-        { format: "fasta" as const, id: "seq1", sequence: "ATCG", length: 4 },
-        { format: "fasta" as const, id: "seq2", sequence: "GCTA", length: 4 },
+        { id: "seq1", sequence: "ATCG" },
+        { id: "seq2", sequence: "GCTA" },
       ];
 
       await expect(async () => {
-        await seqops(arrayToAsync(sequences)).fold((sum, seq) => {
+        await seqops(fastaToAsync(sequences)).fold((sum, seq) => {
           if (seq.id === "seq2") {
             throw new Error("Test error");
           }
@@ -1335,12 +1314,12 @@ describe("SeqOps", () => {
 
     test("accumulates complex object with position tracking", async () => {
       const sequences = [
-        { format: "fasta" as const, id: "seq1", sequence: "ATCG", length: 4 },
-        { format: "fasta" as const, id: "seq2", sequence: "GCTA", length: 4 },
-        { format: "fasta" as const, id: "seq3", sequence: "TTAA", length: 4 },
+        { id: "seq1", sequence: "ATCG" },
+        { id: "seq2", sequence: "GCTA" },
+        { id: "seq3", sequence: "TTAA" },
       ];
 
-      const result = await seqops(arrayToAsync(sequences))
+      const result = await seqops(fastaToAsync(sequences))
         .enumerate()
         .fold(
           (acc, seq, idx) => ({
@@ -1362,50 +1341,48 @@ describe("SeqOps", () => {
   describe("zipWith method", () => {
     test("combines two streams without indices", async () => {
       const stream1 = [
-        { format: "fasta" as const, id: "seq1", sequence: "ATCG", length: 4 },
-        { format: "fasta" as const, id: "seq2", sequence: "GCTA", length: 4 },
+        { id: "seq1", sequence: "ATCG" },
+        { id: "seq2", sequence: "GCTA" },
       ];
       const stream2 = [
-        { format: "fasta" as const, id: "rev1", sequence: "TTAA", length: 4 },
-        { format: "fasta" as const, id: "rev2", sequence: "AAGG", length: 4 },
+        { id: "rev1", sequence: "TTAA" },
+        { id: "rev2", sequence: "AAGG" },
       ];
 
-      const results = await seqops(arrayToAsync(stream1))
-        .zipWith(seqops(arrayToAsync(stream2)), (a, b) => ({
-          format: "fasta" as const,
-          id: `${a.id}_${b.id}`,
-          sequence: a.sequence + b.sequence,
-          length: a.length + b.length,
-        }))
+      const results = await seqops(fastaToAsync(stream1))
+        .zipWith(seqops(fastaToAsync(stream2)), (a, b) =>
+          createFastaRecord({
+            id: `${a.id}_${b.id}`,
+            sequence: `${a.sequence}${b.sequence}`,
+          })
+        )
         .collect();
 
       expect(results).toHaveLength(2);
       expect(results[0]?.id).toBe("seq1_rev1");
-      expect(results[0]?.sequence).toBe("ATCGTTAA");
+      expect(results[0]?.sequence).toEqualSequence("ATCGTTAA");
       expect(results[1]?.id).toBe("seq2_rev2");
     });
 
     test("enables indexA when left stream is enumerated", async () => {
       const stream1 = [
-        { format: "fasta" as const, id: "seq1", sequence: "ATCG", length: 4 },
-        { format: "fasta" as const, id: "seq2", sequence: "GCTA", length: 4 },
+        { id: "seq1", sequence: "ATCG" },
+        { id: "seq2", sequence: "GCTA" },
       ];
       const stream2 = [
-        { format: "fasta" as const, id: "rev1", sequence: "TTAA", length: 4 },
-        { format: "fasta" as const, id: "rev2", sequence: "AAGG", length: 4 },
+        { id: "rev1", sequence: "TTAA" },
+        { id: "rev2", sequence: "AAGG" },
       ];
 
       const indices: number[] = [];
-      const results = await seqops(arrayToAsync(stream1))
+      const results = await seqops(fastaToAsync(stream1))
         .enumerate()
-        .zipWith(seqops(arrayToAsync(stream2)), (a, b, idxA) => {
+        .zipWith(seqops(fastaToAsync(stream2)), (a, b, idxA) => {
           indices.push(idxA);
-          return {
-            format: "fasta" as const,
+          return createFastaRecord({
             id: `${a.id}_${b.id}`,
             sequence: a.sequence,
-            length: a.length,
-          };
+          });
         })
         .collect();
 
@@ -1415,24 +1392,22 @@ describe("SeqOps", () => {
 
     test("enables indexB when right stream is enumerated", async () => {
       const stream1 = [
-        { format: "fasta" as const, id: "seq1", sequence: "ATCG", length: 4 },
-        { format: "fasta" as const, id: "seq2", sequence: "GCTA", length: 4 },
+        { id: "seq1", sequence: "ATCG" },
+        { id: "seq2", sequence: "GCTA" },
       ];
       const stream2 = [
-        { format: "fasta" as const, id: "rev1", sequence: "TTAA", length: 4 },
-        { format: "fasta" as const, id: "rev2", sequence: "AAGG", length: 4 },
+        { id: "rev1", sequence: "TTAA" },
+        { id: "rev2", sequence: "AAGG" },
       ];
 
       const indices: number[] = [];
-      const results = await seqops(arrayToAsync(stream1))
-        .zipWith(seqops(arrayToAsync(stream2)).enumerate(), (a, b, idxB) => {
+      const results = await seqops(fastaToAsync(stream1))
+        .zipWith(seqops(fastaToAsync(stream2)).enumerate(), (a, b, idxB) => {
           indices.push(idxB);
-          return {
-            format: "fasta" as const,
+          return createFastaRecord({
             id: `${a.id}_${b.id}`,
             sequence: a.sequence,
-            length: a.length,
-          };
+          });
         })
         .collect();
 
@@ -1442,25 +1417,23 @@ describe("SeqOps", () => {
 
     test("enables both indices when both streams are enumerated", async () => {
       const stream1 = [
-        { format: "fasta" as const, id: "seq1", sequence: "ATCG", length: 4 },
-        { format: "fasta" as const, id: "seq2", sequence: "GCTA", length: 4 },
+        { id: "seq1", sequence: "ATCG" },
+        { id: "seq2", sequence: "GCTA" },
       ];
       const stream2 = [
-        { format: "fasta" as const, id: "rev1", sequence: "TTAA", length: 4 },
-        { format: "fasta" as const, id: "rev2", sequence: "AAGG", length: 4 },
+        { id: "rev1", sequence: "TTAA" },
+        { id: "rev2", sequence: "AAGG" },
       ];
 
       const pairs: Array<[number, number]> = [];
-      const results = await seqops(arrayToAsync(stream1))
+      const results = await seqops(fastaToAsync(stream1))
         .enumerate()
-        .zipWith(seqops(arrayToAsync(stream2)).enumerate(), (a, b, idxA, idxB) => {
+        .zipWith(seqops(fastaToAsync(stream2)).enumerate(), (a, b, idxA, idxB) => {
           pairs.push([idxA, idxB]);
-          return {
-            format: "fasta" as const,
+          return createFastaRecord({
             id: `${a.id}_${b.id}`,
             sequence: a.sequence,
-            length: a.length,
-          };
+          });
         })
         .collect();
 
@@ -1473,19 +1446,19 @@ describe("SeqOps", () => {
 
     test("stops at shortest stream", async () => {
       const stream1 = [
-        { format: "fasta" as const, id: "seq1", sequence: "ATCG", length: 4 },
-        { format: "fasta" as const, id: "seq2", sequence: "GCTA", length: 4 },
-        { format: "fasta" as const, id: "seq3", sequence: "TTAA", length: 4 },
+        { id: "seq1", sequence: "ATCG" },
+        { id: "seq2", sequence: "GCTA" },
+        { id: "seq3", sequence: "TTAA" },
       ];
-      const stream2 = [{ format: "fasta" as const, id: "rev1", sequence: "AAAA", length: 4 }];
+      const stream2 = [{ id: "rev1", sequence: "AAAA" }];
 
-      const results = await seqops(arrayToAsync(stream1))
-        .zipWith(seqops(arrayToAsync(stream2)), (a, b) => ({
-          format: "fasta" as const,
-          id: `${a.id}_${b.id}`,
-          sequence: a.sequence,
-          length: a.length,
-        }))
+      const results = await seqops(fastaToAsync(stream1))
+        .zipWith(seqops(fastaToAsync(stream2)), (a, b) =>
+          createFastaRecord({
+            id: `${a.id}_${b.id}`,
+            sequence: a.sequence,
+          })
+        )
         .collect();
 
       expect(results).toHaveLength(1);
@@ -1493,38 +1466,36 @@ describe("SeqOps", () => {
     });
 
     test("works with raw AsyncIterable", async () => {
-      const stream1 = [{ format: "fasta" as const, id: "seq1", sequence: "ATCG", length: 4 }];
+      const stream1 = [{ id: "seq1", sequence: "ATCG" }];
 
       async function* generator() {
-        yield { format: "fasta" as const, id: "rev1", sequence: "TTAA", length: 4 };
+        yield createSequence("rev1", "TTAA");
       }
 
-      const results = await seqops(arrayToAsync(stream1))
-        .zipWith(generator(), (a, b) => ({
-          format: "fasta" as const,
-          id: `${a.id}_${b.id}`,
-          sequence: a.sequence + b.sequence,
-          length: a.length + b.length,
-        }))
+      const results = await seqops(fastaToAsync(stream1))
+        .zipWith(generator(), (a, b) =>
+          createFastaRecord({
+            id: `${a.id}_${b.id}`,
+            sequence: `${a.sequence}${b.sequence}`,
+          })
+        )
         .collect();
 
       expect(results).toHaveLength(1);
-      expect(results[0]?.sequence).toBe("ATCGTTAA");
+      expect(results[0]?.sequence).toEqualSequence("ATCGTTAA");
     });
 
     test("supports async combining function", async () => {
-      const stream1 = [{ format: "fasta" as const, id: "seq1", sequence: "ATCG", length: 4 }];
-      const stream2 = [{ format: "fasta" as const, id: "rev1", sequence: "TTAA", length: 4 }];
+      const stream1 = [{ id: "seq1", sequence: "ATCG" }];
+      const stream2 = [{ id: "rev1", sequence: "TTAA" }];
 
-      const results = await seqops(arrayToAsync(stream1))
-        .zipWith(seqops(arrayToAsync(stream2)), async (a, b) => {
+      const results = await seqops(fastaToAsync(stream1))
+        .zipWith(seqops(fastaToAsync(stream2)), async (a, b) => {
           await new Promise((resolve) => setTimeout(resolve, 1));
-          return {
-            format: "fasta" as const,
+          return createFastaRecord({
             id: `${a.id}_${b.id}`,
             sequence: a.sequence,
-            length: a.length,
-          };
+          });
         })
         .collect();
 
@@ -1533,48 +1504,30 @@ describe("SeqOps", () => {
     });
 
     test("preserves FastqSequence type", async () => {
-      const stream1: FastqSequence[] = [
-        {
-          format: "fastq",
-          id: "read1",
-          sequence: "ATCG",
-          quality: "IIII",
-          qualityEncoding: "phred33",
-          length: 4,
-        },
-      ];
-      const stream2: FastqSequence[] = [
-        {
-          format: "fastq",
-          id: "read2",
-          sequence: "GCTA",
-          quality: "JJJJ",
-          qualityEncoding: "phred33",
-          length: 4,
-        },
-      ];
+      const stream1 = [createFastq("read1", "ATCG", "IIII")];
+      const stream2 = [createFastq("read2", "GCTA", "JJJJ")];
 
-      const results = await seqops<FastqSequence>(arrayToAsync(stream1))
-        .zipWith(seqops<FastqSequence>(arrayToAsync(stream2)), (a, b) => ({
-          format: "fastq" as const,
-          id: `${a.id}_${b.id}`,
-          sequence: a.sequence + b.sequence,
-          quality: a.quality + b.quality,
-          qualityEncoding: "phred33" as const,
-          length: a.length + b.length,
-        }))
+      const results = await seqops<FastqSequence>(toAsync(stream1))
+        .zipWith(seqops(toAsync(stream2)), (a, b) =>
+          createFastqRecord({
+            id: `${a.id}_${b.id}`,
+            sequence: `${a.sequence}${b.sequence}`,
+            quality: `${a.quality}${b.quality}`,
+            qualityEncoding: "phred33",
+          })
+        )
         .collect();
 
-      expect(results[0]?.quality).toBe("IIIIJJJJ");
+      expect(results[0]?.quality).toEqualSequence("IIIIJJJJ");
     });
 
     test("propagates errors from combining function", async () => {
-      const stream1 = [{ format: "fasta" as const, id: "seq1", sequence: "ATCG", length: 4 }];
-      const stream2 = [{ format: "fasta" as const, id: "rev1", sequence: "TTAA", length: 4 }];
+      const stream1 = [{ id: "seq1", sequence: "ATCG" }];
+      const stream2 = [{ id: "rev1", sequence: "TTAA" }];
 
       await expect(async () => {
-        await seqops(arrayToAsync(stream1))
-          .zipWith(seqops(arrayToAsync(stream2)), (_a, _b) => {
+        await seqops(fastaToAsync(stream1))
+          .zipWith(seqops(fastaToAsync(stream2)), (_a, _b) => {
             throw new Error("Test error");
           })
           .collect();
@@ -1590,7 +1543,7 @@ describe("SeqOps", () => {
         createSequence("seq3", "AAAA"),
       ];
 
-      const results = await seqops(arrayToAsync(sequences)).enumerate().collect();
+      const results = await seqops(toAsync(sequences)).enumerate().collect();
 
       expect(results).toHaveLength(3);
       expect(results[0]?.index).toBe(0);
@@ -1601,7 +1554,7 @@ describe("SeqOps", () => {
     test("enables index parameter in map", async () => {
       const sequences = [createSequence("seq1", "ATCG"), createSequence("seq2", "GGGG")];
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .enumerate()
         .map((seq, idx) => ({
           ...seq,
@@ -1623,7 +1576,7 @@ describe("SeqOps", () => {
         createSequence("seq4", "ATCG"),
       ];
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .enumerate()
         .filter((seq, idx) => idx % 2 === 0) // Keep even positions
         .collect();
@@ -1643,19 +1596,19 @@ describe("SeqOps", () => {
         createFastq("read2", "GGGG", "!!!!"),
       ];
 
-      const results = await seqops<FastqSequence>(arrayToAsync(sequences)).enumerate().collect();
+      const results = await seqops<FastqSequence>(toAsync(sequences)).enumerate().collect();
 
       expect(results).toHaveLength(2);
-      expect(results[0]?.quality).toBe("IIII");
+      expect(results[0]?.quality).toEqualSequence("IIII");
       expect(results[0]?.index).toBe(0);
-      expect(results[1]?.quality).toBe("!!!!");
+      expect(results[1]?.quality).toEqualSequence("!!!!");
       expect(results[1]?.index).toBe(1);
     });
 
     test("works with async map and index", async () => {
       const sequences = [createSequence("seq1", "ATCG"), createSequence("seq2", "GGGG")];
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .enumerate()
         .map(async (seq, idx) => {
           await new Promise((resolve) => setTimeout(resolve, 1));
@@ -1671,7 +1624,7 @@ describe("SeqOps", () => {
     test("handles empty stream", async () => {
       const sequences: AbstractSequence[] = [];
 
-      const results = await seqops(arrayToAsync(sequences)).enumerate().collect();
+      const results = await seqops(toAsync(sequences)).enumerate().collect();
 
       expect(results).toHaveLength(0);
     });
@@ -1683,7 +1636,7 @@ describe("SeqOps", () => {
         createSequence("seq3", "AAAA"),
       ];
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .filter({ minLength: 3 })
         .enumerate()
         .map((seq, idx) => ({
@@ -1702,7 +1655,7 @@ describe("SeqOps", () => {
     test("filters out invalid sequences with validate", async () => {
       const sequences = [createSequence("seq1", "ATCG"), createSequence("seq2", "INVALID!")];
 
-      const results = await seqops(arrayToAsync(sequences))
+      const results = await seqops(toAsync(sequences))
         .validate({ mode: "strict", action: "reject" })
         .collect();
 
@@ -1715,7 +1668,7 @@ describe("SeqOps", () => {
       const sequences = [createSequence("seq1", "ATCG")];
 
       await expect(async () => {
-        await seqops(arrayToAsync(sequences)).forEach(() => {
+        await seqops(toAsync(sequences)).forEach(() => {
           throw new Error("Test error");
         });
       }).toThrow("Test error");
@@ -1726,7 +1679,7 @@ describe("SeqOps", () => {
       const invalidPath = "/invalid/path/file.fasta";
 
       await expect(async () => {
-        await seqops(arrayToAsync(sequences)).writeFasta(invalidPath);
+        await seqops(toAsync(sequences)).writeFasta(invalidPath);
       }).toThrow();
     });
   });
@@ -1746,7 +1699,7 @@ describe("SeqOps", () => {
           createSequence("R3", "CCC"),
         ];
 
-        const result = await seqops(arrayToAsync(left)).interleave(arrayToAsync(right)).collect();
+        const result = await seqops(toAsync(left)).interleave(toAsync(right)).collect();
 
         expect(result).toHaveLength(6);
         expect(result[0]?.id).toBe("L1"); // Left first
@@ -1768,7 +1721,7 @@ describe("SeqOps", () => {
         ];
 
         await expect(async () => {
-          await seqops(arrayToAsync(left)).interleave(arrayToAsync(right)).collect();
+          await seqops(toAsync(left)).interleave(toAsync(right)).collect();
         }).toThrow(/left stream exhausted.*right stream continues/);
       });
 
@@ -1781,8 +1734,8 @@ describe("SeqOps", () => {
         const right = [createSequence("R1", "TTT"), createSequence("R2", "AAA")];
 
         await expect(async () => {
-          await seqops(arrayToAsync(left))
-            .interleave(arrayToAsync(right), { mode: "strict" })
+          await seqops(toAsync(left))
+            .interleave(toAsync(right), { mode: "strict" })
             .collect();
         }).toThrow(/right stream exhausted.*left stream continues/);
       });
@@ -1796,8 +1749,8 @@ describe("SeqOps", () => {
         ];
 
         await expect(async () => {
-          await seqops(arrayToAsync(left))
-            .interleave(arrayToAsync(right), { mode: "strict" })
+          await seqops(toAsync(left))
+            .interleave(toAsync(right), { mode: "strict" })
             .collect();
         }).toThrow(/left stream exhausted.*right stream continues/);
       });
@@ -1806,8 +1759,8 @@ describe("SeqOps", () => {
         const left = [createSequence("L1", "AAA"), createSequence("L2", "CCC")];
         const right = [createSequence("R1", "TTT"), createSequence("R2", "GGG")];
 
-        const result = await seqops(arrayToAsync(left))
-          .interleave(arrayToAsync(right), { mode: "strict" })
+        const result = await seqops(toAsync(left))
+          .interleave(toAsync(right), { mode: "strict" })
           .collect();
 
         expect(result).toHaveLength(4);
@@ -1823,8 +1776,8 @@ describe("SeqOps", () => {
         ];
         const right = [createSequence("R1", "TTT"), createSequence("R2", "AAA")];
 
-        const result = await seqops(arrayToAsync(left))
-          .interleave(arrayToAsync(right), { mode: "lossless" })
+        const result = await seqops(toAsync(left))
+          .interleave(toAsync(right), { mode: "lossless" })
           .collect();
 
         expect(result).toHaveLength(6);
@@ -1840,8 +1793,8 @@ describe("SeqOps", () => {
           createSequence("R4", "CCC"),
         ];
 
-        const result = await seqops(arrayToAsync(left))
-          .interleave(arrayToAsync(right), { mode: "lossless" })
+        const result = await seqops(toAsync(left))
+          .interleave(toAsync(right), { mode: "lossless" })
           .collect();
 
         expect(result).toHaveLength(6);
@@ -1858,8 +1811,8 @@ describe("SeqOps", () => {
 
         let capturedStats: UnpairedStats | undefined;
 
-        await seqops(arrayToAsync(left))
-          .interleave(arrayToAsync(right), {
+        await seqops(toAsync(left))
+          .interleave(toAsync(right), {
             mode: "lossless",
             onUnpaired: (stats) => {
               capturedStats = stats;
@@ -1884,8 +1837,8 @@ describe("SeqOps", () => {
 
         let capturedStats: UnpairedStats | undefined;
 
-        await seqops(arrayToAsync(left))
-          .interleave(arrayToAsync(right), {
+        await seqops(toAsync(left))
+          .interleave(toAsync(right), {
             mode: "lossless",
             onUnpaired: (stats) => {
               capturedStats = stats;
@@ -1906,8 +1859,8 @@ describe("SeqOps", () => {
 
         let callbackInvoked = false;
 
-        await seqops(arrayToAsync(left))
-          .interleave(arrayToAsync(right), {
+        await seqops(toAsync(left))
+          .interleave(toAsync(right), {
             mode: "lossless",
             onUnpaired: () => {
               callbackInvoked = true;
@@ -1925,8 +1878,8 @@ describe("SeqOps", () => {
       const left = [createSequence("read_001", "AAA"), createSequence("read_002", "CCC")];
       const right = [createSequence("read_001", "TTT"), createSequence("read_002", "GGG")];
 
-      const result = await seqops(arrayToAsync(left))
-        .interleave(arrayToAsync(right), { validateIds: true })
+      const result = await seqops(toAsync(left))
+        .interleave(toAsync(right), { validateIds: true })
         .collect();
 
       // Should succeed - IDs match
@@ -1945,8 +1898,8 @@ describe("SeqOps", () => {
       ];
 
       await expect(async () => {
-        await seqops(arrayToAsync(left))
-          .interleave(arrayToAsync(right), { validateIds: true })
+        await seqops(toAsync(left))
+          .interleave(toAsync(right), { validateIds: true })
           .collect();
       }).toThrow('ID mismatch at position 1: left="read_002", right="read_999"');
     });
@@ -1958,8 +1911,8 @@ describe("SeqOps", () => {
         createSequence("read_888", "GGG"), // Different ID
       ];
 
-      const result = await seqops(arrayToAsync(left))
-        .interleave(arrayToAsync(right)) // No validateIds option
+      const result = await seqops(toAsync(left))
+        .interleave(toAsync(right)) // No validateIds option
         .collect();
 
       // Should succeed - validation disabled by default
@@ -1982,8 +1935,8 @@ describe("SeqOps", () => {
       ];
 
       // Custom comparator that strips /1 and /2 suffixes for comparison
-      const result = await seqops(arrayToAsync(forward))
-        .interleave(arrayToAsync(reverse), {
+      const result = await seqops(toAsync(forward))
+        .interleave(toAsync(reverse), {
           validateIds: true,
           idComparator: (idA, idB) => {
             const stripSuffix = (id: string) => id.replace(/\/[12]$/, "");
@@ -2004,53 +1957,19 @@ describe("SeqOps", () => {
   describe("type safety", () => {
     test("preserves FastqSequence type through chain", async () => {
       // Create FastqSequence objects with quality scores
-      const forward: FastqSequence[] = [
-        {
-          format: "fastq" as const,
-          id: "read1",
-          sequence: "ATCG",
-          length: 4,
-          quality: "IIII",
-          qualityEncoding: "phred33" as const,
-        },
-        {
-          format: "fastq" as const,
-          id: "read2",
-          sequence: "GCTA",
-          length: 4,
-          quality: "JJJJ",
-          qualityEncoding: "phred33" as const,
-        },
-      ];
-      const reverse: FastqSequence[] = [
-        {
-          format: "fastq" as const,
-          id: "read1",
-          sequence: "CGAT",
-          length: 4,
-          quality: "KKKK",
-          qualityEncoding: "phred33" as const,
-        },
-        {
-          format: "fastq" as const,
-          id: "read2",
-          sequence: "TAGC",
-          length: 4,
-          quality: "LLLL",
-          qualityEncoding: "phred33" as const,
-        },
-      ];
+      const forward = [createFastq("read1", "ATCG", "IIII"), createFastq("read2", "GCTA", "JJJJ")];
+      const reverse = [createFastq("read1", "CGAT", "KKKK"), createFastq("read2", "TAGC", "LLLL")];
 
-      const result = await seqops<FastqSequence>(arrayToAsync(forward))
-        .interleave(arrayToAsync(reverse))
+      const result = await seqops<FastqSequence>(toAsync(forward))
+        .interleave(toAsync(reverse))
         .collect();
 
       // Type is preserved - quality property exists
       expect(result).toHaveLength(4);
-      expect(result[0]?.quality).toBe("IIII");
-      expect(result[1]?.quality).toBe("KKKK");
-      expect(result[2]?.quality).toBe("JJJJ");
-      expect(result[3]?.quality).toBe("LLLL");
+      expect(result[0]?.quality).toEqualSequence("IIII");
+      expect(result[1]?.quality).toEqualSequence("KKKK");
+      expect(result[2]?.quality).toEqualSequence("JJJJ");
+      expect(result[3]?.quality).toEqualSequence("LLLL");
     });
 
     test("works with both SeqOps and AsyncIterable", async () => {
@@ -2058,15 +1977,15 @@ describe("SeqOps", () => {
       const right = [createSequence("R1", "TTT"), createSequence("R2", "GGG")];
 
       // Left: SeqOps, Right: raw AsyncIterable
-      const result1 = await seqops(arrayToAsync(left)).interleave(arrayToAsync(right)).collect();
+      const result1 = await seqops(toAsync(left)).interleave(toAsync(right)).collect();
 
       expect(result1).toHaveLength(4);
       expect(result1[0]?.id).toBe("L1");
       expect(result1[1]?.id).toBe("R1");
 
       // Left: SeqOps, Right: SeqOps
-      const result2 = await seqops(arrayToAsync(left))
-        .interleave(seqops(arrayToAsync(right)))
+      const result2 = await seqops(toAsync(left))
+        .interleave(seqops(toAsync(right)))
         .collect();
 
       expect(result2).toHaveLength(4);
@@ -2086,12 +2005,12 @@ describe("SeqOps", () => {
 
       // Strict mode should throw
       await expect(async () => {
-        await seqops(arrayToAsync(left)).interleave(arrayToAsync(right)).collect();
+        await seqops(toAsync(left)).interleave(toAsync(right)).collect();
       }).toThrow(/left stream exhausted.*right stream continues/);
 
       // Lossless mode should preserve all right sequences
-      const result = await seqops(arrayToAsync(left))
-        .interleave(arrayToAsync(right), { mode: "lossless" })
+      const result = await seqops(toAsync(left))
+        .interleave(toAsync(right), { mode: "lossless" })
         .collect();
 
       expect(result).toHaveLength(3);
@@ -2108,12 +2027,12 @@ describe("SeqOps", () => {
 
       // Strict mode should throw
       await expect(async () => {
-        await seqops(arrayToAsync(left)).interleave(arrayToAsync(right)).collect();
+        await seqops(toAsync(left)).interleave(toAsync(right)).collect();
       }).toThrow(/right stream exhausted.*left stream continues/);
 
       // Lossless mode should preserve all left sequences
-      const result = await seqops(arrayToAsync(left))
-        .interleave(arrayToAsync(right), { mode: "lossless" })
+      const result = await seqops(toAsync(left))
+        .interleave(toAsync(right), { mode: "lossless" })
         .collect();
 
       expect(result).toHaveLength(3);
@@ -2124,7 +2043,7 @@ describe("SeqOps", () => {
       const left: AbstractSequence[] = [];
       const right: AbstractSequence[] = [];
 
-      const result = await seqops(arrayToAsync(left)).interleave(arrayToAsync(right)).collect();
+      const result = await seqops(toAsync(left)).interleave(toAsync(right)).collect();
 
       // Should return empty array
       expect(result).toHaveLength(0);
@@ -2136,8 +2055,8 @@ describe("SeqOps", () => {
       const left = [createSequence("L1", "AAA"), createSequence("L2", "CCC")];
       const right = [createSequence("R1", "TTT"), createSequence("R2", "GGG")];
 
-      const result = await seqops(arrayToAsync(left))
-        .interleave(arrayToAsync(right))
+      const result = await seqops(toAsync(left))
+        .interleave(toAsync(right))
         .enumerate()
         .collect();
 
@@ -2170,9 +2089,9 @@ describe("SeqOps", () => {
       // Right after filter: R1 (length 6), R2 (length 4)
       // Strict mode should throw because streams have different lengths (1 vs 2)
       await expect(async () => {
-        await seqops(arrayToAsync(left))
+        await seqops(toAsync(left))
           .filter((seq) => seq.length > 3)
-          .interleave(seqops(arrayToAsync(right)).filter((seq) => seq.length > 3))
+          .interleave(seqops(toAsync(right)).filter((seq) => seq.length > 3))
           .collect();
       }).toThrow(/left stream exhausted.*right stream continues/);
     });
@@ -2192,10 +2111,10 @@ describe("SeqOps", () => {
       // Left after filter: L2 (length 6)
       // Right after filter: R1 (length 6), R2 (length 4)
       // Lossless mode should preserve both unpaired from right
-      const result = await seqops(arrayToAsync(left))
+      const result = await seqops(toAsync(left))
         .filter((seq) => seq.length > 3)
         .interleave(
-          seqops(arrayToAsync(right)).filter((seq) => seq.length > 3),
+          seqops(toAsync(right)).filter((seq) => seq.length > 3),
           {
             mode: "lossless",
           }

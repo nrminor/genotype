@@ -8,6 +8,7 @@
 
  */
 
+import { createFastqRecord } from "../../constructors";
 import { detectEncoding } from "../../operations/core/quality";
 import type { FastqSequence, QualityEncoding } from "../../types";
 import { ASCII_BOUNDARIES, CONFIDENCE_LEVELS } from "./constants";
@@ -370,15 +371,13 @@ export function autoDetectFastqFormat(
   if (detectPlatform && sampleRecords.length > 0) {
     const firstRecord = sampleRecords[0];
     if (firstRecord) {
-      const platformSample: FastqSequence = {
-        format: "fastq",
+      const platformSample = createFastqRecord({
         id: firstRecord.id,
         sequence: firstRecord.sequence,
         quality: firstRecord.quality,
         qualityEncoding: encodingResult.encoding,
-        length: firstRecord.sequence.length,
         lineNumber: 1,
-      };
+      });
       result.platform = detectSequencingPlatform(platformSample);
     }
   }

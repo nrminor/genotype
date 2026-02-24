@@ -11,6 +11,7 @@
  * in Phred+64 and other quality encodings.
  */
 
+import { createFastqRecord } from "../../constructors";
 import { detectEncodingWithConfidence } from "../../operations/core/quality";
 import type { FastqSequence, QualityEncoding } from "../../types";
 // Import primitives for validation and extraction
@@ -161,17 +162,14 @@ export function parseMultiLineFastq(
               qualityEncoding = encodingResult.encoding;
             }
 
-            const fastqRecord: FastqSequence = {
-              format: "fastq",
+            const fastqRecord = createFastqRecord({
               id,
               ...(description && { description }),
               sequence,
               quality,
               qualityEncoding,
-              length: sequence.length,
-              // Include line number if tracking is enabled (sequence line is typically line 2)
               ...(options.trackLineNumbers && { lineNumber: recordStartLine + 1 }),
-            };
+            });
 
             results.push(fastqRecord);
           }

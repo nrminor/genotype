@@ -533,14 +533,12 @@ export class SubseqExtractor {
     region: ParsedRegion,
     options: SubseqOptions
   ): T | null {
-    const upstreamSeq = sequence.sequence.slice(
-      Math.max(0, region.start - (options.upstream ?? 0)),
-      region.start
-    );
-    const downstreamSeq = sequence.sequence.slice(
-      region.end,
-      Math.min(sequence.length, region.end + (options.downstream ?? 0))
-    );
+    const upstreamSeq = sequence.sequence
+      .slice(Math.max(0, region.start - (options.upstream ?? 0)), region.start)
+      .toString();
+    const downstreamSeq = sequence.sequence
+      .slice(region.end, Math.min(sequence.length, region.end + (options.downstream ?? 0)))
+      .toString();
 
     const subseq = upstreamSeq + downstreamSeq;
     if (subseq.length === 0) {
@@ -564,10 +562,12 @@ export class SubseqExtractor {
     let subseq: string;
     if (options.circular === true && coords.start >= coords.end) {
       // Wrap around for circular sequences
-      subseq = sequence.sequence.slice(coords.start) + sequence.sequence.slice(0, coords.end);
+      subseq =
+        sequence.sequence.slice(coords.start).toString() +
+        sequence.sequence.slice(0, coords.end).toString();
     } else {
       // Normal extraction
-      subseq = sequence.sequence.slice(coords.start, coords.end);
+      subseq = sequence.sequence.slice(coords.start, coords.end).toString();
     }
 
     // Handle strand if specified
@@ -638,10 +638,9 @@ export class SubseqExtractor {
 
     const qualStart = region.start - (options.upstream ?? 0);
     const qualEnd = region.end + (options.downstream ?? 0);
-    let quality = original.quality.slice(
-      Math.max(0, qualStart),
-      Math.min(original.quality.length, qualEnd)
-    );
+    let quality = original.quality
+      .slice(Math.max(0, qualStart), Math.min(original.quality.length, qualEnd))
+      .toString();
 
     // Reverse quality if sequence was reverse complemented
     if (options.strand === "-" && options.reverseComplementMinus !== false) {

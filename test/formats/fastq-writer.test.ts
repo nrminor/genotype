@@ -3,11 +3,28 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import "../matchers";
+import { createFastqRecord } from "../../src/constructors";
 import { FastqParser } from "../../src/formats/fastq/parser";
 import { FastqWriter } from "../../src/formats/fastq/writer";
 import type { FastqSequence } from "../../src/types";
 
 describe("FASTQ Writer Enhancements", () => {
+  function createFastq(
+    id: string,
+    sequence: string,
+    quality: string,
+    description?: string
+  ): FastqSequence {
+    return createFastqRecord({
+      id,
+      sequence,
+      quality,
+      qualityEncoding: "phred33",
+      ...(description !== undefined && { description }),
+    });
+  }
+
   describe("Edge Cases", () => {
     test("handles empty sequences array", () => {
       const writer = new FastqWriter();
@@ -17,15 +34,7 @@ describe("FASTQ Writer Enhancements", () => {
     });
 
     test("formats sequence with empty description", () => {
-      const seq: FastqSequence = {
-        format: "fastq",
-        id: "test",
-        sequence: "ATCG",
-        quality: "IIII",
-        qualityEncoding: "phred33",
-        length: 4,
-        // No description field
-      };
+      const seq = createFastq("test", "ATCG", "IIII");
 
       const writer = new FastqWriter();
       const output = writer.formatSequence(seq);
@@ -34,14 +43,7 @@ describe("FASTQ Writer Enhancements", () => {
     });
 
     test("validates empty sequence when validation enabled", () => {
-      const emptySeq: FastqSequence = {
-        format: "fastq",
-        id: "empty",
-        sequence: "",
-        quality: "",
-        qualityEncoding: "phred33",
-        length: 0,
-      };
+      const emptySeq = createFastq("empty", "", "");
 
       const writer = new FastqWriter({
         validateOutput: true,
@@ -53,14 +55,7 @@ describe("FASTQ Writer Enhancements", () => {
     });
 
     test("handles very long sequences efficiently", () => {
-      const longSeq: FastqSequence = {
-        format: "fastq",
-        id: "long",
-        sequence: "A".repeat(10000),
-        quality: "I".repeat(10000),
-        qualityEncoding: "phred33",
-        length: 10000,
-      };
+      const longSeq = createFastq("long", "A".repeat(10000), "I".repeat(10000));
 
       const writer = new FastqWriter();
       const output = writer.formatSequence(longSeq);
@@ -70,14 +65,7 @@ describe("FASTQ Writer Enhancements", () => {
     });
 
     test("preserves exact quality scores without conversion", () => {
-      const seq: FastqSequence = {
-        format: "fastq",
-        id: "test",
-        sequence: "ATCG",
-        quality: "!#5?", // Various ASCII values
-        qualityEncoding: "phred33",
-        length: 4,
-      };
+      const seq = createFastq("test", "ATCG", "!#5?"); // Various ASCII values
 
       const writer = new FastqWriter({ qualityEncoding: "phred33" });
       const output = writer.formatSequence(seq);
@@ -86,14 +74,7 @@ describe("FASTQ Writer Enhancements", () => {
     });
 
     test("handles sequences with special characters in ID", () => {
-      const seq: FastqSequence = {
-        format: "fastq",
-        id: "seq|with:special/chars",
-        sequence: "ATCG",
-        quality: "IIII",
-        qualityEncoding: "phred33",
-        length: 4,
-      };
+      const seq = createFastq("seq|with:special/chars", "ATCG", "IIII");
 
       const writer = new FastqWriter();
       const output = writer.formatSequence(seq);
@@ -103,22 +84,8 @@ describe("FASTQ Writer Enhancements", () => {
 
     test("formats multiple sequences correctly", () => {
       const sequences: FastqSequence[] = [
-        {
-          format: "fastq",
-          id: "seq1",
-          sequence: "ATCG",
-          quality: "IIII",
-          qualityEncoding: "phred33",
-          length: 4,
-        },
-        {
-          format: "fastq",
-          id: "seq2",
-          sequence: "GCTA",
-          quality: "JJJJ",
-          qualityEncoding: "phred33",
-          length: 4,
-        },
+        createFastq("seq1", "ATCG", "IIII"),
+        createFastq("seq2", "GCTA", "JJJJ"),
       ];
 
       const writer = new FastqWriter();
@@ -131,14 +98,7 @@ describe("FASTQ Writer Enhancements", () => {
     });
 
     test("handles whitespace in sequences gracefully", () => {
-      const seq: FastqSequence = {
-        format: "fastq",
-        id: "test",
-        sequence: "A T C G", // Has spaces
-        quality: "I I I I", // Has spaces
-        qualityEncoding: "phred33",
-        length: 7, // Including spaces
-      };
+      const seq = createFastq("test", "A T C G", "I I I I"); // Including spaces
 
       const writer = new FastqWriter();
       const output = writer.formatSequence(seq);
@@ -149,22 +109,19 @@ describe("FASTQ Writer Enhancements", () => {
     });
   });
 
-  const sampleSequence: FastqSequence = {
-    format: "fastq",
-    id: "test_seq",
-    description: "test description",
-    sequence: "ATCGATCGATCGATCGATCG",
-    quality: "IIIIIIIIIIJJJJJJJJJJ",
-    qualityEncoding: "phred33",
-    length: 20,
-  };
+  const sampleSequence = createFastq(
+    "test_seq",
+    "ATCGATCGATCGATCGATCG",
+    "IIIIIIIIIIJJJJJJJJJJ",
+    "test description"
+  );
 
   describe("Line Wrapping", () => {
     test("wraps sequences when lineLength is set and sequence exceeds it", () => {
       const longSeq: FastqSequence = {
         ...sampleSequence,
-        sequence: "ATCG".repeat(30), // 120bp
-        quality: "IIII".repeat(30),
+        sequence: createFastq("tmp", "ATCG".repeat(30), "IIII".repeat(30)).sequence, // 120bp
+        quality: createFastq("tmp", "ATCG".repeat(30), "IIII".repeat(30)).quality,
         length: 120,
       };
 
@@ -190,8 +147,8 @@ describe("FASTQ Writer Enhancements", () => {
     test("doesn't wrap when lineLength is 0", () => {
       const longSeq: FastqSequence = {
         ...sampleSequence,
-        sequence: "ATCG".repeat(30),
-        quality: "IIII".repeat(30),
+        sequence: createFastq("tmp", "ATCG".repeat(30), "IIII".repeat(30)).sequence,
+        quality: createFastq("tmp", "ATCG".repeat(30), "IIII".repeat(30)).quality,
         length: 120,
       };
 
@@ -217,7 +174,7 @@ describe("FASTQ Writer Enhancements", () => {
     test("catches length mismatch in validation", () => {
       const invalidSeq: FastqSequence = {
         ...sampleSequence,
-        quality: "IIII", // Too short!
+        quality: createFastq("tmp", "ATCG", "IIII").quality, // Too short!
       };
 
       const writer = new FastqWriter({
@@ -233,8 +190,8 @@ describe("FASTQ Writer Enhancements", () => {
     test("full validation checks quality encoding range", () => {
       const invalidSeq: FastqSequence = {
         ...sampleSequence,
-        sequence: "ATCGATCG",
-        quality: "IIII\x1F\x1F\x1F\x1F", // Invalid ASCII characters (below 33)
+        sequence: createFastq("tmp", "ATCGATCG", "IIIIIIII").sequence,
+        quality: createFastq("tmp", "ATCGATCG", "IIII\x1F\x1F\x1F\x1F").quality, // Invalid ASCII characters (below 33)
         qualityEncoding: "phred33",
         length: 8,
       };
@@ -250,8 +207,8 @@ describe("FASTQ Writer Enhancements", () => {
     test("quick validation doesn't check nucleotide validity", () => {
       const invalidSeq: FastqSequence = {
         ...sampleSequence,
-        sequence: "ATCGXYZ", // Invalid nucleotides
-        quality: "IIIIIII",
+        sequence: createFastq("tmp", "ATCGXYZ", "IIIIIII").sequence, // Invalid nucleotides
+        quality: createFastq("tmp", "ATCGXYZ", "IIIIIII").quality,
         length: 7,
       };
 
@@ -267,15 +224,12 @@ describe("FASTQ Writer Enhancements", () => {
 
   describe("Platform-Aware Formatting", () => {
     test("preserves Illumina platform format", () => {
-      const illuminaSeq: FastqSequence = {
-        format: "fastq",
-        id: "M01234:567:000000000-ABCDE:1:1101:15589:1338",
-        description: "1:N:0:1",
-        sequence: "ATCGATCGATCG",
-        quality: "IIIIJJJJKKKK",
-        qualityEncoding: "phred33",
-        length: 12,
-      };
+      const illuminaSeq = createFastq(
+        "M01234:567:000000000-ABCDE:1:1101:15589:1338",
+        "ATCGATCGATCG",
+        "IIIIJJJJKKKK",
+        "1:N:0:1"
+      );
 
       const writer = new FastqWriter({
         preservePlatformFormat: true,
@@ -371,8 +325,8 @@ describe("FASTQ Writer Enhancements", () => {
     test("auto strategy wraps long sequences", () => {
       const longSeq: FastqSequence = {
         ...sampleSequence,
-        sequence: "ATCG".repeat(30), // 120bp
-        quality: "IIII".repeat(30),
+        sequence: createFastq("tmp", "ATCG".repeat(30), "IIII".repeat(30)).sequence, // 120bp
+        quality: createFastq("tmp", "ATCG".repeat(30), "IIII".repeat(30)).quality,
         length: 120,
       };
 
@@ -404,8 +358,8 @@ describe("FASTQ Writer Enhancements", () => {
     test("simple strategy never wraps", () => {
       const longSeq: FastqSequence = {
         ...sampleSequence,
-        sequence: "ATCG".repeat(30),
-        quality: "IIII".repeat(30),
+        sequence: createFastq("tmp", "ATCG".repeat(30), "IIII".repeat(30)).sequence,
+        quality: createFastq("tmp", "ATCG".repeat(30), "IIII".repeat(30)).quality,
         length: 120,
       };
 
@@ -423,8 +377,8 @@ describe("FASTQ Writer Enhancements", () => {
     test("wrapped strategy wraps when possible", () => {
       const longSeq: FastqSequence = {
         ...sampleSequence,
-        sequence: "ATCG".repeat(30),
-        quality: "IIII".repeat(30),
+        sequence: createFastq("tmp", "ATCG".repeat(30), "IIII".repeat(30)).sequence,
+        quality: createFastq("tmp", "ATCG".repeat(30), "IIII".repeat(30)).quality,
         length: 120,
       };
 
@@ -454,22 +408,8 @@ describe("FASTQ Writer Enhancements", () => {
   describe("Streaming Support", () => {
     test("formatStream yields formatted sequences", async () => {
       async function* generateSequences() {
-        yield {
-          format: "fastq" as const,
-          id: "seq1",
-          sequence: "ATCG",
-          quality: "IIII",
-          qualityEncoding: "phred33" as const,
-          length: 4,
-        };
-        yield {
-          format: "fastq" as const,
-          id: "seq2",
-          sequence: "GCTA",
-          quality: "JJJJ",
-          qualityEncoding: "phred33" as const,
-          length: 4,
-        };
+        yield createFastq("seq1", "ATCG", "IIII");
+        yield createFastq("seq2", "GCTA", "JJJJ");
       }
 
       const writer = new FastqWriter();
@@ -486,14 +426,7 @@ describe("FASTQ Writer Enhancements", () => {
 
     test("writeToStream writes to WritableStream", async () => {
       async function* sequences() {
-        yield {
-          format: "fastq" as const,
-          id: "test",
-          sequence: "ATCG",
-          quality: "IIII",
-          qualityEncoding: "phred33" as const,
-          length: 4,
-        };
+        yield createFastq("test", "ATCG", "IIII");
       }
 
       const chunks: Uint8Array[] = [];
@@ -516,8 +449,8 @@ describe("FASTQ Writer Enhancements", () => {
     test("wrapped output can be parsed correctly", async () => {
       const longSeq: FastqSequence = {
         ...sampleSequence,
-        sequence: "ATCG".repeat(30),
-        quality: "IIII".repeat(30),
+        sequence: createFastq("tmp", "ATCG".repeat(30), "IIII".repeat(30)).sequence,
+        quality: createFastq("tmp", "ATCG".repeat(30), "IIII".repeat(30)).quality,
         length: 120,
       };
 
@@ -532,21 +465,18 @@ describe("FASTQ Writer Enhancements", () => {
       }
 
       expect(parsed).toHaveLength(1);
-      expect(parsed[0]!.sequence).toBe(longSeq.sequence);
-      expect(parsed[0]!.quality).toBe(longSeq.quality);
+      expect(parsed[0]!.sequence).toEqualSequence(longSeq.sequence);
+      expect(parsed[0]!.quality).toEqualSequence(longSeq.quality);
       expect(parsed[0]!.id).toBe(longSeq.id);
     });
 
     test("platform-preserved output maintains format with description", async () => {
-      const illuminaSeq: FastqSequence = {
-        format: "fastq",
-        id: "M01234:567:000000000-ABCDE:1:1101:15589:1338",
-        description: "1:N:0:1",
-        sequence: "ATCGATCGATCG",
-        quality: "IIIIJJJJKKKK",
-        qualityEncoding: "phred33",
-        length: 12,
-      };
+      const illuminaSeq = createFastq(
+        "M01234:567:000000000-ABCDE:1:1101:15589:1338",
+        "ATCGATCGATCG",
+        "IIIIJJJJKKKK",
+        "1:N:0:1"
+      );
 
       const writer = new FastqWriter({
         preservePlatformFormat: true,
@@ -569,15 +499,7 @@ describe("FASTQ Writer Enhancements", () => {
     });
 
     test("handles sequences without description field", async () => {
-      const seqWithoutDescription: FastqSequence = {
-        format: "fastq",
-        id: "test_seq_no_desc",
-        sequence: "ATCGATCGATCG",
-        quality: "IIIIJJJJKKKK",
-        qualityEncoding: "phred33",
-        length: 12,
-        // Explicitly no description field
-      };
+      const seqWithoutDescription = createFastq("test_seq_no_desc", "ATCGATCGATCG", "IIIIJJJJKKKK");
 
       const writer = new FastqWriter({
         preservePlatformFormat: true,
@@ -602,8 +524,8 @@ describe("FASTQ Writer Enhancements", () => {
     test("validation works with wrapping", () => {
       const longSeq: FastqSequence = {
         ...sampleSequence,
-        sequence: "ATCG".repeat(30),
-        quality: "IIII".repeat(30),
+        sequence: createFastq("tmp", "ATCG".repeat(30), "IIII".repeat(30)).sequence,
+        quality: createFastq("tmp", "ATCG".repeat(30), "IIII".repeat(30)).quality,
         length: 120,
       };
 
@@ -618,14 +540,11 @@ describe("FASTQ Writer Enhancements", () => {
     });
 
     test("platform preservation works with auto strategy", () => {
-      const pacbioSeq: FastqSequence = {
-        format: "fastq",
-        id: "m54006_160504_011306/4391910/0_1500",
-        sequence: "ATCG".repeat(40), // 160bp - long
-        quality: "IIII".repeat(40),
-        qualityEncoding: "phred33",
-        length: 160,
-      };
+      const pacbioSeq = createFastq(
+        "m54006_160504_011306/4391910/0_1500",
+        "ATCG".repeat(40),
+        "IIII".repeat(40)
+      );
 
       const writer = new FastqWriter({
         outputStrategy: "auto",
@@ -643,15 +562,12 @@ describe("FASTQ Writer Enhancements", () => {
     });
 
     test("all features combined", () => {
-      const illuminaSeq: FastqSequence = {
-        format: "fastq",
-        id: "M01234:567:000000000-ABCDE:1:1101:15589:1338",
-        description: "1:N:0:1",
-        sequence: "ATCG".repeat(30),
-        quality: "IIII".repeat(30),
-        qualityEncoding: "phred33",
-        length: 120,
-      };
+      const illuminaSeq = createFastq(
+        "M01234:567:000000000-ABCDE:1:1101:15589:1338",
+        "ATCG".repeat(30),
+        "IIII".repeat(30),
+        "1:N:0:1"
+      );
 
       const writer = new FastqWriter({
         outputStrategy: "auto",

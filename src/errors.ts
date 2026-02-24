@@ -264,11 +264,12 @@ export class MemoryError extends GenotypeError {
 export class SequenceError extends ValidationError {
   constructor(
     message: string,
-    public readonly sequenceId: string,
+    public readonly sequenceId?: string,
     lineNumber?: number,
     context?: string
   ) {
-    super(`Sequence '${sequenceId}': ${message}`, lineNumber, context);
+    const prefix = sequenceId ? `Sequence '${sequenceId}': ` : "";
+    super(`${prefix}${message}`, lineNumber, context);
     this.name = "SequenceError";
   }
 }
@@ -311,12 +312,13 @@ export class AlphabetValidationError extends ValidationError {
 export class QualityError extends ValidationError {
   constructor(
     message: string,
-    public readonly sequenceId: string,
+    public readonly sequenceId?: string,
     public readonly qualityEncoding?: string,
     lineNumber?: number,
     context?: string
   ) {
-    super(`Quality scores for '${sequenceId}': ${message}`, lineNumber, context);
+    const prefix = sequenceId ? `Quality scores for '${sequenceId}': ` : "";
+    super(`${prefix}${message}`, lineNumber, context);
     this.name = "QualityError";
   }
 }

@@ -6,6 +6,7 @@
  */
 
 import { beforeEach, describe, expect, test } from "bun:test";
+import { createFastaRecord } from "../../src/constructors";
 import { ValidationError } from "../../src/errors";
 import { LocateProcessor } from "../../src/operations/locate";
 import type { LocateOptions } from "../../src/operations/types";
@@ -20,6 +21,10 @@ async function* toAsyncIterable<T>(arr: T[]): AsyncIterable<T> {
   }
 }
 
+function createSequence(id: string, sequence: string, description?: string): AbstractSequence {
+  return createFastaRecord({ id, sequence, ...(description !== undefined && { description }) });
+}
+
 describe("LocateProcessor", () => {
   let processor: LocateProcessor;
   let testSequences: AbstractSequence[];
@@ -27,30 +32,10 @@ describe("LocateProcessor", () => {
   beforeEach(() => {
     processor = new LocateProcessor();
     testSequences = [
-      {
-        id: "seq1",
-        sequence: "ATCGATCGATCGATCG",
-        length: 16,
-        description: "Test sequence 1",
-      },
-      {
-        id: "seq2",
-        sequence: "GGCCAATTGGCCAATT",
-        length: 16,
-        description: "Test sequence 2",
-      },
-      {
-        id: "seq3",
-        sequence: "TTAACCGGTTAACCGG",
-        length: 16,
-        description: "Test sequence 3",
-      },
-      {
-        id: "empty_seq",
-        sequence: "",
-        length: 0,
-        description: "Empty sequence",
-      },
+      createSequence("seq1", "ATCGATCGATCGATCG", "Test sequence 1"),
+      createSequence("seq2", "GGCCAATTGGCCAATT", "Test sequence 2"),
+      createSequence("seq3", "TTAACCGGTTAACCGG", "Test sequence 3"),
+      createSequence("empty_seq", "", "Empty sequence"),
     ];
   });
 
@@ -171,13 +156,7 @@ describe("LocateProcessor", () => {
 
   describe("case sensitivity", () => {
     test("case-sensitive matching by default", async () => {
-      const seqs: AbstractSequence[] = [
-        {
-          id: "mixed_case",
-          sequence: "AtCgAtCg",
-          length: 8,
-        },
-      ];
+      const seqs: AbstractSequence[] = [createSequence("mixed_case", "AtCgAtCg")];
 
       const options: LocateOptions = {
         pattern: "atcg",
@@ -192,13 +171,7 @@ describe("LocateProcessor", () => {
     });
 
     test("case-insensitive matching when enabled", async () => {
-      const seqs: AbstractSequence[] = [
-        {
-          id: "mixed_case",
-          sequence: "AtCgAtCg",
-          length: 8,
-        },
-      ];
+      const seqs: AbstractSequence[] = [createSequence("mixed_case", "AtCgAtCg")];
 
       const options: LocateOptions = {
         pattern: "atcg",
@@ -215,13 +188,7 @@ describe("LocateProcessor", () => {
     });
 
     test("case-insensitive regex matching", async () => {
-      const seqs: AbstractSequence[] = [
-        {
-          id: "mixed_case",
-          sequence: "AtCgAtCg",
-          length: 8,
-        },
-      ];
+      const seqs: AbstractSequence[] = [createSequence("mixed_case", "AtCgAtCg")];
 
       const options: LocateOptions = {
         pattern: /atcg/,
@@ -239,13 +206,7 @@ describe("LocateProcessor", () => {
 
   describe("fuzzy matching with mismatches", () => {
     test("allows single mismatch", async () => {
-      const seqs: AbstractSequence[] = [
-        {
-          id: "test_seq",
-          sequence: "ATCGATCGATCG",
-          length: 12,
-        },
-      ];
+      const seqs: AbstractSequence[] = [createSequence("test_seq", "ATCGATCGATCG")];
 
       const options: LocateOptions = {
         pattern: "ATCGCTCG", // One mismatch from ATCGATCG
@@ -263,13 +224,7 @@ describe("LocateProcessor", () => {
     });
 
     test("allows multiple mismatches", async () => {
-      const seqs: AbstractSequence[] = [
-        {
-          id: "test_seq",
-          sequence: "ATCGATCGATCG",
-          length: 12,
-        },
-      ];
+      const seqs: AbstractSequence[] = [createSequence("test_seq", "ATCGATCGATCG")];
 
       const options: LocateOptions = {
         pattern: "AAGGATCG", // Two mismatches from ATCGATCG (A!=T, G!=C)
@@ -287,13 +242,7 @@ describe("LocateProcessor", () => {
     });
 
     test("rejects patterns with too many mismatches", async () => {
-      const seqs: AbstractSequence[] = [
-        {
-          id: "test_seq",
-          sequence: "ATCGATCGATCG",
-          length: 12,
-        },
-      ];
+      const seqs: AbstractSequence[] = [createSequence("test_seq", "ATCGATCGATCG")];
 
       const options: LocateOptions = {
         pattern: "AAAAAAAA", // Many mismatches
@@ -309,13 +258,7 @@ describe("LocateProcessor", () => {
     });
 
     test("calculates correct score for fuzzy matches", async () => {
-      const seqs: AbstractSequence[] = [
-        {
-          id: "test_seq",
-          sequence: "ATCGATCG",
-          length: 8,
-        },
-      ];
+      const seqs: AbstractSequence[] = [createSequence("test_seq", "ATCGATCG")];
 
       const options: LocateOptions = {
         pattern: "ATCGCTCG", // 1 mismatch out of 8 = score 0.875
@@ -334,13 +277,7 @@ describe("LocateProcessor", () => {
 
   describe("strand searching", () => {
     test("searches forward strand only by default", async () => {
-      const seqs: AbstractSequence[] = [
-        {
-          id: "test_seq",
-          sequence: "ATCGATCG",
-          length: 8,
-        },
-      ];
+      const seqs: AbstractSequence[] = [createSequence("test_seq", "ATCGATCG")];
 
       const options: LocateOptions = {
         pattern: "CGATCG",
@@ -356,13 +293,7 @@ describe("LocateProcessor", () => {
     });
 
     test("searches both strands when enabled", async () => {
-      const seqs: AbstractSequence[] = [
-        {
-          id: "test_seq",
-          sequence: "ATCGATCG",
-          length: 8,
-        },
-      ];
+      const seqs: AbstractSequence[] = [createSequence("test_seq", "ATCGATCG")];
 
       // Pattern CGATCG appears on forward strand
       // Its reverse complement CGATCG also appears (palindromic)
@@ -384,11 +315,7 @@ describe("LocateProcessor", () => {
 
     test("finds reverse complement matches", async () => {
       const seqs: AbstractSequence[] = [
-        {
-          id: "test_seq",
-          sequence: "AAATTTCCC", // Contains TTTCCC
-          length: 9,
-        },
+        createSequence("test_seq", "AAATTTCCC"), // Contains TTTCCC
       ];
 
       // Pattern GGGAAA has reverse complement TTTCCC
@@ -407,13 +334,7 @@ describe("LocateProcessor", () => {
     });
 
     test("handles IUPAC ambiguous bases in reverse complement", async () => {
-      const seqs: AbstractSequence[] = [
-        {
-          id: "ambiguous_seq",
-          sequence: "ATCGNATCG",
-          length: 9,
-        },
-      ];
+      const seqs: AbstractSequence[] = [createSequence("ambiguous_seq", "ATCGNATCG")];
 
       const options: LocateOptions = {
         pattern: "CGATN",
@@ -492,11 +413,7 @@ describe("LocateProcessor", () => {
   describe("overlap handling", () => {
     test("allows overlapping matches by default", async () => {
       const seqs: AbstractSequence[] = [
-        {
-          id: "overlap_seq",
-          sequence: "AAAA", // Pattern AAA overlaps
-          length: 4,
-        },
+        createSequence("overlap_seq", "AAAA"), // Pattern AAA overlaps
       ];
 
       const options: LocateOptions = {
@@ -513,13 +430,7 @@ describe("LocateProcessor", () => {
     });
 
     test("filters overlapping matches when disabled", async () => {
-      const seqs: AbstractSequence[] = [
-        {
-          id: "overlap_seq",
-          sequence: "AAAA",
-          length: 4,
-        },
-      ];
+      const seqs: AbstractSequence[] = [createSequence("overlap_seq", "AAAA")];
 
       const options: LocateOptions = {
         pattern: "AAA",
@@ -535,13 +446,7 @@ describe("LocateProcessor", () => {
     });
 
     test("keeps highest scoring match when filtering overlaps", async () => {
-      const seqs: AbstractSequence[] = [
-        {
-          id: "overlap_seq",
-          sequence: "ATCGATCG",
-          length: 8,
-        },
-      ];
+      const seqs: AbstractSequence[] = [createSequence("overlap_seq", "ATCGATCG")];
 
       const options: LocateOptions = {
         pattern: "ATCG",
@@ -670,13 +575,7 @@ describe("LocateProcessor", () => {
     });
 
     test("handles pattern longer than sequence", async () => {
-      const seqs: AbstractSequence[] = [
-        {
-          id: "short_seq",
-          sequence: "AT",
-          length: 2,
-        },
-      ];
+      const seqs: AbstractSequence[] = [createSequence("short_seq", "AT")];
 
       const options: LocateOptions = {
         pattern: "ATCGATCG",
@@ -691,13 +590,7 @@ describe("LocateProcessor", () => {
     });
 
     test("handles sequence without description", async () => {
-      const seqs: AbstractSequence[] = [
-        {
-          id: "no_desc",
-          sequence: "ATCGATCG",
-          length: 8,
-        },
-      ];
+      const seqs: AbstractSequence[] = [createSequence("no_desc", "ATCGATCG")];
 
       const options: LocateOptions = {
         pattern: "ATCG",
@@ -713,13 +606,7 @@ describe("LocateProcessor", () => {
     });
 
     test("handles very small context size", async () => {
-      const seqs: AbstractSequence[] = [
-        {
-          id: "test",
-          sequence: "ATCGATCGATCG",
-          length: 12,
-        },
-      ];
+      const seqs: AbstractSequence[] = [createSequence("test", "ATCGATCGATCG")];
 
       const options: LocateOptions = {
         pattern: "GATC",
@@ -738,11 +625,7 @@ describe("LocateProcessor", () => {
   describe("bioinformatics-specific features", () => {
     test("finds transcription factor binding sites", async () => {
       const seqs: AbstractSequence[] = [
-        {
-          id: "promoter",
-          sequence: "ATATAAGGCCTTAATATTTCCCGGGAAATATA",
-          length: 31,
-        },
+        createSequence("promoter", "ATATAAGGCCTTAATATTTCCCGGGAAATATA"),
       ];
 
       // TATA box motif
@@ -760,13 +643,7 @@ describe("LocateProcessor", () => {
     });
 
     test("finds restriction enzyme sites", async () => {
-      const seqs: AbstractSequence[] = [
-        {
-          id: "plasmid",
-          sequence: "ATCGAATTCGATCGGATCCATCG",
-          length: 22,
-        },
-      ];
+      const seqs: AbstractSequence[] = [createSequence("plasmid", "ATCGAATTCGATCGGATCCATCG")];
 
       // EcoRI site (GAATTC)
       const options: LocateOptions = {
@@ -783,13 +660,7 @@ describe("LocateProcessor", () => {
     });
 
     test("finds palindromic sequences", async () => {
-      const seqs: AbstractSequence[] = [
-        {
-          id: "palindrome",
-          sequence: "ATGAATTCAT",
-          length: 10,
-        },
-      ];
+      const seqs: AbstractSequence[] = [createSequence("palindrome", "ATGAATTCAT")];
 
       const options: LocateOptions = {
         pattern: "GAATTC",
@@ -805,13 +676,7 @@ describe("LocateProcessor", () => {
     });
 
     test("handles degenerate IUPAC codes", async () => {
-      const seqs: AbstractSequence[] = [
-        {
-          id: "degenerate",
-          sequence: "ATCGRYSWKMBDHVNATCG",
-          length: 18,
-        },
-      ];
+      const seqs: AbstractSequence[] = [createSequence("degenerate", "ATCGRYSWKMBDHVNATCG")];
 
       const options: LocateOptions = {
         pattern: "ATCG",

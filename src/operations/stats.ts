@@ -454,7 +454,7 @@ export class SequenceStatsCalculator {
     }
 
     // Analyze sequence composition
-    this.analyzeComposition(sequence.sequence, accumulator, options);
+    this.analyzeComposition(sequence.sequence.toString(), accumulator, options);
 
     // Detect format and type
     this.detectFormat(sequence, accumulator);

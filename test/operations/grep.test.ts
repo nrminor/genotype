@@ -6,6 +6,7 @@
  */
 
 import { beforeEach, describe, expect, test } from "bun:test";
+import { createFastaRecord } from "../../src/constructors";
 import { ValidationError } from "../../src/errors";
 import { GrepProcessor } from "../../src/operations/grep";
 import type { GrepOptions } from "../../src/operations/types";
@@ -18,6 +19,10 @@ async function* toAsync<T>(arr: T[]): AsyncIterable<T> {
   }
 }
 
+function createSequence(id: string, sequence: string, description?: string): AbstractSequence {
+  return createFastaRecord({ id, sequence, ...(description !== undefined && { description }) });
+}
+
 describe("GrepProcessor", () => {
   let processor: GrepProcessor;
   let testSequences: AbstractSequence[];
@@ -25,30 +30,10 @@ describe("GrepProcessor", () => {
   beforeEach(() => {
     processor = new GrepProcessor();
     testSequences = [
-      {
-        id: "chr1_gene1",
-        sequence: "ATCGATCGATCG",
-        length: 12,
-        description: "Chromosome 1 gene 1",
-      },
-      {
-        id: "chr2_gene2",
-        sequence: "GGCCAATTGGCC",
-        length: 12,
-        description: "Chromosome 2 gene 2",
-      },
-      {
-        id: "scaffold_1",
-        sequence: "TTAACCGGTTAA",
-        length: 12,
-        description: "Scaffold sequence",
-      },
-      {
-        id: "plasmid_vector",
-        sequence: "GCGCGCGCGCGC",
-        length: 12,
-        description: "Plasmid vector sequence",
-      },
+      createSequence("chr1_gene1", "ATCGATCGATCG", "Chromosome 1 gene 1"),
+      createSequence("chr2_gene2", "GGCCAATTGGCC", "Chromosome 2 gene 2"),
+      createSequence("scaffold_1", "TTAACCGGTTAA", "Scaffold sequence"),
+      createSequence("plasmid_vector", "GCGCGCGCGCGC", "Plasmid vector sequence"),
     ];
   });
 
@@ -274,11 +259,7 @@ describe("GrepProcessor", () => {
 
   describe("edge cases", () => {
     test("handles empty sequences", async () => {
-      const emptySeq: AbstractSequence = {
-        id: "empty",
-        sequence: "",
-        length: 0,
-      };
+      const emptySeq: AbstractSequence = createSequence("empty", "");
 
       const options: GrepOptions = {
         pattern: "ATCG",
@@ -294,12 +275,7 @@ describe("GrepProcessor", () => {
     });
 
     test("handles sequences without description", async () => {
-      const seqNoDesc: AbstractSequence = {
-        id: "no_desc",
-        sequence: "ATCGATCG",
-        length: 8,
-        // No description field
-      };
+      const seqNoDesc: AbstractSequence = createSequence("no_desc", "ATCGATCG");
 
       const options: GrepOptions = {
         pattern: "test",
@@ -333,11 +309,7 @@ describe("GrepProcessor", () => {
   describe("bioinformatics-specific features", () => {
     test("searches both strands with reverse complement", async () => {
       const seqs: AbstractSequence[] = [
-        {
-          id: "test_seq",
-          sequence: "AAATTTCCC", // Test sequence
-          length: 9,
-        },
+        createSequence("test_seq", "AAATTTCCC"), // Test sequence
       ];
 
       // Search for a pattern whose reverse complement exists in the sequence
@@ -359,13 +331,7 @@ describe("GrepProcessor", () => {
     });
 
     test("handles IUPAC ambiguous bases in reverse complement", async () => {
-      const seqs: AbstractSequence[] = [
-        {
-          id: "ambiguous_seq",
-          sequence: "ATCGNNATCG",
-          length: 10,
-        },
-      ];
+      const seqs: AbstractSequence[] = [createSequence("ambiguous_seq", "ATCGNNATCG")];
 
       const options: GrepOptions = {
         pattern: "CGATNN",

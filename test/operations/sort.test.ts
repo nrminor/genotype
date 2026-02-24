@@ -7,9 +7,11 @@
  */
 
 import { beforeEach, describe, expect, test } from "bun:test";
+import { createFastaRecord, createFastqRecord } from "../../src/constructors";
 import { SortProcessor } from "../../src/operations/sort";
 import type { AbstractSequence, FastqSequence } from "../../src/types";
 import type { SortOptions } from "../../src/operations/core/sequence-sorter";
+import "../matchers";
 
 /**
  * Helper to convert an array to an AsyncIterable
@@ -18,6 +20,14 @@ async function* toAsyncIterable<T>(arr: T[]): AsyncIterable<T> {
   for (const item of arr) {
     yield item;
   }
+}
+
+function createSequence(id: string, sequence: string): AbstractSequence {
+  return createFastaRecord({ id, sequence });
+}
+
+function createFastq(id: string, sequence: string, quality: string): FastqSequence {
+  return createFastqRecord({ id, sequence, quality, qualityEncoding: "phred33" });
 }
 
 describe("SortProcessor", () => {
@@ -30,55 +40,18 @@ describe("SortProcessor", () => {
 
     // Create test sequences with varying characteristics
     testSequences = [
-      {
-        id: "seq_gamma",
-        sequence: "GGGGCCCC", // 100% GC
-        length: 8,
-      },
-      {
-        id: "seq_alpha",
-        sequence: "ATATATAT", // 0% GC
-        length: 8,
-      },
-      {
-        id: "seq_beta",
-        sequence: "ATCGATCGATCG", // 50% GC
-        length: 12,
-      },
-      {
-        id: "seq_delta",
-        sequence: "ATCG", // 50% GC, shortest
-        length: 4,
-      },
+      createSequence("seq_gamma", "GGGGCCCC"), // 100% GC
+      createSequence("seq_alpha", "ATATATAT"), // 0% GC
+      createSequence("seq_beta", "ATCGATCGATCG"), // 50% GC
+      createSequence("seq_delta", "ATCG"), // 50% GC, shortest
     ];
 
     // FASTQ sequences for quality sorting tests
     testFastqSequences = [
-      {
-        format: "fastq",
-        id: "high_quality",
-        sequence: "ATCGATCG",
-        quality: "IIIIIIII", // High quality (Phred+33)
-        qualityEncoding: "phred33",
-        length: 8,
-      },
-      {
-        format: "fastq",
-        id: "low_quality",
-        sequence: "GCTAGCTA",
-        quality: "########", // Low quality (Phred+33)
-        qualityEncoding: "phred33",
-        length: 8,
-      },
-      {
-        format: "fastq",
-        id: "medium_quality",
-        sequence: "TTAACCGG",
-        quality: "88888888", // Medium quality (Phred+33)
-        qualityEncoding: "phred33",
-        length: 8,
-      },
-    ] as FastqSequence[];
+      createFastq("high_quality", "ATCGATCG", "IIIIIIII"), // High quality (Phred+33)
+      createFastq("low_quality", "GCTAGCTA", "########"), // Low quality (Phred+33)
+      createFastq("medium_quality", "TTAACCGG", "88888888"), // Medium quality (Phred+33)
+    ];
   });
 
   describe("length-based sorting", () => {
@@ -238,7 +211,8 @@ describe("SortProcessor", () => {
     test("sorts with custom comparison function", async () => {
       // Sort by sequence content alphabetically
       const options: SortOptions = {
-        sortBy: (a: AbstractSequence, b: AbstractSequence) => a.sequence.localeCompare(b.sequence),
+        sortBy: (a: AbstractSequence, b: AbstractSequence) =>
+          a.sequence.localeCompare(b.sequence),
       };
 
       const results: AbstractSequence[] = [];
@@ -248,7 +222,7 @@ describe("SortProcessor", () => {
 
       expect(results).toHaveLength(4);
       // First sequence should be lexicographically smallest
-      expect(results[0]!.sequence).toBe("ATATATAT");
+      expect(results[0]!.sequence).toEqualSequence("ATATATAT");
     });
 
     test("custom function works without sort field", async () => {
@@ -273,10 +247,10 @@ describe("SortProcessor", () => {
     test("length sorting improves compression (simulation)", async () => {
       // Create sequences with similar content but different lengths
       const compressionTestSeqs: AbstractSequence[] = [
-        { id: "long", sequence: "ATCGATCG".repeat(100), length: 800 },
-        { id: "short", sequence: "ATCGATCG".repeat(10), length: 80 },
-        { id: "medium", sequence: "ATCGATCG".repeat(50), length: 400 },
-        { id: "tiny", sequence: "ATCGATCG", length: 8 },
+        createSequence("long", "ATCGATCG".repeat(100)),
+        createSequence("short", "ATCGATCG".repeat(10)),
+        createSequence("medium", "ATCGATCG".repeat(50)),
+        createSequence("tiny", "ATCGATCG"),
       ];
 
       const options: SortOptions = {
@@ -295,11 +269,11 @@ describe("SortProcessor", () => {
 
     test("GC content sorting clusters similar sequences", async () => {
       const clusteringTestSeqs: AbstractSequence[] = [
-        { id: "at_rich_1", sequence: "AAAATTTT", length: 8 }, // 0% GC
-        { id: "gc_rich_1", sequence: "GGGGCCCC", length: 8 }, // 100% GC
-        { id: "at_rich_2", sequence: "ATATATAT", length: 8 }, // 0% GC
-        { id: "balanced", sequence: "ATCGATCG", length: 8 }, // 50% GC
-        { id: "gc_rich_2", sequence: "GCGCGCGC", length: 8 }, // 100% GC
+        createSequence("at_rich_1", "AAAATTTT"), // 0% GC
+        createSequence("gc_rich_1", "GGGGCCCC"), // 100% GC
+        createSequence("at_rich_2", "ATATATAT"), // 0% GC
+        createSequence("balanced", "ATCGATCG"), // 50% GC
+        createSequence("gc_rich_2", "GCGCGCGC"), // 100% GC
       ];
 
       const options: SortOptions = {
@@ -402,9 +376,9 @@ describe("SortProcessor", () => {
 
     test("handles sequences with identical sort values", async () => {
       const identicalLengthSeqs: AbstractSequence[] = [
-        { id: "seq_1", sequence: "ATCGATCG", length: 8 },
-        { id: "seq_2", sequence: "GGCCAATT", length: 8 },
-        { id: "seq_3", sequence: "TTAACCGG", length: 8 },
+        createSequence("seq_1", "ATCGATCG"),
+        createSequence("seq_2", "GGCCAATT"),
+        createSequence("seq_3", "TTAACCGG"),
       ];
 
       const options: SortOptions = {
@@ -423,8 +397,8 @@ describe("SortProcessor", () => {
 
     test("handles sequences with empty descriptions", async () => {
       const seqsNoDesc: AbstractSequence[] = [
-        { id: "seq_1", sequence: "ATCGATCG", length: 8 },
-        { id: "seq_2", sequence: "GGCC", length: 4 },
+        createSequence("seq_1", "ATCGATCG"),
+        createSequence("seq_2", "GGCC"),
       ];
 
       const options: SortOptions = {
@@ -445,11 +419,10 @@ describe("SortProcessor", () => {
   describe("performance characteristics", () => {
     test("handles moderately large dataset efficiently", async () => {
       // Create 1000 sequences for performance testing
-      const largeDataset: AbstractSequence[] = Array.from({ length: 1000 }, (_, i) => ({
-        id: `seq_${i.toString().padStart(4, "0")}`,
-        sequence: "ATCG".repeat(Math.floor(Math.random() * 100) + 1),
-        length: (Math.floor(Math.random() * 100) + 1) * 4,
-      }));
+      const largeDataset: AbstractSequence[] = Array.from({ length: 1000 }, (_, i) => {
+        const repeats = Math.floor(Math.random() * 100) + 1;
+        return createSequence(`seq_${i.toString().padStart(4, "0")}`, "ATCG".repeat(repeats));
+      });
 
       const options: SortOptions = {
         sortBy: "length",
@@ -491,9 +464,9 @@ describe("SortProcessor", () => {
   describe("genomic sorting optimizations", () => {
     test("GC content calculation is accurate", async () => {
       const gcTestSeqs: AbstractSequence[] = [
-        { id: "all_at", sequence: "AAATTT", length: 6 }, // 0% GC
-        { id: "all_gc", sequence: "GGGCCC", length: 6 }, // 100% GC
-        { id: "mixed", sequence: "ATCGAT", length: 6 }, // 33.33% GC
+        createSequence("all_at", "AAATTT"), // 0% GC
+        createSequence("all_gc", "GGGCCC"), // 100% GC
+        createSequence("mixed", "ATCGAT"), // 33.33% GC
       ];
 
       const options: SortOptions = {
@@ -512,8 +485,8 @@ describe("SortProcessor", () => {
 
     test("handles ambiguous nucleotides in GC calculation", async () => {
       const ambiguousSeqs: AbstractSequence[] = [
-        { id: "with_n", sequence: "ATCGNNN", length: 7 }, // N bases ignored
-        { id: "with_iupac", sequence: "ATCGRYS", length: 7 }, // IUPAC codes
+        createSequence("with_n", "ATCGNNN"), // N bases ignored
+        createSequence("with_iupac", "ATCGRYS"), // IUPAC codes
       ];
 
       const options: SortOptions = {

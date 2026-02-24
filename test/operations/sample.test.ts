@@ -6,6 +6,7 @@
  */
 
 import { beforeEach, describe, expect, test } from "bun:test";
+import { createFastaRecord } from "../../src/constructors";
 import { seqops } from "../../src/operations/index";
 import { SampleProcessor } from "../../src/operations/sample";
 import type { SampleOptions } from "../../src/operations/types";
@@ -18,17 +19,19 @@ async function* toAsync<T>(items: T[]): AsyncIterable<T> {
   }
 }
 
+function createSequence(id: string, sequence: string): AbstractSequence {
+  return createFastaRecord({ id, sequence });
+}
+
 describe("SampleProcessor", () => {
   let processor: SampleProcessor;
   let testSequences: AbstractSequence[];
 
   beforeEach(() => {
     processor = new SampleProcessor();
-    testSequences = Array.from({ length: 100 }, (_, i) => ({
-      id: `seq_${i.toString().padStart(3, "0")}`,
-      sequence: "ATCG".repeat(i + 1),
-      length: (i + 1) * 4,
-    }));
+    testSequences = Array.from({ length: 100 }, (_, i) =>
+      createSequence(`seq_${i.toString().padStart(3, "0")}`, "ATCG".repeat(i + 1))
+    );
   });
 
   describe("reservoir sampling", () => {
@@ -157,11 +160,9 @@ describe("SampleProcessor", () => {
 
   describe("fraction-based sampling", () => {
     test("samples approximately correct proportion", async () => {
-      const largeTestSet: AbstractSequence[] = Array.from({ length: 10000 }, (_, i) => ({
-        id: `seq_${i.toString().padStart(5, "0")}`,
-        sequence: "ATCG".repeat(i + 1),
-        length: (i + 1) * 4,
-      }));
+      const largeTestSet: AbstractSequence[] = Array.from({ length: 10000 }, (_, i) =>
+        createSequence(`seq_${i.toString().padStart(5, "0")}`, "ATCG".repeat(i + 1))
+      );
 
       const options: SampleOptions = {
         fraction: 0.1,
@@ -233,11 +234,9 @@ describe("SampleProcessor", () => {
     });
 
     test("small fractions work correctly", async () => {
-      const largeTestSet: AbstractSequence[] = Array.from({ length: 10000 }, (_, i) => ({
-        id: `seq_${i.toString().padStart(5, "0")}`,
-        sequence: "ATCG".repeat(i + 1),
-        length: (i + 1) * 4,
-      }));
+      const largeTestSet: AbstractSequence[] = Array.from({ length: 10000 }, (_, i) =>
+        createSequence(`seq_${i.toString().padStart(5, "0")}`, "ATCG".repeat(i + 1))
+      );
 
       const options: SampleOptions = {
         fraction: 0.01,
@@ -447,11 +446,9 @@ describe("SampleProcessor", () => {
     });
 
     test("fraction-based sampling via SeqOps", async () => {
-      const largeTestSet: AbstractSequence[] = Array.from({ length: 10000 }, (_, i) => ({
-        id: `seq_${i.toString().padStart(5, "0")}`,
-        sequence: "ATCG".repeat(i + 1),
-        length: (i + 1) * 4,
-      }));
+      const largeTestSet: AbstractSequence[] = Array.from({ length: 10000 }, (_, i) =>
+        createSequence(`seq_${i.toString().padStart(5, "0")}`, "ATCG".repeat(i + 1))
+      );
 
       const sequences = toAsyncIterable(largeTestSet);
 
@@ -550,11 +547,9 @@ describe("SampleProcessor", () => {
     });
 
     test("fraction 1.0 with large dataset", async () => {
-      const largeTestSet: AbstractSequence[] = Array.from({ length: 10000 }, (_, i) => ({
-        id: `seq_${i.toString().padStart(5, "0")}`,
-        sequence: "ATCG".repeat(i + 1),
-        length: (i + 1) * 4,
-      }));
+      const largeTestSet: AbstractSequence[] = Array.from({ length: 10000 }, (_, i) =>
+        createSequence(`seq_${i.toString().padStart(5, "0")}`, "ATCG".repeat(i + 1))
+      );
 
       const results: AbstractSequence[] = [];
       for await (const seq of processor.process(toAsync(largeTestSet), { fraction: 1.0 })) {
@@ -565,11 +560,9 @@ describe("SampleProcessor", () => {
     });
 
     test("very small fraction", async () => {
-      const largeTestSet: AbstractSequence[] = Array.from({ length: 100000 }, (_, i) => ({
-        id: `seq_${i.toString().padStart(6, "0")}`,
-        sequence: "ATCG".repeat(i + 1),
-        length: (i + 1) * 4,
-      }));
+      const largeTestSet: AbstractSequence[] = Array.from({ length: 100000 }, (_, i) =>
+        createSequence(`seq_${i.toString().padStart(6, "0")}`, "ATCG".repeat(i + 1))
+      );
 
       const results: AbstractSequence[] = [];
       for await (const seq of processor.process(toAsync(largeTestSet), { fraction: 0.0001 })) {

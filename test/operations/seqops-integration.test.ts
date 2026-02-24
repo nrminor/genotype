@@ -1,7 +1,23 @@
 import { describe, expect, test } from "bun:test";
+import { createFastaRecord } from "../../src/constructors";
 import { seqops } from "../../src/operations";
 import { KmerSet, SequenceSet } from "../../src/operations/types";
 import type { AbstractSequence } from "../../src/types";
+import "../matchers";
+
+function createSequence(
+  id: string,
+  sequence: string,
+  lineNumber?: number,
+  description?: string
+): AbstractSequence {
+  return createFastaRecord({
+    id,
+    sequence,
+    ...(lineNumber !== undefined && { lineNumber }),
+    ...(description !== undefined && { description }),
+  });
+}
 
 describe("SeqOps integration with windows and collectSet", () => {
   async function* makeAsync<T>(items: T[]): AsyncIterable<T> {
@@ -12,15 +28,7 @@ describe("SeqOps integration with windows and collectSet", () => {
 
   describe(".windows() method", () => {
     test("simple form .windows(size) works and infers K", async () => {
-      const sequences: AbstractSequence[] = [
-        {
-          id: "seq1",
-          sequence: "A".repeat(50),
-          length: 50,
-          lineNumber: 1,
-          description: "",
-        },
-      ];
+      const sequences: AbstractSequence[] = [createSequence("seq1", "A".repeat(50), 1, "")];
 
       const windows = await seqops(makeAsync(sequences)).windows(21).collect();
 
@@ -32,15 +40,7 @@ describe("SeqOps integration with windows and collectSet", () => {
     });
 
     test(".windows(size, options) form works with options", async () => {
-      const sequences: AbstractSequence[] = [
-        {
-          id: "seq1",
-          sequence: "ATCGATCGATCG",
-          length: 12,
-          lineNumber: 1,
-          description: "",
-        },
-      ];
+      const sequences: AbstractSequence[] = [createSequence("seq1", "ATCGATCGATCG", 1, "")];
 
       const windows = await seqops(makeAsync(sequences))
         .windows(3, {
@@ -55,15 +55,7 @@ describe("SeqOps integration with windows and collectSet", () => {
     });
 
     test(".windows({size, ...}) object form works", async () => {
-      const sequences: AbstractSequence[] = [
-        {
-          id: "seq1",
-          sequence: "A".repeat(50),
-          length: 50,
-          lineNumber: 1,
-          description: "",
-        },
-      ];
+      const sequences: AbstractSequence[] = [createSequence("seq1", "A".repeat(50), 1, "")];
 
       const windows = await seqops(makeAsync(sequences))
         .windows({
@@ -79,55 +71,31 @@ describe("SeqOps integration with windows and collectSet", () => {
 
   describe(".sliding() alias", () => {
     test("works identically to .windows()", async () => {
-      const sequences: AbstractSequence[] = [
-        {
-          id: "seq1",
-          sequence: "ATCGATCG",
-          length: 8,
-          lineNumber: 1,
-          description: "",
-        },
-      ];
+      const sequences: AbstractSequence[] = [createSequence("seq1", "ATCGATCG", 1, "")];
 
       const windows = await seqops(makeAsync(sequences)).windows(4).collect();
       const sliding = await seqops(makeAsync(sequences)).sliding(4).collect();
 
       expect(sliding.length).toBe(windows.length);
-      expect(sliding[0]!.sequence).toBe(windows[0]!.sequence);
+      expect(sliding[0]!.sequence).toEqualSequence(windows[0]!.sequence);
     });
   });
 
   describe(".kmers() alias", () => {
     test("works identically to .windows()", async () => {
-      const sequences: AbstractSequence[] = [
-        {
-          id: "seq1",
-          sequence: "ATCGATCG",
-          length: 8,
-          lineNumber: 1,
-          description: "",
-        },
-      ];
+      const sequences: AbstractSequence[] = [createSequence("seq1", "ATCGATCG", 1, "")];
 
       const windows = await seqops(makeAsync(sequences)).windows(3).collect();
       const kmers = await seqops(makeAsync(sequences)).kmers(3).collect();
 
       expect(kmers.length).toBe(windows.length);
-      expect(kmers[0]!.sequence).toBe(windows[0]!.sequence);
+      expect(kmers[0]!.sequence).toEqualSequence(windows[0]!.sequence);
     });
   });
 
   describe(".collectSet() type discrimination", () => {
     test("returns KmerSet<K> for k-mer sequences", async () => {
-      const sequences: AbstractSequence[] = [
-        {
-          id: "seq1",
-          sequence: "A".repeat(50),
-          length: 50,
-          lineNumber: 1,
-          description: "",
-        },
-      ];
+      const sequences: AbstractSequence[] = [createSequence("seq1", "A".repeat(50), 1, "")];
 
       const kmerSet = await seqops(makeAsync(sequences)).windows(21).collectSet();
 
@@ -141,9 +109,9 @@ describe("SeqOps integration with windows and collectSet", () => {
 
     test("returns SequenceSet<T> for FASTA sequences", async () => {
       const sequences: AbstractSequence[] = [
-        { id: "seq1", sequence: "ATCG", length: 4, lineNumber: 1, description: "" },
-        { id: "seq2", sequence: "GCTA", length: 4, lineNumber: 2, description: "" },
-        { id: "seq3", sequence: "ATCG", length: 4, lineNumber: 3, description: "" },
+        createSequence("seq1", "ATCG", 1, ""),
+        createSequence("seq2", "GCTA", 2, ""),
+        createSequence("seq3", "ATCG", 3, ""),
       ];
 
       const seqSet = await seqops(makeAsync(sequences)).collectSet();
@@ -155,24 +123,8 @@ describe("SeqOps integration with windows and collectSet", () => {
 
   describe("Full pipeline integration", () => {
     test(".windows().collectSet().union() preserves K type", async () => {
-      const seq1: AbstractSequence[] = [
-        {
-          id: "seq1",
-          sequence: "ATCGATCGATCG",
-          length: 12,
-          lineNumber: 1,
-          description: "",
-        },
-      ];
-      const seq2: AbstractSequence[] = [
-        {
-          id: "seq2",
-          sequence: "GCTAGCTAGCTA",
-          length: 12,
-          lineNumber: 1,
-          description: "",
-        },
-      ];
+      const seq1: AbstractSequence[] = [createSequence("seq1", "ATCGATCGATCG", 1, "")];
+      const seq2: AbstractSequence[] = [createSequence("seq2", "GCTAGCTAGCTA", 1, "")];
 
       const kmers1 = await seqops(makeAsync(seq1)).windows(5).collectSet();
       const kmers2 = await seqops(makeAsync(seq2)).windows(5).collectSet();
@@ -191,14 +143,12 @@ describe("SeqOps integration with windows and collectSet", () => {
 
   describe(".filterBySet() method", () => {
     test("excludes contamination sequences", async () => {
-      const contaminants = new SequenceSet([
-        { id: "bad1", sequence: "AAAA", length: 4, lineNumber: 1, description: "" },
-      ]);
+      const contaminants = new SequenceSet([createSequence("bad1", "AAAA", 1, "")]);
 
       const reads: AbstractSequence[] = [
-        { id: "read1", sequence: "ATCG", length: 4, lineNumber: 1, description: "" },
-        { id: "read2", sequence: "AAAA", length: 4, lineNumber: 2, description: "" },
-        { id: "read3", sequence: "GCTA", length: 4, lineNumber: 3, description: "" },
+        createSequence("read1", "ATCG", 1, ""),
+        createSequence("read2", "AAAA", 2, ""),
+        createSequence("read3", "GCTA", 3, ""),
       ];
 
       const clean = await seqops(makeAsync(reads))
@@ -206,19 +156,17 @@ describe("SeqOps integration with windows and collectSet", () => {
         .collect();
 
       expect(clean.length).toBe(2);
-      expect(clean.find((s) => s.sequence === "AAAA")).toBeUndefined();
-      expect(clean[0]!.sequence).toBe("ATCG");
-      expect(clean[1]!.sequence).toBe("GCTA");
+      expect(clean.find((s) => s.sequence.equals("AAAA"))).toBeUndefined();
+      expect(clean[0]!.sequence).toEqualSequence("ATCG");
+      expect(clean[1]!.sequence).toEqualSequence("GCTA");
     });
 
     test("includes only whitelisted sequences", async () => {
-      const whitelist = new SequenceSet([
-        { id: "seq1", sequence: "ATCG", length: 4, lineNumber: 1, description: "" },
-      ]);
+      const whitelist = new SequenceSet([createSequence("seq1", "ATCG", 1, "")]);
 
       const candidates: AbstractSequence[] = [
-        { id: "seq1", sequence: "ATCG", length: 4, lineNumber: 1, description: "" },
-        { id: "seq2", sequence: "GCTA", length: 4, lineNumber: 2, description: "" },
+        createSequence("seq1", "ATCG", 1, ""),
+        createSequence("seq2", "GCTA", 2, ""),
       ];
 
       const approved = await seqops(makeAsync(candidates))
@@ -226,25 +174,23 @@ describe("SeqOps integration with windows and collectSet", () => {
         .collect();
 
       expect(approved.length).toBe(1);
-      expect(approved[0]!.sequence).toBe("ATCG");
+      expect(approved[0]!.sequence).toEqualSequence("ATCG");
     });
 
     test("filters by ID instead of sequence content", async () => {
       // Create a set with a specific ID - sequence content doesn't matter for ID filtering
-      const idSet = new SequenceSet([
-        { id: "target_id", sequence: "NNNN", length: 4, lineNumber: 1, description: "" },
-      ]);
+      const idSet = new SequenceSet([createSequence("target_id", "NNNN", 1, "")]);
 
       const reads: AbstractSequence[] = [
-        { id: "target_id", sequence: "ATCG", length: 4, lineNumber: 1, description: "" },
-        { id: "other_id", sequence: "GCTA", length: 4, lineNumber: 2, description: "" },
+        createSequence("target_id", "ATCG", 1, ""),
+        createSequence("other_id", "GCTA", 2, ""),
       ];
 
       const filtered = await seqops(makeAsync(reads)).filterBySet(idSet, { by: "id" }).collect();
 
       expect(filtered.length).toBe(1);
       expect(filtered[0]!.id).toBe("target_id");
-      expect(filtered[0]!.sequence).toBe("ATCG");
+      expect(filtered[0]!.sequence).toEqualSequence("ATCG");
     });
   });
 });

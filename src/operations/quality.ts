@@ -7,6 +7,8 @@
  *
  */
 
+import { withQuality, withSequence } from "../constructors";
+import type { GenotypeString } from "../genotype-string";
 import type { AbstractSequence, FastqSequence, QualityEncoding } from "../types";
 import { findQualityTrimEnd, findQualityTrimStart } from "./core/calculations";
 import {
@@ -81,15 +83,15 @@ export class QualityProcessor implements Processor<QualityOptions> {
    * @returns Processed sequence or null if filtered out
    */
   private processQuality(seq: FastqSequence, options: QualityOptions): FastqSequence | null {
-    let sequence = seq.sequence;
-    let quality = seq.quality;
+    let sequence: GenotypeString | string = seq.sequence;
+    let quality: GenotypeString | string = seq.quality;
     const encoding = options.encoding || "phred33";
 
     // Quality trimming
     if (options.trim === true) {
       const trimmed = this.qualityTrim(
-        sequence,
-        quality,
+        seq.sequence.toString(),
+        seq.quality.toString(),
         options.trimThreshold ?? 20,
         options.trimWindow ?? 4,
         encoding,
@@ -98,7 +100,7 @@ export class QualityProcessor implements Processor<QualityOptions> {
       );
 
       if (!trimmed) {
-        return null; // Sequence trimmed to nothing
+        return null;
       }
 
       sequence = trimmed.sequence;
@@ -107,8 +109,6 @@ export class QualityProcessor implements Processor<QualityOptions> {
 
     // Average quality filtering
     if (options.minScore !== undefined || options.maxScore !== undefined) {
-      // NATIVE_CANDIDATE: Quality score conversion and averaging
-      // Native implementation would be more efficient
       const avgQuality = calculateAverageQuality(quality, encoding);
 
       if (options.minScore !== undefined && avgQuality < options.minScore) {
@@ -123,7 +123,7 @@ export class QualityProcessor implements Processor<QualityOptions> {
     // Quality binning (after filtering, before return)
     if ("bins" in options) {
       try {
-        quality = this.applyBinning(quality, options);
+        quality = this.applyBinning(quality.toString(), options);
       } catch (error) {
         throw new Error(
           `Failed to bin quality for sequence '${seq.id}': ${error instanceof Error ? error.message : String(error)}`
@@ -131,17 +131,19 @@ export class QualityProcessor implements Processor<QualityOptions> {
       }
     }
 
-    // Return updated sequence if changed
+    // Return original if unchanged
     if (sequence === seq.sequence && quality === seq.quality) {
       return seq;
     }
 
-    return {
-      ...seq,
-      sequence,
-      quality,
-      length: sequence.length,
-    };
+    let result = seq as FastqSequence;
+    if (sequence !== seq.sequence) {
+      result = withSequence(result, sequence);
+    }
+    if (quality !== seq.quality) {
+      result = withQuality(result, quality);
+    }
+    return result;
   }
 
   /**
@@ -450,19 +452,15 @@ export async function* binQuality(
 
     try {
       // Resolve strategy on first FASTQ sequence (for encoding detection)
+      const qualityStr = seq.quality.toString();
       if (strategy === null) {
-        strategy = resolveBinningStrategy(options, seq.quality);
+        strategy = resolveBinningStrategy(options, qualityStr);
       }
 
       // Bin the quality string
-      const binnedQuality = coreBinQualityString(seq.quality, strategy);
+      const binnedQuality = coreBinQualityString(qualityStr, strategy);
 
-      // Yield modified sequence with binned quality
-      const modified: FastqSequence = {
-        ...seq,
-        quality: binnedQuality,
-      };
-      yield modified;
+      yield withQuality(seq, binnedQuality);
     } catch (error) {
       // Re-throw with context
       throw new Error(

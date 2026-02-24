@@ -477,8 +477,12 @@ export class BAMWriter {
       writeUInt32LE(view, offset, flagNc);
       offset += 4;
 
+      // Convert GenotypeString fields to plain strings for binary packing
+      const seq = alignment.seq.toString();
+      const qual = alignment.qual.toString();
+
       // Write l_seq
-      const seqLength = alignment.seq === "*" ? 0 : alignment.seq.length;
+      const seqLength = seq === "*" ? 0 : seq.length;
       writeInt32LE(view, offset, seqLength);
       offset += 4;
 
@@ -507,13 +511,13 @@ export class BAMWriter {
       }
 
       // Write sequence (4-bit packed)
-      if (alignment.seq !== "*") {
-        offset += packSequence(alignment.seq, buffer, offset);
+      if (seq !== "*") {
+        offset += packSequence(seq, buffer, offset);
       }
 
       // Write quality scores
-      if (alignment.qual !== "*") {
-        offset += packQualityScores(alignment.qual, buffer, offset);
+      if (qual !== "*") {
+        offset += packQualityScores(qual, buffer, offset);
       }
 
       // Write optional tags
@@ -585,10 +589,12 @@ export class BAMWriter {
     }
 
     // Validate sequence and quality consistency
-    if (alignment.seq !== "*" && alignment.qual !== "*") {
-      if (alignment.seq.length !== alignment.qual.length) {
+    const seq = alignment.seq.toString();
+    const qual = alignment.qual.toString();
+    if (seq !== "*" && qual !== "*") {
+      if (seq.length !== qual.length) {
         throw new BamError(
-          `Sequence/quality length mismatch: seq=${alignment.seq.length}, qual=${alignment.qual.length}`,
+          `Sequence/quality length mismatch: seq=${seq.length}, qual=${qual.length}`,
           alignment.qname,
           "sequence_quality"
         );
@@ -596,7 +602,7 @@ export class BAMWriter {
     }
 
     // Validate CIGAR
-    if (alignment.cigar !== "*" && alignment.seq !== "*") {
+    if (alignment.cigar !== "*" && seq !== "*") {
       try {
         const queryLength = this.calculateQueryLengthFromCIGAR(alignment.cigar);
         if (queryLength !== alignment.seq.length) {

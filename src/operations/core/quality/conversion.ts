@@ -6,6 +6,8 @@
  * All functions are optimized for performance with O(1) or O(n) complexity.
  */
 
+import { asString } from "../../../genotype-string";
+import type { GenotypeString } from "../../../genotype-string";
 import type { QualityEncoding } from "../../../types";
 import { getEncodingInfo } from "./encoding-info";
 import { errorProbabilityToScore, scoreToErrorProbability } from "./statistics";
@@ -144,13 +146,14 @@ export function scoreToChar(
  * ```
  */
 export function qualityToScores(
-  quality: string,
+  quality: GenotypeString | string,
   encoding: QualityEncoding = "phred33"
 ): (QualityScore | SolexaScore)[] {
+  const q = asString(quality);
   const { offset } = getEncodingInfo(encoding);
 
   // Declarative approach: map each character to its score with validation
-  return Array.from(quality).map((char, i) => {
+  return Array.from(q).map((char, i) => {
     const score = char.charCodeAt(0) - offset;
 
     if (encoding === "solexa") {
@@ -274,14 +277,19 @@ function convertPhredToSolexa(phredScore: number): number {
  * @param to - Target encoding
  * @returns Converted quality string
  */
-function convertSolexaQuality(quality: string, from: QualityEncoding, to: QualityEncoding): string {
+function convertSolexaQuality(
+  quality: GenotypeString | string,
+  from: QualityEncoding,
+  to: QualityEncoding
+): string {
+  const q = asString(quality);
   const fromOffset = from === "phred33" ? 33 : 64;
   const toOffset = to === "phred33" ? 33 : 64;
 
-  const result = new Array<string>(quality.length);
+  const result = new Array<string>(q.length);
 
-  for (let i = 0; i < quality.length; i++) {
-    const charCode = quality.charCodeAt(i);
+  for (let i = 0; i < q.length; i++) {
+    const charCode = q.charCodeAt(i);
     let score: number;
 
     // Convert ASCII to quality score in source encoding
@@ -336,13 +344,13 @@ function convertSolexaQuality(quality: string, from: QualityEncoding, to: Qualit
  * ```
  */
 export function convertQuality(
-  quality: string,
+  quality: GenotypeString | string,
   from: QualityEncoding,
   to: QualityEncoding
 ): string {
   // Fast path: same encoding
   if (from === to) {
-    return quality;
+    return asString(quality);
   }
 
   // Solexa requires non-linear mathematical conversion

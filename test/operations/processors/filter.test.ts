@@ -7,6 +7,7 @@
 
 import { describe, expect, test } from "bun:test";
 import { FilterProcessor } from "../../../src/operations/filter";
+import { createFastaRecord } from "../../../src/constructors";
 import type { AbstractSequence } from "../../../src/types";
 
 describe("FilterProcessor", () => {
@@ -14,11 +15,7 @@ describe("FilterProcessor", () => {
 
   // Helper to create test sequences
   function createSequence(id: string, sequence: string): AbstractSequence {
-    return {
-      id,
-      sequence,
-      length: sequence.length,
-    };
+    return createFastaRecord({ id, sequence });
   }
 
   // Helper to collect results

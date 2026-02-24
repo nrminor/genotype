@@ -12,6 +12,7 @@
  */
 
 import { type } from "arktype";
+import { createSamAlignment } from "../constructors";
 import { SamError, ValidationError } from "../errors";
 import { createStream, exists, getMetadata } from "../io/file-reader";
 import { writeString } from "../io/file-writer";
@@ -723,8 +724,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
       alignmentLine
     );
 
-    return {
-      format: "sam",
+    return createSamAlignment({
       qname: mandatory.qname,
       flag: mandatory.flag,
       rname: mandatory.rname,
@@ -738,7 +738,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
       qual: mandatory.quality,
       ...(tags && { tags }),
       ...(this.options.trackLineNumbers && { lineNumber }),
-    };
+    });
   }
 
   private validateNumericFields(
@@ -783,7 +783,15 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
     }
 
     try {
-      const validation = SAMAlignmentSchema(alignment);
+      // Normalize GenotypeString fields to plain strings for ArkType validation.
+      // ArkType's pipe() internally clones validated values, which breaks
+      // GenotypeString's #private fields.
+      const normalized = {
+        ...alignment,
+        seq: String(alignment.seq),
+        qual: String(alignment.qual),
+      };
+      const validation = SAMAlignmentSchema(normalized);
       if (validation instanceof type.errors) {
         throw new SamError(
           `Invalid SAM alignment: ${validation.summary}`,
@@ -1522,7 +1530,15 @@ class SAMWriter {
     // Validate alignment if validation is enabled
     if (this.options.validate) {
       try {
-        const validation = SAMAlignmentSchema(alignment);
+        // Normalize GenotypeString fields to plain strings for ArkType validation.
+        // ArkType's pipe() internally clones validated values, which breaks
+        // GenotypeString's #private fields.
+        const normalized = {
+          ...alignment,
+          seq: String(alignment.seq),
+          qual: String(alignment.qual),
+        };
+        const validation = SAMAlignmentSchema(normalized);
         if (validation instanceof type.errors) {
           throw new SamError(
             `Invalid SAM alignment: ${validation.summary}`,

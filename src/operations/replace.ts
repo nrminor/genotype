@@ -16,6 +16,7 @@
 import { basename, extname } from "node:path";
 import { type } from "arktype";
 import { ValidationError } from "../errors";
+import { withSequence } from "../constructors";
 import { readToString } from "../io/file-reader";
 import type { AbstractSequence } from "../types";
 import { escapeRegex } from "./core/string-utils";
@@ -643,10 +644,10 @@ function applyReplacement<T extends AbstractSequence>(
   bySeq: boolean
 ): T {
   // Determine target (name or sequence)
-  const target = bySeq ? seq.sequence : seq.id;
+  const target = bySeq ? seq.sequence.toString() : seq.id;
 
   // Perform replacement with placeholder expansion
-  const replaced = target.replace(regex, (match, ...args) => {
+  const replaced = target.replace(regex, (match: string, ...args: string[]) => {
     // Extract captures (args array contains: capture1, capture2, ..., offset, string, groups)
     const captures = args.slice(0, -2);
 
@@ -664,7 +665,7 @@ function applyReplacement<T extends AbstractSequence>(
   });
 
   // Return modified sequence
-  return bySeq ? { ...seq, sequence: replaced } : { ...seq, id: replaced };
+  return bySeq ? withSequence(seq, replaced) : { ...seq, id: replaced };
 }
 
 /**
@@ -809,7 +810,7 @@ function shouldProcess<T extends AbstractSequence>(
   const target = options.filterByName
     ? `${seq.id} ${seq.description ?? ""}`
     : options.filterBySeq
-      ? seq.sequence
+      ? seq.sequence.toString()
       : seq.id;
 
   // Check if any pattern matches

@@ -1247,7 +1247,7 @@ export class SequenceMatcher {
         ? asString(sequence)
         : sequence;
     const isSequenceObject = typeof normalized === "object";
-    const seq = isSequenceObject ? normalized.sequence : normalized;
+    const seq = isSequenceObject ? normalized.sequence.toString() : normalized;
     const seqId = isSequenceObject ? normalized.id : "unknown";
 
     const text = this.options.caseSensitive ? seq : seq.toUpperCase();
@@ -1308,7 +1308,7 @@ export class SequenceMatcher {
     const text =
       typeof sequence === "string" || sequence instanceof GenotypeString
         ? asString(sequence)
-        : sequence.sequence;
+        : sequence.sequence.toString();
     const searchText = this.options.caseSensitive ? text : text.toUpperCase();
 
     // Fast counting without building match objects

@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import "../matchers";
+import { createFastaRecord, type FastaRecordInput } from "../../src/constructors";
 import {
   sequenceArrayToMap,
   sequenceContainment,
@@ -16,48 +18,44 @@ import {
 import { SequenceSet } from "../../src/operations/types";
 import type { AbstractSequence } from "../../src/types";
 
+function toSequences(records: FastaRecordInput[]): AbstractSequence[] {
+  return records.map((record) => createFastaRecord(record));
+}
+
 describe("Internal sequence set functions", () => {
   describe("sequenceUnion", () => {
     test("combines sets and deduplicates by sequence content", () => {
-      const setA: AbstractSequence[] = [
+      const setA = toSequences([
         {
           id: "seq1",
           sequence: "ATCG",
-          length: 4,
-          lineNumber: 1,
-          description: "",
+
         },
         {
           id: "seq2",
           sequence: "GCTA",
-          length: 4,
-          lineNumber: 2,
-          description: "",
+
         },
-      ];
-      const setB: AbstractSequence[] = [
+      ]);
+      const setB = toSequences([
         {
           id: "seq3",
           sequence: "GCTA",
-          length: 4,
-          lineNumber: 3,
-          description: "",
+
         },
         {
           id: "seq4",
           sequence: "TTTT",
-          length: 4,
-          lineNumber: 4,
-          description: "",
+
         },
-      ];
+      ]);
 
       const union = sequenceUnion(sequenceArrayToMap(setA), sequenceArrayToMap(setB));
 
       expect(union.size).toBe(3);
       expect(
         Array.from(union.values())
-          .map((s) => s.sequence)
+          .map((s) => s.sequence.toString())
           .sort()
       ).toEqual(["ATCG", "GCTA", "TTTT"]);
     });
@@ -65,122 +63,98 @@ describe("Internal sequence set functions", () => {
 
   describe("sequenceIntersection", () => {
     test("finds common sequences between sets", () => {
-      const setA: AbstractSequence[] = [
+      const setA = toSequences([
         {
           id: "seq1",
           sequence: "ATCG",
-          length: 4,
-          lineNumber: 1,
-          description: "",
+
         },
         {
           id: "seq2",
           sequence: "GCTA",
-          length: 4,
-          lineNumber: 2,
-          description: "",
+
         },
         {
           id: "seq3",
           sequence: "TTTT",
-          length: 4,
-          lineNumber: 3,
-          description: "",
+
         },
-      ];
-      const setB: AbstractSequence[] = [
+      ]);
+      const setB = toSequences([
         {
           id: "seq4",
           sequence: "GCTA",
-          length: 4,
-          lineNumber: 4,
-          description: "",
+
         },
         {
           id: "seq5",
           sequence: "AAAA",
-          length: 4,
-          lineNumber: 5,
-          description: "",
+
         },
-      ];
+      ]);
 
       const intersection = sequenceIntersection(sequenceArrayToMap(setA), sequenceArrayToMap(setB));
 
       expect(intersection.size).toBe(1);
-      expect(Array.from(intersection.values())[0]!.sequence).toBe("GCTA");
+      expect(Array.from(intersection.values())[0]!.sequence).toEqualSequence("GCTA");
     });
   });
 
   describe("sequenceDifference", () => {
     test("returns sequences in A but not in B", () => {
-      const setA: AbstractSequence[] = [
+      const setA = toSequences([
         {
           id: "seq1",
           sequence: "ATCG",
-          length: 4,
-          lineNumber: 1,
-          description: "",
+
         },
         {
           id: "seq2",
           sequence: "GCTA",
-          length: 4,
-          lineNumber: 2,
-          description: "",
+
         },
-      ];
-      const setB: AbstractSequence[] = [
+      ]);
+      const setB = toSequences([
         {
           id: "seq3",
           sequence: "GCTA",
-          length: 4,
-          lineNumber: 3,
-          description: "",
+
         },
-      ];
+      ]);
 
       const difference = sequenceDifference(sequenceArrayToMap(setA), sequenceArrayToMap(setB));
 
       expect(difference.size).toBe(1);
-      expect(Array.from(difference.values())[0]!.sequence).toBe("ATCG");
+      expect(Array.from(difference.values())[0]!.sequence).toEqualSequence("ATCG");
     });
   });
 
   describe("sequenceSymmetricDifference", () => {
     test("returns sequences in either set but not both", () => {
-      const setA: AbstractSequence[] = [
+      const setA = toSequences([
         {
           id: "seq1",
           sequence: "ATCG",
-          length: 4,
-          lineNumber: 1,
-          description: "",
+
         },
         {
           id: "seq2",
           sequence: "GCTA",
-          length: 4,
-          lineNumber: 2,
-          description: "",
+
         },
-      ];
-      const setB: AbstractSequence[] = [
+      ]);
+      const setB = toSequences([
         {
           id: "seq3",
           sequence: "GCTA",
-          length: 4,
-          lineNumber: 3,
-          description: "",
+
         },
         {
           id: "seq4",
           sequence: "TTTT",
-          length: 4,
-          lineNumber: 4,
-          description: "",
+
         },
-      ];
+      ]);
 
       const symDiff = sequenceSymmetricDifference(
         sequenceArrayToMap(setA),
@@ -190,7 +164,7 @@ describe("Internal sequence set functions", () => {
       expect(symDiff.size).toBe(2);
       expect(
         Array.from(symDiff.values())
-          .map((s) => s.sequence)
+          .map((s) => s.sequence.toString())
           .sort()
       ).toEqual(["ATCG", "TTTT"]);
     });
@@ -198,36 +172,28 @@ describe("Internal sequence set functions", () => {
 
   describe("sequenceUnique", () => {
     test("deduplicates and preserves first occurrence", () => {
-      const sequences: AbstractSequence[] = [
+      const sequences = toSequences([
         {
           id: "seq1",
           sequence: "ATCG",
-          length: 4,
-          lineNumber: 1,
-          description: "",
+
         },
         {
           id: "seq2",
           sequence: "GCTA",
-          length: 4,
-          lineNumber: 2,
-          description: "",
+
         },
         {
           id: "seq3",
           sequence: "ATCG",
-          length: 4,
-          lineNumber: 3,
-          description: "",
+
         },
         {
           id: "seq4",
           sequence: "GCTA",
-          length: 4,
-          lineNumber: 4,
-          description: "",
+
         },
-      ];
+      ]);
 
       const unique = sequenceUnique(sequences);
 
@@ -239,47 +205,37 @@ describe("Internal sequence set functions", () => {
 
   describe("sequenceEquals", () => {
     test("detects set equality", () => {
-      const setA: AbstractSequence[] = [
+      const setA = toSequences([
         {
           id: "seq1",
           sequence: "ATCG",
-          length: 4,
-          lineNumber: 1,
-          description: "",
+
         },
         {
           id: "seq2",
           sequence: "GCTA",
-          length: 4,
-          lineNumber: 2,
-          description: "",
+
         },
-      ];
-      const setB: AbstractSequence[] = [
+      ]);
+      const setB = toSequences([
         {
           id: "seq3",
           sequence: "GCTA",
-          length: 4,
-          lineNumber: 3,
-          description: "",
+
         },
         {
           id: "seq4",
           sequence: "ATCG",
-          length: 4,
-          lineNumber: 4,
-          description: "",
+
         },
-      ];
-      const setC: AbstractSequence[] = [
+      ]);
+      const setC = toSequences([
         {
           id: "seq5",
           sequence: "ATCG",
-          length: 4,
-          lineNumber: 5,
-          description: "",
+
         },
-      ];
+      ]);
 
       expect(sequenceEquals(sequenceArrayToMap(setA), sequenceArrayToMap(setB))).toBe(true);
       expect(sequenceEquals(sequenceArrayToMap(setA), sequenceArrayToMap(setC))).toBe(false);
@@ -288,31 +244,25 @@ describe("Internal sequence set functions", () => {
 
   describe("sequenceIsSubset", () => {
     test("detects subset relationships", () => {
-      const setA: AbstractSequence[] = [
+      const setA = toSequences([
         {
           id: "seq1",
           sequence: "ATCG",
-          length: 4,
-          lineNumber: 1,
-          description: "",
+
         },
-      ];
-      const setB: AbstractSequence[] = [
+      ]);
+      const setB = toSequences([
         {
           id: "seq2",
           sequence: "ATCG",
-          length: 4,
-          lineNumber: 2,
-          description: "",
+
         },
         {
           id: "seq3",
           sequence: "GCTA",
-          length: 4,
-          lineNumber: 3,
-          description: "",
+
         },
-      ];
+      ]);
 
       expect(sequenceIsSubset(sequenceArrayToMap(setA), sequenceArrayToMap(setB))).toBe(true);
       expect(sequenceIsSubset(sequenceArrayToMap(setB), sequenceArrayToMap(setA))).toBe(false);
@@ -321,33 +271,27 @@ describe("Internal sequence set functions", () => {
 
   describe("sequenceIsDisjoint", () => {
     test("detects disjoint sets", () => {
-      const setA: AbstractSequence[] = [
+      const setA = toSequences([
         {
           id: "seq1",
           sequence: "ATCG",
-          length: 4,
-          lineNumber: 1,
-          description: "",
+
         },
-      ];
-      const setB: AbstractSequence[] = [
+      ]);
+      const setB = toSequences([
         {
           id: "seq2",
           sequence: "GCTA",
-          length: 4,
-          lineNumber: 2,
-          description: "",
+
         },
-      ];
-      const setC: AbstractSequence[] = [
+      ]);
+      const setC = toSequences([
         {
           id: "seq3",
           sequence: "ATCG",
-          length: 4,
-          lineNumber: 3,
-          description: "",
+
         },
-      ];
+      ]);
 
       expect(sequenceIsDisjoint(sequenceArrayToMap(setA), sequenceArrayToMap(setB))).toBe(true);
       expect(sequenceIsDisjoint(sequenceArrayToMap(setA), sequenceArrayToMap(setC))).toBe(false);
@@ -356,38 +300,30 @@ describe("Internal sequence set functions", () => {
 
   describe("sequenceJaccardSimilarity", () => {
     test("calculates correct Jaccard coefficient", () => {
-      const setA: AbstractSequence[] = [
+      const setA = toSequences([
         {
           id: "seq1",
           sequence: "ATCG",
-          length: 4,
-          lineNumber: 1,
-          description: "",
+
         },
         {
           id: "seq2",
           sequence: "GCTA",
-          length: 4,
-          lineNumber: 2,
-          description: "",
+
         },
-      ];
-      const setB: AbstractSequence[] = [
+      ]);
+      const setB = toSequences([
         {
           id: "seq3",
           sequence: "GCTA",
-          length: 4,
-          lineNumber: 3,
-          description: "",
+
         },
         {
           id: "seq4",
           sequence: "TTTT",
-          length: 4,
-          lineNumber: 4,
-          description: "",
+
         },
-      ];
+      ]);
 
       const jaccard = sequenceJaccardSimilarity(sequenceArrayToMap(setA), sequenceArrayToMap(setB));
 
@@ -397,31 +333,25 @@ describe("Internal sequence set functions", () => {
 
   describe("sequenceContainment", () => {
     test("calculates correct containment coefficient", () => {
-      const setA: AbstractSequence[] = [
+      const setA = toSequences([
         {
           id: "seq1",
           sequence: "ATCG",
-          length: 4,
-          lineNumber: 1,
-          description: "",
+
         },
-      ];
-      const setB: AbstractSequence[] = [
+      ]);
+      const setB = toSequences([
         {
           id: "seq2",
           sequence: "ATCG",
-          length: 4,
-          lineNumber: 2,
-          description: "",
+
         },
         {
           id: "seq3",
           sequence: "GCTA",
-          length: 4,
-          lineNumber: 3,
-          description: "",
+
         },
-      ];
+      ]);
 
       const containment = sequenceContainment(sequenceArrayToMap(setA), sequenceArrayToMap(setB));
 
@@ -431,45 +361,35 @@ describe("Internal sequence set functions", () => {
 
   describe("sequenceOverlap", () => {
     test("calculates correct overlap coefficient", () => {
-      const setA: AbstractSequence[] = [
+      const setA = toSequences([
         {
           id: "seq1",
           sequence: "ATCG",
-          length: 4,
-          lineNumber: 1,
-          description: "",
+
         },
         {
           id: "seq2",
           sequence: "GCTA",
-          length: 4,
-          lineNumber: 2,
-          description: "",
+
         },
-      ];
-      const setB: AbstractSequence[] = [
+      ]);
+      const setB = toSequences([
         {
           id: "seq3",
           sequence: "GCTA",
-          length: 4,
-          lineNumber: 3,
-          description: "",
+
         },
         {
           id: "seq4",
           sequence: "TTTT",
-          length: 4,
-          lineNumber: 4,
-          description: "",
+
         },
         {
           id: "seq5",
           sequence: "AAAA",
-          length: 4,
-          lineNumber: 5,
-          description: "",
+
         },
-      ];
+      ]);
 
       const overlap = sequenceOverlap(sequenceArrayToMap(setA), sequenceArrayToMap(setB));
 
@@ -480,29 +400,23 @@ describe("Internal sequence set functions", () => {
   describe("SequenceSet class", () => {
     describe("constructor", () => {
       test("deduplicates sequences by sequence content", () => {
-        const sequences: AbstractSequence[] = [
+        const sequences = toSequences([
           {
             id: "seq1",
             sequence: "ATCG",
-            length: 4,
-            lineNumber: 1,
-            description: "",
+
           },
           {
             id: "seq2",
             sequence: "GCTA",
-            length: 4,
-            lineNumber: 2,
-            description: "",
+
           },
           {
             id: "seq3",
             sequence: "ATCG",
-            length: 4,
-            lineNumber: 3,
-            description: "",
+
           },
-        ];
+        ]);
 
         const set = new SequenceSet(sequences);
 
@@ -513,38 +427,34 @@ describe("Internal sequence set functions", () => {
 
     describe("set operations", () => {
       test("all four set operations work correctly", () => {
-        const setA = new SequenceSet([
-          {
-            id: "seq1",
-            sequence: "ATCG",
-            length: 4,
-            lineNumber: 1,
-            description: "",
-          },
-          {
-            id: "seq2",
-            sequence: "GCTA",
-            length: 4,
-            lineNumber: 2,
-            description: "",
-          },
-        ]);
-        const setB = new SequenceSet([
-          {
-            id: "seq3",
-            sequence: "GCTA",
-            length: 4,
-            lineNumber: 3,
-            description: "",
-          },
-          {
-            id: "seq4",
-            sequence: "TTTT",
-            length: 4,
-            lineNumber: 4,
-            description: "",
-          },
-        ]);
+        const setA = new SequenceSet(
+          toSequences([
+            {
+              id: "seq1",
+              sequence: "ATCG",
+
+            },
+            {
+              id: "seq2",
+              sequence: "GCTA",
+
+            },
+          ])
+        );
+        const setB = new SequenceSet(
+          toSequences([
+            {
+              id: "seq3",
+              sequence: "GCTA",
+
+            },
+            {
+              id: "seq4",
+              sequence: "TTTT",
+
+            },
+          ])
+        );
 
         const union = setA.union(setB);
         expect(union.size).toBe(3);
@@ -554,7 +464,7 @@ describe("Internal sequence set functions", () => {
 
         const difference = setA.difference(setB);
         expect(difference.size).toBe(1);
-        expect(difference.toArray()[0]!.sequence).toBe("ATCG");
+        expect(difference.toArray()[0]!.sequence).toEqualSequence("ATCG");
 
         const symDiff = setA.symmetricDifference(setB);
         expect(symDiff.size).toBe(2);
@@ -563,49 +473,47 @@ describe("Internal sequence set functions", () => {
 
     describe("comparison methods", () => {
       test("equals, isSubsetOf, isSupersetOf, isDisjointFrom work correctly", () => {
-        const setA = new SequenceSet([
-          {
-            id: "seq1",
-            sequence: "ATCG",
-            length: 4,
-            lineNumber: 1,
-            description: "",
-          },
-        ]);
-        const setB = new SequenceSet([
-          {
-            id: "seq2",
-            sequence: "ATCG",
-            length: 4,
-            lineNumber: 2,
-            description: "",
-          },
-        ]);
-        const setC = new SequenceSet([
-          {
-            id: "seq3",
-            sequence: "ATCG",
-            length: 4,
-            lineNumber: 3,
-            description: "",
-          },
-          {
-            id: "seq4",
-            sequence: "GCTA",
-            length: 4,
-            lineNumber: 4,
-            description: "",
-          },
-        ]);
-        const setD = new SequenceSet([
-          {
-            id: "seq5",
-            sequence: "TTTT",
-            length: 4,
-            lineNumber: 5,
-            description: "",
-          },
-        ]);
+        const setA = new SequenceSet(
+          toSequences([
+            {
+              id: "seq1",
+              sequence: "ATCG",
+
+            },
+          ])
+        );
+        const setB = new SequenceSet(
+          toSequences([
+            {
+              id: "seq2",
+              sequence: "ATCG",
+
+            },
+          ])
+        );
+        const setC = new SequenceSet(
+          toSequences([
+            {
+              id: "seq3",
+              sequence: "ATCG",
+
+            },
+            {
+              id: "seq4",
+              sequence: "GCTA",
+
+            },
+          ])
+        );
+        const setD = new SequenceSet(
+          toSequences([
+            {
+              id: "seq5",
+              sequence: "TTTT",
+
+            },
+          ])
+        );
 
         expect(setA.equals(setB)).toBe(true);
         expect(setA.isSubsetOf(setC)).toBe(true);
@@ -616,38 +524,34 @@ describe("Internal sequence set functions", () => {
 
     describe("similarity metrics", () => {
       test("jaccardSimilarity, containment, overlap work correctly", () => {
-        const setA = new SequenceSet([
-          {
-            id: "seq1",
-            sequence: "ATCG",
-            length: 4,
-            lineNumber: 1,
-            description: "",
-          },
-          {
-            id: "seq2",
-            sequence: "GCTA",
-            length: 4,
-            lineNumber: 2,
-            description: "",
-          },
-        ]);
-        const setB = new SequenceSet([
-          {
-            id: "seq3",
-            sequence: "GCTA",
-            length: 4,
-            lineNumber: 3,
-            description: "",
-          },
-          {
-            id: "seq4",
-            sequence: "TTTT",
-            length: 4,
-            lineNumber: 4,
-            description: "",
-          },
-        ]);
+        const setA = new SequenceSet(
+          toSequences([
+            {
+              id: "seq1",
+              sequence: "ATCG",
+
+            },
+            {
+              id: "seq2",
+              sequence: "GCTA",
+
+            },
+          ])
+        );
+        const setB = new SequenceSet(
+          toSequences([
+            {
+              id: "seq3",
+              sequence: "GCTA",
+
+            },
+            {
+              id: "seq4",
+              sequence: "TTTT",
+
+            },
+          ])
+        );
 
         const jaccard = setA.jaccardSimilarity(setB);
         expect(jaccard).toBeCloseTo(0.333, 2);
@@ -662,22 +566,20 @@ describe("Internal sequence set functions", () => {
 
     describe("utility methods", () => {
       test("has, get, toArray, filter, map work correctly", () => {
-        const set = new SequenceSet([
-          {
-            id: "seq1",
-            sequence: "ATCG",
-            length: 4,
-            lineNumber: 1,
-            description: "",
-          },
-          {
-            id: "seq2",
-            sequence: "GCTA",
-            length: 4,
-            lineNumber: 2,
-            description: "",
-          },
-        ]);
+        const set = new SequenceSet(
+          toSequences([
+            {
+              id: "seq1",
+              sequence: "ATCG",
+
+            },
+            {
+              id: "seq2",
+              sequence: "GCTA",
+
+            },
+          ])
+        );
 
         expect(set.has("ATCG")).toBe(true);
         expect(set.has("TTTT")).toBe(false);
@@ -698,22 +600,20 @@ describe("Internal sequence set functions", () => {
 
     describe("iterators", () => {
       test("Symbol.iterator and Symbol.asyncIterator work correctly", async () => {
-        const set = new SequenceSet([
-          {
-            id: "seq1",
-            sequence: "ATCG",
-            length: 4,
-            lineNumber: 1,
-            description: "",
-          },
-          {
-            id: "seq2",
-            sequence: "GCTA",
-            length: 4,
-            lineNumber: 2,
-            description: "",
-          },
-        ]);
+        const set = new SequenceSet(
+          toSequences([
+            {
+              id: "seq1",
+              sequence: "ATCG",
+
+            },
+            {
+              id: "seq2",
+              sequence: "GCTA",
+
+            },
+          ])
+        );
 
         const syncItems: AbstractSequence[] = [];
         for (const seq of set) {
@@ -731,11 +631,11 @@ describe("Internal sequence set functions", () => {
 
     describe("Edge cases", () => {
       test("set operations handle all-duplicate input", () => {
-        const sequences: AbstractSequence[] = [
-          { id: "seq1", sequence: "ATCG", length: 4, lineNumber: 1, description: "" },
-          { id: "seq2", sequence: "ATCG", length: 4, lineNumber: 2, description: "" },
-          { id: "seq3", sequence: "ATCG", length: 4, lineNumber: 3, description: "" },
-        ];
+        const sequences = toSequences([
+          { id: "seq1", sequence: "ATCG" },
+          { id: "seq2", sequence: "ATCG" },
+          { id: "seq3", sequence: "ATCG" },
+        ]);
 
         const set = new SequenceSet(sequences);
         expect(set.size).toBe(1);
@@ -743,9 +643,9 @@ describe("Internal sequence set functions", () => {
 
       test("set operations handle empty sets", () => {
         const emptySet = new SequenceSet<AbstractSequence>([]);
-        const nonEmptySet = new SequenceSet<AbstractSequence>([
-          { id: "seq1", sequence: "ATCG", length: 4, lineNumber: 1, description: "" },
-        ]);
+        const nonEmptySet = new SequenceSet<AbstractSequence>(
+          toSequences([{ id: "seq1", sequence: "ATCG" }])
+        );
 
         expect(emptySet.union(nonEmptySet).size).toBe(1);
         expect(emptySet.intersection(nonEmptySet).size).toBe(0);

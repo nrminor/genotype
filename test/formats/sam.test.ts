@@ -13,6 +13,8 @@ import {
   SAMUtils,
   SAMWriter,
 } from "../../src/index";
+import { createSamAlignment } from "../../src/constructors";
+import "../matchers";
 
 describe("SAMParser", () => {
   const parser = new SAMParser();
@@ -160,8 +162,8 @@ describe("SAMParser", () => {
       expect(alignment.rnext).toBe("=");
       expect(alignment.pnext).toBe(1200);
       expect(alignment.tlen).toBe(276);
-      expect(alignment.seq).toBe(sequence);
-      expect(alignment.qual).toBe(quality);
+      expect(alignment.seq).toEqualSequence(sequence);
+      expect(alignment.qual).toEqualSequence(quality);
     });
 
     test("should parse alignment with optional tags", async () => {
@@ -195,8 +197,8 @@ describe("SAMParser", () => {
       expect(alignment.pos).toBe(0);
       expect(alignment.mapq as number).toBe(0);
       expect(alignment.cigar as string).toBe("*");
-      expect(alignment.seq).toBe("*");
-      expect(alignment.qual).toBe("*");
+      expect(alignment.seq).toEqualSequence("*");
+      expect(alignment.qual).toEqualSequence("*");
     });
 
     test("should throw error for insufficient fields", async () => {
@@ -486,8 +488,7 @@ describe("Essential invariants", () => {
 
   test("should maintain round-trip fidelity", async () => {
     // Ensures write(parse(data)) === data for core data integrity
-    const originalAlignment: SAMAlignment = {
-      format: "sam" as const,
+    const originalAlignment: SAMAlignment = createSamAlignment({
       qname: "read1",
       flag: 99 as SAMFlag,
       rname: "chr1",
@@ -500,7 +501,7 @@ describe("Essential invariants", () => {
       seq: "ACGT",
       qual: "IIII",
       lineNumber: 1,
-    };
+    });
 
     // Write to string
     const samString = writer.writeString([originalAlignment]);
@@ -517,8 +518,8 @@ describe("Essential invariants", () => {
     // Validate perfect fidelity
     expect(parsed.qname).toBe(originalAlignment.qname);
     expect(parsed.flag as number).toBe(originalAlignment.flag as number);
-    expect(parsed.seq).toBe(originalAlignment.seq);
-    expect(parsed.qual).toBe(originalAlignment.qual);
+    expect(parsed.seq).toEqualSequence(originalAlignment.seq);
+    expect(parsed.qual).toEqualSequence(originalAlignment.qual);
   });
 
   test("should stream without loading entire file into memory", async () => {

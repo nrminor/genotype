@@ -11,12 +11,13 @@ import {
   SequenceMatcher,
   type SequenceMatch,
 } from "../../../src/operations/core/pattern-matching";
+import { createFastaRecord } from "../../../src/constructors";
 import type { AbstractSequence } from "../../../src/types";
 
 describe("SequenceMatcher", () => {
   // Helper to create test sequences
   function seq(id: string, sequence: string): AbstractSequence {
-    return { id, sequence, length: sequence.length };
+    return createFastaRecord({ id, sequence });
   }
 
   // Test data

@@ -8,6 +8,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "fs";
 import { join } from "path";
+import { createFastaRecord } from "../../src/constructors";
 import { ValidationError } from "../../src/errors";
 import { seqops } from "../../src/operations";
 import { SplitProcessor } from "../../src/operations/split";
@@ -34,12 +35,7 @@ describe("SplitProcessor", () => {
 
   // Helper functions
   function createSequence(id: string, sequence: string, description?: string): AbstractSequence {
-    return {
-      id,
-      sequence,
-      length: sequence.length,
-      ...(description !== undefined && { description }),
-    };
+    return createFastaRecord({ id, sequence, description });
   }
 
   async function collect<T>(source: AsyncIterable<T>): Promise<T[]> {
@@ -574,7 +570,7 @@ describe("SplitProcessor", () => {
 
       // Verify that all sequences were processed
       expect(results.some((r) => r.id === "")).toBe(true);
-      expect(results.some((r) => r.sequence === "")).toBe(true);
+      expect(results.some((r) => r.sequence.length === 0)).toBe(true);
       expect(results.some((r) => r.id === "normal_seq")).toBe(true);
     });
 
@@ -798,11 +794,7 @@ describe("SeqOps split integration", () => {
   });
 
   function createSequence(id: string, sequence: string): AbstractSequence {
-    return {
-      id,
-      sequence,
-      length: sequence.length,
-    };
+    return createFastaRecord({ id, sequence });
   }
 
   async function* source(sequences: AbstractSequence[]): AsyncIterable<AbstractSequence> {
@@ -857,7 +849,7 @@ describe("SeqOps split integration", () => {
 
     expect(splitResults).toHaveLength(4);
     // Check that sequences were transformed to uppercase
-    expect(splitResults.every((r) => r.sequence === r.sequence.toUpperCase())).toBe(true);
+    expect(splitResults.every((r) => r.sequence.equals(r.sequence.toUpperCase()))).toBe(true);
   });
 
   test("maintains streaming behavior", async () => {
@@ -920,12 +912,7 @@ describe("Real-world bioinformatics scenarios", () => {
   });
 
   function createSequence(id: string, sequence: string, description?: string): AbstractSequence {
-    return {
-      id,
-      sequence,
-      length: sequence.length,
-      ...(description !== undefined && { description }),
-    };
+    return createFastaRecord({ id, sequence, description });
   }
 
   async function* source(sequences: AbstractSequence[]): AsyncIterable<AbstractSequence> {

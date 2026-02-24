@@ -7,6 +7,7 @@
  */
 
 import { type } from "arktype";
+import { createFastqRecord, type FastqRecordInput, withQuality } from "../constructors";
 import { ValidationError } from "../errors";
 import type { AbstractSequence, FastaSequence, FastqSequence, QualityEncoding } from "../types";
 import { calculateQualityStats } from "./core";
@@ -174,7 +175,11 @@ export class ConvertProcessor implements Processor<ConvertOptions> {
 
     // Skip conversion if source and target are the same
     if (detectionResult.encoding === options.targetEncoding) {
-      return this.createConvertedSequence(fastqSeq, fastqSeq.quality, options.targetEncoding);
+      return this.createConvertedSequence(
+        fastqSeq,
+        fastqSeq.quality.toString(),
+        options.targetEncoding
+      );
     }
 
     // Perform conversion
@@ -236,16 +241,7 @@ export class ConvertProcessor implements Processor<ConvertOptions> {
     quality: string,
     encoding: QualityEncoding
   ): FastqSequence {
-    const converted: FastqSequence = {
-      format: "fastq",
-      id: original.id,
-      sequence: original.sequence,
-      ...(original.description && { description: original.description }),
-      quality: quality,
-      qualityEncoding: encoding,
-      length: original.length,
-    };
-    return converted;
+    return { ...withQuality(original, quality), qualityEncoding: encoding };
   }
 }
 
@@ -257,7 +253,7 @@ function buildDescription(seq: FastqSequence, includeStats?: boolean): string {
     return seq.description || "";
   }
 
-  const statsString = formatQualityStats(seq.quality, seq.qualityEncoding || "phred33");
+  const statsString = formatQualityStats(seq.quality.toString(), seq.qualityEncoding || "phred33");
   return seq.description ? `${seq.description} ${statsString}` : statsString;
 }
 
@@ -310,21 +306,21 @@ function createFastaSequence(seq: FastqSequence, description: string): FastaSequ
 /**
  * Create a properly typed FASTQ sequence
  */
-function createFastqSequence(
+function createFastqFromFasta(
   seq: FastaSequence,
   qualityChar: string,
   encoding: QualityEncoding
 ): FastqSequence {
-  const fastq: FastqSequence = {
-    format: "fastq",
+  const input: FastqRecordInput = {
     id: seq.id,
     sequence: seq.sequence,
-    ...(seq.description && { description: seq.description }),
     quality: qualityChar.repeat(seq.length),
     qualityEncoding: encoding,
-    length: seq.length,
   };
-  return fastq;
+  if (seq.description !== undefined) {
+    return createFastqRecord({ ...input, description: seq.description });
+  }
+  return createFastqRecord(input);
 }
 
 /**
@@ -374,6 +370,6 @@ export async function* fa2fq<T extends FastaSequence>(
   const qualityChar = determineQualityChar(validationResult, encoding);
 
   for await (const seq of source) {
-    yield createFastqSequence(seq, qualityChar, encoding);
+    yield createFastqFromFasta(seq, qualityChar, encoding);
   }
 }

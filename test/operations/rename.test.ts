@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import "../matchers";
+import { createFastaRecord, createFastqRecord } from "../../src/constructors";
 import { ValidationError } from "../../src/errors";
 import { seqops } from "../../src/operations";
 import { rename } from "../../src/operations/rename";
@@ -10,12 +12,22 @@ async function* toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
   }
 }
 
+function createFasta(id: string, sequence: string, description?: string): FastaSequence {
+  return createFastaRecord({ id, sequence, description });
+}
+
+function createFastq(
+  id: string,
+  sequence: string,
+  quality: string,
+  description?: string
+): FastqSequence {
+  return createFastqRecord({ id, sequence, quality, qualityEncoding: "phred33", description });
+}
+
 describe("rename operation", () => {
   test("appends suffix to duplicate IDs", async () => {
-    const input: FastaSequence[] = [
-      { format: "fasta", id: "seq1", sequence: "ATCG", length: 4 },
-      { format: "fasta", id: "seq1", sequence: "GCTA", length: 4 },
-    ];
+    const input: FastaSequence[] = [createFasta("seq1", "ATCG"), createFasta("seq1", "GCTA")];
 
     const result = await Array.fromAsync(rename(toAsyncIterable(input)));
 
@@ -24,10 +36,7 @@ describe("rename operation", () => {
   });
 
   test("handles no duplicates", async () => {
-    const input: FastaSequence[] = [
-      { format: "fasta", id: "seq1", sequence: "ATCG", length: 4 },
-      { format: "fasta", id: "seq2", sequence: "GCTA", length: 4 },
-    ];
+    const input: FastaSequence[] = [createFasta("seq1", "ATCG"), createFasta("seq2", "GCTA")];
 
     const result = await Array.fromAsync(rename(toAsyncIterable(input)));
 
@@ -45,8 +54,8 @@ describe("rename operation", () => {
 
   test("byName: false - same ID, different descriptions treated as duplicates", async () => {
     const input: FastaSequence[] = [
-      { format: "fasta", id: "seq1", description: "comment1", sequence: "ATCG", length: 4 },
-      { format: "fasta", id: "seq1", description: "comment2", sequence: "GCTA", length: 4 },
+      createFasta("seq1", "ATCG", "comment1"),
+      createFasta("seq1", "GCTA", "comment2"),
     ];
 
     const result = await Array.fromAsync(rename(toAsyncIterable(input), { byName: false }));
@@ -57,8 +66,8 @@ describe("rename operation", () => {
 
   test("byName: true - same ID, different descriptions NOT treated as duplicates", async () => {
     const input: FastaSequence[] = [
-      { format: "fasta", id: "seq1", description: "comment1", sequence: "ATCG", length: 4 },
-      { format: "fasta", id: "seq1", description: "comment2", sequence: "GCTA", length: 4 },
+      createFasta("seq1", "ATCG", "comment1"),
+      createFasta("seq1", "GCTA", "comment2"),
     ];
 
     const result = await Array.fromAsync(rename(toAsyncIterable(input), { byName: true }));
@@ -69,8 +78,8 @@ describe("rename operation", () => {
 
   test("byName: true - same full name treated as duplicates", async () => {
     const input: FastaSequence[] = [
-      { format: "fasta", id: "seq1", description: "comment", sequence: "ATCG", length: 4 },
-      { format: "fasta", id: "seq1", description: "comment", sequence: "GCTA", length: 4 },
+      createFasta("seq1", "ATCG", "comment"),
+      createFasta("seq1", "GCTA", "comment"),
     ];
 
     const result = await Array.fromAsync(rename(toAsyncIterable(input), { byName: true }));
@@ -80,10 +89,7 @@ describe("rename operation", () => {
   });
 
   test("custom separator: dot", async () => {
-    const input: FastaSequence[] = [
-      { format: "fasta", id: "seq1", sequence: "ATCG", length: 4 },
-      { format: "fasta", id: "seq1", sequence: "GCTA", length: 4 },
-    ];
+    const input: FastaSequence[] = [createFasta("seq1", "ATCG"), createFasta("seq1", "GCTA")];
 
     const result = await Array.fromAsync(rename(toAsyncIterable(input), { separator: "." }));
 
@@ -92,10 +98,7 @@ describe("rename operation", () => {
   });
 
   test("custom separator: hyphen", async () => {
-    const input: FastaSequence[] = [
-      { format: "fasta", id: "seq1", sequence: "ATCG", length: 4 },
-      { format: "fasta", id: "seq1", sequence: "GCTA", length: 4 },
-    ];
+    const input: FastaSequence[] = [createFasta("seq1", "ATCG"), createFasta("seq1", "GCTA")];
 
     const result = await Array.fromAsync(rename(toAsyncIterable(input), { separator: "-" }));
 
@@ -105,9 +108,9 @@ describe("rename operation", () => {
 
   test("custom startNum: 0", async () => {
     const input: FastaSequence[] = [
-      { format: "fasta", id: "seq1", sequence: "ATCG", length: 4 },
-      { format: "fasta", id: "seq1", sequence: "GCTA", length: 4 },
-      { format: "fasta", id: "seq1", sequence: "TGAC", length: 4 },
+      createFasta("seq1", "ATCG"),
+      createFasta("seq1", "GCTA"),
+      createFasta("seq1", "TGAC"),
     ];
 
     const result = await Array.fromAsync(rename(toAsyncIterable(input), { startNum: 0 }));
@@ -118,10 +121,7 @@ describe("rename operation", () => {
   });
 
   test("custom startNum: 100", async () => {
-    const input: FastaSequence[] = [
-      { format: "fasta", id: "seq1", sequence: "ATCG", length: 4 },
-      { format: "fasta", id: "seq1", sequence: "GCTA", length: 4 },
-    ];
+    const input: FastaSequence[] = [createFasta("seq1", "ATCG"), createFasta("seq1", "GCTA")];
 
     const result = await Array.fromAsync(rename(toAsyncIterable(input), { startNum: 100 }));
 
@@ -131,9 +131,9 @@ describe("rename operation", () => {
 
   test("renameFirst: true with default startNum", async () => {
     const input: FastaSequence[] = [
-      { format: "fasta", id: "seq1", sequence: "ATCG", length: 4 },
-      { format: "fasta", id: "seq1", sequence: "GCTA", length: 4 },
-      { format: "fasta", id: "seq1", sequence: "TGAC", length: 4 },
+      createFasta("seq1", "ATCG"),
+      createFasta("seq1", "GCTA"),
+      createFasta("seq1", "TGAC"),
     ];
 
     const result = await Array.fromAsync(rename(toAsyncIterable(input), { renameFirst: true }));
@@ -145,9 +145,9 @@ describe("rename operation", () => {
 
   test("renameFirst: true with startNum: 1", async () => {
     const input: FastaSequence[] = [
-      { format: "fasta", id: "seq1", sequence: "ATCG", length: 4 },
-      { format: "fasta", id: "seq1", sequence: "GCTA", length: 4 },
-      { format: "fasta", id: "seq1", sequence: "TGAC", length: 4 },
+      createFasta("seq1", "ATCG"),
+      createFasta("seq1", "GCTA"),
+      createFasta("seq1", "TGAC"),
     ];
 
     const result = await Array.fromAsync(
@@ -161,10 +161,10 @@ describe("rename operation", () => {
 
   test("multiple duplicates (4 sequences with same ID)", async () => {
     const input: FastaSequence[] = [
-      { format: "fasta", id: "seq1", sequence: "ATCG", length: 4 },
-      { format: "fasta", id: "seq1", sequence: "GCTA", length: 4 },
-      { format: "fasta", id: "seq1", sequence: "TGAC", length: 4 },
-      { format: "fasta", id: "seq1", sequence: "CGAT", length: 4 },
+      createFasta("seq1", "ATCG"),
+      createFasta("seq1", "GCTA"),
+      createFasta("seq1", "TGAC"),
+      createFasta("seq1", "CGAT"),
     ];
 
     const result = await Array.fromAsync(rename(toAsyncIterable(input)));
@@ -176,7 +176,7 @@ describe("rename operation", () => {
   });
 
   test("validation: rejects empty separator", async () => {
-    const input: FastaSequence[] = [{ format: "fasta", id: "seq1", sequence: "ATCG", length: 4 }];
+    const input: FastaSequence[] = [createFasta("seq1", "ATCG")];
 
     await expect(async () => {
       await Array.fromAsync(rename(toAsyncIterable(input), { separator: "" }));
@@ -184,7 +184,7 @@ describe("rename operation", () => {
   });
 
   test("validation: empty separator error message is helpful", async () => {
-    const input: FastaSequence[] = [{ format: "fasta", id: "seq1", sequence: "ATCG", length: 4 }];
+    const input: FastaSequence[] = [createFasta("seq1", "ATCG")];
 
     try {
       await Array.fromAsync(rename(toAsyncIterable(input), { separator: "" }));
@@ -197,7 +197,7 @@ describe("rename operation", () => {
   });
 
   test("validation: rejects negative startNum", async () => {
-    const input: FastaSequence[] = [{ format: "fasta", id: "seq1", sequence: "ATCG", length: 4 }];
+    const input: FastaSequence[] = [createFasta("seq1", "ATCG")];
 
     await expect(async () => {
       await Array.fromAsync(rename(toAsyncIterable(input), { startNum: -1 }));
@@ -205,7 +205,7 @@ describe("rename operation", () => {
   });
 
   test("validation: negative startNum error message is helpful", async () => {
-    const input: FastaSequence[] = [{ format: "fasta", id: "seq1", sequence: "ATCG", length: 4 }];
+    const input: FastaSequence[] = [createFasta("seq1", "ATCG")];
 
     try {
       await Array.fromAsync(rename(toAsyncIterable(input), { startNum: -1 }));
@@ -219,9 +219,9 @@ describe("rename operation", () => {
 
   test("integration: SeqOps chaining with rename", async () => {
     const input: FastaSequence[] = [
-      { format: "fasta", id: "seq1", sequence: "ATCG", length: 4 },
-      { format: "fasta", id: "seq1", sequence: "GCTA", length: 4 },
-      { format: "fasta", id: "seq2", sequence: "A", length: 1 },
+      createFasta("seq1", "ATCG"),
+      createFasta("seq1", "GCTA"),
+      createFasta("seq2", "A"),
     ];
 
     const result = await seqops(toAsyncIterable(input))
@@ -236,48 +236,22 @@ describe("rename operation", () => {
 
   test("integration: works with FASTQ sequences", async () => {
     const input: FastqSequence[] = [
-      {
-        format: "fastq",
-        id: "seq1",
-        sequence: "ATCG",
-        quality: "IIII",
-        qualityEncoding: "phred33",
-        length: 4,
-      },
-      {
-        format: "fastq",
-        id: "seq1",
-        sequence: "GCTA",
-        quality: "JJJJ",
-        qualityEncoding: "phred33",
-        length: 4,
-      },
+      createFastq("seq1", "ATCG", "IIII"),
+      createFastq("seq1", "GCTA", "JJJJ"),
     ];
 
     const result = await Array.fromAsync(rename(toAsyncIterable(input)));
 
     expect(result[0]!.id).toBe("seq1");
-    expect(result[0]!.quality).toBe("IIII");
+    expect(result[0]!.quality).toEqualSequence("IIII");
     expect(result[1]!.id).toBe("seq1_2");
-    expect(result[1]!.quality).toBe("JJJJ");
+    expect(result[1]!.quality).toEqualSequence("JJJJ");
   });
 
   test("integration: preserves descriptions", async () => {
     const input: FastaSequence[] = [
-      {
-        format: "fasta",
-        id: "seq1",
-        description: "original comment",
-        sequence: "ATCG",
-        length: 4,
-      },
-      {
-        format: "fasta",
-        id: "seq1",
-        description: "another comment",
-        sequence: "GCTA",
-        length: 4,
-      },
+      createFasta("seq1", "ATCG", "original comment"),
+      createFasta("seq1", "GCTA", "another comment"),
     ];
 
     const result = await Array.fromAsync(rename(toAsyncIterable(input)));
@@ -291,7 +265,7 @@ describe("rename operation", () => {
     // with a large number of unique IDs (memory usage should be O(U) where U = unique IDs)
     const input: FastaSequence[] = [];
     for (let i = 0; i < 1000; i++) {
-      input.push({ format: "fasta", id: `seq${i}`, sequence: "ATCG", length: 4 });
+      input.push(createFasta(`seq${i}`, "ATCG"));
     }
 
     const result = await Array.fromAsync(rename(toAsyncIterable(input)));

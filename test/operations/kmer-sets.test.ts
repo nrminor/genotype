@@ -1,28 +1,36 @@
 import { describe, expect, test } from "bun:test";
+import { createKmerRecord } from "../../src/constructors";
 import { KmerSet } from "../../src/operations/types";
 import type { KmerSequence } from "../../src/types";
+
+function createKmer<K extends number>(
+  kmerSize: K,
+  id: string,
+  sequence: string,
+  overrides: Partial<KmerSequence<K>> = {}
+): KmerSequence<K> {
+  return createKmerRecord({
+    id,
+    sequence,
+    kmerSize,
+    stepSize: 1,
+    originalId: "seq1",
+    startPosition: 1,
+    endPosition: sequence.length,
+    coordinateSystem: "1-based",
+    suffix: "_window",
+    isWrapped: false,
+    windowIndex: 0,
+    description: "",
+    lineNumber: 1,
+    ...overrides,
+  });
+}
 
 describe("KmerSet type safety", () => {
   describe("constructor", () => {
     test("preserves K type parameter", () => {
-      const kmers: KmerSequence<21>[] = [
-        {
-          id: "kmer1",
-          sequence: "A".repeat(21),
-          length: 21,
-          lineNumber: 1,
-          description: "",
-          kmerSize: 21,
-          stepSize: 1,
-          originalId: "seq1",
-          startPosition: 1,
-          endPosition: 21,
-          coordinateSystem: "1-based",
-          suffix: "_window",
-          isWrapped: false,
-          windowIndex: 0,
-        },
-      ];
+      const kmers: KmerSequence<21>[] = [createKmer(21, "kmer1", "A".repeat(21))];
 
       const set = new KmerSet<21>(kmers);
       expect(set.size).toBe(1);
@@ -35,24 +43,7 @@ describe("KmerSet type safety", () => {
 
   describe("union", () => {
     test("enforces K type matching and preserves K", () => {
-      const kmers21: KmerSequence<21>[] = [
-        {
-          id: "kmer1",
-          sequence: "A".repeat(21),
-          length: 21,
-          lineNumber: 1,
-          description: "",
-          kmerSize: 21,
-          stepSize: 1,
-          originalId: "seq1",
-          startPosition: 1,
-          endPosition: 21,
-          coordinateSystem: "1-based",
-          suffix: "_window",
-          isWrapped: false,
-          windowIndex: 0,
-        },
-      ];
+      const kmers21: KmerSequence<21>[] = [createKmer(21, "kmer1", "A".repeat(21))];
 
       const set1 = new KmerSet<21>(kmers21);
       const set2 = new KmerSet<21>(kmers21);
@@ -67,24 +58,7 @@ describe("KmerSet type safety", () => {
 
   describe("intersection", () => {
     test("preserves K type", () => {
-      const kmers31: KmerSequence<31>[] = [
-        {
-          id: "kmer1",
-          sequence: "A".repeat(31),
-          length: 31,
-          lineNumber: 1,
-          description: "",
-          kmerSize: 31,
-          stepSize: 1,
-          originalId: "seq1",
-          startPosition: 1,
-          endPosition: 31,
-          coordinateSystem: "1-based",
-          suffix: "_window",
-          isWrapped: false,
-          windowIndex: 0,
-        },
-      ];
+      const kmers31: KmerSequence<31>[] = [createKmer(31, "kmer1", "A".repeat(31))];
 
       const set1 = new KmerSet<31>(kmers31);
       const set2 = new KmerSet<31>(kmers31);
@@ -99,28 +73,9 @@ describe("KmerSet type safety", () => {
 
   describe("difference", () => {
     test("preserves K type", () => {
-      const kmer1: KmerSequence<15> = {
-        id: "kmer1",
-        sequence: "A".repeat(15),
-        length: 15,
-        lineNumber: 1,
-        description: "",
-        kmerSize: 15,
-        stepSize: 1,
-        originalId: "seq1",
-        startPosition: 1,
-        endPosition: 15,
-        coordinateSystem: "1-based",
-        suffix: "_window",
-        isWrapped: false,
-        windowIndex: 0,
-      };
+      const kmer1: KmerSequence<15> = createKmer(15, "kmer1", "A".repeat(15));
 
-      const kmer2: KmerSequence<15> = {
-        ...kmer1,
-        id: "kmer2",
-        sequence: "T".repeat(15),
-      };
+      const kmer2: KmerSequence<15> = createKmer(15, "kmer2", "T".repeat(15));
 
       const set1 = new KmerSet<15>([kmer1, kmer2]);
       const set2 = new KmerSet<15>([kmer2]);
@@ -136,22 +91,7 @@ describe("KmerSet type safety", () => {
 
   describe("symmetricDifference", () => {
     test("preserves K type", () => {
-      const kmer: KmerSequence<7> = {
-        id: "kmer1",
-        sequence: "ATCGATC",
-        length: 7,
-        lineNumber: 1,
-        description: "",
-        kmerSize: 7,
-        stepSize: 1,
-        originalId: "seq1",
-        startPosition: 1,
-        endPosition: 7,
-        coordinateSystem: "1-based",
-        suffix: "_window",
-        isWrapped: false,
-        windowIndex: 0,
-      };
+      const kmer: KmerSequence<7> = createKmer(7, "kmer1", "ATCGATC");
 
       const set1 = new KmerSet<7>([kmer]);
       const set2 = new KmerSet<7>([]);
@@ -167,38 +107,12 @@ describe("KmerSet type safety", () => {
   describe("filter", () => {
     test("preserves K type", () => {
       const kmers: KmerSequence<10>[] = [
-        {
-          id: "kmer1",
-          sequence: "ATCGATCGAT",
-          length: 10,
-          lineNumber: 1,
-          description: "",
-          kmerSize: 10,
-          stepSize: 1,
-          originalId: "seq1",
-          startPosition: 1,
-          endPosition: 10,
-          coordinateSystem: "1-based",
-          suffix: "_window",
-          isWrapped: false,
-          windowIndex: 0,
-        },
-        {
-          id: "kmer2",
-          sequence: "GCTAGCTAGC",
-          length: 10,
-          lineNumber: 1,
-          description: "",
-          kmerSize: 10,
-          stepSize: 1,
-          originalId: "seq1",
+        createKmer(10, "kmer1", "ATCGATCGAT"),
+        createKmer(10, "kmer2", "GCTAGCTAGC", {
           startPosition: 2,
           endPosition: 11,
-          coordinateSystem: "1-based",
-          suffix: "_window",
-          isWrapped: false,
           windowIndex: 1,
-        },
+        }),
       ];
 
       const set = new KmerSet<10>(kmers);
@@ -213,22 +127,7 @@ describe("KmerSet type safety", () => {
 
   describe("delegation to parent class", () => {
     test("delegates to SequenceSet methods correctly", () => {
-      const kmer: KmerSequence<5> = {
-        id: "kmer1",
-        sequence: "ATCGA",
-        length: 5,
-        lineNumber: 1,
-        description: "",
-        kmerSize: 5,
-        stepSize: 1,
-        originalId: "seq1",
-        startPosition: 1,
-        endPosition: 5,
-        coordinateSystem: "1-based",
-        suffix: "_window",
-        isWrapped: false,
-        windowIndex: 0,
-      };
+      const kmer: KmerSequence<5> = createKmer(5, "kmer1", "ATCGA");
 
       const set1 = new KmerSet<5>([kmer]);
       const set2 = new KmerSet<5>([kmer]);
@@ -241,22 +140,7 @@ describe("KmerSet type safety", () => {
 
   describe("inherited methods maintain K type", () => {
     test("has, get, toArray preserve K type information", () => {
-      const kmer: KmerSequence<3> = {
-        id: "kmer1",
-        sequence: "ATC",
-        length: 3,
-        lineNumber: 1,
-        description: "",
-        kmerSize: 3,
-        stepSize: 1,
-        originalId: "seq1",
-        startPosition: 1,
-        endPosition: 3,
-        coordinateSystem: "1-based",
-        suffix: "_window",
-        isWrapped: false,
-        windowIndex: 0,
-      };
+      const kmer: KmerSequence<3> = createKmer(3, "kmer1", "ATC");
 
       const set = new KmerSet<3>([kmer]);
 

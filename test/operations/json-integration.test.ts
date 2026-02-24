@@ -6,6 +6,8 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import "../matchers";
+import { createFastaRecord } from "../../src/constructors";
 import { FastaParser } from "../../src/formats/fasta";
 import { SeqOps } from "../../src/operations";
 import type { AbstractSequence, FastqSequence } from "../../src/types";
@@ -15,6 +17,10 @@ import type { AbstractSequence, FastqSequence } from "../../src/types";
  */
 function isFastqSequence(seq: AbstractSequence): seq is FastqSequence {
   return "format" in seq && seq.format === "fastq" && "quality" in seq && "qualityEncoding" in seq;
+}
+
+function createFasta(id: string, sequence: string) {
+  return createFastaRecord({ id, sequence });
 }
 
 // =============================================================================
@@ -27,16 +33,12 @@ describe("JSON Integration - SeqOps Static Methods", () => {
       const sequences = await SeqOps.fromJSON("test/fixtures/sequences.json").collect();
 
       expect(sequences).toHaveLength(3);
-      expect(sequences[0]).toMatchObject({
-        id: "seq1",
-        sequence: "ATCGATCG",
-        length: 8,
-      });
-      expect(sequences[1]).toMatchObject({
-        id: "seq2",
-        sequence: "GGCCGGCC",
-        length: 8,
-      });
+      expect(sequences[0]!.id).toBe("seq1");
+      expect(sequences[0]!.sequence).toEqualSequence("ATCGATCG");
+      expect(sequences[0]!.length).toBe(8);
+      expect(sequences[1]!.id).toBe("seq2");
+      expect(sequences[1]!.sequence).toEqualSequence("GGCCGGCC");
+      expect(sequences[1]!.length).toBe(8);
     });
 
     test("supports method chaining with filter", async () => {
@@ -55,7 +57,7 @@ describe("JSON Integration - SeqOps Static Methods", () => {
 
       const firstSeq = sequences[0]!;
       if (isFastqSequence(firstSeq)) {
-        expect(firstSeq.quality).toBe("IIIIIIII");
+        expect(firstSeq.quality).toEqualSequence("IIIIIIII");
       } else {
         throw new Error("Expected FASTQ sequence");
       }
@@ -68,7 +70,7 @@ describe("JSON Integration - SeqOps Static Methods", () => {
 
       expect(sequences).toHaveLength(4);
       expect(sequences[0]!.id).toBe("seq1");
-      expect(sequences[0]!.sequence).toBe("ATCGATCG");
+      expect(sequences[0]!.sequence).toEqualSequence("ATCGATCG");
       expect(sequences[0]!.length).toBe(8);
     });
 
@@ -93,7 +95,7 @@ describe("JSON Integration - SeqOps Static Methods", () => {
 
       const firstSeq = sequences[0]!;
       if (isFastqSequence(firstSeq)) {
-        expect(firstSeq.quality).toBe("IIIIIIII");
+        expect(firstSeq.quality).toEqualSequence("IIIIIIII");
       } else {
         throw new Error("Expected FASTQ sequence");
       }
@@ -102,7 +104,7 @@ describe("JSON Integration - SeqOps Static Methods", () => {
 
   describe("asRows() alias", () => {
     test("asRows() returns same type as toTabular()", () => {
-      const sequences = [{ id: "seq1", sequence: "ATCG", length: 4, format: "fasta" as const }];
+      const sequences = [createFasta("seq1", "ATCG")];
 
       const withAsRows = SeqOps.from(sequences).asRows();
       const withToTabular = SeqOps.from(sequences).toTabular();
@@ -115,10 +117,7 @@ describe("JSON Integration - SeqOps Static Methods", () => {
     });
 
     test("asRows() is semantically clearer for JSON output", async () => {
-      const sequences = [
-        { id: "seq1", sequence: "ATCG", length: 4, format: "fasta" as const },
-        { id: "seq2", sequence: "GCTA", length: 4, format: "fasta" as const },
-      ];
+      const sequences = [createFasta("seq1", "ATCG"), createFasta("seq2", "GCTA")];
 
       const tabular = SeqOps.from(sequences).asRows({
         columns: ["id", "sequence"] as const,
@@ -144,25 +143,19 @@ describe("JSON Integration - SeqOps Write Methods", () => {
   describe("writeJSON()", () => {
     test("writes sequences to JSON file", async () => {
       const tempFile = "/tmp/genotype-test-writejson-1.json";
-      const sequences = [
-        { id: "seq1", sequence: "ATCG", length: 4, format: "fasta" as const },
-        { id: "seq2", sequence: "GCTA", length: 4, format: "fasta" as const },
-      ];
+      const sequences = [createFasta("seq1", "ATCG"), createFasta("seq2", "GCTA")];
 
       await SeqOps.from(sequences).writeJSON(tempFile);
 
       const recovered = await SeqOps.fromJSON(tempFile).collect();
       expect(recovered).toHaveLength(2);
       expect(recovered[0]!.id).toBe("seq1");
-      expect(recovered[0]!.sequence).toBe("ATCG");
+      expect(recovered[0]!.sequence).toEqualSequence("ATCG");
     });
 
     test("supports column selection", async () => {
       const tempFile = "/tmp/genotype-test-writejson-2.json";
-      const sequences = [
-        { id: "seq1", sequence: "ATCG", length: 4, format: "fasta" as const },
-        { id: "seq2", sequence: "GCTA", length: 4, format: "fasta" as const },
-      ];
+      const sequences = [createFasta("seq1", "ATCG"), createFasta("seq2", "GCTA")];
 
       await SeqOps.from(sequences).writeJSON(tempFile, {
         columns: ["id", "sequence"] as const,
@@ -177,7 +170,7 @@ describe("JSON Integration - SeqOps Write Methods", () => {
 
     test("supports pretty printing", async () => {
       const tempFile = "/tmp/genotype-test-writejson-3.json";
-      const sequences = [{ id: "seq1", sequence: "ATCG", length: 4, format: "fasta" as const }];
+      const sequences = [createFasta("seq1", "ATCG")];
 
       await SeqOps.from(sequences).writeJSON(tempFile, {
         pretty: true,
@@ -190,10 +183,7 @@ describe("JSON Integration - SeqOps Write Methods", () => {
 
     test("includes metadata when requested", async () => {
       const tempFile = "/tmp/genotype-test-writejson-4.json";
-      const sequences = [
-        { id: "seq1", sequence: "ATCG", length: 4, format: "fasta" as const },
-        { id: "seq2", sequence: "GCTA", length: 4, format: "fasta" as const },
-      ];
+      const sequences = [createFasta("seq1", "ATCG"), createFasta("seq2", "GCTA")];
 
       await SeqOps.from(sequences).writeJSON(tempFile, {
         includeMetadata: true,
@@ -212,9 +202,9 @@ describe("JSON Integration - SeqOps Write Methods", () => {
     test("writes sequences to JSONL file", async () => {
       const tempFile = "/tmp/genotype-test-writejsonl-1.jsonl";
       const sequences = [
-        { id: "seq1", sequence: "ATCG", length: 4, format: "fasta" as const },
-        { id: "seq2", sequence: "GCTA", length: 4, format: "fasta" as const },
-        { id: "seq3", sequence: "TTAA", length: 4, format: "fasta" as const },
+        createFasta("seq1", "ATCG"),
+        createFasta("seq2", "GCTA"),
+        createFasta("seq3", "TTAA"),
       ];
 
       await SeqOps.from(sequences).writeJSONL(tempFile);
@@ -228,10 +218,7 @@ describe("JSON Integration - SeqOps Write Methods", () => {
 
     test("supports column selection", async () => {
       const tempFile = "/tmp/genotype-test-writejsonl-2.jsonl";
-      const sequences = [
-        { id: "seq1", sequence: "ATCG", length: 4, format: "fasta" as const },
-        { id: "seq2", sequence: "GCTA", length: 4, format: "fasta" as const },
-      ];
+      const sequences = [createFasta("seq1", "ATCG"), createFasta("seq2", "GCTA")];
 
       await SeqOps.from(sequences).writeJSONL(tempFile, {
         columns: ["id", "sequence"] as const,
@@ -247,9 +234,9 @@ describe("JSON Integration - SeqOps Write Methods", () => {
     test("streams with O(1) memory (line-by-line)", async () => {
       const tempFile = "/tmp/genotype-test-writejsonl-3.jsonl";
       const sequences = [
-        { id: "seq1", sequence: "ATCG", length: 4, format: "fasta" as const },
-        { id: "seq2", sequence: "GCTA", length: 4, format: "fasta" as const },
-        { id: "seq3", sequence: "TTAA", length: 4, format: "fasta" as const },
+        createFasta("seq1", "ATCG"),
+        createFasta("seq2", "GCTA"),
+        createFasta("seq3", "TTAA"),
       ];
 
       await SeqOps.from(sequences).writeJSONL(tempFile);
@@ -268,7 +255,7 @@ describe("JSON Integration - SeqOps Write Methods", () => {
 
     test("does not include metadata (incompatible with JSONL)", async () => {
       const tempFile = "/tmp/genotype-test-writejsonl-4.jsonl";
-      const sequences = [{ id: "seq1", sequence: "ATCG", length: 4, format: "fasta" as const }];
+      const sequences = [createFasta("seq1", "ATCG")];
 
       await SeqOps.from(sequences).writeJSONL(tempFile);
 
@@ -292,10 +279,7 @@ describe("JSON Integration - SeqOps Write Methods", () => {
 describe("JSON Integration - TabularOps Direct Usage", () => {
   test("TabularOps.writeJSON() works when called directly", async () => {
     const tempFile = "/tmp/genotype-test-tabular-json-1.json";
-    const sequences = [
-      { id: "seq1", sequence: "ATCG", length: 4, format: "fasta" as const },
-      { id: "seq2", sequence: "GCTA", length: 4, format: "fasta" as const },
-    ];
+    const sequences = [createFasta("seq1", "ATCG"), createFasta("seq2", "GCTA")];
 
     const tabular = SeqOps.from(sequences).asRows({
       columns: ["id", "sequence", "length"] as const,
@@ -307,15 +291,15 @@ describe("JSON Integration - TabularOps Direct Usage", () => {
     const recovered = await SeqOps.fromJSON(tempFile).collect();
     expect(recovered).toHaveLength(2);
     expect(recovered[0]!.id).toBe("seq1");
-    expect(recovered[0]!.sequence).toBe("ATCG");
+    expect(recovered[0]!.sequence).toEqualSequence("ATCG");
   });
 
   test("TabularOps.writeJSONL() works when called directly", async () => {
     const tempFile = "/tmp/genotype-test-tabular-jsonl-1.jsonl";
     const sequences = [
-      { id: "seq1", sequence: "ATCG", length: 4, format: "fasta" as const },
-      { id: "seq2", sequence: "GCTA", length: 4, format: "fasta" as const },
-      { id: "seq3", sequence: "TTAA", length: 4, format: "fasta" as const },
+      createFasta("seq1", "ATCG"),
+      createFasta("seq2", "GCTA"),
+      createFasta("seq3", "TTAA"),
     ];
 
     const tabular = SeqOps.from(sequences).asRows({
@@ -338,7 +322,7 @@ describe("JSON Integration - TabularOps Direct Usage", () => {
 
   test("TabularOps.writeJSON() with pretty printing", async () => {
     const tempFile = "/tmp/genotype-test-tabular-json-2.json";
-    const sequences = [{ id: "seq1", sequence: "ATCG", length: 4, format: "fasta" as const }];
+    const sequences = [createFasta("seq1", "ATCG")];
 
     const tabular = SeqOps.from(sequences).asRows({
       columns: ["id", "sequence"] as const,
@@ -355,9 +339,9 @@ describe("JSON Integration - TabularOps Direct Usage", () => {
   test("TabularOps round-trip preserves data", async () => {
     const tempFile = "/tmp/genotype-test-tabular-roundtrip.json";
     const sequences = [
-      { id: "seq1", sequence: "ATCGATCG", length: 8, format: "fasta" as const },
-      { id: "seq2", sequence: "GGCCGGCC", length: 8, format: "fasta" as const },
-      { id: "seq3", sequence: "TTAATTAA", length: 8, format: "fasta" as const },
+      createFasta("seq1", "ATCGATCG"),
+      createFasta("seq2", "GGCCGGCC"),
+      createFasta("seq3", "TTAATTAA"),
     ];
 
     const tabular = SeqOps.from(sequences).asRows({
@@ -369,21 +353,15 @@ describe("JSON Integration - TabularOps Direct Usage", () => {
     const recovered = await SeqOps.fromJSON(tempFile).collect();
 
     expect(recovered).toHaveLength(3);
-    expect(recovered[0]).toMatchObject({
-      id: "seq1",
-      sequence: "ATCGATCG",
-      length: 8,
-    });
-    expect(recovered[1]).toMatchObject({
-      id: "seq2",
-      sequence: "GGCCGGCC",
-      length: 8,
-    });
-    expect(recovered[2]).toMatchObject({
-      id: "seq3",
-      sequence: "TTAATTAA",
-      length: 8,
-    });
+    expect(recovered[0]!.id).toBe("seq1");
+    expect(recovered[0]!.sequence).toEqualSequence("ATCGATCG");
+    expect(recovered[0]!.length).toBe(8);
+    expect(recovered[1]!.id).toBe("seq2");
+    expect(recovered[1]!.sequence).toEqualSequence("GGCCGGCC");
+    expect(recovered[1]!.length).toBe(8);
+    expect(recovered[2]!.id).toBe("seq3");
+    expect(recovered[2]!.sequence).toEqualSequence("TTAATTAA");
+    expect(recovered[2]!.length).toBe(8);
   });
 });
 
@@ -404,7 +382,7 @@ describe("JSON Integration - Cross-Format Pipelines", () => {
 
       expect(sequences).toHaveLength(3);
       expect(sequences[0]!.id).toBe("seq1");
-      expect(sequences[0]!.sequence).toBe("ATCGATCG");
+      expect(sequences[0]!.sequence).toEqualSequence("ATCGATCG");
     });
 
     test("fromJSONL() → collect → writeFasta()", async () => {
@@ -440,7 +418,7 @@ describe("JSON Integration - Cross-Format Pipelines", () => {
       expect(recovered).toHaveLength(original.length);
       for (let i = 0; i < original.length; i++) {
         expect(recovered[i]!.id).toBe(original[i]!.id);
-        expect(recovered[i]!.sequence).toBe(original[i]!.sequence);
+        expect(recovered[i]!.sequence).toEqualSequence(original[i]!.sequence);
       }
     });
 
@@ -463,10 +441,10 @@ describe("JSON Integration - Cross-Format Pipelines", () => {
         const recSeq = recovered[i] as FastqSequence;
 
         expect(recSeq.id).toBe(origSeq.id);
-        expect(recSeq.sequence).toBe(origSeq.sequence);
+        expect(recSeq.sequence).toEqualSequence(origSeq.sequence);
 
         if (origSeq.quality && recSeq.quality) {
-          expect(recSeq.quality).toBe(origSeq.quality);
+          expect(recSeq.quality).toEqualSequence(origSeq.quality);
         }
       }
     });

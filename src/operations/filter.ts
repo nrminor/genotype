@@ -125,7 +125,7 @@ export class FilterProcessor implements Processor<FilterOptions> {
     // Pattern matching
     if (options.pattern) {
       const matchesId = options.pattern.test(seq.id);
-      const matchesSeq = options.pattern.test(seq.sequence);
+      const matchesSeq = options.pattern.test(seq.sequence.toString());
       if (!matchesId && !matchesSeq) {
         return false;
       }
@@ -145,7 +145,7 @@ export class FilterProcessor implements Processor<FilterOptions> {
     if (options.hasAmbiguous !== undefined) {
       // NATIVE_CANDIDATE: Character validation loop
       // Native implementation would be faster than regex
-      const hasAmbiguous = /[^ACGTU]/i.test(seq.sequence);
+      const hasAmbiguous = /[^ACGTU]/i.test(seq.sequence.toString());
       if (options.hasAmbiguous !== hasAmbiguous) {
         return false;
       }

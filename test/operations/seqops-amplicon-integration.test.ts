@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { createFastaRecord } from "../../src/constructors";
 import { primer } from "../../src/operations/core/alphabet";
 import { SeqOps } from "../../src/operations/index";
 import type { AbstractSequence } from "../../src/types";
@@ -8,16 +9,14 @@ describe("SeqOps Amplicon Integration", () => {
 
   beforeEach(() => {
     testSequences = [
-      {
+      createFastaRecord({
         id: "seq1",
         sequence: "AAAA" + "ATCGATCGATCGATCG" + "TTTTTTTT" + "CGATCGATCGATCGAT" + "GGGG",
-        length: 48,
-      },
-      {
+      }),
+      createFastaRecord({
         id: "seq2",
         sequence: "CCCC" + "ATCGATCGATCGATCG" + "AAAAAAAA" + "CGATCGATCGATCGAT" + "TTTT",
-        length: 48,
-      },
+      }),
     ];
   });
 
@@ -53,13 +52,11 @@ describe("SeqOps Amplicon Integration", () => {
 
       // Should work seamlessly with pre-validated primers
       const result = await SeqOps.from([
-        {
-          format: "fasta",
+        createFastaRecord({
           id: "covid_test",
           sequence:
             "ATCG" + "ACCAGGAACTAATCAGACAAG" + "TTTTTTTT" + "CTCATGGTAGGATTGGTCTTTG" + "GCTA",
-          length: 60,
-        },
+        }),
       ])
         .amplicon(covidForward, covidReverse, 2)
         .collect();
@@ -70,12 +67,10 @@ describe("SeqOps Amplicon Integration", () => {
 
   describe("advanced features: progressive disclosure", () => {
     test("long reads with windowed search", async () => {
-      const longRead = {
-        format: "fasta" as const,
+      const longRead = createFastaRecord({
         id: "long_read",
         sequence: "ATCGATCGATCGATCG" + "N".repeat(5000) + "CGATCGATCGATCGAT",
-        length: 5032,
-      };
+      });
 
       const start = performance.now();
       const result = await SeqOps.from([longRead])
@@ -120,12 +115,10 @@ describe("SeqOps Amplicon Integration", () => {
     });
 
     test("complete feature integration: all options", async () => {
-      const nanoporeRead = {
-        format: "fasta" as const,
+      const nanoporeRead = createFastaRecord({
         id: "nanopore_read",
         sequence: "ACCAGGAACTAATCAGACAAG" + "N".repeat(1000) + "CTTGTCTGATTAGTTCCTGGT",
-        length: 1042,
-      };
+      });
 
       const result = await SeqOps.from([nanoporeRead])
         .amplicon({
@@ -153,12 +146,12 @@ describe("SeqOps Amplicon Integration", () => {
 
       expect(result.length).toBeGreaterThanOrEqual(0);
       if (result.length > 0) {
-        expect(result[0]!.sequence).toBe(result[0]!.sequence.toUpperCase());
+        expect(result[0]!.sequence).toEqualSequence(result[0]!.sequence.toUpperCase());
       }
     });
 
     test("real-world COVID-19 diagnostic pipeline", async () => {
-      const covidSample = {
+      const covidSample = createFastaRecord({
         id: "covid_sample",
         sequence:
           "ATCG" +
@@ -166,8 +159,7 @@ describe("SeqOps Amplicon Integration", () => {
           "CAGACAAGTCGTTCTACAGGTACGTTAATAGTTAATAGCGT" +
           "CTCATGGTAGGATTGGTCTTTG" +
           "GCTA",
-        length: 88,
-      };
+      });
 
       const diagnosticResult = await SeqOps.from([covidSample])
         .amplicon(
@@ -182,12 +174,10 @@ describe("SeqOps Amplicon Integration", () => {
     });
 
     test("16S rRNA metagenomics workflow", async () => {
-      const microbialSample = {
-        format: "fasta" as const,
+      const microbialSample = createFastaRecord({
         id: "microbial_sample",
         sequence: "ATCG" + "GTGCCAGCAGCCGCGGTAA" + "N".repeat(300) + "ATTAGACCCGTCCTCC" + "GCTA",
-        length: 340,
-      };
+      });
 
       const microbiomeResult = await SeqOps.from([microbialSample])
         .amplicon({

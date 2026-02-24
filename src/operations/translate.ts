@@ -8,6 +8,7 @@
  */
 
 import { type } from "arktype";
+import { createFastaRecord } from "../constructors";
 import { createContextualError, SequenceError, ValidationError } from "../errors";
 import type { AbstractSequence } from "../types";
 import {
@@ -183,7 +184,7 @@ export class TranslateProcessor {
     options: TranslateOptions
   ): string | null {
     // NATIVE_CRITICAL: String manipulation hot path - toUpperCase and character replacement
-    let sequence = seq.sequence.toUpperCase().replace(/U/g, "T");
+    let sequence = seq.sequence.toString().toUpperCase().replace(/U/g, "T");
 
     // Handle empty sequences
     if (sequence.length === 0) {
@@ -331,11 +332,6 @@ export class TranslateProcessor {
       description = description ? `${description} ${frameInfo}` : frameInfo;
     }
 
-    return {
-      id,
-      sequence: translation,
-      length: translation.length,
-      ...(description && { description }),
-    };
+    return createFastaRecord({ id, sequence: translation, description });
   }
 }

@@ -16,6 +16,7 @@
  * - Native support for BGZF compression
  */
 
+import { createBamAlignment } from "../constructors";
 import { BamError, CompressionError, ValidationError } from "../errors";
 import { createStream as createFileStream, exists, getMetadata } from "../io/file-reader";
 // BAIWriter imported but not used in current implementation
@@ -655,9 +656,22 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
         }));
       }
 
-      // Create BAM alignment with enhanced validation
-      const alignment: BAMAlignment = {
-        format: "bam",
+      // Tiger Style: Validate raw strings before constructing the record
+      const rawSeq = parsedRecord.sequence;
+      const rawQual = parsedRecord.qualityScores;
+      if (rawSeq !== "*" && rawQual !== "*") {
+        if (rawSeq.length !== rawQual.length) {
+          throw new BamError(
+            `Sequence/quality length mismatch: seq=${rawSeq.length}, qual=${rawQual.length}`,
+            parsedRecord.readName,
+            "sequence_quality",
+            blockOffset,
+            `Sequence: ${rawSeq.slice(0, 50)}..., Quality: ${rawQual.slice(0, 50)}...`
+          );
+        }
+      }
+
+      const alignment = createBamAlignment({
         qname: parsedRecord.readName,
         flag: this.validateFlag(parsedRecord.flag, parsedRecord.readName, blockOffset),
         rname: rname !== undefined && rname !== null && rname !== "" ? rname : "*",
@@ -667,26 +681,13 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
         rnext: rnext !== undefined && rnext !== null && rnext !== "" ? rnext : "*",
         pnext: Math.max(0, parsedRecord.nextPos + 1), // Convert to 1-based and ensure non-negative
         tlen: parsedRecord.tlen,
-        seq: parsedRecord.sequence,
-        qual: parsedRecord.qualityScores,
+        seq: rawSeq,
+        qual: rawQual,
         ...(samTags && { tags: samTags }),
         blockStart: blockOffset,
         blockEnd: blockOffset + blockSize,
         binIndex: parsedRecord.bin,
-      };
-
-      // Tiger Style: Additional semantic validation
-      if (alignment.seq !== "*" && alignment.qual !== "*") {
-        if (alignment.seq.length !== alignment.qual.length) {
-          throw new BamError(
-            `Sequence/quality length mismatch: seq=${alignment.seq.length}, qual=${alignment.qual.length}`,
-            parsedRecord.readName,
-            "sequence_quality",
-            blockOffset,
-            `Sequence: ${alignment.seq.slice(0, 50)}..., Quality: ${alignment.qual.slice(0, 50)}...`
-          );
-        }
-      }
+      });
 
       // Tiger Style: Assert postconditions
       if (alignment.format !== "bam") {

@@ -12,6 +12,8 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import "../matchers";
+import { createFastaRecord, createFastqRecord } from "../../src/constructors";
 import { MemoryError, PairSyncError } from "../../src/errors";
 import { SeqOps } from "../../src/operations";
 import { PairProcessor } from "../../src/operations/pair";
@@ -22,14 +24,7 @@ describe("PairProcessor", () => {
 
   // Helper to create FASTQ sequences
   function createFastq(id: string, sequence: string, quality: string): FastqSequence {
-    return {
-      format: "fastq" as const,
-      id,
-      sequence,
-      quality,
-      qualityEncoding: "phred33" as const,
-      length: sequence.length,
-    };
+    return createFastqRecord({ id, sequence, quality, qualityEncoding: "phred33" });
   }
 
   // Helper to convert sequences to async iterable
@@ -69,8 +64,8 @@ describe("PairProcessor", () => {
         processor.process({ mode: "dual", source1: r1, source2: r2 })
       );
 
-      expect(results[0]!.sequence).toBe("AAAA");
-      expect(results[1]!.sequence).toBe("TTTT");
+      expect(results[0]!.sequence).toEqualSequence("AAAA");
+      expect(results[1]!.sequence).toEqualSequence("TTTT");
     });
 
     test("handles synchronized streams without buffering", async () => {
@@ -171,10 +166,10 @@ describe("PairProcessor", () => {
 
       const results = await Array.fromAsync(processor.process({ mode: "single", source: mixed }));
 
-      expect(results[0]!.sequence).toBe("AAAA");
-      expect(results[1]!.sequence).toBe("TTTT");
-      expect(results[2]!.sequence).toBe("CCCC");
-      expect(results[3]!.sequence).toBe("GGGG");
+      expect(results[0]!.sequence).toEqualSequence("AAAA");
+      expect(results[1]!.sequence).toEqualSequence("TTTT");
+      expect(results[2]!.sequence).toEqualSequence("CCCC");
+      expect(results[3]!.sequence).toEqualSequence("GGGG");
     });
 
     test("handles correctly ordered input", async () => {
@@ -208,10 +203,10 @@ describe("PairProcessor", () => {
       );
 
       expect(results).toHaveLength(4);
-      expect(results[0]!.sequence).toBe("AAAA");
-      expect(results[1]!.sequence).toBe("TTTT");
-      expect(results[2]!.sequence).toBe("CCCC");
-      expect(results[3]!.sequence).toBe("GGGG");
+      expect(results[0]!.sequence).toEqualSequence("AAAA");
+      expect(results[1]!.sequence).toEqualSequence("TTTT");
+      expect(results[2]!.sequence).toEqualSequence("CCCC");
+      expect(results[3]!.sequence).toEqualSequence("GGGG");
     });
   });
 
@@ -315,14 +310,7 @@ describe("PairProcessor", () => {
 
 describe("SeqOps.pair() integration", () => {
   function createFastq(id: string, sequence: string, quality: string): FastqSequence {
-    return {
-      format: "fastq" as const,
-      id,
-      sequence,
-      quality,
-      qualityEncoding: "phred33" as const,
-      length: sequence.length,
-    };
+    return createFastqRecord({ id, sequence, quality, qualityEncoding: "phred33" });
   }
 
   async function* toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
@@ -402,7 +390,7 @@ describe("SeqOps.pair() integration", () => {
       );
 
       expect(results).toHaveLength(1);
-      expect(results[0]!.sequence).toBe("AAAA");
+      expect(results[0]!.sequence).toEqualSequence("AAAA");
     });
   });
 
@@ -424,12 +412,7 @@ describe("SeqOps.pair() integration", () => {
 
     test("preserves FastaSequence type", async () => {
       function createFasta(id: string, sequence: string): FastaSequence {
-        return {
-          format: "fasta" as const,
-          id,
-          sequence,
-          length: sequence.length,
-        };
+        return createFastaRecord({ id, sequence });
       }
 
       const r1Data: FastaSequence[] = [createFasta("read1/1", "AAAA")];
@@ -582,8 +565,8 @@ describe("SeqOps.pair() integration", () => {
       const results = await Array.fromAsync(r1.pair(r2, { extractPairId: extractNoSuffix }));
 
       expect(results).toHaveLength(2);
-      expect(results[0]!.sequence).toBe("AAAA");
-      expect(results[1]!.sequence).toBe("TTTT");
+      expect(results[0]!.sequence).toEqualSequence("AAAA");
+      expect(results[1]!.sequence).toEqualSequence("TTTT");
     });
 
     test("handles missing R1 for every read", async () => {

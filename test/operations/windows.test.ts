@@ -1,7 +1,13 @@
 import { describe, expect, test } from "bun:test";
+import "../matchers";
+import { createFastaRecord } from "../../src/constructors";
 import { ValidationError } from "../../src/errors";
 import { WindowsProcessor } from "../../src/operations/windows";
 import type { KmerSequence } from "../../src/types";
+
+function createSequence(id: string, sequence: string, lineNumber = 1) {
+  return createFastaRecord({ id, sequence, lineNumber });
+}
 
 describe("WindowsProcessor", () => {
   // Helper function to convert array to AsyncIterable
@@ -13,7 +19,7 @@ describe("WindowsProcessor", () => {
 
   test("generates correct number of windows with step=1", async () => {
     const processor = new WindowsProcessor<4>();
-    const seq = { id: "seq1", sequence: "ATCGATCG", length: 8, lineNumber: 1 };
+    const seq = createSequence("seq1", "ATCGATCG");
     const windows: KmerSequence<4>[] = [];
 
     for await (const window of processor.process(makeAsync([seq]), { size: 4 })) {
@@ -25,7 +31,7 @@ describe("WindowsProcessor", () => {
 
   test("sets correct metadata fields on k-mer sequences", async () => {
     const processor = new WindowsProcessor<3>();
-    const seq = { id: "test", sequence: "ATCG", length: 4, lineNumber: 1 };
+    const seq = createSequence("test", "ATCG");
     const windows: KmerSequence<3>[] = [];
 
     for await (const window of processor.process(makeAsync([seq]), { size: 3, step: 1 })) {
@@ -40,35 +46,35 @@ describe("WindowsProcessor", () => {
 
   test("extracts correct sequence substrings", async () => {
     const processor = new WindowsProcessor<4>();
-    const seq = { id: "test", sequence: "ATCGATCG", length: 8, lineNumber: 1 };
+    const seq = createSequence("test", "ATCGATCG");
     const windows: KmerSequence<4>[] = [];
 
     for await (const window of processor.process(makeAsync([seq]), { size: 4 })) {
       windows.push(window);
     }
 
-    expect(windows[0]!.sequence).toBe("ATCG");
-    expect(windows[1]!.sequence).toBe("TCGA");
-    expect(windows[2]!.sequence).toBe("CGAT");
-    expect(windows[3]!.sequence).toBe("GATC");
-    expect(windows[4]!.sequence).toBe("ATCG");
+    expect(windows[0]!.sequence).toEqualSequence("ATCG");
+    expect(windows[1]!.sequence).toEqualSequence("TCGA");
+    expect(windows[2]!.sequence).toEqualSequence("CGAT");
+    expect(windows[3]!.sequence).toEqualSequence("GATC");
+    expect(windows[4]!.sequence).toEqualSequence("ATCG");
   });
 
   test("handles different step sizes correctly", async () => {
     const processor = new WindowsProcessor<3>();
-    const seq = { id: "test", sequence: "ATCGATCGATCG", length: 12, lineNumber: 1 };
+    const seq = createSequence("test", "ATCGATCGATCG");
 
     // Step = 1 (overlapping)
     const step1: string[] = [];
     for await (const w of processor.process(makeAsync([seq]), { size: 3, step: 1 })) {
-      step1.push(w.sequence);
+      step1.push(w.sequence.toString());
     }
     expect(step1.length).toBe(10);
 
     // Step = 3 (tiling)
     const step3: string[] = [];
     for await (const w of processor.process(makeAsync([seq]), { size: 3, step: 3 })) {
-      step3.push(w.sequence);
+      step3.push(w.sequence.toString());
     }
     expect(step3.length).toBe(4);
     expect(step3).toEqual(["ATC", "GAT", "CGA", "TCG"]);
@@ -76,7 +82,7 @@ describe("WindowsProcessor", () => {
     // Step = 4 (gaps)
     const step4: string[] = [];
     for await (const w of processor.process(makeAsync([seq]), { size: 3, step: 4 })) {
-      step4.push(w.sequence);
+      step4.push(w.sequence.toString());
     }
     expect(step4.length).toBe(3);
     expect(step4[1]).toBe("ATC"); // Skips bases
@@ -84,7 +90,7 @@ describe("WindowsProcessor", () => {
 
   test("preserves K type parameter at compile time", async () => {
     const processor = new WindowsProcessor<21>();
-    const seq = { id: "test", sequence: "A".repeat(50), length: 50, lineNumber: 1 };
+    const seq = createSequence("test", "A".repeat(50));
 
     for await (const window of processor.process(makeAsync([seq]), { size: 21 })) {
       // Type assertion - will fail compilation if K not preserved
@@ -96,7 +102,7 @@ describe("WindowsProcessor", () => {
 
   test("greedy mode includes short final window", async () => {
     const processor = new WindowsProcessor<5>();
-    const seq = { id: "test", sequence: "ATCGATCG", length: 8, lineNumber: 1 };
+    const seq = createSequence("test", "ATCGATCG");
 
     const windows: KmerSequence<5>[] = [];
     for await (const w of processor.process(makeAsync([seq]), { size: 5, greedy: true })) {
@@ -113,12 +119,12 @@ describe("WindowsProcessor", () => {
     // Remaining windows are progressively shorter (greedy mode)
     expect(windows[4]!.sequence.length).toBe(4);
     expect(windows[7]!.sequence.length).toBe(1);
-    expect(windows[7]!.sequence).toBe("G");
+    expect(windows[7]!.sequence).toEqualSequence("G");
   });
 
   test("non-greedy mode (default) skips short final window", async () => {
     const processor = new WindowsProcessor<5>();
-    const seq = { id: "test", sequence: "ATCGATCG", length: 8, lineNumber: 1 };
+    const seq = createSequence("test", "ATCGATCG");
 
     const windows: KmerSequence<5>[] = [];
     for await (const w of processor.process(makeAsync([seq]), { size: 5, greedy: false })) {
@@ -135,7 +141,7 @@ describe("WindowsProcessor", () => {
 
   test("greedy mode works with various step sizes", async () => {
     const processor = new WindowsProcessor<4>();
-    const seq = { id: "test", sequence: "ATCGATCG", length: 8, lineNumber: 1 };
+    const seq = createSequence("test", "ATCGATCG");
 
     // Step = 3, greedy = true
     const windows: KmerSequence<4>[] = [];
@@ -149,14 +155,14 @@ describe("WindowsProcessor", () => {
 
     // Positions: 0 (full), 3 (full), 6 (greedy, length 2)
     expect(windows.length).toBe(3);
-    expect(windows[0]!.sequence).toBe("ATCG");
-    expect(windows[1]!.sequence).toBe("GATC");
-    expect(windows[2]!.sequence).toBe("CG"); // Short greedy window
+    expect(windows[0]!.sequence).toEqualSequence("ATCG");
+    expect(windows[1]!.sequence).toEqualSequence("GATC");
+    expect(windows[2]!.sequence).toEqualSequence("CG"); // Short greedy window
   });
 
   test("circular mode wraps around sequence end", async () => {
     const processor = new WindowsProcessor<5>();
-    const seq = { id: "test", sequence: "ATCG", length: 4, lineNumber: 1 };
+    const seq = createSequence("test", "ATCG");
 
     const windows: KmerSequence<5>[] = [];
     for await (const w of processor.process(makeAsync([seq]), { size: 5, circular: true })) {
@@ -171,7 +177,7 @@ describe("WindowsProcessor", () => {
 
   test("circular mode reconstructs sequences correctly", async () => {
     const processor = new WindowsProcessor<6>();
-    const seq = { id: "test", sequence: "ATCG", length: 4, lineNumber: 1 };
+    const seq = createSequence("test", "ATCG");
 
     const windows: KmerSequence<6>[] = [];
     for await (const w of processor.process(makeAsync([seq]), { size: 6, circular: true })) {
@@ -179,14 +185,14 @@ describe("WindowsProcessor", () => {
     }
 
     // Position 0: "ATCG" (end) + "AT" (beginning) = "ATCGAT"
-    expect(windows[0]!.sequence).toBe("ATCGAT");
+    expect(windows[0]!.sequence).toEqualSequence("ATCGAT");
     // Position 1: "TCG" (end) + "ATC" (beginning) = "TCGATC"
-    expect(windows[1]!.sequence).toBe("TCGATC");
+    expect(windows[1]!.sequence).toEqualSequence("TCGATC");
   });
 
   test("non-circular mode (default) does not wrap", async () => {
     const processor = new WindowsProcessor<5>();
-    const seq = { id: "test", sequence: "ATCG", length: 4, lineNumber: 1 };
+    const seq = createSequence("test", "ATCG");
 
     const windows: KmerSequence<5>[] = [];
     for await (const w of processor.process(makeAsync([seq]), { size: 5, circular: false })) {
@@ -199,7 +205,7 @@ describe("WindowsProcessor", () => {
 
   test("mode priority: normal > circular > greedy", async () => {
     const processor = new WindowsProcessor<3>();
-    const seq = { id: "test", sequence: "ATCGATCG", length: 8, lineNumber: 1 };
+    const seq = createSequence("test", "ATCGATCG");
 
     // All modes enabled, step=3 so all windows fit exactly
     const windows: KmerSequence<3>[] = [];
@@ -224,7 +230,7 @@ describe("WindowsProcessor", () => {
 
   test("uses 1-based coordinates by default", async () => {
     const processor = new WindowsProcessor<3>();
-    const seq = { id: "test", sequence: "ATCG", length: 4, lineNumber: 1 };
+    const seq = createSequence("test", "ATCG");
 
     const windows: KmerSequence<3>[] = [];
     for await (const w of processor.process(makeAsync([seq]), { size: 3 })) {
@@ -241,7 +247,7 @@ describe("WindowsProcessor", () => {
 
   test("uses 0-based coordinates when zeroBased=true", async () => {
     const processor = new WindowsProcessor<3>();
-    const seq = { id: "test", sequence: "ATCG", length: 4, lineNumber: 1 };
+    const seq = createSequence("test", "ATCG");
 
     const windows: KmerSequence<3>[] = [];
     for await (const w of processor.process(makeAsync([seq]), { size: 3, zeroBased: true })) {
@@ -258,7 +264,7 @@ describe("WindowsProcessor", () => {
 
   test("position values match actual sequence slices", async () => {
     const processor = new WindowsProcessor<4>();
-    const seq = { id: "test", sequence: "ATCGATCG", length: 8, lineNumber: 1 };
+    const seq = createSequence("test", "ATCGATCG");
 
     const windows: KmerSequence<4>[] = [];
     for await (const w of processor.process(makeAsync([seq]), { size: 4, zeroBased: true })) {
@@ -267,13 +273,13 @@ describe("WindowsProcessor", () => {
 
     for (const window of windows) {
       const extracted = seq.sequence.slice(window.startPosition, window.endPosition);
-      expect(window.sequence).toBe(extracted);
+      expect(window.sequence).toEqualSequence(extracted);
     }
   });
 
   test("coordinateSystem field matches zeroBased option", async () => {
     const processor = new WindowsProcessor<3>();
-    const seq = { id: "test", sequence: "ATCG", length: 4, lineNumber: 1 };
+    const seq = createSequence("test", "ATCG");
 
     // Test 1-based
     const oneBased: KmerSequence<3>[] = [];
@@ -292,7 +298,7 @@ describe("WindowsProcessor", () => {
 
   test("uses custom suffix in window IDs", async () => {
     const processor = new WindowsProcessor<3>();
-    const seq = { id: "seq1", sequence: "ATCG", length: 4, lineNumber: 1 };
+    const seq = createSequence("seq1", "ATCG");
 
     const windows: KmerSequence<3>[] = [];
     for await (const w of processor.process(makeAsync([seq]), { size: 3, suffix: "_kmer" })) {
@@ -305,7 +311,7 @@ describe("WindowsProcessor", () => {
 
   test("preserves originalId from source sequence", async () => {
     const processor = new WindowsProcessor<3>();
-    const seq = { id: "original_seq_123", sequence: "ATCGATCG", length: 8, lineNumber: 1 };
+    const seq = createSequence("original_seq_123", "ATCGATCG");
 
     const windows: KmerSequence<3>[] = [];
     for await (const w of processor.process(makeAsync([seq]), { size: 3 })) {
@@ -329,7 +335,7 @@ describe("WindowsProcessor", () => {
 
     test("handles single sequence", async () => {
       const processor = new WindowsProcessor<3>();
-      const seq = { id: "seq1", sequence: "ATCGATCG", length: 8, lineNumber: 1 };
+      const seq = createSequence("seq1", "ATCGATCG");
       const windows: KmerSequence<3>[] = [];
 
       for await (const w of processor.process(makeAsync([seq]), { size: 3 })) {
@@ -341,7 +347,7 @@ describe("WindowsProcessor", () => {
 
     test("handles sequence shorter than window size", async () => {
       const processor = new WindowsProcessor<5>();
-      const seq = { id: "seq1", sequence: "ATC", length: 3, lineNumber: 1 };
+      const seq = createSequence("seq1", "ATC");
       const windows: KmerSequence<5>[] = [];
 
       for await (const w of processor.process(makeAsync([seq]), { size: 5 })) {
@@ -353,7 +359,7 @@ describe("WindowsProcessor", () => {
 
     test("handles sequence exactly equal to window size", async () => {
       const processor = new WindowsProcessor<4>();
-      const seq = { id: "seq1", sequence: "ATCG", length: 4, lineNumber: 1 };
+      const seq = createSequence("seq1", "ATCG");
       const windows: KmerSequence<4>[] = [];
 
       for await (const w of processor.process(makeAsync([seq]), { size: 4 })) {
@@ -361,12 +367,12 @@ describe("WindowsProcessor", () => {
       }
 
       expect(windows.length).toBe(1);
-      expect(windows[0]!.sequence).toBe("ATCG");
+      expect(windows[0]!.sequence).toEqualSequence("ATCG");
     });
 
     test("handles very large step size", async () => {
       const processor = new WindowsProcessor<3>();
-      const seq = { id: "seq1", sequence: "ATCGATCG", length: 8, lineNumber: 1 };
+      const seq = createSequence("seq1", "ATCGATCG");
       const windows: KmerSequence<3>[] = [];
 
       for await (const w of processor.process(makeAsync([seq]), { size: 3, step: 100 })) {
@@ -374,12 +380,12 @@ describe("WindowsProcessor", () => {
       }
 
       expect(windows.length).toBe(1);
-      expect(windows[0]!.sequence).toBe("ATC");
+      expect(windows[0]!.sequence).toEqualSequence("ATC");
     });
 
     test("ArkType validation rejects size=0", async () => {
       const processor = new WindowsProcessor();
-      const seq = { id: "seq1", sequence: "ATCG", length: 4, lineNumber: 1 };
+      const seq = createSequence("seq1", "ATCG");
 
       const promise = (async () => {
         for await (const _ of processor.process(makeAsync([seq]), { size: 0 })) {
@@ -392,7 +398,7 @@ describe("WindowsProcessor", () => {
 
     test("ArkType validation rejects size >= 1000000", async () => {
       const processor = new WindowsProcessor();
-      const seq = { id: "seq1", sequence: "ATCG", length: 4, lineNumber: 1 };
+      const seq = createSequence("seq1", "ATCG");
 
       const promise = (async () => {
         for await (const _ of processor.process(makeAsync([seq]), { size: 1000000 })) {
@@ -405,7 +411,7 @@ describe("WindowsProcessor", () => {
 
     test("ArkType validation rejects circular + step > size", async () => {
       const processor = new WindowsProcessor();
-      const seq = { id: "seq1", sequence: "ATCGATCG", length: 8, lineNumber: 1 };
+      const seq = createSequence("seq1", "ATCGATCG");
 
       const promise = (async () => {
         for await (const _ of processor.process(makeAsync([seq]), {
@@ -422,7 +428,7 @@ describe("WindowsProcessor", () => {
 
     test("ArkType validation rejects suffix length >= 100", async () => {
       const processor = new WindowsProcessor();
-      const seq = { id: "seq1", sequence: "ATCG", length: 4, lineNumber: 1 };
+      const seq = createSequence("seq1", "ATCG");
 
       const promise = (async () => {
         for await (const _ of processor.process(makeAsync([seq]), {

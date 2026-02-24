@@ -13,16 +13,13 @@ import {
   SequenceSorter,
   sortSequences,
 } from "../../../src/operations/core/sequence-sorter";
+import { createFastaRecord, createFastqRecord } from "../../../src/constructors";
 import type { AbstractSequence, FastqSequence } from "../../../src/types";
+import "../../matchers";
 
 /** Helper to create test sequences with required length field */
 function seq(id: string, sequence: string, description?: string): AbstractSequence {
-  return {
-    id,
-    sequence,
-    length: sequence.length,
-    ...(description !== undefined && { description }),
-  };
+  return createFastaRecord({ id, sequence, ...(description !== undefined && { description }) });
 }
 
 /** Helper to create FASTQ test sequences */
@@ -32,14 +29,7 @@ function fastq(
   quality: string,
   qualityEncoding: "phred33" | "phred64" | "solexa" = "phred33"
 ): FastqSequence {
-  return {
-    id,
-    sequence,
-    length: sequence.length,
-    quality,
-    qualityEncoding,
-    format: "fastq",
-  };
+  return createFastqRecord({ id, sequence, quality, qualityEncoding });
 }
 
 describe("SequenceSorter", () => {
@@ -272,11 +262,7 @@ describe("SequenceSorter", () => {
       async function* largeStream(): AsyncGenerator<AbstractSequence> {
         for (let i = 0; i < 10000; i++) {
           const sequence = "A".repeat(Math.floor(Math.random() * 100));
-          yield {
-            id: `seq${i}`,
-            sequence,
-            length: sequence.length,
-          };
+          yield seq(`seq${i}`, sequence);
         }
       }
 
@@ -312,11 +298,7 @@ describe("SequenceSorter", () => {
       async function* largeDataset(): AsyncGenerator<AbstractSequence> {
         for (let i = 0; i < 100; i++) {
           const sequence = "ATCG".repeat(25); // 100 chars each
-          yield {
-            id: `seq${i.toString().padStart(3, "0")}`,
-            sequence,
-            length: sequence.length,
-          };
+          yield seq(`seq${i.toString().padStart(3, "0")}`, sequence);
         }
       }
 
@@ -364,7 +346,7 @@ describe("SequenceSorter", () => {
       }
 
       // Check that quality scores are preserved
-      expect(sorted[0]!.quality).toBe("IIIIIIII");
+      expect(sorted[0]!.quality).toEqualSequence("IIIIIIII");
       expect(sorted[0]!.qualityEncoding).toBe("phred33");
     });
 

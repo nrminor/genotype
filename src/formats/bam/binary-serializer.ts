@@ -1129,13 +1129,15 @@ export function calculateAlignmentSize(alignment: SAMAlignment, references: stri
   }
 
   // Sequence (4-bit packed)
-  if (alignment.seq !== "*") {
-    totalSize += Math.ceil(alignment.seq.length / 2);
+  const seq = alignment.seq.toString();
+  if (seq !== "*") {
+    totalSize += Math.ceil(seq.length / 2);
   }
 
   // Quality scores
-  if (alignment.qual !== "*") {
-    totalSize += alignment.qual.length;
+  const qual = alignment.qual.toString();
+  if (qual !== "*") {
+    totalSize += qual.length;
   }
 
   // Optional tags

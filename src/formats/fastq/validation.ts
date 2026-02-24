@@ -15,7 +15,8 @@
  */
 
 import { type } from "arktype";
-import type { FastqSequence } from "../../types";
+import type { GenotypeString } from "../../genotype-string";
+import { nonEmptyStringLike, type FastqSequence } from "../../types";
 import { qualityToScores } from "../../operations/core/quality";
 
 /**
@@ -62,8 +63,8 @@ interface ValidationResult {
  */
 const FastqRecordQuickValidator = type({
   id: "string>0",
-  sequence: "string>0",
-  quality: "string>0",
+  sequence: nonEmptyStringLike,
+  quality: nonEmptyStringLike,
   qualityEncoding: '"phred33"|"phred64"|"solexa"',
 }).narrow((record, ctx) => {
   // Only the MOST critical check - O(1) operation
@@ -85,7 +86,10 @@ type QuickValidatedRecord = typeof FastqRecordQuickValidator.infer;
 /**
  * Detect Illumina platform characteristics
  */
-function detectIlluminaPlatform(record: { id: string; quality?: string }): PlatformInfo | null {
+function detectIlluminaPlatform(record: {
+  id: string;
+  quality?: GenotypeString | string;
+}): PlatformInfo | null {
   // Check for Illumina ID pattern
   // CASAVA 1.8+ format: @<instrument>:<run>:<flowcell>:<lane>:<tile>:<x>:<y>
   const illuminaMatch = record.id.match(
@@ -127,7 +131,10 @@ function detectIlluminaPlatform(record: { id: string; quality?: string }): Platf
 /**
  * Detect PacBio platform characteristics
  */
-function detectPacBioPlatform(record: { id: string; sequence?: string }): PlatformInfo | null {
+function detectPacBioPlatform(record: {
+  id: string;
+  sequence?: GenotypeString | string;
+}): PlatformInfo | null {
   // Classic PacBio pattern: @m<movie>_<zmw>_<start>_<end>
   if (record.id.match(/^m\d+[_e]\d+_\d+/)) {
     const info: PlatformInfo = {
@@ -171,7 +178,7 @@ function detectPacBioPlatform(record: { id: string; sequence?: string }): Platfo
 function detectNanoporePlatform(record: {
   id: string;
   description?: string;
-  sequence?: string;
+  sequence?: GenotypeString | string;
 }): PlatformInfo | null {
   // Check for UUID-based ID (Nanopore characteristic)
   const uuidPattern = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/;
@@ -214,8 +221,8 @@ function detectNanoporePlatform(record: {
 function detectPlatform(record: {
   id: string;
   description?: string;
-  sequence?: string;
-  quality?: string;
+  sequence?: GenotypeString | string;
+  quality?: GenotypeString | string;
 }): PlatformInfo {
   // Try each platform detector
   const illumina = detectIlluminaPlatform(record);
@@ -240,8 +247,8 @@ function detectPlatform(record: {
  */
 function generateValidationWarnings(record: {
   id: string;
-  sequence: string;
-  quality: string;
+  sequence: GenotypeString | string;
+  quality: GenotypeString | string;
   qualityEncoding: string;
   description?: string;
 }): ValidationWarning[] {
@@ -410,8 +417,8 @@ function generateValidationWarnings(record: {
  */
 const FastqRecordFullValidator = type({
   id: "string>0",
-  sequence: "string>0",
-  quality: "string>0",
+  sequence: nonEmptyStringLike,
+  quality: nonEmptyStringLike,
   qualityEncoding: '"phred33"|"phred64"|"solexa"',
   "description?": "string",
   "lineNumber?": "number",
@@ -426,10 +433,18 @@ const FastqRecordFullValidator = type({
     });
   }
 
-  // Validate quality encoding ranges
-  const qualityBytes = record.quality.split("").map((c) => c.charCodeAt(0));
-  const minByte = Math.min(...qualityBytes);
-  const maxByte = Math.max(...qualityBytes);
+  // Validate quality encoding ranges using a loop over charCodeAt, which
+  // reads directly from the Uint8Array backing when the quality string is
+  // in byte form. The previous implementation allocated three intermediate
+  // structures: .split("") → array of single-char strings, .map() → array
+  // of char codes, then Math.min(...spread) / Math.max(...spread).
+  let minByte = Infinity;
+  let maxByte = -Infinity;
+  for (let i = 0; i < record.quality.length; i++) {
+    const byte = record.quality.charCodeAt(i);
+    if (byte < minByte) minByte = byte;
+    if (byte > maxByte) maxByte = byte;
+  }
 
   if (record.qualityEncoding === "phred33") {
     if (minByte < 33 || maxByte > 126) {
@@ -530,7 +545,8 @@ function validateFastqRecord(
   // Choose validator based on level
   const validator = level === "quick" ? FastqRecordQuickValidator : FastqRecordFullValidator;
 
-  // Run validation
+  // Run validation — validators use nonEmptyStringLike which accepts both
+  // plain strings and GenotypeString without conversion.
   const validationResult = validator(record);
 
   // Check for errors
@@ -540,41 +556,35 @@ function validateFastqRecord(
     return result;
   }
 
-  // Full validation includes warnings and platform detection
-  if (level === "full") {
-    const warningRecord: Parameters<typeof generateValidationWarnings>[0] = {
-      id: record.id as string,
-      sequence: record.sequence as string,
-      quality: record.quality as string,
-      qualityEncoding: record.qualityEncoding as string,
-    };
+  // Full validation includes warnings and platform detection.
+  // After ArkType validation succeeds, required fields are guaranteed present.
+  if (
+    level === "full" &&
+    record.id &&
+    record.sequence &&
+    record.quality &&
+    record.qualityEncoding
+  ) {
+    result.warnings = generateValidationWarnings({
+      id: record.id,
+      sequence: record.sequence,
+      quality: record.quality,
+      qualityEncoding: record.qualityEncoding,
+      ...(record.description !== undefined && { description: record.description }),
+    });
 
-    // Only add description if it's defined
-    if (record.description !== undefined) {
-      warningRecord.description = record.description;
-    }
-
-    result.warnings = generateValidationWarnings(warningRecord);
-
-    const platformRecord: Parameters<typeof detectPlatform>[0] = {
-      id: record.id as string,
-    };
-
-    // Only add optional fields if they're defined
-    if (record.description !== undefined) {
-      platformRecord.description = record.description;
-    }
-    if (record.sequence !== undefined) {
-      platformRecord.sequence = record.sequence;
-    }
-    if (record.quality !== undefined) {
-      platformRecord.quality = record.quality;
-    }
-
-    result.platformInfo = detectPlatform(platformRecord);
+    result.platformInfo = detectPlatform({
+      id: record.id,
+      ...(record.description !== undefined && { description: record.description }),
+      sequence: record.sequence,
+      quality: record.quality,
+    });
   }
 
-  result.record = validationResult as FastqSequence;
+  // The ArkType validator returns plain-string fields, but the input record
+  // already has GenotypeString fields. Use the original record since validation
+  // confirmed it's structurally valid.
+  result.record = record as FastqSequence;
   return result;
 }
 

@@ -9,9 +9,11 @@
  */
 
 import { afterEach, describe, expect, test } from "bun:test";
+import "../matchers";
 import { promises as fs } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
+import { createFastaRecord, createFastqRecord } from "../../src/constructors";
 import { ConcatError } from "../../src/errors";
 import { seqops } from "../../src/operations";
 import { ConcatProcessor } from "../../src/operations/concat";
@@ -23,32 +25,15 @@ describe("ConcatProcessor", () => {
 
   // Helper to create test sequences
   function createSequence(id: string, sequence: string): AbstractSequence {
-    return {
-      id,
-      sequence,
-      length: sequence.length,
-    };
+    return createFastaRecord({ id, sequence });
   }
 
   function createFastaSequence(id: string, sequence: string, description?: string): FastaSequence {
-    return {
-      format: "fasta" as const,
-      id,
-      sequence,
-      length: sequence.length,
-      ...(description !== undefined && { description }),
-    };
+    return createFastaRecord({ id, sequence, ...(description !== undefined && { description }) });
   }
 
   function createFastqSequence(id: string, sequence: string, quality: string): FastqSequence {
-    return {
-      format: "fastq" as const,
-      id,
-      sequence,
-      quality,
-      qualityEncoding: "phred33" as const,
-      length: sequence.length,
-    };
+    return createFastqRecord({ id, sequence, quality, qualityEncoding: "phred33" });
   }
 
   // Helper to collect results
@@ -241,7 +226,7 @@ describe("ConcatProcessor", () => {
 
       expect(result).toHaveLength(2);
       expect(result[0]!.id).toBe("duplicate_id");
-      expect(result[0]!.sequence).toBe("AAAAAAA"); // Base sequence preserved
+      expect(result[0]!.sequence).toEqualSequence("AAAAAAA"); // Base sequence preserved
       expect(result[1]!.id).toBe("unique_seq");
     });
 
@@ -554,7 +539,7 @@ describe("ConcatProcessor", () => {
       );
 
       expect(result).toHaveLength(3);
-      expect(result[1]!.sequence).toBe("");
+      expect(result[1]!.sequence).toEqualSequence("");
     });
 
     test("skips empty sequences when requested from iterables", async () => {
@@ -773,8 +758,8 @@ describe("ConcatProcessor", () => {
         .collect();
 
       expect(result).toHaveLength(2);
-      expect(result[0]!.sequence).toBe("ATCG");
-      expect(result[1]!.sequence).toBe("AAAATTTT");
+      expect(result[0]!.sequence).toEqualSequence("ATCG");
+      expect(result[1]!.sequence).toEqualSequence("AAAATTTT");
     });
 
     test("preserves sequence metadata through concat pipeline", async () => {

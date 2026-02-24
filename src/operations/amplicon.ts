@@ -32,6 +32,7 @@
 
 import { type } from "arktype";
 import { ValidationError } from "../errors";
+import type { GenotypeString } from "../genotype-string";
 import type { AbstractSequence, PrimerSequence } from "../types";
 import { isPrimerSequence } from "./core/alphabet";
 import { parseEndPosition, parseStartPosition, validateRegionString } from "./core/coordinates";
@@ -428,7 +429,7 @@ export class AmpliconProcessor implements Processor<AmpliconOptions> {
    * @returns Matches with orientation metadata preserving original pattern type
    */
   private findCanonicalMatches<T extends string>(
-    sequence: string,
+    sequence: GenotypeString | string,
     pattern: T,
     maxMismatches: number
   ): CanonicalPatternMatch<T>[] {

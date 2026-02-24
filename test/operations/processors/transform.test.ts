@@ -5,6 +5,8 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import "../../matchers";
+import { createFastaRecord } from "../../../src/constructors";
 import { TransformProcessor } from "../../../src/operations/transform";
 import type { TransformOptions } from "../../../src/operations/types";
 import type { AbstractSequence } from "../../../src/types";
@@ -14,11 +16,7 @@ describe("TransformProcessor", () => {
 
   // Helper to create test sequence
   function createSequence(sequence: string): AbstractSequence {
-    return {
-      id: "test",
-      sequence,
-      length: sequence.length,
-    };
+    return createFastaRecord({ id: "test", sequence });
   }
 
   // Helper to process single sequence
@@ -29,7 +27,7 @@ describe("TransformProcessor", () => {
     };
 
     for await (const result of processor.process(source(), options)) {
-      return result.sequence;
+      return result.sequence.toString();
     }
 
     throw new Error("No result");
@@ -169,7 +167,7 @@ describe("TransformProcessor", () => {
         upperCase: true,
       })) {
         expect(result).not.toBe(input); // Different reference
-        expect(result.sequence).toBe("ATCG"); // Changed to uppercase
+        expect(result.sequence).toEqualSequence("ATCG"); // Changed to uppercase
       }
     });
   });

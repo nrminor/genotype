@@ -74,7 +74,7 @@ export class SequenceStatsAccumulator {
       sequence === null ||
       sequence.sequence === undefined ||
       sequence.sequence === null ||
-      sequence.sequence === ""
+      sequence.sequence.length === 0
     ) {
       throw new Error("Valid sequence required for statistics");
     }
@@ -99,7 +99,7 @@ export class SequenceStatsAccumulator {
     }
 
     // Update base composition
-    const seq = sequence.sequence.toUpperCase();
+    const seq = sequence.sequence.toString().toUpperCase();
     for (let i = 0; i < seq.length; i++) {
       const base = seq[i];
       if (base !== undefined && base !== null && base !== "") {

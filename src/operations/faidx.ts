@@ -10,6 +10,7 @@ import { FileSystem } from "@effect/platform";
 import { type } from "arktype";
 import { Effect } from "effect";
 import { CompressionDetector } from "../compression/detector";
+import { createFastaRecord } from "../constructors";
 import { ParseError, ValidationError } from "../errors";
 import { exists, readByteRange, readToString } from "../io/file-reader";
 import { getPlatform } from "../io/runtime";
@@ -715,12 +716,7 @@ export class Faidx {
       id = region;
     }
 
-    return {
-      format: "fasta",
-      id,
-      sequence,
-      length: sequence.length,
-    };
+    return createFastaRecord({ id, sequence });
   }
 
   /**

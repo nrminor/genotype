@@ -27,9 +27,7 @@ const textDec = new TextDecoder("utf-8");
 const kMutableBytes: unique symbol = Symbol("GenotypeString.mutableBytes");
 const kSetBytes: unique symbol = Symbol("GenotypeString.setBytes");
 
-type InternalRepr =
-  | { kind: "string"; value: string }
-  | { kind: "bytes"; value: Uint8Array };
+type InternalRepr = { kind: "string"; value: string } | { kind: "bytes"; value: Uint8Array };
 
 /**
  * A lazy dual-representation string type for genomic sequence and quality data.
@@ -156,6 +154,33 @@ export class GenotypeString {
   }
 
   /**
+   * Returns a new GenotypeString containing a portion of the content.
+   *
+   * Follows the same semantics as {@link String.prototype.substring}: negative
+   * or NaN arguments are clamped to 0, values beyond length are clamped to
+   * length, and if start is greater than end the two are swapped. For new
+   * code, prefer {@link slice} which has more predictable behavior with
+   * negative indices.
+   */
+  substring(start: number, end?: number): GenotypeString {
+    if (this.#repr.kind === "string") {
+      return GenotypeString.fromString(this.#repr.value.substring(start, end));
+    }
+    const len = this.#repr.value.length;
+    let s = Math.max(0, Math.min(isNaN(start) ? 0 : start, len));
+    let e = end === undefined ? len : Math.max(0, Math.min(isNaN(end) ? 0 : end, len));
+    if (s > e) {
+      const tmp = s;
+      s = e;
+      e = tmp;
+    }
+    return new GenotypeString({
+      kind: "bytes",
+      value: this.#repr.value.slice(s, e),
+    });
+  }
+
+  /**
    * Returns a new GenotypeString with all ASCII lowercase letters converted
    * to uppercase.
    *
@@ -188,6 +213,32 @@ export class GenotypeString {
     return new GenotypeString({
       kind: "bytes",
       value: asciiLowercase(this.#repr.value),
+    });
+  }
+
+  /**
+   * Returns a new GenotypeString with leading and trailing ASCII whitespace
+   * removed.
+   *
+   * When the data is in byte form, bytes 0x09 (tab), 0x0A (LF), 0x0B (VT),
+   * 0x0C (FF), 0x0D (CR), and 0x20 (space) are trimmed. This matches the
+   * characters that {@link String.prototype.trim} removes in the ASCII range.
+   */
+  trim(): GenotypeString {
+    if (this.#repr.kind === "string") {
+      const trimmed = this.#repr.value.trim();
+      if (trimmed.length === this.#repr.value.length) return this;
+      return GenotypeString.fromString(trimmed);
+    }
+    const bytes = this.#repr.value;
+    let start = 0;
+    let end = bytes.length;
+    while (start < end && isAsciiWhitespace(bytes[start]!)) start++;
+    while (end > start && isAsciiWhitespace(bytes[end - 1]!)) end--;
+    if (start === 0 && end === bytes.length) return this;
+    return new GenotypeString({
+      kind: "bytes",
+      value: bytes.slice(start, end),
     });
   }
 
@@ -269,6 +320,22 @@ export class GenotypeString {
   }
 
   /**
+   * Compares this instance with another for sort ordering, following the
+   * same contract as {@link String.prototype.localeCompare}.
+   *
+   * Returns a negative number if this instance sorts before the other, a
+   * positive number if it sorts after, or 0 if they are equal. Accepts a
+   * GenotypeString or a plain string as the comparison target.
+   */
+  localeCompare(
+    other: GenotypeString | string,
+    locales?: string | string[],
+    options?: Intl.CollatorOptions,
+  ): number {
+    return this.toString().localeCompare(other.toString(), locales, options);
+  }
+
+  /**
    * Returns the content as a JavaScript string.
    *
    * If the data is currently in byte form, this triggers a UTF-8 decode and
@@ -304,14 +371,29 @@ export class GenotypeString {
   }
 
   /**
+   * Yields single-character strings, enabling `for...of` iteration, spread
+   * syntax (`[...gs]`), `Array.from(gs)`, and constructors like `new Set(gs)`.
+   *
+   * When the data is in byte form, characters are produced directly from
+   * bytes without converting the entire content to a JS string first.
+   */
+  *[Symbol.iterator](): IterableIterator<string> {
+    if (this.#repr.kind === "string") {
+      yield* this.#repr.value;
+      return;
+    }
+    const bytes = this.#repr.value;
+    for (let i = 0; i < bytes.length; i++) {
+      yield String.fromCharCode(bytes[i]!);
+    }
+  }
+
+  /**
    * Custom inspect output for console.log and util.inspect. Shows the type
    * name, length, and a preview of the content (truncated at 60 characters).
    */
   [Symbol.for("nodejs.util.inspect.custom")](): string {
-    const preview =
-      this.length > 60
-        ? this.toString().slice(0, 57) + "..."
-        : this.toString();
+    const preview = this.length > 60 ? this.toString().slice(0, 57) + "..." : this.toString();
     return `GenotypeString(${this.length}) ${JSON.stringify(preview)}`;
   }
 
@@ -342,13 +424,8 @@ export class GenotypeString {
    * Converts to a JS string for the replacement operation, then wraps the
    * result in a new GenotypeString.
    */
-  replace(
-    pattern: string | RegExp,
-    replacement: string,
-  ): GenotypeString {
-    return GenotypeString.fromString(
-      this.toString().replace(pattern, replacement),
-    );
+  replace(pattern: string | RegExp, replacement: string): GenotypeString {
+    return GenotypeString.fromString(this.toString().replace(pattern, replacement));
   }
 
   /**
@@ -456,18 +533,11 @@ export const genotypeStringInternal = Object.freeze({
   },
 });
 
-function byteIncludes(
-  haystack: Uint8Array,
-  needle: Uint8Array,
-): boolean {
+function byteIncludes(haystack: Uint8Array, needle: Uint8Array): boolean {
   return byteIndexOf(haystack, needle, 0) !== -1;
 }
 
-function byteIndexOf(
-  haystack: Uint8Array,
-  needle: Uint8Array,
-  fromIndex: number,
-): number {
+function byteIndexOf(haystack: Uint8Array, needle: Uint8Array, fromIndex: number): number {
   const len = haystack.length;
 
   // Clamp fromIndex to [0, len] to match String.prototype.indexOf semantics.
@@ -486,10 +556,7 @@ function byteIndexOf(
   return -1;
 }
 
-function byteStartsWith(
-  haystack: Uint8Array,
-  prefix: Uint8Array,
-): boolean {
+function byteStartsWith(haystack: Uint8Array, prefix: Uint8Array): boolean {
   if (prefix.length > haystack.length) return false;
   for (let i = 0; i < prefix.length; i++) {
     if (haystack[i] !== prefix[i]) return false;
@@ -497,10 +564,7 @@ function byteStartsWith(
   return true;
 }
 
-function byteEndsWith(
-  haystack: Uint8Array,
-  suffix: Uint8Array,
-): boolean {
+function byteEndsWith(haystack: Uint8Array, suffix: Uint8Array): boolean {
   if (suffix.length > haystack.length) return false;
   const offset = haystack.length - suffix.length;
   for (let i = 0; i < suffix.length; i++) {
@@ -533,4 +597,8 @@ function asciiLowercase(src: Uint8Array): Uint8Array {
     out[i] = c >= 0x41 && c <= 0x5a ? c | 0x20 : c;
   }
   return out;
+}
+
+function isAsciiWhitespace(byte: number): boolean {
+  return byte === 0x20 || (byte >= 0x09 && byte <= 0x0d);
 }

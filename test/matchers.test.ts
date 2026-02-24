@@ -53,6 +53,6 @@ describe("toEqualSequence matcher", () => {
   });
 
   test("does not match unsupported receiver type", () => {
-    expect((123 as unknown)).not.toEqualSequence("123");
+    expect(123 as unknown).not.toEqualSequence("123");
   });
 });

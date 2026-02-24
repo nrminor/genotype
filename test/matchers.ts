@@ -37,8 +37,7 @@ expect.extend({
 
     return {
       pass: false,
-      message: () =>
-        `expected a GenotypeString or string, got ${describeValue(received)}`,
+      message: () => `expected a GenotypeString or string, got ${describeValue(received)}`,
     };
   },
 });

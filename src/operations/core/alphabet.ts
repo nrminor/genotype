@@ -36,24 +36,47 @@ import { IUPAC_DNA, IUPAC_RNA } from "./sequence-validation";
  * character whose uppercased form is not in `Allowed`. Returns `never` when
  * every character is valid.
  */
-type FirstBadChar<S extends string, Allowed extends string> =
-  S extends `${infer C}${infer Rest}`
-    ? Uppercase<C> extends Allowed
-      ? FirstBadChar<Rest, Allowed>
-      : C
-    : never;
+type FirstBadChar<S extends string, Allowed extends string> = S extends `${infer C}${infer Rest}`
+  ? Uppercase<C> extends Allowed
+    ? FirstBadChar<Rest, Allowed>
+    : C
+  : never;
 
 /** Uppercase IUPAC DNA alphabet for compile-time matching */
 type IupacDNAUpper =
-  | "A" | "C" | "G" | "T"
-  | "R" | "Y" | "S" | "W" | "K" | "M"
-  | "B" | "D" | "H" | "V" | "N";
+  | "A"
+  | "C"
+  | "G"
+  | "T"
+  | "R"
+  | "Y"
+  | "S"
+  | "W"
+  | "K"
+  | "M"
+  | "B"
+  | "D"
+  | "H"
+  | "V"
+  | "N";
 
 /** Uppercase IUPAC RNA alphabet for compile-time matching */
 type IupacRNAUpper =
-  | "A" | "C" | "G" | "U"
-  | "R" | "Y" | "S" | "W" | "K" | "M"
-  | "B" | "D" | "H" | "V" | "N";
+  | "A"
+  | "C"
+  | "G"
+  | "U"
+  | "R"
+  | "Y"
+  | "S"
+  | "W"
+  | "K"
+  | "M"
+  | "B"
+  | "D"
+  | "H"
+  | "V"
+  | "N";
 
 /**
  * Returns `S` unchanged when every character is a valid standard DNA base,
@@ -83,18 +106,57 @@ type ValidateRNA<S extends string> =
     : `Invalid RNA character: "${FirstBadChar<S, IupacRNAUpper>}"`;
 
 /** Counts string length at the type level via tuple accumulation */
-type StringToTuple<S extends string, Acc extends unknown[] = []> =
-  S extends `${infer _}${infer Rest}` ? StringToTuple<Rest, [...Acc, unknown]> : Acc;
+type StringToTuple<
+  S extends string,
+  Acc extends unknown[] = [],
+> = S extends `${infer _}${infer Rest}` ? StringToTuple<Rest, [...Acc, unknown]> : Acc;
 
 /** Extracts the numeric length of a string literal type */
 type LengthOf<S extends string> = StringToTuple<S>["length"];
 
 /** Valid primer lengths (10-50 bp) */
 type PrimerLen =
-  | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19
-  | 20 | 21 | 22 | 23 | 24 | 25 | 26 | 27 | 28 | 29
-  | 30 | 31 | 32 | 33 | 34 | 35 | 36 | 37 | 38 | 39
-  | 40 | 41 | 42 | 43 | 44 | 45 | 46 | 47 | 48 | 49 | 50;
+  | 10
+  | 11
+  | 12
+  | 13
+  | 14
+  | 15
+  | 16
+  | 17
+  | 18
+  | 19
+  | 20
+  | 21
+  | 22
+  | 23
+  | 24
+  | 25
+  | 26
+  | 27
+  | 28
+  | 29
+  | 30
+  | 31
+  | 32
+  | 33
+  | 34
+  | 35
+  | 36
+  | 37
+  | 38
+  | 39
+  | 40
+  | 41
+  | 42
+  | 43
+  | 44
+  | 45
+  | 46
+  | 47
+  | 48
+  | 49
+  | 50;
 
 /**
  * Returns `S` unchanged when it is a valid primer (IUPAC characters, 10-50 bp),

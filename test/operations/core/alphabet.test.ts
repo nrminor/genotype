@@ -301,8 +301,10 @@ describe("Checked Constructors (compile-time + runtime validation)", () => {
     });
 
     test("rejects too-long primers at compile time", () => {
-      // @ts-expect-error Primer length must be 10-50, got 56
-      expect(() => primer.checked("ATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCG")).toThrow();
+      expect(() =>
+        // @ts-expect-error Primer length must be 10-50, got 56
+        primer.checked("ATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCG")
+      ).toThrow();
     });
 
     test("rejects invalid characters at compile time", () => {

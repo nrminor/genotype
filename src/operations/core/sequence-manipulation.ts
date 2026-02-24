@@ -81,7 +81,10 @@ const RNA_COMPLEMENT_MAP: Record<string, string> = {
  */
 export function complement(sequence: GenotypeString, isRNA?: boolean): GenotypeString;
 export function complement(sequence: string, isRNA?: boolean): string;
-export function complement(sequence: GenotypeString | string, isRNA: boolean = false): GenotypeString | string {
+export function complement(
+  sequence: GenotypeString | string,
+  isRNA: boolean = false
+): GenotypeString | string {
   const seq = asString(sequence);
   if (seq.length === 0) {
     throw new ValidationError("Sequence must be non-empty");
@@ -169,7 +172,10 @@ export function reverse(sequence: GenotypeString | string): GenotypeString | str
  */
 export function reverseComplement(sequence: GenotypeString, isRNA?: boolean): GenotypeString;
 export function reverseComplement(sequence: string, isRNA?: boolean): string;
-export function reverseComplement(sequence: GenotypeString | string, isRNA: boolean = false): GenotypeString | string {
+export function reverseComplement(
+  sequence: GenotypeString | string,
+  isRNA: boolean = false
+): GenotypeString | string {
   const seq = asString(sequence);
   if (seq.length === 0) {
     throw new ValidationError("Sequence must be non-empty");
@@ -256,7 +262,10 @@ export function toDNA(sequence: GenotypeString | string): GenotypeString | strin
  */
 export function removeGaps(sequence: GenotypeString, gapChars?: string): GenotypeString;
 export function removeGaps(sequence: string, gapChars?: string): string;
-export function removeGaps(sequence: GenotypeString | string, gapChars: string = ".-*"): GenotypeString | string {
+export function removeGaps(
+  sequence: GenotypeString | string,
+  gapChars: string = ".-*"
+): GenotypeString | string {
   const seq = asString(sequence);
   if (seq.length === 0) {
     return sequence instanceof GenotypeString ? GenotypeString.fromString(seq) : seq;
@@ -299,9 +308,15 @@ export function removeGaps(sequence: GenotypeString | string, gapChars: string =
  *
  * 🔥 NATIVE: Character validation and replacement loop - vectorizable
  */
-export function replaceAmbiguousBases(sequence: GenotypeString, replaceChar?: string): GenotypeString;
+export function replaceAmbiguousBases(
+  sequence: GenotypeString,
+  replaceChar?: string
+): GenotypeString;
 export function replaceAmbiguousBases(sequence: string, replaceChar?: string): string;
-export function replaceAmbiguousBases(sequence: GenotypeString | string, replaceChar: string = "N"): GenotypeString | string {
+export function replaceAmbiguousBases(
+  sequence: GenotypeString | string,
+  replaceChar: string = "N"
+): GenotypeString | string {
   const seq = asString(sequence);
   if (seq.length === 0) {
     return sequence instanceof GenotypeString ? GenotypeString.fromString(seq) : seq;

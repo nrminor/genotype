@@ -1151,7 +1151,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
       `${level} validation`,
       context.id,
       context.startLineNumber,
-      sequence.sequence.substring(0, 50)
+      sequence.sequence.slice(0, 50)
     );
 
     const suggestion = getValidationErrorSuggestion(result.errors);

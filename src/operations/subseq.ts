@@ -533,11 +533,11 @@ export class SubseqExtractor {
     region: ParsedRegion,
     options: SubseqOptions
   ): T | null {
-    const upstreamSeq = sequence.sequence.substring(
+    const upstreamSeq = sequence.sequence.slice(
       Math.max(0, region.start - (options.upstream ?? 0)),
       region.start
     );
-    const downstreamSeq = sequence.sequence.substring(
+    const downstreamSeq = sequence.sequence.slice(
       region.end,
       Math.min(sequence.length, region.end + (options.downstream ?? 0))
     );
@@ -564,11 +564,10 @@ export class SubseqExtractor {
     let subseq: string;
     if (options.circular === true && coords.start >= coords.end) {
       // Wrap around for circular sequences
-      subseq =
-        sequence.sequence.substring(coords.start) + sequence.sequence.substring(0, coords.end);
+      subseq = sequence.sequence.slice(coords.start) + sequence.sequence.slice(0, coords.end);
     } else {
       // Normal extraction
-      subseq = sequence.sequence.substring(coords.start, coords.end);
+      subseq = sequence.sequence.slice(coords.start, coords.end);
     }
 
     // Handle strand if specified
@@ -639,7 +638,7 @@ export class SubseqExtractor {
 
     const qualStart = region.start - (options.upstream ?? 0);
     const qualEnd = region.end + (options.downstream ?? 0);
-    let quality = original.quality.substring(
+    let quality = original.quality.slice(
       Math.max(0, qualStart),
       Math.min(original.quality.length, qualEnd)
     );
@@ -657,7 +656,7 @@ export class SubseqExtractor {
    * @private
    */
   private isFastqSequence(sequence: AbstractSequence): sequence is FastqSequence {
-    return "quality" in sequence && typeof (sequence as FastqSequence).quality === "string";
+    return "quality" in sequence && (sequence as FastqSequence).quality !== undefined;
   }
 
   /**

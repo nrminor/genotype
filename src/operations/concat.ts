@@ -294,7 +294,7 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
         "sequence" in item &&
         "length" in item &&
         typeof item.id === "string" &&
-        typeof item.sequence === "string" &&
+        item.sequence !== undefined &&
         typeof item.length === "number"
       ) {
         yield item as AbstractSequence;

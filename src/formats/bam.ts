@@ -683,7 +683,7 @@ class BAMParser extends AbstractParser<BAMAlignment | SAMHeader, BamParserOption
             parsedRecord.readName,
             "sequence_quality",
             blockOffset,
-            `Sequence: ${alignment.seq.substring(0, 50)}..., Quality: ${alignment.qual.substring(0, 50)}...`
+            `Sequence: ${alignment.seq.slice(0, 50)}..., Quality: ${alignment.qual.slice(0, 50)}...`
           );
         }
       }

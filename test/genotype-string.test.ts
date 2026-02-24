@@ -1,8 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  GenotypeString,
-  genotypeStringInternal,
-} from "../src/genotype-string";
+import { GenotypeString, genotypeStringInternal } from "../src/genotype-string";
 
 describe("GenotypeString", () => {
   describe("factory methods", () => {
@@ -604,6 +601,241 @@ describe("GenotypeString", () => {
       expect(gs.indexOf("-")).toBe(3);
     });
   });
+
+  describe("substring", () => {
+    test("extracts substring with non-negative indices", () => {
+      const gs = GenotypeString.fromString("ATCGATCG");
+      expect(gs.substring(2, 6).toString()).toBe("CGAT");
+    });
+
+    test("clamps negative start to 0", () => {
+      const gs = GenotypeString.fromString("ATCG");
+      expect(gs.substring(-2, 3).toString()).toBe("ATC");
+    });
+
+    test("swaps start and end when start > end", () => {
+      const gs = GenotypeString.fromString("ATCG");
+      expect(gs.substring(3, 1).toString()).toBe("TC");
+    });
+
+    test("clamps values beyond length", () => {
+      const gs = GenotypeString.fromString("ATCG");
+      expect(gs.substring(2, 100).toString()).toBe("CG");
+    });
+
+    test("treats NaN as 0", () => {
+      const gs = GenotypeString.fromString("ATCG");
+      expect(gs.substring(NaN, 2).toString()).toBe("AT");
+    });
+
+    test("omitted end defaults to length", () => {
+      const gs = GenotypeString.fromString("ATCG");
+      expect(gs.substring(2).toString()).toBe("CG");
+    });
+
+    test("returns empty for equal start and end", () => {
+      const gs = GenotypeString.fromString("ATCG");
+      expect(gs.substring(2, 2).toString()).toBe("");
+    });
+
+    test("returns GenotypeString instance", () => {
+      const gs = GenotypeString.fromString("ATCG");
+      expect(gs.substring(1, 3)).toBeInstanceOf(GenotypeString);
+    });
+
+    test("works from bytes-backed instance", () => {
+      const gs = GenotypeString.fromBytes(new TextEncoder().encode("ATCGATCG"));
+      expect(gs.substring(2, 6).toString()).toBe("CGAT");
+    });
+
+    test("bytes-backed: clamps and swaps like String.prototype.substring", () => {
+      const gs = GenotypeString.fromBytes(new TextEncoder().encode("ATCG"));
+      expect(gs.substring(-1, 3).toString()).toBe("ATC");
+      expect(gs.substring(3, 1).toString()).toBe("TC");
+      expect(gs.substring(NaN, 2).toString()).toBe("AT");
+    });
+
+    test("matches String.prototype.substring parity", () => {
+      const str = "ATCGATCG";
+      const gs = GenotypeString.fromString(str);
+      const gsBytes = GenotypeString.fromBytes(new TextEncoder().encode(str));
+
+      const cases: [number, number | undefined][] = [
+        [0, 4], [2, 6], [4, undefined], [0, 0], [0, 100],
+        [-5, 3], [6, 2], [NaN, 3],
+        [1.9, 5.1], [-1.9, 3], [Infinity, 3], [0, Infinity],
+      ];
+
+      for (const [start, end] of cases) {
+        const expected = end === undefined ? str.substring(start) : str.substring(start, end);
+        expect(gs.substring(start, end).toString()).toBe(expected);
+        expect(gsBytes.substring(start, end).toString()).toBe(expected);
+      }
+    });
+  });
+
+  describe("trim", () => {
+    test("removes leading and trailing whitespace", () => {
+      const gs = GenotypeString.fromString("  ATCG  ");
+      expect(gs.trim().toString()).toBe("ATCG");
+    });
+
+    test("removes tabs and newlines", () => {
+      const gs = GenotypeString.fromString("\t\nATCG\r\n");
+      expect(gs.trim().toString()).toBe("ATCG");
+    });
+
+    test("returns same instance when no whitespace to trim", () => {
+      const gs = GenotypeString.fromString("ATCG");
+      expect(gs.trim()).toBe(gs);
+    });
+
+    test("handles all-whitespace content", () => {
+      const gs = GenotypeString.fromString("   \t\n  ");
+      expect(gs.trim().toString()).toBe("");
+    });
+
+    test("handles empty string", () => {
+      const gs = GenotypeString.fromString("");
+      expect(gs.trim().toString()).toBe("");
+    });
+
+    test("returns GenotypeString instance", () => {
+      const gs = GenotypeString.fromString("  ATCG  ");
+      expect(gs.trim()).toBeInstanceOf(GenotypeString);
+    });
+
+    test("works from bytes-backed instance", () => {
+      const gs = GenotypeString.fromBytes(new TextEncoder().encode("  ATCG  "));
+      expect(gs.trim().toString()).toBe("ATCG");
+    });
+
+    test("bytes-backed: returns same instance when no whitespace", () => {
+      const gs = GenotypeString.fromBytes(new TextEncoder().encode("ATCG"));
+      expect(gs.trim()).toBe(gs);
+    });
+
+    test("preserves internal whitespace", () => {
+      const gs = GenotypeString.fromString("  A T C G  ");
+      expect(gs.trim().toString()).toBe("A T C G");
+    });
+
+    test("matches String.prototype.trim parity", () => {
+      const cases = ["  ATCG  ", "\t\nATCG\r\n", "ATCG", "   ", "", " \t\v\f\r\n ATCG \t\v\f\r\n "];
+      for (const str of cases) {
+        const gs = GenotypeString.fromString(str);
+        const gsBytes = GenotypeString.fromBytes(new TextEncoder().encode(str));
+        expect(gs.trim().toString()).toBe(str.trim());
+        expect(gsBytes.trim().toString()).toBe(str.trim());
+      }
+    });
+  });
+
+  describe("Symbol.iterator", () => {
+    test("yields individual characters from string-backed instance", () => {
+      const gs = GenotypeString.fromString("ATCG");
+      expect([...gs]).toEqual(["A", "T", "C", "G"]);
+    });
+
+    test("yields individual characters from bytes-backed instance", () => {
+      const gs = GenotypeString.fromBytes(new TextEncoder().encode("ATCG"));
+      expect([...gs]).toEqual(["A", "T", "C", "G"]);
+    });
+
+    test("works with for-of loop", () => {
+      const gs = GenotypeString.fromString("ATG");
+      const chars: string[] = [];
+      for (const ch of gs) {
+        chars.push(ch);
+      }
+      expect(chars).toEqual(["A", "T", "G"]);
+    });
+
+    test("works with Array.from", () => {
+      const gs = GenotypeString.fromString("ATCG");
+      expect(Array.from(gs)).toEqual(["A", "T", "C", "G"]);
+    });
+
+    test("works with new Set to get unique characters", () => {
+      const gs = GenotypeString.fromString("AATTCCGG");
+      expect(new Set(gs)).toEqual(new Set(["A", "T", "C", "G"]));
+    });
+
+    test("works with new Set from bytes-backed instance", () => {
+      const gs = GenotypeString.fromBytes(new TextEncoder().encode("AAIIBB"));
+      expect(new Set(gs)).toEqual(new Set(["A", "I", "B"]));
+    });
+
+    test("handles empty content", () => {
+      const gs = GenotypeString.fromString("");
+      expect([...gs]).toEqual([]);
+    });
+
+    test("handles single character", () => {
+      const gs = GenotypeString.fromString("A");
+      expect([...gs]).toEqual(["A"]);
+    });
+
+    test("destructuring works", () => {
+      const gs = GenotypeString.fromString("ATCG");
+      const [first, second] = gs;
+      expect(first).toBe("A");
+      expect(second).toBe("T");
+    });
+  });
+
+  describe("localeCompare", () => {
+    test("returns negative when this sorts before other", () => {
+      const gs = GenotypeString.fromString("AAAA");
+      expect(gs.localeCompare("TTTT")).toBeLessThan(0);
+    });
+
+    test("returns positive when this sorts after other", () => {
+      const gs = GenotypeString.fromString("TTTT");
+      expect(gs.localeCompare("AAAA")).toBeGreaterThan(0);
+    });
+
+    test("returns 0 for equal content", () => {
+      const gs = GenotypeString.fromString("ATCG");
+      expect(gs.localeCompare("ATCG")).toBe(0);
+    });
+
+    test("accepts GenotypeString as argument", () => {
+      const a = GenotypeString.fromString("AAAA");
+      const b = GenotypeString.fromString("TTTT");
+      expect(a.localeCompare(b)).toBeLessThan(0);
+    });
+
+    test("works from bytes-backed instance", () => {
+      const gs = GenotypeString.fromBytes(new TextEncoder().encode("AAAA"));
+      expect(gs.localeCompare("TTTT")).toBeLessThan(0);
+    });
+
+    test("matches String.prototype.localeCompare parity", () => {
+      const pairs: [string, string][] = [
+        ["ATCG", "ATCG"],
+        ["AAAA", "TTTT"],
+        ["TTTT", "AAAA"],
+        ["", "A"],
+        ["A", ""],
+        ["", ""],
+      ];
+      for (const [a, b] of pairs) {
+        const gs = GenotypeString.fromString(a);
+        const gsBytes = GenotypeString.fromBytes(new TextEncoder().encode(a));
+        expect(Math.sign(gs.localeCompare(b))).toBe(Math.sign(a.localeCompare(b)));
+        expect(Math.sign(gsBytes.localeCompare(b))).toBe(Math.sign(a.localeCompare(b)));
+      }
+    });
+
+    test("bytes-backed compares against GenotypeString argument", () => {
+      const a = GenotypeString.fromBytes(new TextEncoder().encode("AAAA"));
+      const b = GenotypeString.fromBytes(new TextEncoder().encode("TTTT"));
+      expect(a.localeCompare(b)).toBeLessThan(0);
+      expect(b.localeCompare(a)).toBeGreaterThan(0);
+      expect(a.localeCompare(GenotypeString.fromString("AAAA"))).toBe(0);
+    });
+  });
 });
 
 describe("genotypeStringInternal", () => {
@@ -715,8 +947,7 @@ describe("genotypeStringInternal", () => {
 
     test("cannot overwrite existing methods", () => {
       expect(() => {
-        (genotypeStringInternal as Record<string, unknown>)["mutableBytes"] =
-          () => {};
+        (genotypeStringInternal as Record<string, unknown>)["mutableBytes"] = () => {};
       }).toThrow();
     });
   });

@@ -1144,7 +1144,7 @@ function computeColumn(
 
       const dinucs = new Set<string>();
       for (let i = 0; i < seq_upper.length - 1; i++) {
-        dinucs.add(seq_upper.substring(i, i + 2));
+        dinucs.add(seq_upper.slice(i, i + 2));
       }
       return (dinucs.size / (seq_upper.length - 1)) * 100;
     }

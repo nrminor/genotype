@@ -14,10 +14,7 @@ import {
   reverseComplement,
   toRNA,
 } from "../../../src/operations/core/sequence-manipulation";
-import {
-  gcContent,
-  baseContent,
-} from "../../../src/operations/core/calculations";
+import { gcContent, baseContent } from "../../../src/operations/core/calculations";
 import {
   boyerMoore,
   fuzzyMatch,

@@ -70,7 +70,7 @@ export class QualityProcessor implements Processor<QualityOptions> {
    * @returns True if sequence is FASTQ
    */
   private isFastq(seq: AbstractSequence): seq is FastqSequence {
-    return "quality" in seq && typeof seq.quality === "string";
+    return "quality" in seq && seq.quality !== undefined;
   }
 
   /**
@@ -439,7 +439,7 @@ export async function* binQuality(
   for await (const seq of source) {
     // Type guard to check if sequence is FASTQ
     const isFastqSeq = (s: AbstractSequence): s is FastqSequence => {
-      return "quality" in s && typeof s.quality === "string";
+      return "quality" in s && s.quality !== undefined;
     };
 
     // Skip non-FASTQ sequences

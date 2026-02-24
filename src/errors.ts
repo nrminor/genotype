@@ -1047,8 +1047,5 @@ export function getErrorSuggestion(error: GenotypeError): string | undefined {
  * ```
  */
 export function assertUnreachable(value: never): never {
-  throw new GenotypeError(
-    `Unreachable code reached with value: ${String(value)}`,
-    "UNREACHABLE"
-  );
+  throw new GenotypeError(`Unreachable code reached with value: ${String(value)}`, "UNREACHABLE");
 }

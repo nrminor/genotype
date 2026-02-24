@@ -155,7 +155,7 @@ describe("SequenceDeduplicator", () => {
   describe("Custom Deduplication Strategy", () => {
     test("custom key function", async () => {
       // Deduplicate by first 4 bases only
-      const customKey = (seq: AbstractSequence) => seq.sequence.substring(0, 4);
+      const customKey = (seq: AbstractSequence) => seq.sequence.slice(0, 4);
 
       const dedup = new SequenceDeduplicator({ strategy: customKey });
       const unique: AbstractSequence[] = [];

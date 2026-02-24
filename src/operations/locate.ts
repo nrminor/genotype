@@ -234,7 +234,7 @@ export class LocateProcessor {
         const score = this.calculateScore(match.mismatches, pattern.length);
 
         // Preserve original case from the source sequence, not the search sequence
-        const originalMatchedSequence = seq.sequence.substring(
+        const originalMatchedSequence = seq.sequence.slice(
           match.position,
           match.position + match.length
         );

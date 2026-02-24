@@ -172,7 +172,10 @@ export function baseComposition(sequence: GenotypeString | string): Record<strin
  *
  * 🔥 NATIVE: Codon lookup could be optimized with perfect hashing
  */
-export function translateSimple(sequence: GenotypeString | string, geneticCodeId: number = 1): string[] {
+export function translateSimple(
+  sequence: GenotypeString | string,
+  geneticCodeId: number = 1
+): string[] {
   const seq = asString(sequence);
   if (seq.length === 0) {
     throw new ValidationError("Sequence must be non-empty");
@@ -325,7 +328,11 @@ export function findQualityTrimEnd(
  *
  * 🔥 NATIVE: SIMD character counting for specific base sets
  */
-export function baseContent(sequence: GenotypeString | string, bases: string, caseSensitive = false): number {
+export function baseContent(
+  sequence: GenotypeString | string,
+  bases: string,
+  caseSensitive = false
+): number {
   const normalized = asString(sequence);
   if (normalized.length === 0) {
     throw new ValidationError("Sequence must be non-empty");
@@ -366,7 +373,11 @@ export function baseContent(sequence: GenotypeString | string, bases: string, ca
  *
  * 🔥 NATIVE: SIMD population count for base matching
  */
-export function baseCount(sequence: GenotypeString | string, bases: string, caseSensitive = false): number {
+export function baseCount(
+  sequence: GenotypeString | string,
+  bases: string,
+  caseSensitive = false
+): number {
   const normalized = asString(sequence);
   if (normalized.length === 0) {
     throw new ValidationError("Sequence must be non-empty");

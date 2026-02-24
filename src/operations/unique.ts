@@ -192,7 +192,7 @@ export class UniqueProcessor<
 
   private getAverageQuality(seq: T): number | null {
     // Check if this is a FASTQ sequence with quality field
-    if ("quality" in seq && typeof seq.quality === "string") {
+    if ("quality" in seq && seq.quality !== undefined) {
       const quality = seq.quality as string;
       // Respect the sequence's qualityEncoding if present, default to phred33
       const encoding: QualityEncoding =

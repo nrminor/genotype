@@ -653,7 +653,11 @@ export function kmpSearch(text: GenotypeString | string, pattern: string): numbe
  *
  * ⚡ NATIVE BENEFICIAL: Good for searching multiple patterns
  */
-export function rabinKarp(text: GenotypeString | string, pattern: string, prime: number = 101): number[] {
+export function rabinKarp(
+  text: GenotypeString | string,
+  pattern: string,
+  prime: number = 101
+): number[] {
   const t = asString(text);
   // Tiger Style: Assert inputs
   if (!pattern || pattern.length === 0) return [];
@@ -698,8 +702,7 @@ export function rabinKarp(text: GenotypeString | string, pattern: string, prime:
 
     // Calculate hash for next window
     if (i < textLength - patternLength) {
-      textHash =
-        (256 * (textHash - t.charCodeAt(i) * h) + t.charCodeAt(i + patternLength)) % prime;
+      textHash = (256 * (textHash - t.charCodeAt(i) * h) + t.charCodeAt(i + patternLength)) % prime;
 
       // Handle negative hash value
       if (textHash < 0) {
@@ -1239,9 +1242,10 @@ export class SequenceMatcher {
    * @returns Array of all matches found in the sequence
    */
   findInSequence(sequence: AbstractSequence | GenotypeString | string): SequenceMatch[] {
-    const normalized = typeof sequence === "string" || sequence instanceof GenotypeString
-      ? asString(sequence)
-      : sequence;
+    const normalized =
+      typeof sequence === "string" || sequence instanceof GenotypeString
+        ? asString(sequence)
+        : sequence;
     const isSequenceObject = typeof normalized === "object";
     const seq = isSequenceObject ? normalized.sequence : normalized;
     const seqId = isSequenceObject ? normalized.id : "unknown";
@@ -1301,9 +1305,10 @@ export class SequenceMatcher {
    * @returns Number of pattern occurrences
    */
   count(sequence: AbstractSequence | GenotypeString | string): number {
-    const text = typeof sequence === "string" || sequence instanceof GenotypeString
-      ? asString(sequence)
-      : sequence.sequence;
+    const text =
+      typeof sequence === "string" || sequence instanceof GenotypeString
+        ? asString(sequence)
+        : sequence.sequence;
     const searchText = this.options.caseSensitive ? text : text.toUpperCase();
 
     // Fast counting without building match objects
@@ -1414,7 +1419,7 @@ export class SequenceMatcher {
         matches.push(this.createMatch(textForMatch, i - j, sequenceId, 0));
         const prev = lps[j - 1];
         j = prev !== undefined ? prev : 0;
-    } else if (i < text.length && pattern[j] !== text[i]) {
+      } else if (i < text.length && pattern[j] !== text[i]) {
         if (j !== 0) {
           const prev = lps[j - 1];
           j = prev !== undefined ? prev : 0;

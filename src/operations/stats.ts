@@ -707,7 +707,7 @@ export class SequenceStatsCalculator {
     return (
       "quality" in sequence &&
       "qualityEncoding" in sequence &&
-      typeof sequence.quality === "string" &&
+      sequence.quality !== undefined &&
       sequence.qualityEncoding !== undefined
     );
   }

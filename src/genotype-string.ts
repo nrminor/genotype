@@ -385,6 +385,8 @@ export class GenotypeString {
  * `invalidate()` when done. This is the manual equivalent of Rust's RAII
  * borrow guard — the caller explicitly returns the buffer to restore the
  * GenotypeString's invariants.
+ *
+ * @internal
  */
 export const genotypeStringInternal = Object.freeze({
   /**

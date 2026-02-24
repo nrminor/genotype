@@ -621,6 +621,21 @@ describe("genotypeStringInternal", () => {
       const b = genotypeStringInternal.mutableBytes(gs);
       expect(a).toBe(b);
     });
+
+    test("mutations are visible via toBytes() without invalidate", () => {
+      const gs = GenotypeString.fromString("ATCG");
+      const buf = genotypeStringInternal.mutableBytes(gs);
+      buf[1] = 0x41; // 'A' replacing 'T'
+      expect(gs.toBytes()).toEqual(new TextEncoder().encode("AACG"));
+    });
+
+    test("mutations are visible via toString() without invalidate", () => {
+      const gs = GenotypeString.fromBytes(new TextEncoder().encode("ATCG"));
+      const buf = genotypeStringInternal.mutableBytes(gs);
+      buf[0] = 0x47; // 'G'
+      buf[3] = 0x41; // 'A'
+      expect(gs.toString()).toBe("GTCA");
+    });
   });
 
   describe("invalidate", () => {
@@ -638,20 +653,27 @@ describe("genotypeStringInternal", () => {
       expect(gs.toString()).toBe("XTCG");
     });
 
-    test("is safe to call when repr is already bytes", () => {
-      const gs = GenotypeString.fromBytes(new TextEncoder().encode("ATCG"));
-      const buf = genotypeStringInternal.mutableBytes(gs);
-      genotypeStringInternal.invalidate(gs, buf);
-      expect(gs.toString()).toBe("ATCG");
-    });
-
-    test("is safe to call multiple times", () => {
+    test("recovers after repeated stale-cache cycles", () => {
       const gs = GenotypeString.fromString("ATCG");
       const buf = genotypeStringInternal.mutableBytes(gs);
-      buf[0] = 0x58;
+
+      expect(gs.toString()).toBe("ATCG"); // cache string
+      buf[0] = 0x58; // 'X'
       genotypeStringInternal.invalidate(gs, buf);
+      expect(gs.toString()).toBe("XTCG"); // re-cache string
+
+      buf[1] = 0x58; // 'X'
       genotypeStringInternal.invalidate(gs, buf);
-      expect(gs.toString()).toBe("XTCG");
+      expect(gs.toString()).toBe("XXCG");
+    });
+
+    test("does not throw when repr is already bytes", () => {
+      const gs = GenotypeString.fromBytes(new TextEncoder().encode("ATCG"));
+      const buf = genotypeStringInternal.mutableBytes(gs);
+      expect(() => {
+        genotypeStringInternal.invalidate(gs, buf);
+      }).not.toThrow();
+      expect(gs.toString()).toBe("ATCG");
     });
   });
 

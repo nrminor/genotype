@@ -96,6 +96,7 @@
 !/test/utils/*.test.ts
 !/test/utils/*.ts
 !/test/*.test.ts
+!/test/matchers.ts
 
 # Test data fixtures
 !/test/fixtures/

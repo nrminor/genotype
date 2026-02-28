@@ -1,3 +1,20 @@
+// GenotypeString — dual-representation string type for sequence/quality data
+export { GenotypeString } from "./genotype-string";
+// Record constructors and immutable update helpers
+export {
+  type BamAlignmentInput,
+  createBamAlignment,
+  createFastaRecord,
+  createFastqRecord,
+  createKmerRecord,
+  createSamAlignment,
+  type FastaRecordInput,
+  type FastqRecordInput,
+  type KmerRecordInput,
+  type SamAlignmentInput,
+  withQuality,
+  withSequence,
+} from "./constructors";
 // Compression infrastructure
 export {
   CompressionDetector,
@@ -114,6 +131,16 @@ export {
   type ValidateOptions,
   type WindowOptions,
 } from "./operations";
+// Sequence manipulation functions
+export {
+  complement,
+  removeGaps,
+  replaceAmbiguousBases,
+  reverse,
+  reverseComplement,
+  toDNA,
+  toRNA,
+} from "./operations/core/sequence-manipulation";
 // Quality score operations (shared functionality)
 export {
   // Branded types

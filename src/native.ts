@@ -5,7 +5,15 @@ import { join } from "node:path";
  * `#[napi]` export from the Rust crate in `src/native/`.
  */
 export interface NativeAddon {
-  echo(input: number): number;
+  /** Search a batch of sequences for a pattern within a given edit distance. */
+  grepBatch(
+    sequences: Buffer,
+    offsets: Uint32Array,
+    pattern: Buffer,
+    maxEdits: number,
+    caseInsensitive: boolean,
+    searchBothStrands: boolean,
+  ): Buffer;
 }
 
 let addon: NativeAddon | undefined;

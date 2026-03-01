@@ -10,6 +10,10 @@ crate-type = ["cdylib"]
 [dependencies]
 napi = { version = "3", features = ["napi8"] }
 napi-derive = "3"
+sassy = { version = "0.2.0", default-features = false }
+
+[lints]
+workspace = true
 
 [build-dependencies]
 napi-build = "2"

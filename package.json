@@ -42,7 +42,7 @@
     "build:lib": "bun scripts/build.mjs --lib",
     "build:native": "bun scripts/build.mjs --native",
     "build:native:dev": "bun scripts/build.mjs --native --dev",
-    "check": "bun run typecheck && bun run lint && bun run test && bun run build",
+    "check": "bun run typecheck && bun run lint && bun run lint:rust && bun run test && bun run build",
     "clean": "rm -rf dist && cargo clean",
     "clean:rust": "cargo clean",
     "dev": "tsc --watch",

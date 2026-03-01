@@ -5,14 +5,24 @@
  * allowing searches across sequence content, IDs, and descriptions with support
  * for regex patterns, case-insensitive matching, and fuzzy matching with mismatches.
  *
+ * When the native addon is available and the options are compatible, sequence
+ * searches are delegated to a SIMD-accelerated Rust kernel via batched FFI
+ * calls. The native fast-path covers string patterns against sequence content
+ * with any combination of ignoreCase, allowMismatches, and searchBothStrands.
+ * All other cases (RegExp patterns, non-sequence targets, wholeWord) fall
+ * through to the TypeScript implementation.
  */
 
 import { type } from "arktype";
 import { GrepError, ValidationError } from "../errors";
+import { type NativeKernel, getNativeKernel, packSequences } from "../native";
 import type { AbstractSequence } from "../types";
 import { hasPatternWithMismatches } from "./core/pattern-matching";
 import { escapeRegex } from "./core/string-utils";
 import type { GrepOptions, Processor } from "./types";
+
+/** Byte budget per native batch. Sequences accumulate until this threshold. */
+const BATCH_BYTE_BUDGET = 4 * 1024 * 1024;
 
 /**
  * ArkType schema for GrepOptions validation
@@ -73,18 +83,27 @@ export class GrepProcessor implements Processor<GrepOptions> {
    */
   async *process(
     source: AsyncIterable<AbstractSequence>,
-    options: GrepOptions
+    options: GrepOptions,
   ): AsyncIterable<AbstractSequence> {
-    // Direct ArkType validation
     const validationResult = GrepOptionsSchema(options);
     if (validationResult instanceof type.errors) {
       throw new ValidationError(`Invalid grep options: ${validationResult.summary}`);
     }
 
+    if (
+      typeof options.pattern === "string"
+      && options.target === "sequence"
+      && options.wholeWord !== true
+    ) {
+      const nativeKernel = getNativeKernel();
+      if (nativeKernel !== undefined) {
+        yield* this.processNative(source, nativeKernel, options.pattern, options);
+        return;
+      }
+    }
+
     for await (const seq of source) {
       const matches = this.sequenceMatches(seq, options);
-
-      // Apply invert logic
       const shouldYield = options.invert === true ? !matches : matches;
 
       if (shouldYield) {
@@ -183,5 +202,69 @@ export class GrepProcessor implements Processor<GrepOptions> {
       return caseInsensitivePattern.test(target);
     }
     return pattern.test(target);
+  }
+
+  /**
+   * Process sequences through the native SIMD-accelerated grep kernel.
+   *
+   * Accumulates sequences into batches by byte budget, packs each batch
+   * into the contiguous layout the Rust kernel expects, calls grepBatch,
+   * and yields matching sequences. The invert flag is applied here after
+   * the native call returns.
+   */
+  private async *processNative(
+    source: AsyncIterable<AbstractSequence>,
+    nativeKernel: NativeKernel,
+    pattern: string,
+    options: GrepOptions,
+  ): AsyncIterable<AbstractSequence> {
+    const patternBytes = Buffer.from(pattern);
+    const maxEdits = options.allowMismatches ?? 0;
+    const caseInsensitive = options.ignoreCase === true;
+    const searchBothStrands = options.searchBothStrands === true;
+    const invert = options.invert === true;
+
+    let batch: AbstractSequence[] = [];
+    let batchBytes = 0;
+
+    for await (const seq of source) {
+      batch.push(seq);
+      batchBytes += seq.sequence.length;
+
+      if (batchBytes >= BATCH_BYTE_BUDGET) {
+        yield* flushBatch(batch, nativeKernel, patternBytes, maxEdits, caseInsensitive, searchBothStrands, invert);
+        batch = [];
+        batchBytes = 0;
+      }
+    }
+
+    if (batch.length > 0) {
+      yield* flushBatch(batch, nativeKernel, patternBytes, maxEdits, caseInsensitive, searchBothStrands, invert);
+    }
+  }
+}
+
+/**
+ * Pack a batch of sequences, call the native grep kernel, and yield
+ * sequences that match (or don't match, if inverted).
+ */
+function* flushBatch(
+  sequences: readonly AbstractSequence[],
+  nativeKernel: NativeKernel,
+  patternBytes: Buffer,
+  maxEdits: number,
+  caseInsensitive: boolean,
+  searchBothStrands: boolean,
+  invert: boolean,
+): Iterable<AbstractSequence> {
+  const { data, offsets } = packSequences(sequences);
+  const matches = nativeKernel.grepBatch(data, offsets, patternBytes, maxEdits, caseInsensitive, searchBothStrands);
+
+  for (let i = 0; i < sequences.length; i++) {
+    const matched = matches[i] === 1;
+    const shouldYield = invert ? !matched : matched;
+    if (shouldYield) {
+      yield sequences[i]!;
+    }
   }
 }

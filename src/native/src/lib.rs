@@ -5,33 +5,12 @@
 //! are thin wrappers around pure-Rust kernel modules (grep.rs, etc.) that
 //! contain no napi dependencies and are independently testable.
 
+#![allow(clippy::must_use_candidate)]
+
 mod grep;
 
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
-
-/// Validate that `offsets` is a well-formed batch layout for `sequences`.
-///
-/// A valid offset array is monotonically non-decreasing, and its final
-/// element does not exceed `sequences.len()`.
-fn validate_offsets(offsets: &[u32], sequences_len: usize) -> napi::Result<()> {
-    if let Some(&last) = offsets.last() {
-        if last as usize > sequences_len {
-            return Err(napi::Error::from_reason(format!(
-                "grep_batch: final offset ({last}) exceeds sequences length ({sequences_len})"
-            )));
-        }
-    }
-    for window in offsets.windows(2) {
-        if window[0] > window[1] {
-            return Err(napi::Error::from_reason(format!(
-                "grep_batch: non-monotonic offsets ({}..{})",
-                window[0], window[1]
-            )));
-        }
-    }
-    Ok(())
-}
 
 /// Search a batch of sequences for a pattern within a given edit distance.
 ///
@@ -53,7 +32,6 @@ fn validate_offsets(offsets: &[u32], sequences_len: usize) -> napi::Result<()> {
 /// malformed. This has zero overhead on the happy path.
 // `#[must_use]` has no meaning across the napi FFI boundary — JS callers
 // never see Rust attributes — so the clippy lint is inapplicable here.
-#[allow(clippy::must_use_candidate)]
 #[napi]
 pub fn grep_batch(
     sequences: &[u8],
@@ -63,7 +41,7 @@ pub fn grep_batch(
     case_insensitive: bool,
     search_both_strands: bool,
 ) -> napi::Result<Buffer> {
-    validate_offsets(offsets, sequences.len())?;
+    utils::validate_offsets(offsets, sequences.len())?;
 
     let num_sequences = offsets.len().saturating_sub(1);
     let mut results = vec![0u8; num_sequences];
@@ -81,11 +59,38 @@ pub fn grep_batch(
     Ok(results.into())
 }
 
+mod utils {
+
+    /// Validate that `offsets` is a well-formed batch layout for `sequences`.
+    ///
+    /// A valid offset array is monotonically non-decreasing, and its final
+    /// element does not exceed `sequences.len()`.
+    pub(super) fn validate_offsets(offsets: &[u32], sequences_len: usize) -> napi::Result<()> {
+        if let Some(&last) = offsets.last() {
+            if last as usize > sequences_len {
+                return Err(napi::Error::from_reason(format!(
+                    "grep_batch: final offset ({last}) exceeds sequences length ({sequences_len})"
+                )));
+            }
+        }
+        for window in offsets.windows(2) {
+            if window[0] > window[1] {
+                return Err(napi::Error::from_reason(format!(
+                    "grep_batch: non-monotonic offsets ({}..{})",
+                    window[0], window[1]
+                )));
+            }
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 
+    #[allow(clippy::cast_possible_truncation)]
     fn make_batch(seqs: &[&[u8]]) -> (Vec<u8>, Vec<u32>) {
         let mut data = Vec::new();
         let mut offsets = Vec::with_capacity(seqs.len() + 1);

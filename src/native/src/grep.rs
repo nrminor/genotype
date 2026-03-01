@@ -16,8 +16,10 @@
 //! reused across all sequences, avoiding per-sequence allocation of sassy's
 //! internal SIMD buffers and DP matrices.
 
-use sassy::profiles::{Ascii, Iupac, Profile};
-use sassy::Searcher;
+use sassy::{
+    profiles::{Ascii, Iupac, Profile},
+    Searcher,
+};
 
 /// How the kernel should match the pattern against sequences.
 ///

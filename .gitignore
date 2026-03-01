@@ -92,6 +92,9 @@
 !/test/operations/processors/*.test.ts
 !/test/integration/
 !/test/integration/*.test.ts
+!/test/native/
+!/test/native/*.test.ts
+!/test/native/*.ts
 !/test/utils/
 !/test/utils/*.test.ts
 !/test/utils/*.ts

@@ -105,7 +105,7 @@ export {
   StreamUtils,
 } from "./io/stream-utils";
 // Native performance library (napi-rs addon)
-export { getNativeAddon, isNativeAvailable, type NativeAddon } from "./native";
+export { getNativeKernel, isNativeAvailable, type NativeKernel } from "./native";
 // SeqOps - Unix pipeline-style sequence operations
 export {
   type CleanOptions,

@@ -66,9 +66,9 @@
 !/src/native.ts
 !/src/native/
 !/src/native/Cargo.toml
+!/src/native/build.rs
 !/src/native/src/
 !/src/native/src/*.rs
-!/src/native/lib/
 
 # === EXAMPLES & DOCUMENTATION ===
 # Usage examples

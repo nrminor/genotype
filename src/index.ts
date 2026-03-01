@@ -104,14 +104,8 @@ export {
   readLines,
   StreamUtils,
 } from "./io/stream-utils";
-// Native performance library (FFI)
-export {
-  getCurrentPlatformTarget,
-  isNativeLibAvailable,
-  type LibGenotype,
-  resolveGenotypeLib,
-  setGenotypeLibPath,
-} from "./native";
+// Native performance library (napi-rs addon)
+export { getNativeAddon, isNativeAvailable, type NativeAddon } from "./native";
 // SeqOps - Unix pipeline-style sequence operations
 export {
   type CleanOptions,

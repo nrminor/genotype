@@ -14,15 +14,7 @@ const args = process.argv.slice(2);
 const buildLib = args.find((arg) => arg === "--lib");
 const buildNative = args.find((arg) => arg === "--native");
 const isDev = args.includes("--dev");
-
-const variants = [
-  { platform: "darwin", arch: "x64" },
-  { platform: "darwin", arch: "arm64" },
-  { platform: "linux", arch: "x64" },
-  { platform: "linux", arch: "arm64" },
-  { platform: "win32", arch: "x64" },
-  { platform: "win32", arch: "arm64" },
-];
+const nativeDir = join(rootDir, "src", "native");
 
 if (!buildLib && !buildNative) {
   console.error("Error: Please specify --lib, --native, or both");
@@ -48,100 +40,43 @@ if (missingRequired.length > 0) {
 }
 
 if (buildNative) {
-  console.log(`Building native ${isDev ? "debug" : "release"} binaries...`);
+  console.log(`Building native addon via napi-rs (${isDev ? "debug" : "release"})...`);
 
-  const rustBuild = spawnSync("cargo", ["build", isDev ? "" : "--release"].filter(Boolean), {
+  const manifestPath = join(nativeDir, "Cargo.toml");
+  const napiArgs = [
+    "build",
+    "--platform",
+    "--manifest-path",
+    manifestPath,
+    "--output-dir",
+    nativeDir,
+    ...(isDev ? [] : ["--release"]),
+  ];
+  const napiBuild = spawnSync("npx", ["napi", ...napiArgs], {
     cwd: rootDir,
     stdio: "inherit",
   });
 
-  if (rustBuild.error) {
-    console.error("Error: Cargo is not installed or not in PATH");
+  if (napiBuild.error) {
+    console.error("Error: napi build failed to start — is @napi-rs/cli installed?");
     process.exit(1);
   }
 
-  if (rustBuild.status !== 0) {
-    console.error("Error: Rust build failed");
+  if (napiBuild.status !== 0) {
+    console.error("Error: napi build failed");
     process.exit(1);
   }
 
-  // For now: single platform build (current host only)
-  // TODO: Add cross-compilation when deployment planning begins
-  const libDir = join(rootDir, "target", "release");
   const platform = process.platform;
   const arch = process.arch;
+  const nodeFile = `index.${platform}-${arch}.node`;
 
-  const nativeName = `${packageJson.name}-${platform}-${arch}`;
-  const nativeDir = join(rootDir, "node_modules", nativeName);
-
-  rmSync(nativeDir, { recursive: true, force: true });
-  mkdirSync(nativeDir, { recursive: true });
-
-  let copiedFiles = 0;
-  let libraryFileName = null;
-
-  // Look for the built Rust library
-  const expectedLib =
-    platform === "win32"
-      ? "genotype.dll"
-      : platform === "darwin"
-        ? "libgenotype.dylib"
-        : "libgenotype.so";
-  const src = join(libDir, expectedLib);
-
-  if (existsSync(src)) {
-    copyFileSync(src, join(nativeDir, expectedLib));
-    copiedFiles++;
-    libraryFileName = expectedLib;
-  }
-
-  if (copiedFiles === 0) {
-    console.error(`Error: No dynamic library found for ${platform}-${arch} in ${libDir}`);
-    console.error(`Expected: ${expectedLib}`);
-    console.error(`Run: cargo build --release`);
+  if (!existsSync(join(nativeDir, nodeFile))) {
+    console.error(`Error: Expected ${nodeFile} not found in ${nativeDir}`);
     process.exit(1);
   }
 
-  const indexTsContent = `const module = await import("./${libraryFileName}", { with: { type: "file" } })
-const path = module.default
-export default path;
-`;
-  writeFileSync(join(nativeDir, "index.ts"), indexTsContent);
-
-  writeFileSync(
-    join(nativeDir, "package.json"),
-    JSON.stringify(
-      {
-        name: nativeName,
-        version: packageJson.version,
-        description: `Prebuilt ${platform}-${arch} binaries for ${packageJson.name}`,
-        main: "index.ts",
-        types: "index.ts",
-        license: packageJson.license,
-        author: packageJson.author,
-        homepage: packageJson.homepage,
-        repository: packageJson.repository,
-        bugs: packageJson.bugs,
-        keywords: [...(packageJson.keywords ?? []), "prebuild", "prebuilt"],
-        os: [platform],
-        cpu: [arch],
-      },
-      null,
-      2
-    )
-  );
-
-  writeFileSync(
-    join(nativeDir, "README.md"),
-    replaceLinks(
-      `## ${nativeName}\n\n> Prebuilt ${platform}-${arch} binaries for \`${packageJson.name}\`.`
-    )
-  );
-
-  if (existsSync(licensePath)) {
-    copyFileSync(licensePath, join(nativeDir, "LICENSE"));
-  }
-  console.log("Built:", nativeName);
+  console.log(`Built native addon: ${nodeFile}`);
 }
 
 if (buildLib) {
@@ -221,13 +156,6 @@ if (buildLib) {
     },
   };
 
-  const optionalDeps = Object.fromEntries(
-    variants.map(({ platform, arch }) => [
-      `${packageJson.name}-${platform}-${arch}`,
-      `^${packageJson.version}`,
-    ])
-  );
-
   writeFileSync(
     join(distDir, "package.json"),
     JSON.stringify(
@@ -247,10 +175,6 @@ if (buildLib) {
         bugs: packageJson.bugs,
         exports,
         dependencies: packageJson.dependencies,
-        optionalDependencies: {
-          ...packageJson.optionalDependencies,
-          ...optionalDeps,
-        },
       },
       null,
       2

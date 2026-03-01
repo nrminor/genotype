@@ -5,8 +5,11 @@ edition = "2021"
 description = "Native performance layer for genotype bioinformatics library"
 
 [lib]
-name = "genotype"
-crate-type = ["cdylib"] # Creates .dylib/.so/.dll for FFI
+crate-type = ["cdylib"]
 
 [dependencies]
-# Zero dependencies following project philosophy!
+napi = { version = "3", features = ["napi8"] }
+napi-derive = "3"
+
+[build-dependencies]
+napi-build = "2"

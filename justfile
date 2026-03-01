@@ -47,26 +47,19 @@ build:
 
 alias b := build
 
-# Build with Rust native optimizations
+# Build native addon via napi-rs (release)
 [group('build')]
 build-native:
-    bun run build:with-native
+    bun run build:native
 
 alias bn := build-native
 
-# Build Rust native library (debug mode)
+# Build native addon via napi-rs (debug, faster compile)
 [group('build')]
-build-rust-dev:
-    cargo build
+build-native-dev:
+    bun run build:native:dev
 
-alias brd := build-rust-dev
-
-# Build Rust native library (release mode)
-[group('build')]
-build-rust:
-    cargo build --release
-
-alias br := build-rust
+alias bnd := build-native-dev
 
 # Watch mode for development
 [group('build')]

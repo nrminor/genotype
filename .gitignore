@@ -23,6 +23,10 @@
 !/clippy.toml
 !/.clippy.toml
 
+# Cargo build configuration
+!/.cargo/
+!/.cargo/config.toml
+
 # Cross-compilation config
 !/Cross.toml
 

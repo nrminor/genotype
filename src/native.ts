@@ -13,7 +13,7 @@ export interface NativeKernel {
     pattern: Buffer,
     maxEdits: number,
     caseInsensitive: boolean,
-    searchBothStrands: boolean,
+    searchBothStrands: boolean
   ): Buffer;
 }
 

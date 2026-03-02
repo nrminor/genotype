@@ -83,7 +83,7 @@ export class GrepProcessor implements Processor<GrepOptions> {
    */
   async *process(
     source: AsyncIterable<AbstractSequence>,
-    options: GrepOptions,
+    options: GrepOptions
   ): AsyncIterable<AbstractSequence> {
     const validationResult = GrepOptionsSchema(options);
     if (validationResult instanceof type.errors) {
@@ -91,9 +91,9 @@ export class GrepProcessor implements Processor<GrepOptions> {
     }
 
     if (
-      typeof options.pattern === "string"
-      && options.target === "sequence"
-      && options.wholeWord !== true
+      typeof options.pattern === "string" &&
+      options.target === "sequence" &&
+      options.wholeWord !== true
     ) {
       const nativeKernel = getNativeKernel();
       if (nativeKernel !== undefined) {
@@ -216,7 +216,7 @@ export class GrepProcessor implements Processor<GrepOptions> {
     source: AsyncIterable<AbstractSequence>,
     nativeKernel: NativeKernel,
     pattern: string,
-    options: GrepOptions,
+    options: GrepOptions
   ): AsyncIterable<AbstractSequence> {
     const patternBytes = Buffer.from(pattern);
     const maxEdits = options.allowMismatches ?? 0;
@@ -232,14 +232,30 @@ export class GrepProcessor implements Processor<GrepOptions> {
       batchBytes += seq.sequence.length;
 
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        yield* flushBatch(batch, nativeKernel, patternBytes, maxEdits, caseInsensitive, searchBothStrands, invert);
+        yield* flushBatch(
+          batch,
+          nativeKernel,
+          patternBytes,
+          maxEdits,
+          caseInsensitive,
+          searchBothStrands,
+          invert
+        );
         batch = [];
         batchBytes = 0;
       }
     }
 
     if (batch.length > 0) {
-      yield* flushBatch(batch, nativeKernel, patternBytes, maxEdits, caseInsensitive, searchBothStrands, invert);
+      yield* flushBatch(
+        batch,
+        nativeKernel,
+        patternBytes,
+        maxEdits,
+        caseInsensitive,
+        searchBothStrands,
+        invert
+      );
     }
   }
 }
@@ -255,10 +271,17 @@ function* flushBatch(
   maxEdits: number,
   caseInsensitive: boolean,
   searchBothStrands: boolean,
-  invert: boolean,
+  invert: boolean
 ): Iterable<AbstractSequence> {
   const { data, offsets } = packSequences(sequences);
-  const matches = nativeKernel.grepBatch(data, offsets, patternBytes, maxEdits, caseInsensitive, searchBothStrands);
+  const matches = nativeKernel.grepBatch(
+    data,
+    offsets,
+    patternBytes,
+    maxEdits,
+    caseInsensitive,
+    searchBothStrands
+  );
 
   for (let i = 0; i < sequences.length; i++) {
     const matched = matches[i] === 1;

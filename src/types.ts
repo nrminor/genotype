@@ -30,18 +30,13 @@ import { GenotypeString } from "./genotype-string";
  */
 export const stringLike = type("string").or(
   type("unknown")
-    .narrow(
-      (value): value is GenotypeString => value instanceof GenotypeString
-    )
+    .narrow((value): value is GenotypeString => value instanceof GenotypeString)
     .describe("a GenotypeString")
 );
 
 export const nonEmptyStringLike = type("string > 0").or(
   type("unknown")
-    .narrow(
-      (value): value is GenotypeString =>
-        value instanceof GenotypeString && value.length > 0
-    )
+    .narrow((value): value is GenotypeString => value instanceof GenotypeString && value.length > 0)
     .describe("a non-empty GenotypeString")
 );
 

@@ -29,24 +29,20 @@ describe("Internal sequence set functions", () => {
         {
           id: "seq1",
           sequence: "ATCG",
-
         },
         {
           id: "seq2",
           sequence: "GCTA",
-
         },
       ]);
       const setB = toSequences([
         {
           id: "seq3",
           sequence: "GCTA",
-
         },
         {
           id: "seq4",
           sequence: "TTTT",
-
         },
       ]);
 
@@ -67,29 +63,24 @@ describe("Internal sequence set functions", () => {
         {
           id: "seq1",
           sequence: "ATCG",
-
         },
         {
           id: "seq2",
           sequence: "GCTA",
-
         },
         {
           id: "seq3",
           sequence: "TTTT",
-
         },
       ]);
       const setB = toSequences([
         {
           id: "seq4",
           sequence: "GCTA",
-
         },
         {
           id: "seq5",
           sequence: "AAAA",
-
         },
       ]);
 
@@ -106,19 +97,16 @@ describe("Internal sequence set functions", () => {
         {
           id: "seq1",
           sequence: "ATCG",
-
         },
         {
           id: "seq2",
           sequence: "GCTA",
-
         },
       ]);
       const setB = toSequences([
         {
           id: "seq3",
           sequence: "GCTA",
-
         },
       ]);
 
@@ -135,24 +123,20 @@ describe("Internal sequence set functions", () => {
         {
           id: "seq1",
           sequence: "ATCG",
-
         },
         {
           id: "seq2",
           sequence: "GCTA",
-
         },
       ]);
       const setB = toSequences([
         {
           id: "seq3",
           sequence: "GCTA",
-
         },
         {
           id: "seq4",
           sequence: "TTTT",
-
         },
       ]);
 
@@ -176,22 +160,18 @@ describe("Internal sequence set functions", () => {
         {
           id: "seq1",
           sequence: "ATCG",
-
         },
         {
           id: "seq2",
           sequence: "GCTA",
-
         },
         {
           id: "seq3",
           sequence: "ATCG",
-
         },
         {
           id: "seq4",
           sequence: "GCTA",
-
         },
       ]);
 
@@ -209,31 +189,26 @@ describe("Internal sequence set functions", () => {
         {
           id: "seq1",
           sequence: "ATCG",
-
         },
         {
           id: "seq2",
           sequence: "GCTA",
-
         },
       ]);
       const setB = toSequences([
         {
           id: "seq3",
           sequence: "GCTA",
-
         },
         {
           id: "seq4",
           sequence: "ATCG",
-
         },
       ]);
       const setC = toSequences([
         {
           id: "seq5",
           sequence: "ATCG",
-
         },
       ]);
 
@@ -248,19 +223,16 @@ describe("Internal sequence set functions", () => {
         {
           id: "seq1",
           sequence: "ATCG",
-
         },
       ]);
       const setB = toSequences([
         {
           id: "seq2",
           sequence: "ATCG",
-
         },
         {
           id: "seq3",
           sequence: "GCTA",
-
         },
       ]);
 
@@ -275,21 +247,18 @@ describe("Internal sequence set functions", () => {
         {
           id: "seq1",
           sequence: "ATCG",
-
         },
       ]);
       const setB = toSequences([
         {
           id: "seq2",
           sequence: "GCTA",
-
         },
       ]);
       const setC = toSequences([
         {
           id: "seq3",
           sequence: "ATCG",
-
         },
       ]);
 
@@ -304,24 +273,20 @@ describe("Internal sequence set functions", () => {
         {
           id: "seq1",
           sequence: "ATCG",
-
         },
         {
           id: "seq2",
           sequence: "GCTA",
-
         },
       ]);
       const setB = toSequences([
         {
           id: "seq3",
           sequence: "GCTA",
-
         },
         {
           id: "seq4",
           sequence: "TTTT",
-
         },
       ]);
 
@@ -337,19 +302,16 @@ describe("Internal sequence set functions", () => {
         {
           id: "seq1",
           sequence: "ATCG",
-
         },
       ]);
       const setB = toSequences([
         {
           id: "seq2",
           sequence: "ATCG",
-
         },
         {
           id: "seq3",
           sequence: "GCTA",
-
         },
       ]);
 
@@ -365,29 +327,24 @@ describe("Internal sequence set functions", () => {
         {
           id: "seq1",
           sequence: "ATCG",
-
         },
         {
           id: "seq2",
           sequence: "GCTA",
-
         },
       ]);
       const setB = toSequences([
         {
           id: "seq3",
           sequence: "GCTA",
-
         },
         {
           id: "seq4",
           sequence: "TTTT",
-
         },
         {
           id: "seq5",
           sequence: "AAAA",
-
         },
       ]);
 
@@ -404,17 +361,14 @@ describe("Internal sequence set functions", () => {
           {
             id: "seq1",
             sequence: "ATCG",
-
           },
           {
             id: "seq2",
             sequence: "GCTA",
-
           },
           {
             id: "seq3",
             sequence: "ATCG",
-
           },
         ]);
 
@@ -432,12 +386,10 @@ describe("Internal sequence set functions", () => {
             {
               id: "seq1",
               sequence: "ATCG",
-
             },
             {
               id: "seq2",
               sequence: "GCTA",
-
             },
           ])
         );
@@ -446,12 +398,10 @@ describe("Internal sequence set functions", () => {
             {
               id: "seq3",
               sequence: "GCTA",
-
             },
             {
               id: "seq4",
               sequence: "TTTT",
-
             },
           ])
         );
@@ -478,7 +428,6 @@ describe("Internal sequence set functions", () => {
             {
               id: "seq1",
               sequence: "ATCG",
-
             },
           ])
         );
@@ -487,7 +436,6 @@ describe("Internal sequence set functions", () => {
             {
               id: "seq2",
               sequence: "ATCG",
-
             },
           ])
         );
@@ -496,12 +444,10 @@ describe("Internal sequence set functions", () => {
             {
               id: "seq3",
               sequence: "ATCG",
-
             },
             {
               id: "seq4",
               sequence: "GCTA",
-
             },
           ])
         );
@@ -510,7 +456,6 @@ describe("Internal sequence set functions", () => {
             {
               id: "seq5",
               sequence: "TTTT",
-
             },
           ])
         );
@@ -529,12 +474,10 @@ describe("Internal sequence set functions", () => {
             {
               id: "seq1",
               sequence: "ATCG",
-
             },
             {
               id: "seq2",
               sequence: "GCTA",
-
             },
           ])
         );
@@ -543,12 +486,10 @@ describe("Internal sequence set functions", () => {
             {
               id: "seq3",
               sequence: "GCTA",
-
             },
             {
               id: "seq4",
               sequence: "TTTT",
-
             },
           ])
         );
@@ -571,12 +512,10 @@ describe("Internal sequence set functions", () => {
             {
               id: "seq1",
               sequence: "ATCG",
-
             },
             {
               id: "seq2",
               sequence: "GCTA",
-
             },
           ])
         );
@@ -605,12 +544,10 @@ describe("Internal sequence set functions", () => {
             {
               id: "seq1",
               sequence: "ATCG",
-
             },
             {
               id: "seq2",
               sequence: "GCTA",
-
             },
           ])
         );

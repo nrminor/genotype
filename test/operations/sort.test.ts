@@ -211,8 +211,7 @@ describe("SortProcessor", () => {
     test("sorts with custom comparison function", async () => {
       // Sort by sequence content alphabetically
       const options: SortOptions = {
-        sortBy: (a: AbstractSequence, b: AbstractSequence) =>
-          a.sequence.localeCompare(b.sequence),
+        sortBy: (a: AbstractSequence, b: AbstractSequence) => a.sequence.localeCompare(b.sequence),
       };
 
       const results: AbstractSequence[] = [];

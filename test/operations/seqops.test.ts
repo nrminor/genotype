@@ -1235,10 +1235,7 @@ describe("SeqOps", () => {
     test("returns initial value for empty stream", async () => {
       const sequences: AbstractSequence[] = [];
 
-      const result = await seqops(toAsync(sequences)).fold(
-        (sum, seq) => sum + seq.length,
-        100
-      );
+      const result = await seqops(toAsync(sequences)).fold((sum, seq) => sum + seq.length, 100);
 
       expect(result).toBe(100);
     });
@@ -1734,9 +1731,7 @@ describe("SeqOps", () => {
         const right = [createSequence("R1", "TTT"), createSequence("R2", "AAA")];
 
         await expect(async () => {
-          await seqops(toAsync(left))
-            .interleave(toAsync(right), { mode: "strict" })
-            .collect();
+          await seqops(toAsync(left)).interleave(toAsync(right), { mode: "strict" }).collect();
         }).toThrow(/right stream exhausted.*left stream continues/);
       });
 
@@ -1749,9 +1744,7 @@ describe("SeqOps", () => {
         ];
 
         await expect(async () => {
-          await seqops(toAsync(left))
-            .interleave(toAsync(right), { mode: "strict" })
-            .collect();
+          await seqops(toAsync(left)).interleave(toAsync(right), { mode: "strict" }).collect();
         }).toThrow(/left stream exhausted.*right stream continues/);
       });
 
@@ -1898,9 +1891,7 @@ describe("SeqOps", () => {
       ];
 
       await expect(async () => {
-        await seqops(toAsync(left))
-          .interleave(toAsync(right), { validateIds: true })
-          .collect();
+        await seqops(toAsync(left)).interleave(toAsync(right), { validateIds: true }).collect();
       }).toThrow('ID mismatch at position 1: left="read_002", right="read_999"');
     });
 
@@ -2055,10 +2046,7 @@ describe("SeqOps", () => {
       const left = [createSequence("L1", "AAA"), createSequence("L2", "CCC")];
       const right = [createSequence("R1", "TTT"), createSequence("R2", "GGG")];
 
-      const result = await seqops(toAsync(left))
-        .interleave(toAsync(right))
-        .enumerate()
-        .collect();
+      const result = await seqops(toAsync(left)).interleave(toAsync(right)).enumerate().collect();
 
       // Should have indices attached
       expect(result).toHaveLength(4);

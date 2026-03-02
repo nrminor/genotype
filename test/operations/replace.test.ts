@@ -106,9 +106,7 @@ describe("Replace operation", () => {
     });
 
     test("empty replacement (deletion)", async () => {
-      const input: FastaRecordInput[] = [
-        { id: "chr1:100-200", sequence: "ATCG" },
-      ];
+      const input: FastaRecordInput[] = [{ id: "chr1:100-200", sequence: "ATCG" }];
 
       const result = await Array.fromAsync(
         replace(fastaToAsync(input), {
@@ -123,9 +121,7 @@ describe("Replace operation", () => {
 
   describe("capture variables", () => {
     test("single capture group", async () => {
-      const input: FastaRecordInput[] = [
-        { id: "gene123", sequence: "ATCG" },
-      ];
+      const input: FastaRecordInput[] = [{ id: "gene123", sequence: "ATCG" }];
 
       const result = await Array.fromAsync(
         replace(fastaToAsync(input), {
@@ -138,9 +134,7 @@ describe("Replace operation", () => {
     });
 
     test("multiple capture groups (reorder)", async () => {
-      const input: FastaRecordInput[] = [
-        { id: "gene123", sequence: "ATCG" },
-      ];
+      const input: FastaRecordInput[] = [{ id: "gene123", sequence: "ATCG" }];
 
       const result = await Array.fromAsync(
         replace(fastaToAsync(input), {
@@ -153,9 +147,7 @@ describe("Replace operation", () => {
     });
 
     test("three capture groups (restructure database IDs)", async () => {
-      const input: FastaRecordInput[] = [
-        { id: "ENSG00000139618.15", sequence: "ATCG" },
-      ];
+      const input: FastaRecordInput[] = [{ id: "ENSG00000139618.15", sequence: "ATCG" }];
 
       const result = await Array.fromAsync(
         replace(fastaToAsync(input), {
@@ -168,9 +160,7 @@ describe("Replace operation", () => {
     });
 
     test("capture with surrounding text preserved", async () => {
-      const input: FastaRecordInput[] = [
-        { id: "patient_001_sample_A", sequence: "ATCG" },
-      ];
+      const input: FastaRecordInput[] = [{ id: "patient_001_sample_A", sequence: "ATCG" }];
 
       const result = await Array.fromAsync(
         replace(fastaToAsync(input), {
@@ -183,9 +173,7 @@ describe("Replace operation", () => {
     });
 
     test("both $N and ${N} syntax work identically", async () => {
-      const input: FastaRecordInput[] = [
-        { id: "gene123", sequence: "ATCG" },
-      ];
+      const input: FastaRecordInput[] = [{ id: "gene123", sequence: "ATCG" }];
 
       const result1 = await Array.fromAsync(
         replace(fastaToAsync(input), {
@@ -274,10 +262,7 @@ describe("Replace operation", () => {
 
     test("preserves all sequence properties except ID", async () => {
       const input: FastaRecordInput[] = [
-        { id: "seq1",
-          description: "important metadata",
-          sequence: "ATCGATCGATCG",
-        },
+        { id: "seq1", description: "important metadata", sequence: "ATCGATCGATCG" },
       ];
 
       const result = await Array.fromAsync(
@@ -295,9 +280,7 @@ describe("Replace operation", () => {
     });
 
     test("handles special regex characters in pattern", async () => {
-      const input: FastaRecordInput[] = [
-        { id: "seq.1", sequence: "ATCG" },
-      ];
+      const input: FastaRecordInput[] = [{ id: "seq.1", sequence: "ATCG" }];
 
       const result = await Array.fromAsync(
         replace(fastaToAsync(input), {
@@ -310,9 +293,7 @@ describe("Replace operation", () => {
     });
 
     test("replaces only first occurrence (non-global)", async () => {
-      const input: FastaRecordInput[] = [
-        { id: "chr1|chr2|chr3", sequence: "ATCG" },
-      ];
+      const input: FastaRecordInput[] = [{ id: "chr1|chr2|chr3", sequence: "ATCG" }];
 
       const result = await Array.fromAsync(
         replace(fastaToAsync(input), {
@@ -520,9 +501,7 @@ describe("Replace operation", () => {
     });
 
     test("configurable key capture index (keyCaptIdx)", async () => {
-      const input: FastaRecordInput[] = [
-        { id: "gene_BRCA1_v1", sequence: "ATCG" },
-      ];
+      const input: FastaRecordInput[] = [{ id: "gene_BRCA1_v1", sequence: "ATCG" }];
 
       const kvMap = {
         v1: "version_one",
@@ -541,9 +520,7 @@ describe("Replace operation", () => {
     });
 
     test("kvMap accepts Map object", async () => {
-      const input: FastaRecordInput[] = [
-        { id: "gene_BRCA1", sequence: "ATCG" },
-      ];
+      const input: FastaRecordInput[] = [{ id: "gene_BRCA1", sequence: "ATCG" }];
 
       const kvMap = new Map([["BRCA1", "breast_cancer_1"]]);
 
@@ -577,9 +554,7 @@ describe("Replace operation", () => {
     });
 
     test("invalid kvFile format throws ValidationError", async () => {
-      const input: FastaRecordInput[] = [
-        { id: "gene_BRCA1", sequence: "ATCG" },
-      ];
+      const input: FastaRecordInput[] = [{ id: "gene_BRCA1", sequence: "ATCG" }];
 
       const iterator = replace(fastaToAsync(input), {
         pattern: "gene_(\\w+)",
@@ -609,9 +584,7 @@ describe("Replace operation", () => {
       // behavior. Instead, we verify that the type system works correctly by
       // checking that valid configurations compile:
 
-      const input: FastaRecordInput[] = [
-        { id: "gene_BRCA1", sequence: "ATCG" },
-      ];
+      const input: FastaRecordInput[] = [{ id: "gene_BRCA1", sequence: "ATCG" }];
 
       // ✅ Valid: kvMap only
       const withKvMap = replace(fastaToAsync(input), {
@@ -664,11 +637,7 @@ describe("Replace operation", () => {
 
     test("error on FASTQ sequence replacement", async () => {
       const input: FastqRecordInput[] = [
-        { id: "seq1",
-          sequence: "ATCG",
-          quality: "IIII",
-          qualityEncoding: "phred33",
-        },
+        { id: "seq1", sequence: "ATCG", quality: "IIII", qualityEncoding: "phred33" },
       ];
 
       const iterator = replace(fastqToAsync(input), {
@@ -683,9 +652,7 @@ describe("Replace operation", () => {
     });
 
     test("remove gaps pattern (first occurrence only)", async () => {
-      const input: FastaRecordInput[] = [
-        { id: "seq1", sequence: "ATCG-AT CG.ATCG" },
-      ];
+      const input: FastaRecordInput[] = [{ id: "seq1", sequence: "ATCG-AT CG.ATCG" }];
 
       const result = await Array.fromAsync(
         replace(fastaToAsync(input), {
@@ -716,10 +683,7 @@ describe("Replace operation", () => {
 
     test("sequence replacement preserves ID and description", async () => {
       const input: FastaRecordInput[] = [
-        { id: "seq1",
-          description: "important metadata",
-          sequence: "ATCG-ATCG",
-        },
+        { id: "seq1", description: "important metadata", sequence: "ATCG-ATCG" },
       ];
 
       const result = await Array.fromAsync(
@@ -737,9 +701,7 @@ describe("Replace operation", () => {
     });
 
     test("bySeq with capture groups in sequences", async () => {
-      const input: FastaRecordInput[] = [
-        { id: "seq1", sequence: "ATCGATCG" },
-      ];
+      const input: FastaRecordInput[] = [{ id: "seq1", sequence: "ATCGATCG" }];
 
       const result = await Array.fromAsync(
         replace(fastaToAsync(input), {
@@ -840,14 +802,8 @@ describe("Replace operation", () => {
 
     test("filter by name with description (filterByName)", async () => {
       const input: FastaRecordInput[] = [
-        { id: "seq1",
-          description: "chromosome 1",
-          sequence: "ATCG",
-        },
-        { id: "seq2",
-          description: "mitochondrial",
-          sequence: "GCTA",
-        },
+        { id: "seq1", description: "chromosome 1", sequence: "ATCG" },
+        { id: "seq2", description: "mitochondrial", sequence: "GCTA" },
         { id: "seq3", sequence: "TTAA" },
       ];
 

@@ -1,5 +1,13 @@
 import { spawnSync } from "child_process";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "fs";
 import { dirname, join, resolve } from "path";
 import process from "process";
 import { fileURLToPath } from "url";
@@ -67,16 +75,13 @@ if (buildNative) {
     process.exit(1);
   }
 
-  const platform = process.platform;
-  const arch = process.arch;
-  const nodeFile = `index.${platform}-${arch}.node`;
-
-  if (!existsSync(join(nativeDir, nodeFile))) {
-    console.error(`Error: Expected ${nodeFile} not found in ${nativeDir}`);
+  const nodeFiles = readdirSync(nativeDir).filter((f) => f.endsWith(".node"));
+  if (nodeFiles.length === 0) {
+    console.error(`Error: No .node file found in ${nativeDir} after build`);
     process.exit(1);
   }
 
-  console.log(`Built native addon: ${nodeFile}`);
+  console.log(`Built native addon: ${nodeFiles.join(", ")}`);
 }
 
 if (buildLib) {
@@ -89,6 +94,9 @@ if (buildLib) {
   const externalDeps = [
     ...Object.keys(packageJson.optionalDependencies || {}),
     ...Object.keys(packageJson.peerDependencies || {}),
+    // The napi-rs generated loader resolves platform-specific .node files
+    // at runtime. The bundler must not try to inline or resolve it.
+    "*/native/index.js",
   ];
 
   // Build main entry point

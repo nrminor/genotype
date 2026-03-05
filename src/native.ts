@@ -1,4 +1,3 @@
-import { join } from "node:path";
 import type { AbstractSequence } from "./types";
 
 /**
@@ -68,13 +67,11 @@ function loadKernel(): NativeKernel | undefined {
   if (loadAttempted) return kernel;
   loadAttempted = true;
 
-  const platform = process.platform;
-  const arch = process.arch;
-  const filename = `index.${platform}-${arch}.node`;
-  const nativePath = join(__dirname, "native", filename);
-
   try {
-    kernel = require(nativePath) as NativeKernel;
+    // Use napi-rs's generated loader, which handles all platform/arch/libc
+    // combinations (linux-x64-gnu, linux-x64-musl, darwin-arm64, etc.)
+    // rather than constructing the .node filename ourselves.
+    kernel = require("./native/index.js") as NativeKernel;
   } catch {
     // Native kernel not available — this is expected when the Rust
     // crate hasn't been built. All native-accelerated code paths

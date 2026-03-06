@@ -4,6 +4,14 @@ import type { AbstractSequence } from "./types";
  * The native kernel interface. Each function here corresponds to a
  * `#[napi]` export from the Rust crate in `src/native/`.
  */
+/** The result of a batch transform operation from the native kernel. */
+export interface TransformResult {
+  /** Transformed sequence bytes, contiguous in a single Buffer. */
+  data: Buffer;
+  /** N+1 offset array where offsets[i] is the byte position where sequence i starts. */
+  offsets: number[];
+}
+
 export interface NativeKernel {
   /** Search a batch of sequences for a pattern within a given edit distance. */
   grepBatch(
@@ -14,6 +22,22 @@ export interface NativeKernel {
     caseInsensitive: boolean,
     searchBothStrands: boolean
   ): Buffer;
+
+  /**
+   * Apply a byte-level transformation to every sequence in a packed batch.
+   *
+   * @param sequences - Concatenated sequence bytes
+   * @param offsets - N+1 offset array into the sequences buffer
+   * @param operation - The transformation to apply
+   * @param param - Operation-specific parameter (gap chars, replacement char, or empty string)
+   * @returns Transformed bytes and new offsets
+   */
+  transformBatch(
+    sequences: Buffer,
+    offsets: Uint32Array,
+    operation: string,
+    param: string
+  ): TransformResult;
 }
 
 /**

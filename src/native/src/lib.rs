@@ -5,6 +5,7 @@
 //! are thin wrappers around pure-Rust kernel modules (grep.rs, etc.) that
 //! contain no napi dependencies and are independently testable.
 
+#![feature(portable_simd)]
 #![allow(clippy::must_use_candidate)]
 
 mod grep;

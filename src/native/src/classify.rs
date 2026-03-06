@@ -379,7 +379,6 @@ fn byte_is_valid(b: u8, mode: ValidMode) -> bool {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 
@@ -464,8 +463,8 @@ mod tests {
         fn counts_sum_to_length() {
             let input = b"ATCGNrykmswbdhv.-*1XZ";
             let counts = run_classify(input);
-            let total: u32 = counts.iter().sum();
-            assert_eq!(total, input.len() as u32);
+            let total: usize = counts.iter().map(|&c| c as usize).sum();
+            assert_eq!(total, input.len());
         }
 
         #[test]
@@ -473,8 +472,8 @@ mod tests {
             // A realistic sequence with standard bases, IUPAC codes, and gaps
             let input = b"ATCGATCG-NNRYSWKM..BDHV*acgt";
             let counts = run_classify(input);
-            let total: u32 = counts.iter().sum();
-            assert_eq!(total, input.len() as u32);
+            let total: usize = counts.iter().map(|&c| c as usize).sum();
+            assert_eq!(total, input.len());
             assert!(counts[CLASS_AT] > 0);
             assert!(counts[CLASS_GC] > 0);
             assert!(counts[CLASS_MULTI] > 0);
@@ -716,9 +715,9 @@ mod tests {
             let input = vec![b'A'; len];
             let mut counts = [0u32; NUM_CLASSES];
             classify_generic::<16>(&input, &mut counts);
-            assert_eq!(counts[CLASS_AT], len as u32);
-            let total: u32 = counts.iter().sum();
-            assert_eq!(total, len as u32);
+            assert_eq!(counts[CLASS_AT] as usize, len);
+            let total: usize = counts.iter().map(|&c| c as usize).sum();
+            assert_eq!(total, len);
         }
 
         #[test]
@@ -728,7 +727,7 @@ mod tests {
             let input = vec![b'N'; len];
             let mut counts = [0u32; NUM_CLASSES];
             classify_generic::<16>(&input, &mut counts);
-            assert_eq!(counts[CLASS_MULTI], len as u32);
+            assert_eq!(counts[CLASS_MULTI] as usize, len);
         }
 
         #[test]

@@ -53,7 +53,7 @@
     "format:rust": "cargo fmt",
     "lint": "bunx oxlint",
     "lint:fix": "bunx oxlint --fix",
-    "lint:rust": "cargo clippy -- -D warnings",
+    "lint:rust": "cargo clippy --all-targets -- -D warnings",
     "lint:types": "bunx oxlint --type-aware",
     "prepare": "effect-language-service patch",
     "prepublishOnly": "bun run clean && bun run build",

@@ -373,7 +373,6 @@ mod utils {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 
@@ -392,7 +391,8 @@ mod tests {
     #[test]
     fn batch_exact_match() {
         let (data, offsets) = make_batch(&[b"ATCGATCG", b"GGGGGGGG", b"XXGATCXX"]);
-        let results = grep_batch(&data, &offsets, b"GATC", 0, false, false).unwrap();
+        let results = grep_batch(&data, &offsets, b"GATC", 0, false, false)
+            .expect("offset validation rejected a well-formed batch");
         assert_eq!(results.as_ref(), &[1, 0, 1]);
     }
 
@@ -400,14 +400,16 @@ mod tests {
     fn batch_approximate_match() {
         let (data, offsets) = make_batch(&[b"ATCGTTCG", b"TTTTTTTT"]);
         // GTTC is 1 edit from GATC
-        let results = grep_batch(&data, &offsets, b"GATC", 1, false, false).unwrap();
+        let results = grep_batch(&data, &offsets, b"GATC", 1, false, false)
+            .expect("offset validation rejected a well-formed batch");
         assert_eq!(results.as_ref(), &[1, 0]);
     }
 
     #[test]
     fn batch_case_insensitive() {
         let (data, offsets) = make_batch(&[b"atcgatcg", b"ATCGATCG"]);
-        let results = grep_batch(&data, &offsets, b"GATC", 0, true, false).unwrap();
+        let results = grep_batch(&data, &offsets, b"GATC", 0, true, false)
+            .expect("offset validation rejected a well-formed batch");
         assert_eq!(results.as_ref(), &[1, 1]);
     }
 
@@ -415,40 +417,47 @@ mod tests {
     fn batch_reverse_complement() {
         // RC of ATCG is CGAT
         let (data, offsets) = make_batch(&[b"CGATAAAA", b"TTTTTTTT"]);
-        let results = grep_batch(&data, &offsets, b"ATCG", 0, false, true).unwrap();
+        let results = grep_batch(&data, &offsets, b"ATCG", 0, false, true)
+            .expect("offset validation rejected a well-formed batch");
         assert_eq!(results.as_ref(), &[1, 0]);
     }
 
     #[test]
     fn batch_empty() {
-        let results = grep_batch(&[], &[0], b"GATC", 0, false, false).unwrap();
+        let results = grep_batch(&[], &[0], b"GATC", 0, false, false)
+            .expect("empty batch with sentinel offset [0] is valid");
         assert_eq!(results.as_ref(), &[] as &[u8]);
     }
 
     #[test]
     fn batch_empty_offsets() {
-        let results = grep_batch(&[], &[], b"GATC", 0, false, false).unwrap();
+        let results = grep_batch(&[], &[], b"GATC", 0, false, false)
+            .expect("completely empty batch (no offsets) is valid");
         assert_eq!(results.as_ref(), &[] as &[u8]);
     }
 
     #[test]
     fn batch_single_sequence() {
         let (data, offsets) = make_batch(&[b"ATCGATCG"]);
-        let results = grep_batch(&data, &offsets, b"GATC", 0, false, false).unwrap();
+        let results = grep_batch(&data, &offsets, b"GATC", 0, false, false)
+            .expect("offset validation rejected a well-formed batch");
         assert_eq!(results.as_ref(), &[1]);
     }
 
     #[test]
     fn batch_empty_pattern_is_all_zeros() {
         let (data, offsets) = make_batch(&[b"ATCG", b"GATC"]);
-        let results = grep_batch(&data, &offsets, b"", 0, false, false).unwrap();
+        let results = grep_batch(&data, &offsets, b"", 0, false, false)
+            .expect("offset validation rejected a well-formed batch");
         assert_eq!(results.as_ref(), &[0, 0]);
     }
 
     #[test]
     fn batch_rejects_offset_beyond_sequences() {
         let result = grep_batch(b"ATCG", &[0, 10], b"ATCG", 0, false, false);
-        let err = result.err().expect("should have returned an error");
+        let err = result
+            .err()
+            .expect("out-of-bounds offset [0, 10] was not rejected");
         assert!(
             err.reason.contains("final offset"),
             "unexpected error: {}",
@@ -459,7 +468,9 @@ mod tests {
     #[test]
     fn batch_rejects_non_monotonic_offsets() {
         let result = grep_batch(b"ATCGATCG", &[0, 4, 2, 8], b"ATCG", 0, false, false);
-        let err = result.err().expect("should have returned an error");
+        let err = result
+            .err()
+            .expect("non-monotonic offsets [0, 4, 2, 8] were not rejected");
         assert!(
             err.reason.contains("non-monotonic"),
             "unexpected error: {}",
@@ -470,7 +481,8 @@ mod tests {
     #[test]
     fn transform_complement_batch() {
         let (data, offsets) = make_batch(&[b"ATCG", b"aacc"]);
-        let result = transform_batch(&data, &offsets, TransformOp::Complement).unwrap();
+        let result = transform_batch(&data, &offsets, TransformOp::Complement)
+            .expect("offset validation rejected a well-formed batch");
         assert_eq!(result.data.as_ref(), b"TAGCttgg");
         assert_eq!(result.offsets, vec![0, 4, 8]);
     }
@@ -478,7 +490,8 @@ mod tests {
     #[test]
     fn transform_reverse_batch() {
         let (data, offsets) = make_batch(&[b"ATCG", b"AB"]);
-        let result = transform_batch(&data, &offsets, TransformOp::Reverse).unwrap();
+        let result = transform_batch(&data, &offsets, TransformOp::Reverse)
+            .expect("offset validation rejected a well-formed batch");
         assert_eq!(result.data.as_ref(), b"GCTABA");
         assert_eq!(result.offsets, vec![0, 4, 6]);
     }
@@ -486,7 +499,8 @@ mod tests {
     #[test]
     fn remove_gaps_batch_compacts() {
         let (data, offsets) = make_batch(&[b"A-T-C", b"GG"]);
-        let result = remove_gaps_batch(&data, &offsets, String::new()).unwrap();
+        let result = remove_gaps_batch(&data, &offsets, String::new())
+            .expect("offset validation rejected a well-formed batch");
         assert_eq!(result.data.as_ref(), b"ATCGG");
         assert_eq!(result.offsets, vec![0, 3, 5]);
     }
@@ -494,39 +508,45 @@ mod tests {
     #[test]
     fn classify_batch_flattens_counts_in_order() {
         let (data, offsets) = make_batch(&[b"AAAA", b"", b"GG"]);
-        let result = classify_batch(&data, &offsets).unwrap();
+        let result = classify_batch(&data, &offsets)
+            .expect("offset validation rejected a well-formed batch");
         assert_eq!(result.counts.len(), 3 * classify::NUM_CLASSES);
 
+        let count_at = |seq: usize, class: usize| result.counts[seq * 8 + class];
+
         // Seq 0: 4 AT bases
-        assert_eq!(result.counts[0 * 8 + classify::CLASS_AT], 4);
-        assert_eq!(result.counts[0 * 8 + classify::CLASS_GC], 0);
+        assert_eq!(count_at(0, classify::CLASS_AT), 4);
+        assert_eq!(count_at(0, classify::CLASS_GC), 0);
 
         // Seq 1: empty, all zeros
         for c in 0..classify::NUM_CLASSES {
-            assert_eq!(result.counts[1 * 8 + c], 0, "empty seq class {c}");
+            assert_eq!(count_at(1, c), 0, "empty seq class {c}");
         }
 
         // Seq 2: 2 GC bases
-        assert_eq!(result.counts[2 * 8 + classify::CLASS_GC], 2);
-        assert_eq!(result.counts[2 * 8 + classify::CLASS_AT], 0);
+        assert_eq!(count_at(2, classify::CLASS_GC), 2);
+        assert_eq!(count_at(2, classify::CLASS_AT), 0);
     }
 
     #[test]
     fn check_valid_batch_returns_per_sequence_flags() {
         let (data, offsets) = make_batch(&[b"ACGT", b"ACGX", b"acgt"]);
-        let result = check_valid_batch(&data, &offsets, ValidationMode::StrictDna).unwrap();
+        let result = check_valid_batch(&data, &offsets, ValidationMode::StrictDna)
+            .expect("offset validation rejected a well-formed batch");
         assert_eq!(result.as_ref(), &[1, 0, 1]);
     }
 
     #[test]
     fn classify_batch_empty_returns_empty() {
-        let result = classify_batch(&[], &[0]).unwrap();
+        let result =
+            classify_batch(&[], &[0]).expect("empty batch with sentinel offset [0] is valid");
         assert!(result.counts.is_empty());
     }
 
     #[test]
     fn check_valid_batch_empty_returns_empty() {
-        let result = check_valid_batch(&[], &[0], ValidationMode::StrictDna).unwrap();
+        let result = check_valid_batch(&[], &[0], ValidationMode::StrictDna)
+            .expect("empty batch with sentinel offset [0] is valid");
         assert_eq!(result.as_ref(), &[] as &[u8]);
     }
 
@@ -534,12 +554,12 @@ mod tests {
     fn classify_batch_rejects_malformed_offsets() {
         let err = classify_batch(b"ATCG", &[0, 100])
             .err()
-            .expect("should reject offset beyond data");
+            .expect("out-of-bounds offset [0, 100] was not rejected");
         assert!(err.reason.contains("final offset"), "{}", err.reason);
 
         let err = classify_batch(b"ATCGATCG", &[0, 4, 2, 8])
             .err()
-            .expect("should reject non-monotonic offsets");
+            .expect("non-monotonic offsets [0, 4, 2, 8] were not rejected");
         assert!(err.reason.contains("non-monotonic"), "{}", err.reason);
     }
 
@@ -547,7 +567,7 @@ mod tests {
     fn check_valid_batch_rejects_malformed_offsets() {
         let err = check_valid_batch(b"ATCG", &[0, 100], ValidationMode::StrictDna)
             .err()
-            .expect("should reject offset beyond data");
+            .expect("out-of-bounds offset [0, 100] was not rejected");
         assert!(err.reason.contains("final offset"), "{}", err.reason);
     }
 
@@ -555,7 +575,8 @@ mod tests {
     fn classify_batch_matches_manual_per_slice_calls() {
         let seqs: &[&[u8]] = &[b"ATCGNrykm", b"SSWWssw", b"---...**"];
         let (data, offsets) = make_batch(seqs);
-        let result = classify_batch(&data, &offsets).unwrap();
+        let result = classify_batch(&data, &offsets)
+            .expect("offset validation rejected a well-formed batch");
 
         for (i, seq) in seqs.iter().enumerate() {
             let mut expected = [0u32; classify::NUM_CLASSES];

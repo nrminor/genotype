@@ -613,7 +613,6 @@ fn replace_ambiguous_generic<const N: usize>(input: &[u8], replacement: u8, out:
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 
@@ -1016,10 +1015,10 @@ mod tests {
         /// SIMD chunk at every lane width, plus a scalar remainder.
         const OFFSETS: &[usize] = &[0, 1, 3, 7, 15, 16, 17, 31, 32, 33, 63, 64, 65];
 
-        /// Simulate the transform_batch calling pattern: allocate a buffer
+        /// Simulate the `transform_batch` calling pattern: allocate a buffer
         /// larger than needed, skip `skip` bytes, then pass the remainder
         /// as the output slice. This creates a different alignment than the
-        /// input, which would trigger the old as_simd/as_simd_mut bug.
+        /// input, which would trigger the old `as_simd`/`as_simd_mut` bug.
         fn with_offset<F: FnOnce(&[u8], &mut [u8])>(input: &[u8], skip: usize, f: F) -> Vec<u8> {
             let mut buf = vec![0xFFu8; skip + input.len()];
             f(input, &mut buf[skip..]);
@@ -1060,7 +1059,7 @@ mod tests {
             let input = make_input(65);
             let expected = run_to_rna(&input);
             for &skip in OFFSETS {
-                let result = with_offset(&input, skip, |i, o| to_rna(i, o));
+                let result = with_offset(&input, skip, to_rna);
                 assert_eq!(result, expected, "failed at offset {skip}");
             }
         }
@@ -1070,7 +1069,7 @@ mod tests {
             let input = make_input(65);
             let expected = run_to_dna(&input);
             for &skip in OFFSETS {
-                let result = with_offset(&input, skip, |i, o| to_dna(i, o));
+                let result = with_offset(&input, skip, to_dna);
                 assert_eq!(result, expected, "failed at offset {skip}");
             }
         }
@@ -1080,7 +1079,7 @@ mod tests {
             let input = make_input(65);
             let expected = run_uppercase(&input);
             for &skip in OFFSETS {
-                let result = with_offset(&input, skip, |i, o| uppercase(i, o));
+                let result = with_offset(&input, skip, uppercase);
                 assert_eq!(result, expected, "failed at offset {skip}");
             }
         }
@@ -1090,7 +1089,7 @@ mod tests {
             let input = make_input(65);
             let expected = run_lowercase(&input);
             for &skip in OFFSETS {
-                let result = with_offset(&input, skip, |i, o| lowercase(i, o));
+                let result = with_offset(&input, skip, lowercase);
                 assert_eq!(result, expected, "failed at offset {skip}");
             }
         }
@@ -1110,7 +1109,7 @@ mod tests {
             let input = make_input(65);
             let expected = run_reverse(&input);
             for &skip in OFFSETS {
-                let result = with_offset(&input, skip, |i, o| reverse(i, o));
+                let result = with_offset(&input, skip, reverse);
                 assert_eq!(result, expected, "failed at offset {skip}");
             }
         }

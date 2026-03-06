@@ -187,7 +187,7 @@ alias f := fmt
 # Run Rust linting
 [group('lint')]
 lint-rust:
-    cargo clippy -- -D warnings
+    cargo clippy --all-targets -- -D warnings
 
 alias lr := lint-rust
 

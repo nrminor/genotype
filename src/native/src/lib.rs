@@ -8,6 +8,7 @@
 #![feature(portable_simd)]
 #![allow(clippy::must_use_candidate)]
 
+mod classify;
 mod grep;
 mod transform;
 
@@ -194,6 +195,119 @@ pub fn transform_batch(
     })
 }
 
+/// The result of a batch classify operation.
+///
+/// `counts` is a flat array of length `num_sequences * 8`, indexed as
+/// `counts[seq_index * 8 + class_index]`. The 8 classes are:
+///
+/// 0: AT (A, T, U), 1: GC (G, C), 2: strong (S), 3: weak (W),
+/// 4: two-base ambiguity (R, Y, K, M), 5: multi-base ambiguity (N, B, D, H, V),
+/// 6: gap (-, ., *), 7: other (everything else).
+///
+/// All comparisons are case-insensitive except gaps, which are literal.
+#[napi(object)]
+pub struct ClassifyResult {
+    pub counts: Vec<u32>,
+}
+
+/// Classify every byte in every sequence into one of 8 classes.
+///
+/// Returns per-sequence counts that the TypeScript layer uses to compute
+/// gcContent, atContent, base composition, and other derived statistics.
+/// The Rust side has no bioinformatics knowledge — it just counts bytes.
+///
+/// # Errors
+///
+/// Returns a napi error if the offset array is malformed.
+// napi-rs requires owned String for JS string parameters, and #[must_use]
+// has no meaning across the FFI boundary.
+#[napi]
+#[allow(clippy::cast_possible_truncation)]
+pub fn classify_batch(sequences: &[u8], offsets: &[u32]) -> napi::Result<ClassifyResult> {
+    utils::validate_offsets(offsets, sequences.len())?;
+
+    let num_sequences = offsets.len().saturating_sub(1);
+    let mut all_counts = Vec::with_capacity(num_sequences * classify::NUM_CLASSES);
+
+    for window in offsets.windows(2) {
+        let start = window[0] as usize;
+        let end = window[1] as usize;
+        let seq = &sequences[start..end];
+
+        let mut counts = [0u32; classify::NUM_CLASSES];
+        classify::classify(seq, &mut counts);
+        all_counts.extend_from_slice(&counts);
+    }
+
+    Ok(ClassifyResult { counts: all_counts })
+}
+
+/// Validation modes for `check_valid_batch`.
+///
+/// Each mode defines a different set of allowed characters. The Rust side
+/// has a dedicated SIMD comparison chain per mode, optimized for the number
+/// of allowed characters.
+#[napi(string_enum)]
+pub enum ValidationMode {
+    /// ACGT + gaps (.-*)
+    StrictDna,
+    /// ACGTU + all IUPAC ambiguity codes + gaps
+    NormalDna,
+    /// ACGU + gaps
+    StrictRna,
+    /// ACGU + all IUPAC ambiguity codes (no T) + gaps
+    NormalRna,
+    /// 20 standard amino acids + gaps
+    Protein,
+}
+
+impl ValidationMode {
+    fn to_valid_mode(&self) -> classify::ValidMode {
+        match self {
+            Self::StrictDna => classify::ValidMode::StrictDna,
+            Self::NormalDna => classify::ValidMode::NormalDna,
+            Self::StrictRna => classify::ValidMode::StrictRna,
+            Self::NormalRna => classify::ValidMode::NormalRna,
+            Self::Protein => classify::ValidMode::Protein,
+        }
+    }
+}
+
+/// Check whether every byte in every sequence belongs to the allowed
+/// character set for the given validation mode.
+///
+/// Returns a `Buffer` of length `num_sequences` where each byte is 1 if
+/// the sequence is valid, 0 if it contains any disallowed character. Uses
+/// an early-exit SIMD scan that bails on the first invalid byte.
+///
+/// # Errors
+///
+/// Returns a napi error if the offset array is malformed.
+// napi-rs requires owned values for enum parameters (they're deserialized
+// from JS values into Rust-owned memory), so pass-by-reference isn't an option.
+#[napi]
+#[allow(clippy::cast_possible_truncation, clippy::needless_pass_by_value)]
+pub fn check_valid_batch(
+    sequences: &[u8],
+    offsets: &[u32],
+    mode: ValidationMode,
+) -> napi::Result<Buffer> {
+    utils::validate_offsets(offsets, sequences.len())?;
+
+    let num_sequences = offsets.len().saturating_sub(1);
+    let mut results = vec![0u8; num_sequences];
+    let valid_mode = mode.to_valid_mode();
+
+    for (i, window) in offsets.windows(2).enumerate() {
+        let start = window[0] as usize;
+        let end = window[1] as usize;
+        let seq = &sequences[start..end];
+        results[i] = u8::from(classify::check_valid(seq, valid_mode));
+    }
+
+    Ok(results.into())
+}
+
 mod utils {
 
     /// Validate that `offsets` is a well-formed batch layout for `sequences`.
@@ -349,5 +463,79 @@ mod tests {
             "unexpected error: {}",
             err.reason
         );
+    }
+
+    #[test]
+    fn classify_batch_flattens_counts_in_order() {
+        let (data, offsets) = make_batch(&[b"AAAA", b"", b"GG"]);
+        let result = classify_batch(&data, &offsets).unwrap();
+        assert_eq!(result.counts.len(), 3 * classify::NUM_CLASSES);
+
+        // Seq 0: 4 AT bases
+        assert_eq!(result.counts[0 * 8 + classify::CLASS_AT], 4);
+        assert_eq!(result.counts[0 * 8 + classify::CLASS_GC], 0);
+
+        // Seq 1: empty, all zeros
+        for c in 0..classify::NUM_CLASSES {
+            assert_eq!(result.counts[1 * 8 + c], 0, "empty seq class {c}");
+        }
+
+        // Seq 2: 2 GC bases
+        assert_eq!(result.counts[2 * 8 + classify::CLASS_GC], 2);
+        assert_eq!(result.counts[2 * 8 + classify::CLASS_AT], 0);
+    }
+
+    #[test]
+    fn check_valid_batch_returns_per_sequence_flags() {
+        let (data, offsets) = make_batch(&[b"ACGT", b"ACGX", b"acgt"]);
+        let result = check_valid_batch(&data, &offsets, ValidationMode::StrictDna).unwrap();
+        assert_eq!(result.as_ref(), &[1, 0, 1]);
+    }
+
+    #[test]
+    fn classify_batch_empty_returns_empty() {
+        let result = classify_batch(&[], &[0]).unwrap();
+        assert!(result.counts.is_empty());
+    }
+
+    #[test]
+    fn check_valid_batch_empty_returns_empty() {
+        let result = check_valid_batch(&[], &[0], ValidationMode::StrictDna).unwrap();
+        assert_eq!(result.as_ref(), &[] as &[u8]);
+    }
+
+    #[test]
+    fn classify_batch_rejects_malformed_offsets() {
+        let err = classify_batch(b"ATCG", &[0, 100])
+            .err()
+            .expect("should reject offset beyond data");
+        assert!(err.reason.contains("final offset"), "{}", err.reason);
+
+        let err = classify_batch(b"ATCGATCG", &[0, 4, 2, 8])
+            .err()
+            .expect("should reject non-monotonic offsets");
+        assert!(err.reason.contains("non-monotonic"), "{}", err.reason);
+    }
+
+    #[test]
+    fn check_valid_batch_rejects_malformed_offsets() {
+        let err = check_valid_batch(b"ATCG", &[0, 100], ValidationMode::StrictDna)
+            .err()
+            .expect("should reject offset beyond data");
+        assert!(err.reason.contains("final offset"), "{}", err.reason);
+    }
+
+    #[test]
+    fn classify_batch_matches_manual_per_slice_calls() {
+        let seqs: &[&[u8]] = &[b"ATCGNrykm", b"SSWWssw", b"---...**"];
+        let (data, offsets) = make_batch(seqs);
+        let result = classify_batch(&data, &offsets).unwrap();
+
+        for (i, seq) in seqs.iter().enumerate() {
+            let mut expected = [0u32; classify::NUM_CLASSES];
+            classify::classify(seq, &mut expected);
+            let actual = &result.counts[i * 8..(i + 1) * 8];
+            assert_eq!(actual, &expected, "seq {i}");
+        }
     }
 }

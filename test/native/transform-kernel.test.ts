@@ -126,12 +126,7 @@ describeNative("transform native kernel (requires just build-native-dev)", () =>
 
     testNative("empty batch returns empty result", () => {
       const kernel = requireNativeKernel();
-      const result = kernel.transformBatch(
-        Buffer.alloc(0),
-        new Uint32Array([0]),
-        "complement",
-        ""
-      );
+      const result = kernel.transformBatch(Buffer.alloc(0), new Uint32Array([0]), "complement", "");
       expect(result.data.length).toBe(0);
       expect(result.offsets).toEqual([0]);
     });
@@ -259,7 +254,8 @@ describeNative("transform native kernel (requires just build-native-dev)", () =>
 
     testNative("all operations parity at SIMD boundary lengths", () => {
       const pattern = "ATCGNrykmswbdhv";
-      const mk = (len: number): string => pattern.repeat(Math.ceil(len / pattern.length)).slice(0, len);
+      const mk = (len: number): string =>
+        pattern.repeat(Math.ceil(len / pattern.length)).slice(0, len);
       const lengths = [15, 16, 17, 31, 32, 33, 63, 64, 65];
       const seqs = lengths.map((n) => mk(n));
 
@@ -303,10 +299,7 @@ describeNative("transform native kernel (requires just build-native-dev)", () =>
       expect(replaceAmbiguousBases("AaTtCcGgUu")).toBe("AaTtCcGgUu");
       expect(replaceAmbiguousBases("A-T.C*1RYK")).toBe("ANTNCNNNNN");
 
-      const result = transformBatchFromStrings(
-        ["AaTtCcGgUu", "A-T.C*1RYK"],
-        "replaceAmbiguous"
-      );
+      const result = transformBatchFromStrings(["AaTtCcGgUu", "A-T.C*1RYK"], "replaceAmbiguous");
       expect(unpackResult(result)).toEqual(["AaTtCcGgUu", "ANTNCNNNNN"]);
     });
   });

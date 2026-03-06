@@ -12,6 +12,48 @@ export interface TransformResult {
   offsets: number[];
 }
 
+/**
+ * The result of a batch classify operation from the native kernel.
+ *
+ * `counts` is a flat array of length `numSequences * 8`, indexed as
+ * `counts[seqIndex * 8 + classIndex]`. The 8 classes are:
+ *
+ * - 0: AT (A, T, U)
+ * - 1: GC (G, C)
+ * - 2: strong (S — represents G or C)
+ * - 3: weak (W — represents A or T)
+ * - 4: two-base ambiguity (R, Y, K, M)
+ * - 5: multi-base ambiguity (N, B, D, H, V)
+ * - 6: gap (-, ., *)
+ * - 7: other (everything else)
+ *
+ * All comparisons are case-insensitive except gaps, which are literal.
+ */
+export interface ClassifyResult {
+  counts: number[];
+}
+
+/**
+ * Validation modes for `checkValidBatch`. Each mode defines a different
+ * set of allowed characters, with a dedicated SIMD comparison chain on
+ * the Rust side.
+ *
+ * Values match the napi-rs generated `const enum` from the Rust
+ * `#[napi(string_enum)] ValidationMode`.
+ */
+export const enum ValidationMode {
+  /** ACGT + gaps (.-*) */
+  StrictDna = "StrictDna",
+  /** ACGTU + all IUPAC ambiguity codes + gaps */
+  NormalDna = "NormalDna",
+  /** ACGU + gaps */
+  StrictRna = "StrictRna",
+  /** ACGU + all IUPAC ambiguity codes (no T) + gaps */
+  NormalRna = "NormalRna",
+  /** 20 standard amino acids + gaps */
+  Protein = "Protein",
+}
+
 export interface NativeKernel {
   /** Search a batch of sequences for a pattern within a given edit distance. */
   grepBatch(
@@ -38,6 +80,26 @@ export interface NativeKernel {
     operation: string,
     param: string
   ): TransformResult;
+
+  /**
+   * Classify every byte in every sequence into one of 8 classes.
+   *
+   * @param sequences - Concatenated sequence bytes
+   * @param offsets - N+1 offset array into the sequences buffer
+   * @returns Flat array of per-sequence counts (length = numSequences * 8)
+   */
+  classifyBatch(sequences: Buffer, offsets: Uint32Array): ClassifyResult;
+
+  /**
+   * Check whether every byte in every sequence belongs to the allowed
+   * character set for the given validation mode.
+   *
+   * @param sequences - Concatenated sequence bytes
+   * @param offsets - N+1 offset array into the sequences buffer
+   * @param mode - Which character set to validate against
+   * @returns Buffer of length numSequences where each byte is 1 (valid) or 0 (invalid)
+   */
+  checkValidBatch(sequences: Buffer, offsets: Uint32Array, mode: ValidationMode): Buffer;
 }
 
 /**

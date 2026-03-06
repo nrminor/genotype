@@ -65,53 +65,114 @@ pub fn grep_batch(
 /// The result of a batch transform operation.
 ///
 /// For length-preserving operations, `offsets` is identical to the input
-/// offsets. For compacting operations (removeGaps), `offsets` reflects the
-/// new (shorter) byte positions.
+/// offsets. For compacting operations (`remove_gaps_batch`), `offsets`
+/// reflects the new (shorter) byte positions.
 #[napi(object)]
 pub struct TransformResult {
     pub data: Buffer,
     pub offsets: Vec<u32>,
 }
 
-/// Apply a byte-level transformation to every sequence in a packed batch.
+/// Length-preserving byte-level transformations.
 ///
-/// The `operation` string selects the transformation. The `param` string
-/// provides operation-specific configuration (gap characters for removeGaps,
-/// replacement character for replaceAmbiguous). For operations that don't
-/// use a parameter, pass an empty string.
-///
-/// # Supported operations
-///
-/// - `complement` — DNA complement (A↔T, C↔G, IUPAC codes)
-/// - `complementRNA` — RNA complement (A↔U, C↔G, IUPAC codes)
-/// - `reverse` — reverse byte order
-/// - `reverseComplement` — DNA complement + reverse in one pass
-/// - `reverseComplementRNA` — RNA complement + reverse in one pass
-/// - `toRNA` — T→U (case-preserving)
-/// - `toDNA` — U→T (case-preserving)
-/// - `upperCase` — lowercase ASCII letters → uppercase
-/// - `lowerCase` — uppercase ASCII letters → lowercase
-/// - `removeGaps` — delete gap characters (param = gap chars, default `".-*"`)
-/// - `replaceAmbiguous` — replace non-ACGTU with param char (default `N`)
+/// Each variant maps to a SIMD-accelerated kernel function in
+/// `transform.rs`. None of these operations change the byte count, so
+/// the output offsets are always identical to the input offsets.
+#[napi(string_enum)]
+pub enum TransformOp {
+    /// DNA complement (A↔T, C↔G, IUPAC codes)
+    Complement,
+    /// RNA complement (A↔U, C↔G, IUPAC codes)
+    ComplementRna,
+    /// Reverse byte order
+    Reverse,
+    /// DNA complement + reverse in one pass
+    ReverseComplement,
+    /// RNA complement + reverse in one pass
+    ReverseComplementRna,
+    /// T→U (case-preserving)
+    ToRna,
+    /// U→T (case-preserving)
+    ToDna,
+    /// Lowercase ASCII letters → uppercase
+    UpperCase,
+    /// Uppercase ASCII letters → lowercase
+    LowerCase,
+}
+
+/// Apply a length-preserving byte-level transformation to every sequence
+/// in a packed batch.
 ///
 /// # Errors
 ///
-/// Returns a napi error if the offset array is malformed or the operation
-/// string is unrecognized.
-// `#[must_use]` has no meaning across the napi FFI boundary — JS callers
-// never see Rust attributes — so the clippy lint is inapplicable here.
-//
-// napi-rs requires owned String for JS string parameters (they're copied
-// from the JS heap into Rust-owned memory), so &str isn't an option here.
+/// Returns a napi error if the offset array is malformed.
+// napi-rs requires owned values for enum parameters (they're deserialized
+// from JS values into Rust-owned memory), so pass-by-reference isn't an option.
 #[napi]
 #[allow(clippy::cast_possible_truncation, clippy::needless_pass_by_value)]
 pub fn transform_batch(
     sequences: &[u8],
     offsets: &[u32],
-    operation: String,
-    param: String,
+    op: TransformOp,
 ) -> napi::Result<TransformResult> {
     utils::validate_offsets(offsets, sequences.len())?;
+
+    let mut out_data = vec![0u8; sequences.len()];
+    let out_offsets: Vec<u32> = offsets.to_vec();
+
+    for window in offsets.windows(2) {
+        let start = window[0] as usize;
+        let end = window[1] as usize;
+        let seq = &sequences[start..end];
+        let dest = &mut out_data[start..end];
+
+        match op {
+            TransformOp::Complement => transform::complement(seq, dest, false),
+            TransformOp::ComplementRna => transform::complement(seq, dest, true),
+            TransformOp::Reverse => transform::reverse(seq, dest),
+            TransformOp::ReverseComplement => {
+                transform::reverse_complement(seq, dest, false);
+            }
+            TransformOp::ReverseComplementRna => {
+                transform::reverse_complement(seq, dest, true);
+            }
+            TransformOp::ToRna => transform::to_rna(seq, dest),
+            TransformOp::ToDna => transform::to_dna(seq, dest),
+            TransformOp::UpperCase => transform::uppercase(seq, dest),
+            TransformOp::LowerCase => transform::lowercase(seq, dest),
+        }
+    }
+
+    Ok(TransformResult {
+        data: out_data.into(),
+        offsets: out_offsets,
+    })
+}
+
+/// Remove gap characters from every sequence in a packed batch.
+///
+/// This is the only transform operation that changes sequence lengths,
+/// so it returns new offsets reflecting the compacted byte positions.
+///
+/// # Errors
+///
+/// Returns a napi error if the offset array is malformed.
+// napi-rs requires owned String for JS string parameters (they're copied
+// from the JS heap into Rust-owned memory), so &str isn't an option here.
+#[napi]
+#[allow(clippy::cast_possible_truncation, clippy::needless_pass_by_value)]
+pub fn remove_gaps_batch(
+    sequences: &[u8],
+    offsets: &[u32],
+    gap_chars: String,
+) -> napi::Result<TransformResult> {
+    utils::validate_offsets(offsets, sequences.len())?;
+
+    let gap_bytes: &[u8] = if gap_chars.is_empty() {
+        b".-*"
+    } else {
+        gap_chars.as_bytes()
+    };
 
     let mut out_data = vec![0u8; sequences.len()];
     let mut out_offsets = Vec::with_capacity(offsets.len());
@@ -123,71 +184,48 @@ pub fn transform_batch(
         let seq = &sequences[start..end];
 
         out_offsets.push(write_cursor);
-
         let dest = &mut out_data[write_cursor as usize..];
-
-        let written = match operation.as_str() {
-            "complement" => {
-                transform::complement(seq, dest, false);
-                seq.len()
-            }
-            "complementRNA" => {
-                transform::complement(seq, dest, true);
-                seq.len()
-            }
-            "reverse" => {
-                transform::reverse(seq, dest);
-                seq.len()
-            }
-            "reverseComplement" => {
-                transform::reverse_complement(seq, dest, false);
-                seq.len()
-            }
-            "reverseComplementRNA" => {
-                transform::reverse_complement(seq, dest, true);
-                seq.len()
-            }
-            "toRNA" => {
-                transform::to_rna(seq, dest);
-                seq.len()
-            }
-            "toDNA" => {
-                transform::to_dna(seq, dest);
-                seq.len()
-            }
-            "upperCase" => {
-                transform::uppercase(seq, dest);
-                seq.len()
-            }
-            "lowerCase" => {
-                transform::lowercase(seq, dest);
-                seq.len()
-            }
-            "removeGaps" => {
-                let gap_chars = if param.is_empty() {
-                    b".-*".as_slice()
-                } else {
-                    param.as_bytes()
-                };
-                transform::remove_gaps(seq, gap_chars, dest)
-            }
-            "replaceAmbiguous" => {
-                let replacement = param.as_bytes().first().copied().unwrap_or(b'N');
-                transform::replace_ambiguous(seq, replacement, dest);
-                seq.len()
-            }
-            _ => {
-                return Err(napi::Error::from_reason(format!(
-                    "transform_batch: unknown operation '{operation}'"
-                )));
-            }
-        };
-
+        let written = transform::remove_gaps(seq, gap_bytes, dest);
         write_cursor += written as u32;
     }
     out_offsets.push(write_cursor);
 
     out_data.truncate(write_cursor as usize);
+
+    Ok(TransformResult {
+        data: out_data.into(),
+        offsets: out_offsets,
+    })
+}
+
+/// Replace non-standard bases (anything other than ACGTU) with a
+/// replacement character in every sequence in a packed batch.
+///
+/// # Errors
+///
+/// Returns a napi error if the offset array is malformed.
+// napi-rs requires owned String for JS string parameters.
+#[napi]
+#[allow(clippy::cast_possible_truncation, clippy::needless_pass_by_value)]
+pub fn replace_ambiguous_batch(
+    sequences: &[u8],
+    offsets: &[u32],
+    replacement: String,
+) -> napi::Result<TransformResult> {
+    utils::validate_offsets(offsets, sequences.len())?;
+
+    let replacement_byte = replacement.as_bytes().first().copied().unwrap_or(b'N');
+
+    let mut out_data = vec![0u8; sequences.len()];
+    let out_offsets: Vec<u32> = offsets.to_vec();
+
+    for window in offsets.windows(2) {
+        let start = window[0] as usize;
+        let end = window[1] as usize;
+        let seq = &sequences[start..end];
+        let dest = &mut out_data[start..end];
+        transform::replace_ambiguous(seq, replacement_byte, dest);
+    }
 
     Ok(TransformResult {
         data: out_data.into(),
@@ -432,7 +470,7 @@ mod tests {
     #[test]
     fn transform_complement_batch() {
         let (data, offsets) = make_batch(&[b"ATCG", b"aacc"]);
-        let result = transform_batch(&data, &offsets, "complement".into(), String::new()).unwrap();
+        let result = transform_batch(&data, &offsets, TransformOp::Complement).unwrap();
         assert_eq!(result.data.as_ref(), b"TAGCttgg");
         assert_eq!(result.offsets, vec![0, 4, 8]);
     }
@@ -440,29 +478,17 @@ mod tests {
     #[test]
     fn transform_reverse_batch() {
         let (data, offsets) = make_batch(&[b"ATCG", b"AB"]);
-        let result = transform_batch(&data, &offsets, "reverse".into(), String::new()).unwrap();
+        let result = transform_batch(&data, &offsets, TransformOp::Reverse).unwrap();
         assert_eq!(result.data.as_ref(), b"GCTABA");
         assert_eq!(result.offsets, vec![0, 4, 6]);
     }
 
     #[test]
-    fn transform_remove_gaps_compacts() {
+    fn remove_gaps_batch_compacts() {
         let (data, offsets) = make_batch(&[b"A-T-C", b"GG"]);
-        let result = transform_batch(&data, &offsets, "removeGaps".into(), String::new()).unwrap();
+        let result = remove_gaps_batch(&data, &offsets, String::new()).unwrap();
         assert_eq!(result.data.as_ref(), b"ATCGG");
         assert_eq!(result.offsets, vec![0, 3, 5]);
-    }
-
-    #[test]
-    fn transform_unknown_operation_errors() {
-        let (data, offsets) = make_batch(&[b"ATCG"]);
-        let result = transform_batch(&data, &offsets, "bogus".into(), String::new());
-        let err = result.err().expect("should have returned an error");
-        assert!(
-            err.reason.contains("unknown operation"),
-            "unexpected error: {}",
-            err.reason
-        );
     }
 
     #[test]

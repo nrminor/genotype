@@ -1,6 +1,6 @@
 import { describe, expect } from "bun:test";
 import { createFastaRecord } from "../../src/constructors";
-import { packSequences } from "../../src/native";
+import { packSequences, TransformOp } from "../../src/native";
 import type { TransformResult } from "../../src/native";
 import {
   complement,
@@ -18,15 +18,30 @@ function makeSequences(...seqStrings: string[]): AbstractSequence[] {
   return seqStrings.map((s, i) => createFastaRecord({ id: `seq${i}`, sequence: s }));
 }
 
-function transformBatchFromStrings(
+function packStrings(seqStrings: string[]) {
+  const seqs = makeSequences(...seqStrings);
+  return packSequences(seqs);
+}
+
+function transformBatchFromStrings(seqStrings: string[], op: TransformOp): TransformResult {
+  const kernel = requireNativeKernel();
+  const { data, offsets } = packStrings(seqStrings);
+  return kernel.transformBatch(data, offsets, op);
+}
+
+function removeGapsBatchFromStrings(seqStrings: string[], gapChars: string = ""): TransformResult {
+  const kernel = requireNativeKernel();
+  const { data, offsets } = packStrings(seqStrings);
+  return kernel.removeGapsBatch(data, offsets, gapChars);
+}
+
+function replaceAmbiguousBatchFromStrings(
   seqStrings: string[],
-  operation: string,
-  param: string = ""
+  replacement: string = ""
 ): TransformResult {
   const kernel = requireNativeKernel();
-  const seqs = makeSequences(...seqStrings);
-  const { data, offsets } = packSequences(seqs);
-  return kernel.transformBatch(data, offsets, operation, param);
+  const { data, offsets } = packStrings(seqStrings);
+  return kernel.replaceAmbiguousBatch(data, offsets, replacement);
 }
 
 function unpackResult(result: TransformResult): string[] {
@@ -42,106 +57,107 @@ function unpackResult(result: TransformResult): string[] {
 describeNative("transform native kernel (requires just build-native-dev)", () => {
   describe("raw FFI contract", () => {
     testNative("complement returns correct results", () => {
-      const result = transformBatchFromStrings(["ATCG", "aacc"], "complement");
+      const result = transformBatchFromStrings(["ATCG", "aacc"], TransformOp.Complement);
       const seqs = unpackResult(result);
       expect(seqs).toEqual(["TAGC", "ttgg"]);
     });
 
     testNative("complementRNA returns correct results", () => {
-      const result = transformBatchFromStrings(["ATCG", "AUCG"], "complementRNA");
+      const result = transformBatchFromStrings(["ATCG", "AUCG"], TransformOp.ComplementRna);
       const seqs = unpackResult(result);
       expect(seqs).toEqual(["UAGC", "UAGC"]);
     });
 
     testNative("reverse returns correct results", () => {
-      const result = transformBatchFromStrings(["ATCG", "AB"], "reverse");
+      const result = transformBatchFromStrings(["ATCG", "AB"], TransformOp.Reverse);
       const seqs = unpackResult(result);
       expect(seqs).toEqual(["GCTA", "BA"]);
     });
 
     testNative("reverseComplement returns correct results", () => {
-      const result = transformBatchFromStrings(["ATCG"], "reverseComplement");
+      const result = transformBatchFromStrings(["ATCG"], TransformOp.ReverseComplement);
       const seqs = unpackResult(result);
       expect(seqs).toEqual(["CGAT"]);
     });
 
     testNative("reverseComplementRNA returns correct results", () => {
-      const result = transformBatchFromStrings(["AUCG"], "reverseComplementRNA");
+      const result = transformBatchFromStrings(["AUCG"], TransformOp.ReverseComplementRna);
       const seqs = unpackResult(result);
       expect(seqs).toEqual(["CGAU"]);
     });
 
     testNative("toRNA converts T to U", () => {
-      const result = transformBatchFromStrings(["ATCG", "atcg"], "toRNA");
+      const result = transformBatchFromStrings(["ATCG", "atcg"], TransformOp.ToRna);
       const seqs = unpackResult(result);
       expect(seqs).toEqual(["AUCG", "aucg"]);
     });
 
     testNative("toDNA converts U to T", () => {
-      const result = transformBatchFromStrings(["AUCG", "aucg"], "toDNA");
+      const result = transformBatchFromStrings(["AUCG", "aucg"], TransformOp.ToDna);
       const seqs = unpackResult(result);
       expect(seqs).toEqual(["ATCG", "atcg"]);
     });
 
     testNative("upperCase converts to uppercase", () => {
-      const result = transformBatchFromStrings(["atcg", "A-t.c"], "upperCase");
+      const result = transformBatchFromStrings(["atcg", "A-t.c"], TransformOp.UpperCase);
       const seqs = unpackResult(result);
       expect(seqs).toEqual(["ATCG", "A-T.C"]);
     });
 
     testNative("lowerCase converts to lowercase", () => {
-      const result = transformBatchFromStrings(["ATCG", "A-T.C"], "lowerCase");
+      const result = transformBatchFromStrings(["ATCG", "A-T.C"], TransformOp.LowerCase);
       const seqs = unpackResult(result);
       expect(seqs).toEqual(["atcg", "a-t.c"]);
     });
 
     testNative("removeGaps compacts sequences", () => {
-      const result = transformBatchFromStrings(["A-T.C*G", "ATCG"], "removeGaps");
+      const result = removeGapsBatchFromStrings(["A-T.C*G", "ATCG"]);
       const seqs = unpackResult(result);
       expect(seqs).toEqual(["ATCG", "ATCG"]);
     });
 
     testNative("removeGaps with custom gap chars", () => {
-      const result = transformBatchFromStrings(["AT_C.G"], "removeGaps", "_.");
+      const result = removeGapsBatchFromStrings(["AT_C.G"], "_.");
       const seqs = unpackResult(result);
       expect(seqs).toEqual(["ATCG"]);
     });
 
     testNative("removeGaps updates offsets correctly", () => {
-      const result = transformBatchFromStrings(["A-T-C", "GG"], "removeGaps");
+      const result = removeGapsBatchFromStrings(["A-T-C", "GG"]);
       expect(result.offsets).toEqual([0, 3, 5]);
     });
 
     testNative("replaceAmbiguous replaces non-standard bases", () => {
-      const result = transformBatchFromStrings(["ATCGNR"], "replaceAmbiguous");
+      const result = replaceAmbiguousBatchFromStrings(["ATCGNR"]);
       const seqs = unpackResult(result);
       expect(seqs).toEqual(["ATCGNN"]);
     });
 
     testNative("replaceAmbiguous with custom replacement", () => {
-      const result = transformBatchFromStrings(["ATCGNR"], "replaceAmbiguous", "X");
+      const result = replaceAmbiguousBatchFromStrings(["ATCGNR"], "X");
       const seqs = unpackResult(result);
       expect(seqs).toEqual(["ATCGXX"]);
     });
 
     testNative("empty batch returns empty result", () => {
       const kernel = requireNativeKernel();
-      const result = kernel.transformBatch(Buffer.alloc(0), new Uint32Array([0]), "complement", "");
+      const result = kernel.transformBatch(
+        Buffer.alloc(0),
+        new Uint32Array([0]),
+        TransformOp.Complement
+      );
       expect(result.data.length).toBe(0);
       expect(result.offsets).toEqual([0]);
-    });
-
-    testNative("throws on unknown operation", () => {
-      const kernel = requireNativeKernel();
-      expect(() => {
-        kernel.transformBatch(Buffer.from("ATCG"), new Uint32Array([0, 4]), "bogus", "");
-      }).toThrow(/unknown operation/);
     });
 
     testNative("throws on malformed offsets", () => {
       const kernel = requireNativeKernel();
       expect(() => {
-        kernel.transformBatch(Buffer.from("ATCG"), new Uint32Array([0, 100]), "complement", "");
+        kernel.transformBatch(
+          Buffer.from("ATCG"),
+          new Uint32Array([0, 100]),
+          TransformOp.Complement
+        );
       }).toThrow(/final offset/);
     });
   });
@@ -150,7 +166,7 @@ describeNative("transform native kernel (requires just build-native-dev)", () =>
     const sequences = ["ATCGATCG", "AtCgAtCg", "RYKMSWBVDHN", "A-T.C*G"];
 
     testNative("complement parity", () => {
-      const result = transformBatchFromStrings(sequences, "complement");
+      const result = transformBatchFromStrings(sequences, TransformOp.Complement);
       const nativeSeqs = unpackResult(result);
       for (let i = 0; i < sequences.length; i++) {
         const tsResult = complement(sequences[i]!, false);
@@ -159,7 +175,7 @@ describeNative("transform native kernel (requires just build-native-dev)", () =>
     });
 
     testNative("complement RNA parity", () => {
-      const result = transformBatchFromStrings(sequences, "complementRNA");
+      const result = transformBatchFromStrings(sequences, TransformOp.ComplementRna);
       const nativeSeqs = unpackResult(result);
       for (let i = 0; i < sequences.length; i++) {
         const tsResult = complement(sequences[i]!, true);
@@ -168,7 +184,7 @@ describeNative("transform native kernel (requires just build-native-dev)", () =>
     });
 
     testNative("reverse parity", () => {
-      const result = transformBatchFromStrings(sequences, "reverse");
+      const result = transformBatchFromStrings(sequences, TransformOp.Reverse);
       const nativeSeqs = unpackResult(result);
       for (let i = 0; i < sequences.length; i++) {
         const tsResult = reverse(sequences[i]!);
@@ -177,7 +193,7 @@ describeNative("transform native kernel (requires just build-native-dev)", () =>
     });
 
     testNative("reverseComplement parity", () => {
-      const result = transformBatchFromStrings(sequences, "reverseComplement");
+      const result = transformBatchFromStrings(sequences, TransformOp.ReverseComplement);
       const nativeSeqs = unpackResult(result);
       for (let i = 0; i < sequences.length; i++) {
         const tsResult = reverseComplement(sequences[i]!, false);
@@ -186,7 +202,7 @@ describeNative("transform native kernel (requires just build-native-dev)", () =>
     });
 
     testNative("reverseComplementRNA parity", () => {
-      const result = transformBatchFromStrings(sequences, "reverseComplementRNA");
+      const result = transformBatchFromStrings(sequences, TransformOp.ReverseComplementRna);
       const nativeSeqs = unpackResult(result);
       for (let i = 0; i < sequences.length; i++) {
         const tsResult = reverseComplement(sequences[i]!, true);
@@ -196,7 +212,7 @@ describeNative("transform native kernel (requires just build-native-dev)", () =>
 
     testNative("toRNA parity", () => {
       const dnaSequences = ["ATCGATCG", "AtCgAtCg", "TTTT"];
-      const result = transformBatchFromStrings(dnaSequences, "toRNA");
+      const result = transformBatchFromStrings(dnaSequences, TransformOp.ToRna);
       const nativeSeqs = unpackResult(result);
       for (let i = 0; i < dnaSequences.length; i++) {
         const tsResult = toRNA(dnaSequences[i]!);
@@ -206,7 +222,7 @@ describeNative("transform native kernel (requires just build-native-dev)", () =>
 
     testNative("toDNA parity", () => {
       const rnaSequences = ["AUCGAUCG", "AuCgAuCg", "UUUU"];
-      const result = transformBatchFromStrings(rnaSequences, "toDNA");
+      const result = transformBatchFromStrings(rnaSequences, TransformOp.ToDna);
       const nativeSeqs = unpackResult(result);
       for (let i = 0; i < rnaSequences.length; i++) {
         const tsResult = toDNA(rnaSequences[i]!);
@@ -216,7 +232,7 @@ describeNative("transform native kernel (requires just build-native-dev)", () =>
 
     testNative("removeGaps parity", () => {
       const gapSequences = ["A-T.C*G", "ATCG", "---", "A.B-C"];
-      const result = transformBatchFromStrings(gapSequences, "removeGaps");
+      const result = removeGapsBatchFromStrings(gapSequences);
       const nativeSeqs = unpackResult(result);
       for (let i = 0; i < gapSequences.length; i++) {
         const tsResult = removeGaps(gapSequences[i]!);
@@ -226,7 +242,7 @@ describeNative("transform native kernel (requires just build-native-dev)", () =>
 
     testNative("replaceAmbiguous parity", () => {
       const ambigSequences = ["ATCGNR", "AaTtCcGgUu", "A-T.C*1"];
-      const result = transformBatchFromStrings(ambigSequences, "replaceAmbiguous");
+      const result = replaceAmbiguousBatchFromStrings(ambigSequences);
       const nativeSeqs = unpackResult(result);
       for (let i = 0; i < ambigSequences.length; i++) {
         const tsResult = replaceAmbiguousBases(ambigSequences[i]!);
@@ -236,7 +252,7 @@ describeNative("transform native kernel (requires just build-native-dev)", () =>
 
     testNative("upperCase parity", () => {
       const caseSequences = ["atcg", "ATCG", "AtCg", "a-t.c*g"];
-      const result = transformBatchFromStrings(caseSequences, "upperCase");
+      const result = transformBatchFromStrings(caseSequences, TransformOp.UpperCase);
       const nativeSeqs = unpackResult(result);
       for (let i = 0; i < caseSequences.length; i++) {
         expect(nativeSeqs[i]).toBe(caseSequences[i]!.toUpperCase());
@@ -245,7 +261,7 @@ describeNative("transform native kernel (requires just build-native-dev)", () =>
 
     testNative("lowerCase parity", () => {
       const caseSequences = ["ATCG", "atcg", "AtCg", "A-T.C*G"];
-      const result = transformBatchFromStrings(caseSequences, "lowerCase");
+      const result = transformBatchFromStrings(caseSequences, TransformOp.LowerCase);
       const nativeSeqs = unpackResult(result);
       for (let i = 0; i < caseSequences.length; i++) {
         expect(nativeSeqs[i]).toBe(caseSequences[i]!.toLowerCase());
@@ -259,25 +275,29 @@ describeNative("transform native kernel (requires just build-native-dev)", () =>
       const lengths = [15, 16, 17, 31, 32, 33, 63, 64, 65];
       const seqs = lengths.map((n) => mk(n));
 
-      const cases: Array<{ op: string; param?: string; expected: (s: string) => string }> = [
-        { op: "complement", expected: (s) => complement(s, false) },
-        { op: "complementRNA", expected: (s) => complement(s, true) },
-        { op: "reverse", expected: (s) => reverse(s) },
-        { op: "reverseComplement", expected: (s) => reverseComplement(s, false) },
-        { op: "reverseComplementRNA", expected: (s) => reverseComplement(s, true) },
-        { op: "toRNA", expected: (s) => toRNA(s) },
-        { op: "toDNA", expected: (s) => toDNA(s) },
-        { op: "upperCase", expected: (s) => s.toUpperCase() },
-        { op: "lowerCase", expected: (s) => s.toLowerCase() },
-        { op: "removeGaps", expected: (s) => removeGaps(s) },
-        { op: "replaceAmbiguous", expected: (s) => replaceAmbiguousBases(s) },
+      const transformCases: Array<{ op: TransformOp; expected: (s: string) => string }> = [
+        { op: TransformOp.Complement, expected: (s) => complement(s, false) },
+        { op: TransformOp.ComplementRna, expected: (s) => complement(s, true) },
+        { op: TransformOp.Reverse, expected: (s) => reverse(s) },
+        { op: TransformOp.ReverseComplement, expected: (s) => reverseComplement(s, false) },
+        { op: TransformOp.ReverseComplementRna, expected: (s) => reverseComplement(s, true) },
+        { op: TransformOp.ToRna, expected: (s) => toRNA(s) },
+        { op: TransformOp.ToDna, expected: (s) => toDNA(s) },
+        { op: TransformOp.UpperCase, expected: (s) => s.toUpperCase() },
+        { op: TransformOp.LowerCase, expected: (s) => s.toLowerCase() },
       ];
 
-      for (const c of cases) {
-        const result = transformBatchFromStrings(seqs, c.op, c.param ?? "");
+      for (const c of transformCases) {
+        const result = transformBatchFromStrings(seqs, c.op);
         const nativeSeqs = unpackResult(result);
         expect(nativeSeqs).toEqual(seqs.map(c.expected));
       }
+
+      const removeGapsResult = removeGapsBatchFromStrings(seqs);
+      expect(unpackResult(removeGapsResult)).toEqual(seqs.map((s) => removeGaps(s)));
+
+      const replaceResult = replaceAmbiguousBatchFromStrings(seqs);
+      expect(unpackResult(replaceResult)).toEqual(seqs.map((s) => replaceAmbiguousBases(s)));
     });
   });
 
@@ -289,7 +309,7 @@ describeNative("transform native kernel (requires just build-native-dev)", () =>
       expect(() => toRNA("")).toThrow();
       expect(() => toDNA("")).toThrow();
 
-      const result = transformBatchFromStrings([""], "complement");
+      const result = transformBatchFromStrings([""], TransformOp.Complement);
       expect(unpackResult(result)).toEqual([""]);
     });
   });
@@ -299,7 +319,7 @@ describeNative("transform native kernel (requires just build-native-dev)", () =>
       expect(replaceAmbiguousBases("AaTtCcGgUu")).toBe("AaTtCcGgUu");
       expect(replaceAmbiguousBases("A-T.C*1RYK")).toBe("ANTNCNNNNN");
 
-      const result = transformBatchFromStrings(["AaTtCcGgUu", "A-T.C*1RYK"], "replaceAmbiguous");
+      const result = replaceAmbiguousBatchFromStrings(["AaTtCcGgUu", "A-T.C*1RYK"]);
       expect(unpackResult(result)).toEqual(["AaTtCcGgUu", "ANTNCNNNNN"]);
     });
   });

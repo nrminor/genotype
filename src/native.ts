@@ -34,6 +34,34 @@ export interface ClassifyResult {
 }
 
 /**
+ * Length-preserving byte-level transformations. Each variant maps to a
+ * SIMD-accelerated kernel function in the Rust crate.
+ *
+ * Values match the napi-rs generated `const enum` from the Rust
+ * `#[napi(string_enum)] TransformOp`.
+ */
+export const enum TransformOp {
+  /** DNA complement (A↔T, C↔G, IUPAC codes) */
+  Complement = "Complement",
+  /** RNA complement (A↔U, C↔G, IUPAC codes) */
+  ComplementRna = "ComplementRna",
+  /** Reverse byte order */
+  Reverse = "Reverse",
+  /** DNA complement + reverse in one pass */
+  ReverseComplement = "ReverseComplement",
+  /** RNA complement + reverse in one pass */
+  ReverseComplementRna = "ReverseComplementRna",
+  /** T→U (case-preserving) */
+  ToRna = "ToRna",
+  /** U→T (case-preserving) */
+  ToDna = "ToDna",
+  /** Lowercase ASCII letters → uppercase */
+  UpperCase = "UpperCase",
+  /** Uppercase ASCII letters → lowercase */
+  LowerCase = "LowerCase",
+}
+
+/**
  * Validation modes for `checkValidBatch`. Each mode defines a different
  * set of allowed characters, with a dedicated SIMD comparison chain on
  * the Rust side.
@@ -66,19 +94,42 @@ export interface NativeKernel {
   ): Buffer;
 
   /**
-   * Apply a byte-level transformation to every sequence in a packed batch.
+   * Apply a length-preserving byte-level transformation to every sequence
+   * in a packed batch.
    *
    * @param sequences - Concatenated sequence bytes
    * @param offsets - N+1 offset array into the sequences buffer
-   * @param operation - The transformation to apply
-   * @param param - Operation-specific parameter (gap chars, replacement char, or empty string)
-   * @returns Transformed bytes and new offsets
+   * @param op - Which transformation to apply
+   * @returns Transformed bytes and identical offsets
    */
-  transformBatch(
+  transformBatch(sequences: Buffer, offsets: Uint32Array, op: TransformOp): TransformResult;
+
+  /**
+   * Remove gap characters from every sequence in a packed batch.
+   *
+   * This is the only transform operation that changes sequence lengths,
+   * so the returned offsets reflect the compacted byte positions.
+   *
+   * @param sequences - Concatenated sequence bytes
+   * @param offsets - N+1 offset array into the sequences buffer
+   * @param gapChars - Characters to treat as gaps (defaults to ".-*" if empty)
+   * @returns Compacted bytes and new offsets
+   */
+  removeGapsBatch(sequences: Buffer, offsets: Uint32Array, gapChars: string): TransformResult;
+
+  /**
+   * Replace non-standard bases (anything other than ACGTU) with a
+   * replacement character in every sequence in a packed batch.
+   *
+   * @param sequences - Concatenated sequence bytes
+   * @param offsets - N+1 offset array into the sequences buffer
+   * @param replacement - Single character to use as replacement (defaults to "N" if empty)
+   * @returns Transformed bytes and identical offsets
+   */
+  replaceAmbiguousBatch(
     sequences: Buffer,
     offsets: Uint32Array,
-    operation: string,
-    param: string
+    replacement: string
   ): TransformResult;
 
   /**

@@ -1653,7 +1653,7 @@ describe("SeqOps", () => {
       const sequences = [createSequence("seq1", "ATCG"), createSequence("seq2", "INVALID!")];
 
       const results = await seqops(toAsync(sequences))
-        .validate({ mode: "strict", action: "reject" })
+        .validate({ sequenceType: "dna", allowAmbiguous: false, action: "reject" })
         .collect();
 
       // Validate with 'reject' filters out invalid sequences rather than throwing

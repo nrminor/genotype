@@ -7,8 +7,7 @@
 
 // Re-export quality encoding from types to maintain backward compatibility
 export { QualityEncoding } from "../../types";
-// Re-export SequenceValidator from operations for backward compatibility
-export { SequenceValidator } from "../validate";
+export { SequenceValidator } from "./sequence-validation";
 export type {
   DNASequence,
   DnaTag,
@@ -194,7 +193,6 @@ export {
   IUPAC_RNA,
   SequenceType,
   ValidationMode,
-  // Note: SequenceValidator class moved to operations/validate.ts
 } from "./sequence-validation";
 // Statistics accumulator for streaming analysis
 export { calculateSequenceStats, type SequenceStats, SequenceStatsAccumulator } from "./statistics";

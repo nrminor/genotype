@@ -296,22 +296,33 @@ export class SequenceValidator {
    */
   private computeCleaningPattern(): RegExp {
     if (this.mode === "permissive") {
-      // Permissive mode accepts everything
       return /./;
     }
 
-    const mode = this.mode;
-    switch (mode) {
-      case "strict":
-        // Only standard bases, gaps, and stop codons
-        return /[ACGTUacgtu.\-*]/;
+    if (this.mode === "strict") {
+      switch (this.type) {
+        case "dna":
+          return /[ACGTacgt.\-*]/;
+        case "rna":
+          return /[ACGUacgu.\-*]/;
+        case "protein":
+        case "unknown":
+          return /[ACGTUacgtu.\-*]/;
+        default:
+          return assertUnreachable(this.type);
+      }
+    }
 
-      case "normal":
-        // Standard bases plus IUPAC ambiguity codes
+    switch (this.type) {
+      case "dna":
+        return /[ACGTRYSWKMBDHVNacgtryswkmbdhvn.\-*]/;
+      case "rna":
+        return /[ACGURYSWKMBDHVNacguryswkmbdhvn.\-*]/;
+      case "protein":
+      case "unknown":
         return /[ACGTURYSWKMBDHVNacgturyswkmbdhvn.\-*]/;
-
       default:
-        return assertUnreachable(mode);
+        return assertUnreachable(this.type);
     }
   }
 

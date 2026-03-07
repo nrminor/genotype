@@ -300,29 +300,46 @@ export interface ConvertOptions {
 }
 
 /**
- * Options for sequence validation
+ * Options for sequence validation.
  *
- * Validation can reject, fix, or warn about invalid sequences.
+ * Each option axis maps directly to a kernel `ValidationMode`:
+ *
+ * | sequenceType | allowAmbiguous | Kernel mode |
+ * |---|---|---|
+ * | dna | false | StrictDna |
+ * | dna | true | NormalDna |
+ * | rna | false | StrictRna |
+ * | rna | true | NormalRna |
  */
-export interface ValidateOptions {
-  /** Validation strictness level */
-  mode?: "strict" | "normal" | "permissive";
+export type ValidateOptions = {
+  /** Whether sequences are DNA or RNA. Required — use `detectSequenceType()` if unknown. */
+  sequenceType: "dna" | "rna";
 
-  /** Allow RNA bases (U) in sequences */
-  allowRNA?: boolean;
-
-  /** Allow IUPAC ambiguity codes */
+  /**
+   * Whether IUPAC ambiguity codes (R, Y, S, W, K, M, B, D, H, V, N) are valid.
+   * When `true` (the default), ambiguity codes are accepted alongside standard bases.
+   * When `false`, only standard bases (ACGT for DNA, ACGU for RNA) are valid.
+   */
   allowAmbiguous?: boolean;
 
-  /** Allow gap characters */
+  /**
+   * Whether gap characters (-, ., *) are allowed.
+   * When `true` (the default), gaps pass through unchanged.
+   * When `false`, gaps are stripped before validation and the gap-stripped
+   * sequence is yielded (even if the original was valid).
+   */
   allowGaps?: boolean;
 
-  /** Action to take on invalid sequences */
+  /** Action to take on invalid sequences. Defaults to `"reject"`. */
   action?: "reject" | "fix" | "warn";
 
-  /** Character to use when fixing invalid bases */
+  /**
+   * Replacement character for invalid bases when `action` is `"fix"`.
+   * Must be a single character. Defaults to `"N"`.
+   * Only valid when `action` is `"fix"`.
+   */
   fixChar?: string;
-}
+};
 
 /**
  * Options for sorting sequences - uses superior core implementation

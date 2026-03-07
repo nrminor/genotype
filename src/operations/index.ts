@@ -453,7 +453,7 @@ export class SeqOps<T extends AbstractSequence> {
    *     primer.literal("CAAAGACCAATCCTACCATGAG"),    // N gene reverse
    *     2                                  // Allow sequencing errors
    *   )
-   *   .validate({ mode: 'strict' });
+   *   .validate({ sequenceType: 'dna', allowAmbiguous: false });
    *
    * // Long reads with windowed search (massive performance boost)
    * seqops(nanoporeReads)
@@ -712,8 +712,8 @@ export class SeqOps<T extends AbstractSequence> {
    * @example
    * ```typescript
    * seqops(sequences)
-   *   .validate({ mode: 'strict', action: 'reject' })
-   *   .validate({ allowAmbiguous: true, action: 'fix', fixChar: 'N' })
+   *   .validate({ sequenceType: 'dna', allowAmbiguous: false, action: 'reject' })
+   *   .validate({ sequenceType: 'dna', action: 'fix', fixChar: 'N' })
    * ```
    */
   validate(options: ValidateOptions): SeqOps<T> {

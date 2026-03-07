@@ -61,7 +61,7 @@ describe("SeqOps Semantic API", () => {
 
       const result = await seqops(source(sequences))
         .clean({ removeGaps: true })
-        .validate({ mode: "strict", action: "reject" })
+        .validate({ sequenceType: "dna", allowAmbiguous: false, action: "reject" })
         .collect();
 
       expect(result).toHaveLength(2);
@@ -142,7 +142,7 @@ describe("SeqOps Semantic API", () => {
           trimWindow: 4,
         })
         .filter({ minLength: 6 })
-        .validate({ mode: "strict", action: "reject" })
+        .validate({ sequenceType: "dna", allowAmbiguous: false, action: "reject" })
         .collect();
 
       // Only read1 (trimmed) and read3 should pass

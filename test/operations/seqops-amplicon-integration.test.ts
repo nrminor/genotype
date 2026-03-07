@@ -167,7 +167,7 @@ describe("SeqOps Amplicon Integration", () => {
           primer`CAAAGACCAATCCTACCATGAG`, // N gene reverse
           2 // Allow sequencing errors
         )
-        .validate({ mode: "strict" }) // Post-amplicon validation
+        .validate({ sequenceType: "dna", allowAmbiguous: false }) // Post-amplicon validation
         .stats({ detailed: true });
 
       expect(typeof diagnosticResult.totalLength).toBe("number");

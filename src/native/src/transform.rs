@@ -549,6 +549,85 @@ fn remove_gaps_generic<const N: usize>(input: &[u8], gap_chars: &[u8], out: &mut
     write_cursor
 }
 
+pub fn replace_invalid(
+    input: &[u8],
+    mode: crate::classify::ValidMode,
+    replacement: u8,
+    out: &mut [u8],
+) {
+    #[cfg(target_arch = "x86_64")]
+    {
+        if is_x86_feature_detected!("avx512bw") {
+            // SAFETY: avx512bw support verified by the runtime check above.
+            unsafe { replace_invalid_avx512(input, mode, replacement, out) };
+            return;
+        }
+        if is_x86_feature_detected!("avx2") {
+            // SAFETY: avx2 support verified by the runtime check above.
+            unsafe { replace_invalid_avx2(input, mode, replacement, out) };
+            return;
+        }
+    }
+    replace_invalid_generic::<16>(input, mode, replacement, out);
+}
+
+/// # Safety
+///
+/// Caller must verify `avx512bw` support via `is_x86_feature_detected!`.
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx512bw")]
+unsafe fn replace_invalid_avx512(
+    input: &[u8],
+    mode: crate::classify::ValidMode,
+    replacement: u8,
+    out: &mut [u8],
+) {
+    replace_invalid_generic::<64>(input, mode, replacement, out);
+}
+
+/// # Safety
+///
+/// Caller must verify `avx2` support via `is_x86_feature_detected!`.
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx2")]
+unsafe fn replace_invalid_avx2(
+    input: &[u8],
+    mode: crate::classify::ValidMode,
+    replacement: u8,
+    out: &mut [u8],
+) {
+    replace_invalid_generic::<32>(input, mode, replacement, out);
+}
+
+fn replace_invalid_generic<const N: usize>(
+    input: &[u8],
+    mode: crate::classify::ValidMode,
+    replacement: u8,
+    out: &mut [u8],
+) {
+    let chunks = input.chunks_exact(N);
+    let remainder = chunks.remainder();
+    let mut offset = 0;
+
+    let repl = Simd::splat(replacement);
+
+    for chunk in chunks {
+        let vec = Simd::<u8, N>::from_slice(chunk);
+        let valid = crate::classify::compute_valid_mask(vec, mode);
+        let result = valid.select(vec, repl);
+        out[offset..offset + N].copy_from_slice(&result.to_array());
+        offset += N;
+    }
+
+    for (i, &b) in remainder.iter().enumerate() {
+        out[offset + i] = if crate::classify::byte_is_valid(b, mode) {
+            b
+        } else {
+            replacement
+        };
+    }
+}
+
 pub fn replace_ambiguous(input: &[u8], replacement: u8, out: &mut [u8]) {
     #[cfg(target_arch = "x86_64")]
     {
@@ -668,6 +747,16 @@ mod tests {
     fn run_replace_ambiguous(input: &[u8], replacement: u8) -> Vec<u8> {
         let mut out = vec![0u8; input.len()];
         replace_ambiguous(input, replacement, &mut out);
+        out
+    }
+
+    fn run_replace_invalid(
+        input: &[u8],
+        mode: crate::classify::ValidMode,
+        replacement: u8,
+    ) -> Vec<u8> {
+        let mut out = vec![0u8; input.len()];
+        replace_invalid(input, mode, replacement, &mut out);
         out
     }
 
@@ -999,6 +1088,136 @@ mod tests {
         }
     }
 
+    mod replace_invalid_tests {
+        use super::*;
+        use crate::classify::ValidMode;
+
+        #[test]
+        fn strict_dna_replaces_non_acgt() {
+            assert_eq!(
+                run_replace_invalid(b"ATCGNR", ValidMode::StrictDna, b'N'),
+                b"ATCGNN"
+            );
+        }
+
+        #[test]
+        fn strict_dna_replaces_u() {
+            assert_eq!(
+                run_replace_invalid(b"ATCGU", ValidMode::StrictDna, b'N'),
+                b"ATCGN"
+            );
+        }
+
+        #[test]
+        fn strict_dna_preserves_gaps() {
+            assert_eq!(
+                run_replace_invalid(b"A-T.C*G", ValidMode::StrictDna, b'N'),
+                b"A-T.C*G"
+            );
+        }
+
+        #[test]
+        fn strict_rna_replaces_t() {
+            assert_eq!(
+                run_replace_invalid(b"ACGUT", ValidMode::StrictRna, b'N'),
+                b"ACGUN"
+            );
+        }
+
+        #[test]
+        fn strict_rna_preserves_acgu_and_gaps() {
+            assert_eq!(
+                run_replace_invalid(b"A-C.G*U", ValidMode::StrictRna, b'N'),
+                b"A-C.G*U"
+            );
+        }
+
+        #[test]
+        fn normal_dna_preserves_iupac() {
+            assert_eq!(
+                run_replace_invalid(b"ACGTURYSWKMBDHVN", ValidMode::NormalDna, b'X'),
+                b"ACGTURYSWKMBDHVN"
+            );
+        }
+
+        #[test]
+        fn normal_dna_replaces_digits() {
+            assert_eq!(
+                run_replace_invalid(b"ACGT123", ValidMode::NormalDna, b'N'),
+                b"ACGTNNN"
+            );
+        }
+
+        #[test]
+        fn normal_rna_replaces_t() {
+            assert_eq!(
+                run_replace_invalid(b"ACGUT", ValidMode::NormalRna, b'N'),
+                b"ACGUN"
+            );
+        }
+
+        #[test]
+        fn normal_rna_preserves_iupac_without_t() {
+            assert_eq!(
+                run_replace_invalid(b"ACGURYSWKMBDHVN", ValidMode::NormalRna, b'X'),
+                b"ACGURYSWKMBDHVN"
+            );
+        }
+
+        #[test]
+        fn protein_preserves_amino_acids_and_gaps() {
+            assert_eq!(
+                run_replace_invalid(b"ACDEFGHIKLMNPQRSTVWY-.*", ValidMode::Protein, b'X'),
+                b"ACDEFGHIKLMNPQRSTVWY-.*"
+            );
+        }
+
+        #[test]
+        fn protein_replaces_non_amino_acids() {
+            assert_eq!(
+                run_replace_invalid(b"ACDE1XZ", ValidMode::Protein, b'X'),
+                b"ACDEXXX"
+            );
+        }
+
+        #[test]
+        fn case_insensitive() {
+            assert_eq!(
+                run_replace_invalid(b"atcg", ValidMode::StrictDna, b'N'),
+                b"atcg"
+            );
+        }
+
+        #[test]
+        fn custom_replacement() {
+            assert_eq!(
+                run_replace_invalid(b"ATCG123", ValidMode::StrictDna, b'X'),
+                b"ATCGXXX"
+            );
+        }
+
+        #[test]
+        fn empty_input() {
+            assert_eq!(run_replace_invalid(b"", ValidMode::StrictDna, b'N'), b"");
+        }
+
+        #[test]
+        fn all_valid_passes_through() {
+            assert_eq!(
+                run_replace_invalid(b"ACGT", ValidMode::StrictDna, b'N'),
+                b"ACGT"
+            );
+        }
+
+        #[test]
+        fn all_invalid_replaced() {
+            assert_eq!(
+                run_replace_invalid(b"123!@#", ValidMode::StrictDna, b'N'),
+                b"NNNNNN"
+            );
+        }
+    }
+
     /// Tests that exercise the SIMD path by using inputs at least 16 bytes
     /// long, and that simulate the `transform_batch` calling pattern where
     /// the output slice starts at an arbitrary offset within a larger buffer.
@@ -1100,6 +1319,17 @@ mod tests {
             let expected = run_replace_ambiguous(&input, b'N');
             for &skip in OFFSETS {
                 let result = with_offset(&input, skip, |i, o| replace_ambiguous(i, b'N', o));
+                assert_eq!(result, expected, "failed at offset {skip}");
+            }
+        }
+
+        #[test]
+        fn replace_invalid_at_offset() {
+            let input = make_input(65);
+            let mode = crate::classify::ValidMode::StrictDna;
+            let expected = run_replace_invalid(&input, mode, b'N');
+            for &skip in OFFSETS {
+                let result = with_offset(&input, skip, |i, o| replace_invalid(i, mode, b'N', o));
                 assert_eq!(result, expected, "failed at offset {skip}");
             }
         }
@@ -1286,6 +1516,39 @@ mod tests {
                     })
                     .collect();
                 assert_eq!(run_replace_ambiguous(&input, b'N'), expected, "len={len}");
+            }
+        }
+
+        #[test]
+        fn replace_invalid_at_all_boundaries() {
+            use crate::classify::ValidMode;
+
+            let modes = [
+                ValidMode::StrictDna,
+                ValidMode::NormalDna,
+                ValidMode::StrictRna,
+                ValidMode::NormalRna,
+                ValidMode::Protein,
+            ];
+            for mode in modes {
+                for &len in LENGTHS {
+                    let input = pattern_bytes(len);
+                    let expected: Vec<u8> = input
+                        .iter()
+                        .map(|&b| {
+                            if crate::classify::byte_is_valid(b, mode) {
+                                b
+                            } else {
+                                b'N'
+                            }
+                        })
+                        .collect();
+                    assert_eq!(
+                        run_replace_invalid(&input, mode, b'N'),
+                        expected,
+                        "mode={mode:?} len={len}"
+                    );
+                }
             }
         }
     }

@@ -233,6 +233,46 @@ pub fn replace_ambiguous_batch(
     })
 }
 
+/// Replace bytes not in the allowed character set for the given validation
+/// mode with a replacement character in every sequence in a packed batch.
+///
+/// This is the "fix" counterpart to `check_valid_batch`: where `check_valid`
+/// returns a boolean per sequence, `replace_invalid` returns the fixed bytes.
+/// Valid bytes pass through unchanged; invalid bytes become the replacement.
+///
+/// # Errors
+///
+/// Returns a napi error if the offset array is malformed.
+#[napi]
+#[allow(clippy::cast_possible_truncation, clippy::needless_pass_by_value)]
+pub fn replace_invalid_batch(
+    sequences: &[u8],
+    offsets: &[u32],
+    mode: ValidationMode,
+    replacement: String,
+) -> napi::Result<TransformResult> {
+    utils::validate_offsets(offsets, sequences.len())?;
+
+    let replacement_byte = replacement.as_bytes().first().copied().unwrap_or(b'N');
+    let valid_mode = mode.to_valid_mode();
+
+    let mut out_data = vec![0u8; sequences.len()];
+    let out_offsets: Vec<u32> = offsets.to_vec();
+
+    for window in offsets.windows(2) {
+        let start = window[0] as usize;
+        let end = window[1] as usize;
+        let seq = &sequences[start..end];
+        let dest = &mut out_data[start..end];
+        transform::replace_invalid(seq, valid_mode, replacement_byte, dest);
+    }
+
+    Ok(TransformResult {
+        data: out_data.into(),
+        offsets: out_offsets,
+    })
+}
+
 /// The result of a batch classify operation.
 ///
 /// `counts` is a flat array of length `num_sequences * 12`, indexed as
@@ -569,6 +609,40 @@ mod tests {
         let err = check_valid_batch(b"ATCG", &[0, 100], ValidationMode::StrictDna)
             .err()
             .expect("out-of-bounds offset [0, 100] was not rejected");
+        assert!(err.reason.contains("final offset"), "{}", err.reason);
+    }
+
+    #[test]
+    fn replace_invalid_batch_fixes_invalid_bytes() {
+        let (data, offsets) = make_batch(&[b"ACGT", b"ACGX", b"acgt"]);
+        let result = replace_invalid_batch(
+            &data,
+            &offsets,
+            ValidationMode::StrictDna,
+            String::from("N"),
+        )
+        .expect("offset validation rejected a well-formed batch");
+        assert_eq!(result.data.as_ref(), b"ACGTACGNacgt");
+        assert_eq!(result.offsets, vec![0, 4, 8, 12]);
+    }
+
+    #[test]
+    fn replace_invalid_batch_empty_returns_empty() {
+        let result = replace_invalid_batch(&[], &[0], ValidationMode::StrictDna, String::from("N"))
+            .expect("empty batch with sentinel offset [0] is valid");
+        assert_eq!(result.data.as_ref(), &[] as &[u8]);
+    }
+
+    #[test]
+    fn replace_invalid_batch_rejects_malformed_offsets() {
+        let err = replace_invalid_batch(
+            b"ATCG",
+            &[0, 100],
+            ValidationMode::StrictDna,
+            String::from("N"),
+        )
+        .err()
+        .expect("out-of-bounds offset [0, 100] was not rejected");
         assert!(err.reason.contains("final offset"), "{}", err.reason);
     }
 

@@ -142,6 +142,26 @@ export interface NativeKernel {
   ): TransformResult;
 
   /**
+   * Replace bytes not in the allowed character set for the given validation
+   * mode with a replacement character in every sequence in a packed batch.
+   *
+   * Valid bytes pass through unchanged; invalid bytes become the replacement.
+   * This is the "fix" counterpart to `checkValidBatch`.
+   *
+   * @param sequences - Concatenated sequence bytes
+   * @param offsets - N+1 offset array into the sequences buffer
+   * @param mode - Which character set defines "valid"
+   * @param replacement - Single character to replace invalid bytes with (defaults to "N" if empty)
+   * @returns Transformed bytes and identical offsets
+   */
+  replaceInvalidBatch(
+    sequences: Buffer,
+    offsets: Uint32Array,
+    mode: ValidationMode,
+    replacement: string
+  ): TransformResult;
+
+  /**
    * Classify every byte in every sequence into one of 12 classes.
    *
    * @param sequences - Concatenated sequence bytes

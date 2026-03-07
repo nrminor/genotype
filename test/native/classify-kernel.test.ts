@@ -603,6 +603,65 @@ describeNative("classify native kernel (requires just build-native-dev)", () => 
     });
   });
 
+  describe("replaceInvalidBatch", () => {
+    testNative("replaces invalid bytes in StrictDna mode", () => {
+      const kernel = requireNativeKernel();
+      const seqs = makeSequences("ACGT", "ACGX", "acgt");
+      const { data, offsets } = packSequences(seqs);
+      const result = kernel.replaceInvalidBatch(data, offsets, ValidationMode.StrictDna, "N");
+      expect(result.data.toString()).toBe("ACGTACGNacgt");
+    });
+
+    testNative("StrictRna replaces T with replacement", () => {
+      const kernel = requireNativeKernel();
+      const seqs = makeSequences("ACGUT");
+      const { data, offsets } = packSequences(seqs);
+      const result = kernel.replaceInvalidBatch(data, offsets, ValidationMode.StrictRna, "N");
+      expect(result.data.toString()).toBe("ACGUN");
+    });
+
+    testNative("NormalDna preserves IUPAC codes", () => {
+      const kernel = requireNativeKernel();
+      const seqs = makeSequences("ACGTURYSWKMBDHVN");
+      const { data, offsets } = packSequences(seqs);
+      const result = kernel.replaceInvalidBatch(data, offsets, ValidationMode.NormalDna, "X");
+      expect(result.data.toString()).toBe("ACGTURYSWKMBDHVN");
+    });
+
+    testNative("NormalRna rejects T", () => {
+      const kernel = requireNativeKernel();
+      const seqs = makeSequences("ACGUT");
+      const { data, offsets } = packSequences(seqs);
+      const result = kernel.replaceInvalidBatch(data, offsets, ValidationMode.NormalRna, "N");
+      expect(result.data.toString()).toBe("ACGUN");
+    });
+
+    testNative("preserves offsets for length-preserving transform", () => {
+      const kernel = requireNativeKernel();
+      const seqs = makeSequences("ACGT", "XX");
+      const { data, offsets } = packSequences(seqs);
+      const result = kernel.replaceInvalidBatch(data, offsets, ValidationMode.StrictDna, "N");
+      expect(Array.from(result.offsets)).toEqual([0, 4, 6]);
+    });
+
+    testNative("parity with SequenceValidator.clean for StrictDna", () => {
+      const kernel = requireNativeKernel();
+      const validator = new SequenceValidator("strict", "dna");
+      const inputs = ["ACGT", "ACGN123", "atcg", "A-T.C*G", ""];
+      const seqs = makeSequences(...inputs);
+      const { data, offsets } = packSequences(seqs);
+      const result = kernel.replaceInvalidBatch(data, offsets, ValidationMode.StrictDna, "N");
+
+      for (let i = 0; i < inputs.length; i++) {
+        const start = result.offsets[i]!;
+        const end = result.offsets[i + 1]!;
+        const kernelOutput = result.data.subarray(start, end).toString();
+        const tsOutput = validator.clean(inputs[i]!, "N");
+        expect(kernelOutput).toBe(tsOutput);
+      }
+    });
+  });
+
   describe("known parity divergences", () => {
     testNative("TS gcContent throws on empty, native returns zero counts", () => {
       expect(() => gcContent("")).toThrow();

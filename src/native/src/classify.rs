@@ -244,16 +244,20 @@ fn check_valid_generic<const N: usize>(input: &[u8], mode: ValidMode) -> bool {
     true
 }
 
+/// Compute a per-lane mask of which bytes are valid for the given mode.
+///
+/// This is the shared core of `check_valid` (which reduces the mask to a
+/// bool via all-true) and `replace_invalid` in `transform.rs` (which uses
+/// the mask for a SIMD select).
 #[inline]
-fn chunk_is_valid<const N: usize>(vec: Simd<u8, N>, mode: ValidMode) -> bool {
+pub(crate) fn compute_valid_mask<const N: usize>(vec: Simd<u8, N>, mode: ValidMode) -> Mask<i8, N> {
     let upper = vec & Simd::splat(!0x20);
 
-    // Gap characters are always allowed (compared without case folding)
     let is_gap = vec.simd_eq(Simd::splat(b'-'))
         | vec.simd_eq(Simd::splat(b'.'))
         | vec.simd_eq(Simd::splat(b'*'));
 
-    let is_valid = match mode {
+    match mode {
         ValidMode::StrictDna => {
             upper.simd_eq(Simd::splat(b'A'))
                 | upper.simd_eq(Simd::splat(b'C'))
@@ -276,7 +280,6 @@ fn chunk_is_valid<const N: usize>(vec: Simd<u8, N>, mode: ValidMode) -> bool {
             let is_tu = if mode == ValidMode::NormalDna {
                 upper.simd_eq(Simd::splat(b'T')) | upper.simd_eq(Simd::splat(b'U'))
             } else {
-                // NormalRna: U is allowed, T is not
                 upper.simd_eq(Simd::splat(b'U'))
             };
 
@@ -295,7 +298,6 @@ fn chunk_is_valid<const N: usize>(vec: Simd<u8, N>, mode: ValidMode) -> bool {
             is_standard | is_tu | is_iupac | is_gap
         }
         ValidMode::Protein => {
-            // 20 standard amino acids: ACDEFGHIKLMNPQRSTVWY
             upper.simd_eq(Simd::splat(b'A'))
                 | upper.simd_eq(Simd::splat(b'C'))
                 | upper.simd_eq(Simd::splat(b'D'))
@@ -318,13 +320,16 @@ fn chunk_is_valid<const N: usize>(vec: Simd<u8, N>, mode: ValidMode) -> bool {
                 | upper.simd_eq(Simd::splat(b'Y'))
                 | is_gap
         }
-    };
-
-    is_valid == Mask::splat(true)
+    }
 }
 
 #[inline]
-fn byte_is_valid(b: u8, mode: ValidMode) -> bool {
+fn chunk_is_valid<const N: usize>(vec: Simd<u8, N>, mode: ValidMode) -> bool {
+    compute_valid_mask(vec, mode) == Mask::splat(true)
+}
+
+#[inline]
+pub(crate) fn byte_is_valid(b: u8, mode: ValidMode) -> bool {
     let upper = b & !0x20;
     if matches!(b, b'-' | b'.' | b'*') {
         return true;

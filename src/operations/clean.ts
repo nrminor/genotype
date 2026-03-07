@@ -1,17 +1,22 @@
 /**
  * CleanProcessor - Sanitize and fix sequence issues
  *
- * This processor implements cleaning operations that fix common
- * issues in sequence data, such as removing gaps, replacing
- * ambiguous bases, and trimming whitespace.
- *
+ * Delegates to the native SIMD-accelerated transform kernel for gap
+ * removal and ambiguous base replacement. Whitespace trimming and
+ * empty sequence filtering are handled per-sequence around the
+ * batched kernel path.
  */
 
 import { type } from "arktype";
-import { ValidationError } from "../errors";
+import { withSequence } from "../constructors";
+import { GenotypeError, ValidationError } from "../errors";
+import { GenotypeString } from "../genotype-string";
+import { type NativeKernel, getNativeKernel, packSequences } from "../native";
 import type { AbstractSequence } from "../types";
-import { removeGaps, replaceAmbiguousBases } from "./core/sequence-manipulation";
 import type { CleanOptions, Processor } from "./types";
+
+/** Byte budget per native batch. Sequences accumulate until this threshold. */
+const BATCH_BYTE_BUDGET = 4 * 1024 * 1024;
 
 /**
  * Valid nucleotide characters for replaceChar validation
@@ -34,7 +39,6 @@ const CleanOptionsSchema = type({
   "trimWhitespace?": "boolean",
   "removeEmpty?": "boolean",
 }).narrow((options, ctx) => {
-  // Semantic validation: replaceChar must be a valid nucleotide when replaceAmbiguous is true
   if (
     options.replaceAmbiguous === true &&
     options.replaceChar !== undefined &&
@@ -75,67 +79,131 @@ export class CleanProcessor implements Processor<CleanOptions> {
     source: AsyncIterable<AbstractSequence>,
     options: CleanOptions
   ): AsyncIterable<AbstractSequence> {
-    // Validate options using ArkType schema
     const validationResult = CleanOptionsSchema(options);
     if (validationResult instanceof type.errors) {
       throw new ValidationError(`Invalid clean options: ${validationResult.summary}`);
     }
 
-    // NATIVE_CANDIDATE: Hot loop processing every sequence
-    // Native batch processing would improve performance
+    const hasKernelOps = options.removeGaps === true || options.replaceAmbiguous === true;
+
+    // No kernel ops — handle trim and removeEmpty per-sequence.
+    if (!hasKernelOps) {
+      for await (const seq of source) {
+        const cleaned = applyTrim(seq, options);
+        if (options.removeEmpty === true && cleaned.sequence.length === 0) {
+          continue;
+        }
+        yield cleaned;
+      }
+      return;
+    }
+
+    const nativeKernel = getNativeKernel();
+    if (nativeKernel === undefined) {
+      throw new GenotypeError(
+        "Native kernel not available. The genotype-native crate must be built " +
+          "before using CleanProcessor. Run `just build-native-dev` to build it.",
+        "NATIVE_KERNEL_UNAVAILABLE"
+      );
+    }
+
+    let batch: AbstractSequence[] = [];
+    let batchBytes = 0;
+
     for await (const seq of source) {
-      const cleaned = this.cleanSequence(seq, options);
+      // Pre-process: trim before packing (matches current operation order).
+      const trimmed = applyTrim(seq, options);
+      batch.push(trimmed);
+      batchBytes += trimmed.sequence.length;
 
-      // Skip empty sequences if requested
-      if (options.removeEmpty === true && cleaned.sequence.length === 0) {
-        continue;
-      }
-
-      yield cleaned;
-    }
-  }
-
-  /**
-   * Apply cleaning operations to a single sequence
-   *
-   * @param seq - Sequence to clean
-   * @param options - Clean options
-   * @returns Cleaned sequence
-   */
-  private cleanSequence(seq: AbstractSequence, options: CleanOptions): AbstractSequence {
-    let sequence = seq.sequence;
-    let description = seq.description;
-
-    // Trim whitespace first
-    if (options.trimWhitespace === true) {
-      sequence = sequence.trim();
-      if (description !== undefined) {
-        description = description.trim();
+      if (batchBytes >= BATCH_BYTE_BUDGET) {
+        yield* flushBatch(batch, nativeKernel, options);
+        batch = [];
+        batchBytes = 0;
       }
     }
 
-    // Remove gaps
-    if (options.removeGaps === true) {
-      const gapChars = options.gapChars ?? ".-*";
-      sequence = removeGaps(sequence, gapChars);
+    if (batch.length > 0) {
+      yield* flushBatch(batch, nativeKernel, options);
     }
-
-    // Replace ambiguous bases
-    if (options.replaceAmbiguous === true) {
-      const replaceChar = options.replaceChar ?? "N";
-      sequence = replaceAmbiguousBases(sequence, replaceChar);
-    }
-
-    // Return new sequence object if changed
-    if (sequence === seq.sequence && description === seq.description) {
-      return seq;
-    }
-
-    return {
-      ...seq,
-      sequence,
-      length: sequence.length,
-      ...(description !== seq.description && { description }),
-    };
   }
+}
+
+/**
+ * Apply whitespace trimming to a sequence's content and description.
+ *
+ * Returns the original object unchanged if trimWhitespace is not set
+ * or if trimming produces no change (preserving reference identity
+ * for the no-op short-circuit path).
+ */
+function applyTrim(seq: AbstractSequence, options: CleanOptions): AbstractSequence {
+  if (options.trimWhitespace !== true) {
+    return seq;
+  }
+
+  const trimmedSeq = seq.sequence.trim();
+  const seqChanged = !trimmedSeq.equals(seq.sequence);
+
+  const { description } = seq;
+  if (description !== undefined) {
+    const trimmedDesc = description.trim();
+    if (trimmedDesc !== description) {
+      const result = seqChanged ? withSequence(seq, trimmedSeq) : seq;
+      return { ...result, description: trimmedDesc };
+    }
+  }
+
+  return seqChanged ? withSequence(seq, trimmedSeq) : seq;
+}
+
+/**
+ * Pack a batch of sequences, run kernel ops, unpack the results,
+ * and yield cleaned sequences. Skips empty sequences if removeEmpty
+ * is set.
+ */
+function* flushBatch(
+  sequences: readonly AbstractSequence[],
+  nativeKernel: NativeKernel,
+  options: CleanOptions
+): Iterable<AbstractSequence> {
+  const packed = packSequences(sequences);
+  let data = packed.data;
+  let offsets: Uint32Array | number[] = packed.offsets;
+
+  if (options.removeGaps === true) {
+    const gapChars = options.gapChars ?? ".-*";
+    const result = nativeKernel.removeGapsBatch(data, asUint32Array(offsets), gapChars);
+    data = result.data;
+    offsets = result.offsets;
+  }
+
+  if (options.replaceAmbiguous === true) {
+    const replaceChar = options.replaceChar ?? "N";
+    // replaceAmbiguous is length-preserving, so offsets don't change.
+    // We only need the transformed data — keeping the existing offsets
+    // avoids replacing a Uint32Array with a number[] of identical values.
+    const result = nativeKernel.replaceAmbiguousBatch(data, asUint32Array(offsets), replaceChar);
+    data = result.data;
+  }
+
+  for (let i = 0; i < sequences.length; i++) {
+    const start = offsets[i]!;
+    const end = offsets[i + 1]!;
+
+    if (options.removeEmpty === true && start === end) {
+      continue;
+    }
+
+    const sequence = GenotypeString.fromBytes(data.subarray(start, end));
+    yield withSequence(sequences[i]!, sequence);
+  }
+}
+
+/**
+ * Convert offsets to Uint32Array if they aren't already. Kernel
+ * functions accept Uint32Array; the initial packed offsets are
+ * Uint32Array, but kernel results return number[].
+ */
+function asUint32Array(offsets: Uint32Array | number[]): Uint32Array {
+  return offsets instanceof Uint32Array ? offsets : new Uint32Array(offsets);
 }

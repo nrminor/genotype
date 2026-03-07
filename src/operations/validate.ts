@@ -2,15 +2,21 @@
  * ValidateProcessor - Check and fix sequence validity
  *
  * This processor validates sequences against various criteria and
- * can reject, fix, or warn about invalid sequences.
- *
+ * can reject, fix, or warn about invalid sequences. All hot paths
+ * run through native SIMD kernels (checkValidBatch, replaceInvalidBatch,
+ * removeGapsBatch).
  */
 
 import { type } from "arktype";
 import { withSequence } from "../constructors";
 import { ValidationError } from "../errors";
+import {
+  type NativeKernel,
+  getNativeKernel,
+  packSequences,
+  ValidationMode,
+} from "../native";
 import type { AbstractSequence } from "../types";
-import { SequenceValidator, type ValidationMode } from "./core/sequence-validation";
 import type { Processor, ValidateOptions } from "./types";
 
 export {
@@ -51,6 +57,26 @@ const ValidateOptionsSchema = type({
   return true;
 });
 
+/** Byte budget per native batch. Sequences accumulate until this threshold. */
+const BATCH_BYTE_BUDGET = 4 * 1024 * 1024;
+
+/**
+ * Map ValidateOptions to the kernel's ValidationMode enum.
+ *
+ * | sequenceType | allowAmbiguous | Kernel mode |
+ * |---|---|---|
+ * | dna | false | StrictDna |
+ * | dna | true (default) | NormalDna |
+ * | rna | false | StrictRna |
+ * | rna | true (default) | NormalRna |
+ */
+function resolveKernelMode(options: ValidateOptions): ValidationMode {
+  if (options.sequenceType === "rna") {
+    return options.allowAmbiguous === false ? ValidationMode.StrictRna : ValidationMode.NormalRna;
+  }
+  return options.allowAmbiguous === false ? ValidationMode.StrictDna : ValidationMode.NormalDna;
+}
+
 /**
  * Processor for validating sequences
  *
@@ -81,87 +107,126 @@ export class ValidateProcessor implements Processor<ValidateOptions> {
       throw new ValidationError(`Invalid validate options: ${validationResult.summary}`);
     }
 
-    const validator = this.createValidator(options);
+    const kernel = getNativeKernel();
+    if (kernel === undefined) {
+      throw new ValidationError(
+        "Native kernel is required for validation but could not be loaded"
+      );
+    }
+
+    const action = options.action ?? "reject";
+    const mode = resolveKernelMode(options);
+    const stripGaps = options.allowGaps !== true;
+
+    let batch: AbstractSequence[] = [];
+    let batchBytes = 0;
 
     for await (const seq of source) {
-      const result = this.validateSequence(seq, options, validator);
-
-      if (result) {
-        yield result;
+      batch.push(seq);
+      batchBytes += seq.sequence.length;
+      if (batchBytes >= BATCH_BYTE_BUDGET) {
+        yield* flushValidateBatch(batch, kernel, action, mode, stripGaps, options.fixChar);
+        batch = [];
+        batchBytes = 0;
       }
     }
-  }
 
-  /**
-   * Create a validator instance based on options
-   *
-   * @param options - Validation options
-   * @returns Configured validator
-   */
-  private createValidator(options: ValidateOptions): SequenceValidator {
-    const mode: ValidationMode = options.allowAmbiguous === false ? "strict" : "normal";
-    return new SequenceValidator(mode, options.sequenceType);
-  }
-
-  /**
-   * Validate a single sequence
-   *
-   * NATIVE_CANDIDATE: Character validation loop.
-   * Native implementation would be faster for
-   * validating large sequences against IUPAC codes.
-   *
-   * @param seq - Sequence to validate
-   * @param options - Validation options
-   * @param validator - Validator instance
-   * @returns Validated sequence, fixed sequence, or null if rejected
-   */
-  private validateSequence(
-    seq: AbstractSequence,
-    options: ValidateOptions,
-    validator: SequenceValidator
-  ): AbstractSequence | null {
-    const action = options.action || "reject";
-
-    // Check if sequence is valid
-    let validSequence = seq.sequence.toString();
-
-    // Apply additional validation constraints
-    if (options.allowGaps !== true) {
-      // NATIVE_CANDIDATE: Character filtering loop
-      validSequence = validSequence.replace(/[-.*]/g, "");
+    if (batch.length > 0) {
+      yield* flushValidateBatch(batch, kernel, action, mode, stripGaps, options.fixChar);
     }
+  }
+}
 
-    // NATIVE_CANDIDATE: validate() performs character-by-character validation
-    const isValid = validator.validate(validSequence);
+/**
+ * Process a batch of sequences through the native validation kernels.
+ *
+ * When `stripGaps` is true, `removeGapsBatch` runs first and the
+ * gap-stripped bytes become the working data for validation. The
+ * gap-stripped sequence is yielded even when the original was valid.
+ */
+function* flushValidateBatch(
+  batch: AbstractSequence[],
+  kernel: NativeKernel,
+  action: "reject" | "fix" | "warn",
+  mode: ValidationMode,
+  stripGaps: boolean,
+  fixChar: string | undefined,
+): Iterable<AbstractSequence> {
+  let { data, offsets } = packSequences(batch);
 
-    if (isValid) {
-      // Return sequence as-is if valid
-      if (validSequence === seq.sequence.toString()) {
-        return seq;
+  if (stripGaps) {
+    const gapResult = kernel.removeGapsBatch(data, offsets, "");
+    data = gapResult.data;
+    offsets = new Uint32Array(gapResult.offsets);
+  }
+
+  switch (action) {
+    case "reject": {
+      const flags = kernel.checkValidBatch(data, offsets, mode);
+      for (let i = 0; i < batch.length; i++) {
+        if (flags[i] !== 1) continue;
+        yield sequenceFromBatch(batch[i]!, data, offsets, i, stripGaps);
       }
-      return withSequence(seq, validSequence);
+      break;
     }
 
-    // Handle invalid sequences based on action
-    switch (action) {
-      case "reject":
-        // Skip invalid sequences
-        return null;
-
-      case "fix": {
-        // Fix invalid sequences
-        // NATIVE_CANDIDATE: clean() replaces invalid characters
-        const fixed = validator.clean(validSequence, options.fixChar ?? "N");
-        return withSequence(seq, fixed);
+    case "fix": {
+      const fixResult = kernel.replaceInvalidBatch(data, offsets, mode, fixChar ?? "N");
+      for (let i = 0; i < batch.length; i++) {
+        const start = fixResult.offsets[i]!;
+        const end = fixResult.offsets[i + 1]!;
+        const fixedBytes = fixResult.data.subarray(start, end);
+        const original = batch[i]!;
+        if (!stripGaps && bytesMatchSequence(original, fixedBytes)) {
+          yield original;
+        } else {
+          yield withSequence(original, Buffer.from(fixedBytes).toString());
+        }
       }
+      break;
+    }
 
-      case "warn":
-        // Log warning but keep sequence
-        console.warn(`Invalid sequence: ${seq.id}`);
-        return seq;
-
-      default:
-        return null;
+    case "warn": {
+      const flags = kernel.checkValidBatch(data, offsets, mode);
+      for (let i = 0; i < batch.length; i++) {
+        if (flags[i] !== 1) {
+          console.warn(`Invalid sequence: ${batch[i]!.id}`);
+        }
+        yield sequenceFromBatch(batch[i]!, data, offsets, i, stripGaps);
+      }
+      break;
     }
   }
+}
+
+/**
+ * Yield the original sequence if bytes haven't changed, or a new
+ * sequence with the (potentially gap-stripped) bytes from the batch.
+ */
+function sequenceFromBatch(
+  original: AbstractSequence,
+  data: Buffer,
+  offsets: Uint32Array,
+  index: number,
+  wasModified: boolean,
+): AbstractSequence {
+  if (!wasModified && bytesMatchSequence(original, data.subarray(offsets[index]!, offsets[index + 1]!))) {
+    return original;
+  }
+  const start = offsets[index]!;
+  const end = offsets[index + 1]!;
+  return withSequence(original, Buffer.from(data.subarray(start, end)).toString());
+}
+
+/**
+ * Check whether a sequence's bytes are identical to a buffer slice,
+ * avoiding a string allocation when possible.
+ */
+function bytesMatchSequence(seq: AbstractSequence, bytes: Uint8Array): boolean {
+  const seqBytes = seq.sequence.toBytes();
+  if (seqBytes.length !== bytes.length) return false;
+  for (let i = 0; i < seqBytes.length; i++) {
+    if (seqBytes[i] !== bytes[i]) return false;
+  }
+  return true;
 }

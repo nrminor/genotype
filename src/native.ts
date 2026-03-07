@@ -15,23 +15,32 @@ export interface TransformResult {
 /**
  * The result of a batch classify operation from the native kernel.
  *
- * `counts` is a flat array of length `numSequences * 8`, indexed as
- * `counts[seqIndex * 8 + classIndex]`. The 8 classes are:
- *
- * - 0: AT (A, T, U)
- * - 1: GC (G, C)
- * - 2: strong (S — represents G or C)
- * - 3: weak (W — represents A or T)
- * - 4: two-base ambiguity (R, Y, K, M)
- * - 5: multi-base ambiguity (N, B, D, H, V)
- * - 6: gap (-, ., *)
- * - 7: other (everything else)
+ * `counts` is a flat array of length `numSequences * NUM_CLASSES`, indexed as
+ * `counts[seqIndex * NUM_CLASSES + classIndex]`. See the `CLASS_*` constants
+ * for the 12 class indices.
  *
  * All comparisons are case-insensitive except gaps, which are literal.
  */
 export interface ClassifyResult {
   counts: number[];
 }
+
+/** Number of byte classes returned by the classify kernel. */
+export const NUM_CLASSES = 12;
+
+/** Class index constants for indexing into ClassifyResult.counts. */
+export const CLASS_A = 0;
+export const CLASS_T = 1;
+export const CLASS_U = 2;
+export const CLASS_G = 3;
+export const CLASS_C = 4;
+export const CLASS_N = 5;
+export const CLASS_STRONG = 6;
+export const CLASS_WEAK = 7;
+export const CLASS_TWO_BASE = 8;
+export const CLASS_BDHV = 9;
+export const CLASS_GAP = 10;
+export const CLASS_OTHER = 11;
 
 /**
  * Length-preserving byte-level transformations. Each variant maps to a
@@ -133,11 +142,11 @@ export interface NativeKernel {
   ): TransformResult;
 
   /**
-   * Classify every byte in every sequence into one of 8 classes.
+   * Classify every byte in every sequence into one of 12 classes.
    *
    * @param sequences - Concatenated sequence bytes
    * @param offsets - N+1 offset array into the sequences buffer
-   * @returns Flat array of per-sequence counts (length = numSequences * 8)
+   * @returns Flat array of per-sequence counts (length = numSequences * NUM_CLASSES)
    */
   classifyBatch(sequences: Buffer, offsets: Uint32Array): ClassifyResult;
 

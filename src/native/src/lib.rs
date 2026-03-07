@@ -235,12 +235,12 @@ pub fn replace_ambiguous_batch(
 
 /// The result of a batch classify operation.
 ///
-/// `counts` is a flat array of length `num_sequences * 8`, indexed as
-/// `counts[seq_index * 8 + class_index]`. The 8 classes are:
+/// `counts` is a flat array of length `num_sequences * 12`, indexed as
+/// `counts[seq_index * 12 + class_index]`. The 12 classes are:
 ///
-/// 0: AT (A, T, U), 1: GC (G, C), 2: strong (S), 3: weak (W),
-/// 4: two-base ambiguity (R, Y, K, M), 5: multi-base ambiguity (N, B, D, H, V),
-/// 6: gap (-, ., *), 7: other (everything else).
+/// 0: A, 1: T, 2: U, 3: G, 4: C, 5: N,
+/// 6: strong (S), 7: weak (W), 8: two-base ambiguity (R, Y, K, M),
+/// 9: BDHV, 10: gap (-, ., *), 11: other (everything else).
 ///
 /// All comparisons are case-insensitive except gaps, which are literal.
 #[napi(object)]
@@ -248,7 +248,7 @@ pub struct ClassifyResult {
     pub counts: Vec<u32>,
 }
 
-/// Classify every byte in every sequence into one of 8 classes.
+/// Classify every byte in every sequence into one of 12 classes.
 ///
 /// Returns per-sequence counts that the TypeScript layer uses to compute
 /// gcContent, atContent, base composition, and other derived statistics.
@@ -512,20 +512,21 @@ mod tests {
             .expect("offset validation rejected a well-formed batch");
         assert_eq!(result.counts.len(), 3 * classify::NUM_CLASSES);
 
-        let count_at = |seq: usize, class: usize| result.counts[seq * 8 + class];
+        let count_at =
+            |seq: usize, class: usize| result.counts[seq * classify::NUM_CLASSES + class];
 
-        // Seq 0: 4 AT bases
-        assert_eq!(count_at(0, classify::CLASS_AT), 4);
-        assert_eq!(count_at(0, classify::CLASS_GC), 0);
+        // Seq 0: 4 A bases
+        assert_eq!(count_at(0, classify::CLASS_A), 4);
+        assert_eq!(count_at(0, classify::CLASS_G), 0);
 
         // Seq 1: empty, all zeros
         for c in 0..classify::NUM_CLASSES {
             assert_eq!(count_at(1, c), 0, "empty seq class {c}");
         }
 
-        // Seq 2: 2 GC bases
-        assert_eq!(count_at(2, classify::CLASS_GC), 2);
-        assert_eq!(count_at(2, classify::CLASS_AT), 0);
+        // Seq 2: 2 G bases
+        assert_eq!(count_at(2, classify::CLASS_G), 2);
+        assert_eq!(count_at(2, classify::CLASS_A), 0);
     }
 
     #[test]
@@ -581,7 +582,8 @@ mod tests {
         for (i, seq) in seqs.iter().enumerate() {
             let mut expected = [0u32; classify::NUM_CLASSES];
             classify::classify(seq, &mut expected);
-            let actual = &result.counts[i * 8..(i + 1) * 8];
+            let start = i * classify::NUM_CLASSES;
+            let actual = &result.counts[start..start + classify::NUM_CLASSES];
             assert_eq!(actual, &expected, "seq {i}");
         }
     }

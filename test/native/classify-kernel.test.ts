@@ -1,6 +1,22 @@
 import { describe, expect } from "bun:test";
 import { createFastaRecord } from "../../src/constructors";
-import { packSequences, ValidationMode } from "../../src/native";
+import {
+  packSequences,
+  ValidationMode,
+  NUM_CLASSES,
+  CLASS_A,
+  CLASS_T,
+  CLASS_U,
+  CLASS_G,
+  CLASS_C,
+  CLASS_N,
+  CLASS_STRONG,
+  CLASS_WEAK,
+  CLASS_TWO_BASE,
+  CLASS_BDHV,
+  CLASS_GAP,
+  CLASS_OTHER,
+} from "../../src/native";
 import type { ClassifyResult } from "../../src/native";
 import { gcContent, atContent } from "../../src/operations/core/calculations";
 import { SequenceValidator } from "../../src/operations/core/sequence-validation";
@@ -25,35 +41,25 @@ function checkValidBatchFromStrings(seqStrings: string[], mode: ValidationMode):
   return kernel.checkValidBatch(data, offsets, mode);
 }
 
-/** Extract the 8-element counts slice for a single sequence from a ClassifyResult. */
+/** Extract the 12-element counts slice for a single sequence from a ClassifyResult. */
 function countsForSeq(result: ClassifyResult, seqIndex: number): number[] {
-  return result.counts.slice(seqIndex * 8, seqIndex * 8 + 8);
+  return result.counts.slice(seqIndex * NUM_CLASSES, seqIndex * NUM_CLASSES + NUM_CLASSES);
 }
 
-/** Class indices matching the Rust constants. */
-const CLASS_AT = 0;
-const CLASS_GC = 1;
-const CLASS_STRONG = 2;
-const CLASS_WEAK = 3;
-const CLASS_TWO_BASE = 4;
-const CLASS_MULTI = 5;
-const CLASS_GAP = 6;
-const CLASS_OTHER = 7;
-
 /**
- * Compute gcContent from native classify counts using the same fractional
+ * Compute gcContent from native 12-class counts using the same fractional
  * weighting as the TS gcContent function.
  *
- * GC = class_gc + class_strong + 0.5 * class_two_base + 0.5 * class_multi
- * AT = class_at + class_weak + 0.5 * class_two_base + 0.5 * class_multi
+ * GC = G + C + Strong + 0.5 * TwoBase + 0.5 * (N + BDHV)
+ * AT = A + T + U + Weak + 0.5 * TwoBase + 0.5 * (N + BDHV)
  * total = GC + AT
  * result = (GC / total) * 100
  */
 function gcContentFromCounts(counts: number[]): number {
-  const gc = counts[CLASS_GC]! + counts[CLASS_STRONG]!;
-  const at = counts[CLASS_AT]! + counts[CLASS_WEAK]!;
+  const gc = counts[CLASS_G]! + counts[CLASS_C]! + counts[CLASS_STRONG]!;
+  const at = counts[CLASS_A]! + counts[CLASS_T]! + counts[CLASS_U]! + counts[CLASS_WEAK]!;
   const twoBase = counts[CLASS_TWO_BASE]!;
-  const multi = counts[CLASS_MULTI]!;
+  const multi = counts[CLASS_N]! + counts[CLASS_BDHV]!;
 
   const gcWeighted = gc + 0.5 * twoBase + 0.5 * multi;
   const atWeighted = at + 0.5 * twoBase + 0.5 * multi;
@@ -63,10 +69,10 @@ function gcContentFromCounts(counts: number[]): number {
 }
 
 function atContentFromCounts(counts: number[]): number {
-  const gc = counts[CLASS_GC]! + counts[CLASS_STRONG]!;
-  const at = counts[CLASS_AT]! + counts[CLASS_WEAK]!;
+  const gc = counts[CLASS_G]! + counts[CLASS_C]! + counts[CLASS_STRONG]!;
+  const at = counts[CLASS_A]! + counts[CLASS_T]! + counts[CLASS_U]! + counts[CLASS_WEAK]!;
   const twoBase = counts[CLASS_TWO_BASE]!;
-  const multi = counts[CLASS_MULTI]!;
+  const multi = counts[CLASS_N]! + counts[CLASS_BDHV]!;
 
   const gcWeighted = gc + 0.5 * twoBase + 0.5 * multi;
   const atWeighted = at + 0.5 * twoBase + 0.5 * multi;
@@ -77,31 +83,39 @@ function atContentFromCounts(counts: number[]): number {
 
 describeNative("classify native kernel (requires just build-native-dev)", () => {
   describe("classifyBatch raw FFI contract", () => {
-    testNative("pure ACGT counts AT and GC correctly", () => {
+    testNative("pure ACGT counts per-base correctly", () => {
       const result = classifyBatchFromStrings(["AACCGGTT"]);
       const counts = countsForSeq(result, 0);
-      expect(counts[CLASS_AT]).toBe(4);
-      expect(counts[CLASS_GC]).toBe(4);
+      expect(counts[CLASS_A]).toBe(2);
+      expect(counts[CLASS_T]).toBe(2);
+      expect(counts[CLASS_U]).toBe(0);
+      expect(counts[CLASS_G]).toBe(2);
+      expect(counts[CLASS_C]).toBe(2);
+      expect(counts[CLASS_N]).toBe(0);
       expect(counts[CLASS_STRONG]).toBe(0);
       expect(counts[CLASS_WEAK]).toBe(0);
       expect(counts[CLASS_TWO_BASE]).toBe(0);
-      expect(counts[CLASS_MULTI]).toBe(0);
+      expect(counts[CLASS_BDHV]).toBe(0);
       expect(counts[CLASS_GAP]).toBe(0);
       expect(counts[CLASS_OTHER]).toBe(0);
     });
 
-    testNative("RNA U counts as AT class", () => {
+    testNative("RNA U gets its own class", () => {
       const result = classifyBatchFromStrings(["AAUUGG"]);
       const counts = countsForSeq(result, 0);
-      expect(counts[CLASS_AT]).toBe(4);
-      expect(counts[CLASS_GC]).toBe(2);
+      expect(counts[CLASS_A]).toBe(2);
+      expect(counts[CLASS_T]).toBe(0);
+      expect(counts[CLASS_U]).toBe(2);
+      expect(counts[CLASS_G]).toBe(2);
     });
 
     testNative("case insensitive for alphabetic bytes", () => {
       const result = classifyBatchFromStrings(["AaCcGgTt"]);
       const counts = countsForSeq(result, 0);
-      expect(counts[CLASS_AT]).toBe(4);
-      expect(counts[CLASS_GC]).toBe(4);
+      expect(counts[CLASS_A]).toBe(2);
+      expect(counts[CLASS_T]).toBe(2);
+      expect(counts[CLASS_G]).toBe(2);
+      expect(counts[CLASS_C]).toBe(2);
     });
 
     testNative("IUPAC strong and weak", () => {
@@ -120,22 +134,27 @@ describeNative("classify native kernel (requires just build-native-dev)", () => 
     testNative("IUPAC multi-base ambiguity codes", () => {
       const result = classifyBatchFromStrings(["NBDHVnbdhv"]);
       const counts = countsForSeq(result, 0);
-      expect(counts[CLASS_MULTI]).toBe(10);
+      expect(counts[CLASS_N]).toBe(2);
+      expect(counts[CLASS_BDHV]).toBe(8);
     });
 
     testNative("gap characters", () => {
       const result = classifyBatchFromStrings(["A-C.G*T"]);
       const counts = countsForSeq(result, 0);
-      expect(counts[CLASS_AT]).toBe(2);
-      expect(counts[CLASS_GC]).toBe(2);
+      expect(counts[CLASS_A]).toBe(1);
+      expect(counts[CLASS_T]).toBe(1);
+      expect(counts[CLASS_G]).toBe(1);
+      expect(counts[CLASS_C]).toBe(1);
       expect(counts[CLASS_GAP]).toBe(3);
     });
 
     testNative("other characters", () => {
       const result = classifyBatchFromStrings(["ACGT123XZ!"]);
       const counts = countsForSeq(result, 0);
-      expect(counts[CLASS_AT]).toBe(2);
-      expect(counts[CLASS_GC]).toBe(2);
+      expect(counts[CLASS_A]).toBe(1);
+      expect(counts[CLASS_T]).toBe(1);
+      expect(counts[CLASS_G]).toBe(1);
+      expect(counts[CLASS_C]).toBe(1);
       expect(counts[CLASS_OTHER]).toBe(6);
     });
 
@@ -149,13 +168,13 @@ describeNative("classify native kernel (requires just build-native-dev)", () => 
 
     testNative("multiple sequences produce correct flat array", () => {
       const result = classifyBatchFromStrings(["AAAA", "GGGG", "----"]);
-      expect(result.counts.length).toBe(3 * 8);
+      expect(result.counts.length).toBe(3 * NUM_CLASSES);
 
       const seq0 = countsForSeq(result, 0);
-      expect(seq0[CLASS_AT]).toBe(4);
+      expect(seq0[CLASS_A]).toBe(4);
 
       const seq1 = countsForSeq(result, 1);
-      expect(seq1[CLASS_GC]).toBe(4);
+      expect(seq1[CLASS_G]).toBe(4);
 
       const seq2 = countsForSeq(result, 2);
       expect(seq2[CLASS_GAP]).toBe(4);
@@ -171,7 +190,7 @@ describeNative("classify native kernel (requires just build-native-dev)", () => 
       const kernel = requireNativeKernel();
       // Two empty sequences: offsets [0, 0, 0]
       const result = kernel.classifyBatch(Buffer.alloc(0), new Uint32Array([0, 0, 0]));
-      expect(result.counts.length).toBe(2 * 8);
+      expect(result.counts.length).toBe(2 * NUM_CLASSES);
       expect(result.counts.every((c) => c === 0)).toBe(true);
     });
 
@@ -329,12 +348,16 @@ describeNative("classify native kernel (requires just build-native-dev)", () => 
         const at = atContentFromCounts(counts);
         // Only check sequences that have non-gap, non-other bases
         const totalBases =
-          counts[CLASS_AT]! +
-          counts[CLASS_GC]! +
+          counts[CLASS_A]! +
+          counts[CLASS_T]! +
+          counts[CLASS_U]! +
+          counts[CLASS_G]! +
+          counts[CLASS_C]! +
+          counts[CLASS_N]! +
           counts[CLASS_STRONG]! +
           counts[CLASS_WEAK]! +
           counts[CLASS_TWO_BASE]! +
-          counts[CLASS_MULTI]!;
+          counts[CLASS_BDHV]!;
         if (totalBases > 0) {
           expect(gc + at).toBeCloseTo(100, 10);
         }
@@ -428,15 +451,19 @@ describeNative("classify native kernel (requires just build-native-dev)", () => 
       // Compute expected counts with a scalar oracle so we're not just
       // checking non-negative (which is vacuously true for u32).
       const classifyScalar = (s: string): number[] => {
-        const counts = [0, 0, 0, 0, 0, 0, 0, 0];
+        const counts = new Array<number>(NUM_CLASSES).fill(0);
         for (let j = 0; j < s.length; j++) {
           const upper = s[j]!.toUpperCase();
-          if ("ATU".includes(upper)) counts[CLASS_AT]!++;
-          else if ("GC".includes(upper)) counts[CLASS_GC]!++;
+          if (upper === "A") counts[CLASS_A]!++;
+          else if (upper === "T") counts[CLASS_T]!++;
+          else if (upper === "U") counts[CLASS_U]!++;
+          else if (upper === "G") counts[CLASS_G]!++;
+          else if (upper === "C") counts[CLASS_C]!++;
+          else if (upper === "N") counts[CLASS_N]!++;
           else if (upper === "S") counts[CLASS_STRONG]!++;
           else if (upper === "W") counts[CLASS_WEAK]!++;
           else if ("RYKM".includes(upper)) counts[CLASS_TWO_BASE]!++;
-          else if ("NBDHV".includes(upper)) counts[CLASS_MULTI]!++;
+          else if ("BDHV".includes(upper)) counts[CLASS_BDHV]!++;
           else if ("-.*".includes(s[j]!)) counts[CLASS_GAP]!++;
           else counts[CLASS_OTHER]!++;
         }
@@ -488,15 +515,19 @@ describeNative("classify native kernel (requires just build-native-dev)", () => 
     // boundary through the full FFI path.
 
     const classifyScalar = (s: string): number[] => {
-      const counts = [0, 0, 0, 0, 0, 0, 0, 0];
+      const counts = new Array<number>(NUM_CLASSES).fill(0);
       for (let j = 0; j < s.length; j++) {
         const upper = s[j]!.toUpperCase();
-        if ("ATU".includes(upper)) counts[CLASS_AT]!++;
-        else if ("GC".includes(upper)) counts[CLASS_GC]!++;
+        if (upper === "A") counts[CLASS_A]!++;
+        else if (upper === "T") counts[CLASS_T]!++;
+        else if (upper === "U") counts[CLASS_U]!++;
+        else if (upper === "G") counts[CLASS_G]!++;
+        else if (upper === "C") counts[CLASS_C]!++;
+        else if (upper === "N") counts[CLASS_N]!++;
         else if (upper === "S") counts[CLASS_STRONG]!++;
         else if (upper === "W") counts[CLASS_WEAK]!++;
         else if ("RYKM".includes(upper)) counts[CLASS_TWO_BASE]!++;
-        else if ("NBDHV".includes(upper)) counts[CLASS_MULTI]!++;
+        else if ("BDHV".includes(upper)) counts[CLASS_BDHV]!++;
         else if ("-.*".includes(s[j]!)) counts[CLASS_GAP]!++;
         else counts[CLASS_OTHER]!++;
       }
@@ -533,7 +564,7 @@ describeNative("classify native kernel (requires just build-native-dev)", () => 
       const seq = "A".repeat(len);
       const result = classifyBatchFromStrings([seq]);
       const counts = countsForSeq(result, 0);
-      expect(counts[CLASS_AT]).toBe(len);
+      expect(counts[CLASS_A]).toBe(len);
       expect(counts.reduce((a, b) => a + b, 0)).toBe(len);
     });
   });
@@ -545,10 +576,11 @@ describeNative("classify native kernel (requires just build-native-dev)", () => 
       for (let i = 0; i < seqs.length; i++) {
         const counts = countsForSeq(result, i);
         const hasAmbig =
-          counts[CLASS_STRONG]! +
+          counts[CLASS_N]! +
+            counts[CLASS_STRONG]! +
             counts[CLASS_WEAK]! +
             counts[CLASS_TWO_BASE]! +
-            counts[CLASS_MULTI]! >
+            counts[CLASS_BDHV]! >
           0;
         expect(hasAmbig).toBe(false);
       }
@@ -560,10 +592,11 @@ describeNative("classify native kernel (requires just build-native-dev)", () => 
       for (let i = 0; i < seqs.length; i++) {
         const counts = countsForSeq(result, i);
         const hasAmbig =
-          counts[CLASS_STRONG]! +
+          counts[CLASS_N]! +
+            counts[CLASS_STRONG]! +
             counts[CLASS_WEAK]! +
             counts[CLASS_TWO_BASE]! +
-            counts[CLASS_MULTI]! >
+            counts[CLASS_BDHV]! >
           0;
         expect(hasAmbig).toBe(true);
       }

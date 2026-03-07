@@ -2,10 +2,11 @@
 //!
 //! This module contains two primitives for classifying sequence bytes:
 //!
-//! `classify` counts bytes into 8 classes (AT, GC, strong, weak, two-base
-//! ambiguity, multi-base ambiguity, gap, other) using SIMD compare-and-select
-//! with per-class `u8` accumulators flushed every 255 chunks. The TypeScript
-//! layer computes gcContent, atContent, and base composition from these counts.
+//! `classify` counts bytes into 12 classes — individual bases (A, T, U, G, C,
+//! N), IUPAC ambiguity groups (strong, weak, two-base, BDHV), gap, and other —
+//! using SIMD compare-and-select with per-class `u8` accumulators flushed every
+//! 255 chunks. The TypeScript layer derives aggregate views (AT, GC, ambiguous)
+//! and per-base composition from these counts.
 //!
 //! `check_valid` does an early-exit SIMD scan that bails on the first byte
 //! not in the allowed character set. 3-4x faster than the classifier even in
@@ -15,17 +16,21 @@
 use std::simd::{prelude::*, Mask, Select, Simd};
 
 /// Number of byte classes returned by `classify`.
-pub const NUM_CLASSES: usize = 8;
+pub const NUM_CLASSES: usize = 12;
 
 /// Class indices for the counts array returned by `classify`.
-pub const CLASS_AT: usize = 0;
-pub const CLASS_GC: usize = 1;
-pub const CLASS_STRONG: usize = 2;
-pub const CLASS_WEAK: usize = 3;
-pub const CLASS_TWO_BASE: usize = 4;
-pub const CLASS_MULTI: usize = 5;
-pub const CLASS_GAP: usize = 6;
-pub const CLASS_OTHER: usize = 7;
+pub const CLASS_A: usize = 0;
+pub const CLASS_T: usize = 1;
+pub const CLASS_U: usize = 2;
+pub const CLASS_G: usize = 3;
+pub const CLASS_C: usize = 4;
+pub const CLASS_N: usize = 5;
+pub const CLASS_STRONG: usize = 6;
+pub const CLASS_WEAK: usize = 7;
+pub const CLASS_TWO_BASE: usize = 8;
+pub const CLASS_BDHV: usize = 9;
+pub const CLASS_GAP: usize = 10;
+pub const CLASS_OTHER: usize = 11;
 
 pub fn classify(input: &[u8], counts: &mut [u32; NUM_CLASSES]) {
     #[cfg(target_arch = "x86_64")]
@@ -76,11 +81,12 @@ fn classify_generic<const N: usize>(input: &[u8], counts: &mut [u32; NUM_CLASSES
         let vec = Simd::<u8, N>::from_slice(chunk);
         let upper = vec & Simd::splat(!0x20);
 
-        let is_at = upper.simd_eq(Simd::splat(b'A'))
-            | upper.simd_eq(Simd::splat(b'T'))
-            | upper.simd_eq(Simd::splat(b'U'));
-
-        let is_gc = upper.simd_eq(Simd::splat(b'G')) | upper.simd_eq(Simd::splat(b'C'));
+        let is_a = upper.simd_eq(Simd::splat(b'A'));
+        let is_t = upper.simd_eq(Simd::splat(b'T'));
+        let is_u = upper.simd_eq(Simd::splat(b'U'));
+        let is_g = upper.simd_eq(Simd::splat(b'G'));
+        let is_c = upper.simd_eq(Simd::splat(b'C'));
+        let is_n = upper.simd_eq(Simd::splat(b'N'));
 
         let is_s = upper.simd_eq(Simd::splat(b'S'));
         let is_w = upper.simd_eq(Simd::splat(b'W'));
@@ -90,8 +96,7 @@ fn classify_generic<const N: usize>(input: &[u8], counts: &mut [u32; NUM_CLASSES
             | upper.simd_eq(Simd::splat(b'K'))
             | upper.simd_eq(Simd::splat(b'M'));
 
-        let is_multi = upper.simd_eq(Simd::splat(b'N'))
-            | upper.simd_eq(Simd::splat(b'B'))
+        let is_bdhv = upper.simd_eq(Simd::splat(b'B'))
             | upper.simd_eq(Simd::splat(b'D'))
             | upper.simd_eq(Simd::splat(b'H'))
             | upper.simd_eq(Simd::splat(b'V'));
@@ -101,15 +106,20 @@ fn classify_generic<const N: usize>(input: &[u8], counts: &mut [u32; NUM_CLASSES
             | vec.simd_eq(Simd::splat(b'.'))
             | vec.simd_eq(Simd::splat(b'*'));
 
-        let is_known = is_at | is_gc | is_s | is_w | is_2base | is_multi | is_gap;
+        let is_known =
+            is_a | is_t | is_u | is_g | is_c | is_n | is_s | is_w | is_2base | is_bdhv | is_gap;
         let is_other = !is_known;
 
-        accum[CLASS_AT] += is_at.select(one, zero);
-        accum[CLASS_GC] += is_gc.select(one, zero);
+        accum[CLASS_A] += is_a.select(one, zero);
+        accum[CLASS_T] += is_t.select(one, zero);
+        accum[CLASS_U] += is_u.select(one, zero);
+        accum[CLASS_G] += is_g.select(one, zero);
+        accum[CLASS_C] += is_c.select(one, zero);
+        accum[CLASS_N] += is_n.select(one, zero);
         accum[CLASS_STRONG] += is_s.select(one, zero);
         accum[CLASS_WEAK] += is_w.select(one, zero);
         accum[CLASS_TWO_BASE] += is_2base.select(one, zero);
-        accum[CLASS_MULTI] += is_multi.select(one, zero);
+        accum[CLASS_BDHV] += is_bdhv.select(one, zero);
         accum[CLASS_GAP] += is_gap.select(one, zero);
         accum[CLASS_OTHER] += is_other.select(one, zero);
 
@@ -146,12 +156,16 @@ fn flush_accumulators<const N: usize>(
 fn classify_scalar(b: u8) -> usize {
     let upper = b & !0x20;
     match upper {
-        b'A' | b'T' | b'U' => CLASS_AT,
-        b'G' | b'C' => CLASS_GC,
+        b'A' => CLASS_A,
+        b'T' => CLASS_T,
+        b'U' => CLASS_U,
+        b'G' => CLASS_G,
+        b'C' => CLASS_C,
+        b'N' => CLASS_N,
         b'S' => CLASS_STRONG,
         b'W' => CLASS_WEAK,
         b'R' | b'Y' | b'K' | b'M' => CLASS_TWO_BASE,
-        b'N' | b'B' | b'D' | b'H' | b'V' => CLASS_MULTI,
+        b'B' | b'D' | b'H' | b'V' => CLASS_BDHV,
         _ => {
             if matches!(b, b'-' | b'.' | b'*') {
                 CLASS_GAP
@@ -394,28 +408,35 @@ mod tests {
         #[test]
         fn pure_acgt() {
             let counts = run_classify(b"AACCGGTT");
-            assert_eq!(counts[CLASS_AT], 4); // AA + TT
-            assert_eq!(counts[CLASS_GC], 4); // CC + GG
+            assert_eq!(counts[CLASS_A], 2);
+            assert_eq!(counts[CLASS_T], 2);
+            assert_eq!(counts[CLASS_U], 0);
+            assert_eq!(counts[CLASS_G], 2);
+            assert_eq!(counts[CLASS_C], 2);
+            assert_eq!(counts[CLASS_N], 0);
             assert_eq!(counts[CLASS_STRONG], 0);
             assert_eq!(counts[CLASS_WEAK], 0);
             assert_eq!(counts[CLASS_TWO_BASE], 0);
-            assert_eq!(counts[CLASS_MULTI], 0);
+            assert_eq!(counts[CLASS_BDHV], 0);
             assert_eq!(counts[CLASS_GAP], 0);
             assert_eq!(counts[CLASS_OTHER], 0);
         }
 
         #[test]
-        fn rna_u_counts_as_at() {
+        fn rna_u_has_own_class() {
             let counts = run_classify(b"AAUUGG");
-            assert_eq!(counts[CLASS_AT], 4); // AA + UU
-            assert_eq!(counts[CLASS_GC], 2);
+            assert_eq!(counts[CLASS_A], 2);
+            assert_eq!(counts[CLASS_U], 2);
+            assert_eq!(counts[CLASS_G], 2);
         }
 
         #[test]
         fn case_insensitive() {
             let counts = run_classify(b"AaCcGgTt");
-            assert_eq!(counts[CLASS_AT], 4);
-            assert_eq!(counts[CLASS_GC], 4);
+            assert_eq!(counts[CLASS_A], 2);
+            assert_eq!(counts[CLASS_T], 2);
+            assert_eq!(counts[CLASS_G], 2);
+            assert_eq!(counts[CLASS_C], 2);
         }
 
         #[test]
@@ -432,24 +453,36 @@ mod tests {
         }
 
         #[test]
-        fn iupac_multi_base_ambiguity() {
-            let counts = run_classify(b"NBDHVnbdhv");
-            assert_eq!(counts[CLASS_MULTI], 10);
+        fn n_has_own_class() {
+            let counts = run_classify(b"NNnn");
+            assert_eq!(counts[CLASS_N], 4);
+            assert_eq!(counts[CLASS_BDHV], 0);
+        }
+
+        #[test]
+        fn bdhv_separate_from_n() {
+            let counts = run_classify(b"BDHVbdhv");
+            assert_eq!(counts[CLASS_BDHV], 8);
+            assert_eq!(counts[CLASS_N], 0);
         }
 
         #[test]
         fn gap_characters() {
             let counts = run_classify(b"A-C.G*T");
-            assert_eq!(counts[CLASS_AT], 2);
-            assert_eq!(counts[CLASS_GC], 2);
+            assert_eq!(counts[CLASS_A], 1);
+            assert_eq!(counts[CLASS_T], 1);
+            assert_eq!(counts[CLASS_G], 1);
+            assert_eq!(counts[CLASS_C], 1);
             assert_eq!(counts[CLASS_GAP], 3);
         }
 
         #[test]
         fn other_characters() {
             let counts = run_classify(b"ACGT123XZ!");
-            assert_eq!(counts[CLASS_AT], 2);
-            assert_eq!(counts[CLASS_GC], 2);
+            assert_eq!(counts[CLASS_A], 1);
+            assert_eq!(counts[CLASS_T], 1);
+            assert_eq!(counts[CLASS_G], 1);
+            assert_eq!(counts[CLASS_C], 1);
             assert_eq!(counts[CLASS_OTHER], 6);
         }
 
@@ -469,14 +502,13 @@ mod tests {
 
         #[test]
         fn realistic_mixed_sequence() {
-            // A realistic sequence with standard bases, IUPAC codes, and gaps
             let input = b"ATCGATCG-NNRYSWKM..BDHV*acgt";
             let counts = run_classify(input);
             let total: usize = counts.iter().map(|&c| c as usize).sum();
             assert_eq!(total, input.len());
-            assert!(counts[CLASS_AT] > 0);
-            assert!(counts[CLASS_GC] > 0);
-            assert!(counts[CLASS_MULTI] > 0);
+            assert!(counts[CLASS_A] + counts[CLASS_T] > 0);
+            assert!(counts[CLASS_G] + counts[CLASS_C] > 0);
+            assert!(counts[CLASS_N] + counts[CLASS_BDHV] > 0);
             assert!(counts[CLASS_GAP] > 0);
         }
     }
@@ -715,7 +747,7 @@ mod tests {
             let input = vec![b'A'; len];
             let mut counts = [0u32; NUM_CLASSES];
             classify_generic::<16>(&input, &mut counts);
-            assert_eq!(counts[CLASS_AT] as usize, len);
+            assert_eq!(counts[CLASS_A] as usize, len);
             let total: usize = counts.iter().map(|&c| c as usize).sum();
             assert_eq!(total, len);
         }
@@ -727,7 +759,7 @@ mod tests {
             let input = vec![b'N'; len];
             let mut counts = [0u32; NUM_CLASSES];
             classify_generic::<16>(&input, &mut counts);
-            assert_eq!(counts[CLASS_MULTI] as usize, len);
+            assert_eq!(counts[CLASS_N] as usize, len);
         }
 
         #[test]

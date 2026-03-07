@@ -1662,10 +1662,7 @@ describe("SeqOps", () => {
     });
 
     test("warn action yields all sequences and emits diagnostics for invalid ones", async () => {
-      const sequences = [
-        createSequence("valid", "ATCG"),
-        createSequence("has_junk", "ATCG123"),
-      ];
+      const sequences = [createSequence("valid", "ATCG"), createSequence("has_junk", "ATCG123")];
 
       const warnings: string[] = [];
       const warnSpy = spyOn(console, "warn").mockImplementation((msg: string) => {
@@ -1767,10 +1764,7 @@ describe("SeqOps", () => {
     });
 
     test("warn emits no diagnostics for valid sequences", async () => {
-      const sequences = [
-        createSequence("ok1", "ATCG"),
-        createSequence("ok2", "GCTA"),
-      ];
+      const sequences = [createSequence("ok1", "ATCG"), createSequence("ok2", "GCTA")];
 
       const warnings: string[] = [];
       const warnSpy = spyOn(console, "warn").mockImplementation((msg: string) => {

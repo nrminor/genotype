@@ -190,10 +190,8 @@ export class FilterProcessor implements Processor<FilterOptions> {
       return false;
     }
 
-    // Ambiguous base filter
+    // Ambiguous base filter (fallback — native path uses classifyBatch)
     if (options.hasAmbiguous !== undefined) {
-      // NATIVE_CANDIDATE: Character validation loop
-      // Native implementation would be faster than regex
       const hasAmbiguous = /[^ACGTU]/i.test(seq.sequence.toString());
       if (options.hasAmbiguous !== hasAmbiguous) {
         return false;

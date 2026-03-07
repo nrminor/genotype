@@ -118,9 +118,7 @@ export class ValidateProcessor implements Processor<ValidateOptions> {
 
     const kernel = getNativeKernel();
     if (kernel === undefined) {
-      throw new ValidationError(
-        "Native kernel is required for validation but could not be loaded"
-      );
+      throw new ValidationError("Native kernel is required for validation but could not be loaded");
     }
 
     const action = options.action ?? "reject";
@@ -159,7 +157,7 @@ function* flushValidateBatch(
   action: "reject" | "fix" | "warn",
   mode: ValidationMode,
   stripGaps: boolean,
-  fixChar: string | undefined,
+  fixChar: string | undefined
 ): Iterable<AbstractSequence> {
   let { data, offsets } = packSequences(batch);
 
@@ -201,9 +199,7 @@ function* flushValidateBatch(
         const base = i * NUM_CLASSES;
         if (!isValidForMode(result.counts, base, mode)) {
           const seqLen = offsets[i + 1]! - offsets[i]!;
-          console.warn(formatValidationDiagnostic(
-            batch[i]!.id, result.counts, base, mode, seqLen,
-          ));
+          console.warn(formatValidationDiagnostic(batch[i]!.id, result.counts, base, mode, seqLen));
         }
         yield sequenceFromBatch(batch[i]!, data, offsets, i, stripGaps);
       }
@@ -223,18 +219,21 @@ function isValidForMode(counts: number[], base: number, mode: ValidationMode): b
 
   if (mode === ValidationMode.NormalDna) return true;
 
-  if (counts[base + CLASS_T]! > 0
-    && (mode === ValidationMode.NormalRna || mode === ValidationMode.StrictRna)) {
+  if (
+    counts[base + CLASS_T]! > 0 &&
+    (mode === ValidationMode.NormalRna || mode === ValidationMode.StrictRna)
+  ) {
     return false;
   }
 
   if (mode === ValidationMode.NormalRna) return true;
 
-  const ambig = counts[base + CLASS_N]!
-    + counts[base + CLASS_STRONG]!
-    + counts[base + CLASS_WEAK]!
-    + counts[base + CLASS_TWO_BASE]!
-    + counts[base + CLASS_BDHV]!;
+  const ambig =
+    counts[base + CLASS_N]! +
+    counts[base + CLASS_STRONG]! +
+    counts[base + CLASS_WEAK]! +
+    counts[base + CLASS_TWO_BASE]! +
+    counts[base + CLASS_BDHV]!;
   if (ambig > 0) return false;
 
   if (mode === ValidationMode.StrictDna && counts[base + CLASS_U]! > 0) return false;
@@ -252,15 +251,15 @@ function formatValidationDiagnostic(
   counts: number[],
   base: number,
   mode: ValidationMode,
-  seqLength: number,
+  seqLength: number
 ): string {
-  const t     = counts[base + CLASS_T]!;
-  const u     = counts[base + CLASS_U]!;
-  const n     = counts[base + CLASS_N]!;
-  const s     = counts[base + CLASS_STRONG]!;
-  const w     = counts[base + CLASS_WEAK]!;
-  const tb    = counts[base + CLASS_TWO_BASE]!;
-  const bdhv  = counts[base + CLASS_BDHV]!;
+  const t = counts[base + CLASS_T]!;
+  const u = counts[base + CLASS_U]!;
+  const n = counts[base + CLASS_N]!;
+  const s = counts[base + CLASS_STRONG]!;
+  const w = counts[base + CLASS_WEAK]!;
+  const tb = counts[base + CLASS_TWO_BASE]!;
+  const bdhv = counts[base + CLASS_BDHV]!;
   const other = counts[base + CLASS_OTHER]!;
 
   const problems: string[] = [];
@@ -289,16 +288,22 @@ function formatValidationDiagnostic(
   if (other > 0) {
     invalidCount += other;
     if (other > seqLength * 0.5) {
-      problems.push(`${other} unrecognized character${other > 1 ? "s" : ""} (sequence may not be nucleotide data)`);
+      problems.push(
+        `${other} unrecognized character${other > 1 ? "s" : ""} (sequence may not be nucleotide data)`
+      );
     } else {
       problems.push(`${other} unrecognized character${other > 1 ? "s" : ""}`);
     }
   }
 
-  const modeLabel = mode === ValidationMode.StrictDna ? "strict DNA"
-    : mode === ValidationMode.StrictRna ? "strict RNA"
-    : mode === ValidationMode.NormalDna ? "DNA"
-    : "RNA";
+  const modeLabel =
+    mode === ValidationMode.StrictDna
+      ? "strict DNA"
+      : mode === ValidationMode.StrictRna
+        ? "strict RNA"
+        : mode === ValidationMode.NormalDna
+          ? "DNA"
+          : "RNA";
 
   const pct = ((invalidCount / seqLength) * 100).toFixed(1);
   return `Sequence "${seqId}" (${seqLength} bp): ${problems.join(", ")} — ${invalidCount} of ${seqLength} bases (${pct}%) invalid for ${modeLabel} validation`;
@@ -313,9 +318,12 @@ function sequenceFromBatch(
   data: Buffer,
   offsets: Uint32Array,
   index: number,
-  wasModified: boolean,
+  wasModified: boolean
 ): AbstractSequence {
-  if (!wasModified && bytesMatchSequence(original, data.subarray(offsets[index]!, offsets[index + 1]!))) {
+  if (
+    !wasModified &&
+    bytesMatchSequence(original, data.subarray(offsets[index]!, offsets[index + 1]!))
+  ) {
     return original;
   }
   const start = offsets[index]!;

@@ -222,6 +222,26 @@ export interface NativeKernel {
     trimStart: boolean,
     trimEnd: boolean
   ): number[];
+
+  /**
+   * Remap quality bytes into fewer bins using SIMD compare-and-select.
+   *
+   * `boundaries` and `representatives` are raw ASCII byte values
+   * (pre-offset-adjusted by the caller). The kernel does pure byte
+   * comparisons with no encoding awareness.
+   *
+   * @param quality - Concatenated quality bytes
+   * @param offsets - N+1 offset array into the quality buffer
+   * @param boundaries - ASCII byte thresholds between bins (length 1-4)
+   * @param representatives - ASCII byte values for each bin (length = boundaries.length + 1)
+   * @returns Remapped bytes and identical offsets (length-preserving)
+   */
+  qualityBinBatch(
+    quality: Buffer,
+    offsets: Uint32Array,
+    boundaries: Buffer,
+    representatives: Buffer
+  ): TransformResult;
 }
 
 /**

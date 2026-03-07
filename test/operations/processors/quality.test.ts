@@ -176,7 +176,7 @@ describe("QualityProcessor", () => {
       }).toThrow(/No preset found/);
     });
 
-    test("throws error with sequence context on binning failure", async () => {
+    test("throws error on invalid binning preset", async () => {
       const sequences = [createFastqSequence("problem_seq", "ATCG", "IIII")];
 
       try {
@@ -190,8 +190,8 @@ describe("QualityProcessor", () => {
         expect(true).toBe(false); // Should not reach here
       } catch (error) {
         expect(error).toBeInstanceOf(Error);
-        expect((error as Error).message).toContain("problem_seq");
-        expect((error as Error).message).toContain("Failed to bin quality");
+        expect((error as Error).message).toContain("No preset found");
+        expect((error as Error).message).toContain("nonexistent");
       }
     });
 

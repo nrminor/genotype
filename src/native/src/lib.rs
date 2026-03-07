@@ -466,6 +466,55 @@ pub fn quality_trim_batch(
     Ok(results)
 }
 
+/// Remap quality bytes into fewer bins using SIMD compare-and-select.
+///
+/// `boundaries` and `representatives` are raw ASCII byte values
+/// (pre-offset-adjusted by the TypeScript caller). The kernel does pure
+/// byte comparisons with no encoding awareness.
+///
+/// Returns a `TransformResult` with the remapped bytes and identical
+/// offsets (this is a length-preserving operation).
+///
+/// # Errors
+///
+/// Returns a napi error if the offset array is malformed, or if the
+/// `boundaries`/`representatives` lengths are inconsistent.
+#[napi]
+#[allow(clippy::cast_possible_truncation)]
+pub fn quality_bin_batch(
+    quality: &[u8],
+    offsets: &[u32],
+    boundaries: &[u8],
+    representatives: &[u8],
+) -> napi::Result<TransformResult> {
+    utils::validate_offsets(offsets, quality.len())?;
+
+    if boundaries.is_empty() || representatives.len() != boundaries.len() + 1 {
+        return Err(napi::Error::from_reason(format!(
+            "quality_bin_batch: expected representatives.len() == boundaries.len() + 1, \
+             got boundaries={}, representatives={}",
+            boundaries.len(),
+            representatives.len()
+        )));
+    }
+
+    let mut out_data = vec![0u8; quality.len()];
+    let out_offsets: Vec<u32> = offsets.to_vec();
+
+    for window in offsets.windows(2) {
+        let start = window[0] as usize;
+        let end = window[1] as usize;
+        let qual = &quality[start..end];
+        let dest = &mut out_data[start..end];
+        quality::quality_bin(qual, dest, boundaries, representatives);
+    }
+
+    Ok(TransformResult {
+        data: out_data.into(),
+        offsets: out_offsets,
+    })
+}
+
 mod utils {
 
     /// Validate that `offsets` is a well-formed batch layout for `sequences`.
@@ -814,6 +863,68 @@ mod tests {
         let results = quality_trim_batch(&[], &[0], 33, 20.0, 4, true, true)
             .expect("empty batch with sentinel offset [0] is valid");
         assert!(results.is_empty());
+    }
+
+    #[test]
+    fn quality_bin_batch_matches_per_sequence_calls() {
+        // Illumina 3-bin preset: boundaries [15, 30] → ASCII [48, 63] for phred33
+        // Representatives [7, 22, 40] → ASCII [40, 55, 73]
+        let boundaries: &[u8] = &[48, 63];
+        let representatives: &[u8] = &[40, 55, 73];
+
+        let seqs: &[&[u8]] = &[
+            b"!!!!!!!!!!", // All Q0 (ASCII 33) → all below boundary[0]=48 → rep[0]=40
+            b"5555555555", // All ASCII 53, 48 <= 53 < 63 → rep[1]=55
+            b"IIIIIIIIII", // All ASCII 73 >= 63 → rep[2]=73
+            b"!5I",        // Mixed: one per bin
+            b"",           // Empty
+        ];
+        let (data, offsets) = make_batch(seqs);
+        let result = quality_bin_batch(&data, &offsets, boundaries, representatives)
+            .expect("offset validation rejected a well-formed batch");
+
+        // Offsets should be identical (length-preserving)
+        assert_eq!(result.offsets, offsets.clone());
+
+        // Verify each sequence was binned correctly
+        for (i, window) in offsets.windows(2).enumerate() {
+            let start = window[0] as usize;
+            let end = window[1] as usize;
+            let actual = &result.data[start..end];
+
+            let mut expected = vec![0u8; seqs[i].len()];
+            quality::quality_bin(seqs[i], &mut expected, boundaries, representatives);
+            assert_eq!(actual, expected.as_slice(), "sequence {i}");
+        }
+    }
+
+    #[test]
+    fn quality_bin_batch_rejects_malformed_offsets() {
+        let err = quality_bin_batch(b"IIII", &[0, 100], &[53], &[40, 63])
+            .err()
+            .expect("out-of-bounds offset [0, 100] was not rejected");
+        assert!(err.reason.contains("final offset"), "{}", err.reason);
+    }
+
+    #[test]
+    fn quality_bin_batch_rejects_inconsistent_boundaries_representatives() {
+        // 1 boundary requires 2 representatives, not 1
+        let err = quality_bin_batch(b"IIII", &[0, 4], &[53], &[40])
+            .err()
+            .expect("mismatched boundaries/representatives was not rejected");
+        assert!(
+            err.reason.contains("representatives"),
+            "unexpected error: {}",
+            err.reason
+        );
+    }
+
+    #[test]
+    fn quality_bin_batch_empty_returns_empty() {
+        let result = quality_bin_batch(&[], &[0], &[53], &[40, 63])
+            .expect("empty batch with sentinel offset [0] is valid");
+        assert_eq!(result.data.as_ref(), &[] as &[u8]);
+        assert_eq!(result.offsets, vec![0]);
     }
 
     #[test]

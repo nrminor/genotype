@@ -8,7 +8,7 @@
 //! offset`. The non-linear Solexa math only appears in error probability
 //! calculations, which are not kernel operations.
 
-use std::simd::Simd;
+use std::simd::{prelude::*, Select, Simd};
 
 /// Compute the average quality score for a single quality string.
 ///
@@ -205,6 +205,115 @@ pub fn quality_trim(
 
     #[allow(clippy::cast_possible_truncation)]
     (start as u32, end as u32)
+}
+
+/// Remap quality bytes into fewer bins using SIMD compare-and-select.
+///
+/// Each input byte is compared against `boundaries` (in ascending order)
+/// and replaced with the corresponding `representative` byte. Bytes below
+/// the first boundary get `representatives[0]`, bytes at or above
+/// `boundaries[i]` get `representatives[i + 1]`.
+///
+/// All values are raw ASCII bytes (pre-offset-adjusted by the caller).
+/// The kernel does pure byte comparisons with no encoding awareness.
+///
+/// `num_boundaries` must be 1..=4 and `representatives` must have
+/// `num_boundaries + 1` entries. These constraints are enforced by the
+/// napi wrapper, not checked here.
+pub fn quality_bin(input: &[u8], out: &mut [u8], boundaries: &[u8], representatives: &[u8]) {
+    #[cfg(target_arch = "x86_64")]
+    {
+        if is_x86_feature_detected!("avx512bw") {
+            // SAFETY: avx512bw support verified by the runtime check above.
+            unsafe { quality_bin_avx512(input, out, boundaries, representatives) };
+            return;
+        }
+        if is_x86_feature_detected!("avx2") {
+            // SAFETY: avx2 support verified by the runtime check above.
+            unsafe { quality_bin_avx2(input, out, boundaries, representatives) };
+            return;
+        }
+    }
+    quality_bin_generic::<16>(input, out, boundaries, representatives);
+}
+
+/// # Safety
+///
+/// Caller must verify `avx512bw` support via `is_x86_feature_detected!`.
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx512bw")]
+unsafe fn quality_bin_avx512(
+    input: &[u8],
+    out: &mut [u8],
+    boundaries: &[u8],
+    representatives: &[u8],
+) {
+    quality_bin_generic::<64>(input, out, boundaries, representatives);
+}
+
+/// # Safety
+///
+/// Caller must verify `avx2` support via `is_x86_feature_detected!`.
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx2")]
+unsafe fn quality_bin_avx2(
+    input: &[u8],
+    out: &mut [u8],
+    boundaries: &[u8],
+    representatives: &[u8],
+) {
+    quality_bin_generic::<32>(input, out, boundaries, representatives);
+}
+
+fn quality_bin_generic<const N: usize>(
+    input: &[u8],
+    out: &mut [u8],
+    boundaries: &[u8],
+    representatives: &[u8],
+) {
+    let chunks = input.chunks_exact(N);
+    let remainder = chunks.remainder();
+    let mut offset = 0;
+
+    for chunk in chunks {
+        let vec = Simd::<u8, N>::from_slice(chunk);
+        let result = quality_bin_simd(vec, boundaries, representatives);
+        out[offset..offset + N].copy_from_slice(&result.to_array());
+        offset += N;
+    }
+
+    for (i, &b) in remainder.iter().enumerate() {
+        out[offset + i] = quality_bin_scalar(b, boundaries, representatives);
+    }
+}
+
+#[inline]
+fn quality_bin_simd<const N: usize>(
+    vec: Simd<u8, N>,
+    boundaries: &[u8],
+    representatives: &[u8],
+) -> Simd<u8, N> {
+    // Start with the lowest bin's representative.
+    let mut result = Simd::splat(representatives[0]);
+
+    // Cascade: for each boundary, upgrade to the next representative
+    // if the byte is >= that boundary.
+    for (i, &boundary) in boundaries.iter().enumerate() {
+        let ge = vec.simd_ge(Simd::splat(boundary));
+        result = ge.select(Simd::splat(representatives[i + 1]), result);
+    }
+
+    result
+}
+
+#[inline]
+fn quality_bin_scalar(b: u8, boundaries: &[u8], representatives: &[u8]) -> u8 {
+    for (i, &boundary) in boundaries.iter().enumerate() {
+        if b < boundary {
+            return representatives[i];
+        }
+    }
+    representatives[boundaries.len()]
 }
 
 #[cfg(test)]
@@ -452,6 +561,166 @@ mod tests {
                     "expected 20.0 at len={len}, got {avg}"
                 );
             }
+        }
+    }
+
+    mod quality_bin_tests {
+        use super::*;
+
+        fn run_bin(input: &[u8], boundaries: &[u8], representatives: &[u8]) -> Vec<u8> {
+            let mut out = vec![0u8; input.len()];
+            quality_bin(input, &mut out, boundaries, representatives);
+            out
+        }
+
+        #[test]
+        fn empty_input() {
+            assert_eq!(run_bin(b"", &[53], &[40, 63]), b"");
+        }
+
+        #[test]
+        fn two_bins_all_below() {
+            // Boundary at ASCII 53 (Q20 for phred33). All bytes are '!' = 33 < 53.
+            // Should all map to representative[0] = 40 ('(' in phred33 = Q7).
+            let input = b"!!!!!!!!!!";
+            let result = run_bin(input, &[53], &[40, 63]);
+            assert_eq!(result, vec![40u8; 10]);
+        }
+
+        #[test]
+        fn two_bins_all_above() {
+            // All bytes are 'I' = 73 >= 53. Should map to representative[1] = 63.
+            let input = b"IIIIIIIIII";
+            let result = run_bin(input, &[53], &[40, 63]);
+            assert_eq!(result, vec![63u8; 10]);
+        }
+
+        #[test]
+        fn two_bins_mixed() {
+            // '!' = 33 < 53 → rep[0]=40, 'I' = 73 >= 53 → rep[1]=63
+            let input = b"!I!I!I!I!I";
+            let result = run_bin(input, &[53], &[40, 63]);
+            let expected: Vec<u8> = vec![40, 63, 40, 63, 40, 63, 40, 63, 40, 63];
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn two_bins_exact_boundary() {
+            // Byte exactly at boundary (53) should go to the upper bin (>= comparison).
+            let input = &[53u8];
+            let result = run_bin(input, &[53], &[40, 63]);
+            assert_eq!(result, vec![63]);
+        }
+
+        #[test]
+        fn three_bins_phred33() {
+            // Illumina 3-bin preset: boundaries [15, 30] → ASCII [48, 63] for phred33
+            // Representatives [7, 22, 40] → ASCII [40, 55, 73]
+            let boundaries = &[48u8, 63];
+            let representatives = &[40u8, 55, 73];
+
+            // '!' = 33 < 48 → rep[0]=40
+            // '5' = 53, 48 <= 53 < 63 → rep[1]=55
+            // 'I' = 73 >= 63 → rep[2]=73
+            let input = b"!5I";
+            let result = run_bin(input, boundaries, representatives);
+            assert_eq!(result, vec![40, 55, 73]);
+        }
+
+        #[test]
+        fn five_bins_phred33() {
+            // Illumina 5-bin preset: boundaries [10, 20, 30, 35]
+            // ASCII boundaries: [43, 53, 63, 68] for phred33
+            // Representatives [5, 15, 25, 32, 45] → ASCII [38, 48, 58, 65, 78]
+            let boundaries = &[43u8, 53, 63, 68];
+            let representatives = &[38u8, 48, 58, 65, 78];
+
+            // Build one byte per bin:
+            // 33 < 43 → rep[0]=38
+            // 43 <= 50 < 53 → rep[1]=48
+            // 53 <= 60 < 63 → rep[2]=58
+            // 63 <= 65 < 68 → rep[3]=65
+            // 70 >= 68 → rep[4]=78
+            let input = &[33u8, 50, 60, 65, 70];
+            let result = run_bin(input, boundaries, representatives);
+            assert_eq!(result, vec![38, 48, 58, 65, 78]);
+        }
+
+        #[test]
+        fn result_matches_scalar_oracle() {
+            // Verify SIMD path matches scalar for a mixed input
+            let boundaries = &[48u8, 63];
+            let representatives = &[40u8, 55, 73];
+
+            // Build a pattern that exercises both SIMD and scalar remainder
+            let input: Vec<u8> = (33..=93u8).cycle().take(65).collect();
+            let expected: Vec<u8> = input
+                .iter()
+                .map(|&b| quality_bin_scalar(b, boundaries, representatives))
+                .collect();
+            let result = run_bin(&input, boundaries, representatives);
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn boundary_lengths() {
+            // Test at SIMD chunk boundaries
+            let boundaries = &[53u8];
+            let representatives = &[40u8, 63];
+
+            for len in [15, 16, 17, 31, 32, 33, 63, 64, 65] {
+                let input = vec![53u8; len]; // Exactly at boundary → upper bin
+                let result = run_bin(&input, boundaries, representatives);
+                assert_eq!(
+                    result,
+                    vec![63u8; len],
+                    "all bytes at boundary should map to upper bin at len={len}"
+                );
+            }
+        }
+
+        #[test]
+        fn output_offset_regression() {
+            // Verify correct output when writing into an offset within a larger buffer,
+            // matching the pattern used by quality_bin_batch.
+            let boundaries = &[48u8, 63];
+            let representatives = &[40u8, 55, 73];
+            let input: Vec<u8> = (33..=93u8).cycle().take(65).collect();
+            let expected: Vec<u8> = input
+                .iter()
+                .map(|&b| quality_bin_scalar(b, boundaries, representatives))
+                .collect();
+
+            for skip in [0, 1, 3, 7, 15, 16, 17, 31, 32, 33, 63, 64, 65] {
+                let mut buf = vec![0xFFu8; skip + input.len()];
+                quality_bin(&input, &mut buf[skip..], boundaries, representatives);
+                let result = &buf[skip..skip + input.len()];
+                assert_eq!(result, &expected, "failed at output offset {skip}");
+            }
+        }
+
+        #[test]
+        fn single_byte_each_bin() {
+            // One boundary, two representatives. Test the exact boundary byte.
+            let boundaries = &[100u8];
+            let representatives = &[50u8, 110];
+
+            assert_eq!(run_bin(&[99], boundaries, representatives), vec![50]);
+            assert_eq!(run_bin(&[100], boundaries, representatives), vec![110]);
+            assert_eq!(run_bin(&[101], boundaries, representatives), vec![110]);
+        }
+
+        #[test]
+        fn four_boundaries_cascading() {
+            // 5 bins with boundaries [40, 60, 80, 100]
+            // representatives [30, 50, 70, 90, 110]
+            let boundaries = &[40u8, 60, 80, 100];
+            let representatives = &[30u8, 50, 70, 90, 110];
+
+            // Each byte should land in the correct bin
+            let input = &[39u8, 40, 59, 60, 79, 80, 99, 100, 120];
+            let expected = vec![30u8, 50, 50, 70, 70, 90, 90, 110, 110];
+            assert_eq!(run_bin(input, boundaries, representatives), expected);
         }
     }
 }

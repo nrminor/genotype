@@ -10,6 +10,7 @@
 
 mod classify;
 mod grep;
+mod quality;
 mod transform;
 
 use napi::bindgen_prelude::*;
@@ -386,6 +387,39 @@ pub fn check_valid_batch(
     Ok(results.into())
 }
 
+/// Compute the average quality score for each sequence in a batch.
+///
+/// Quality bytes are Phred-encoded ASCII. The `ascii_offset` parameter
+/// (33 for Phred+33, 64 for Phred+64 and Solexa) is subtracted to convert
+/// from ASCII code to quality score. The kernel is encoding-agnostic.
+///
+/// Returns a `Vec<f64>` of length `num_sequences`.
+///
+/// # Errors
+///
+/// Returns a napi error if the offset array is malformed.
+#[napi]
+#[allow(clippy::cast_possible_truncation)]
+pub fn quality_avg_batch(
+    quality: &[u8],
+    offsets: &[u32],
+    ascii_offset: u8,
+) -> napi::Result<Vec<f64>> {
+    utils::validate_offsets(offsets, quality.len())?;
+
+    let num_sequences = offsets.len().saturating_sub(1);
+    let mut results = Vec::with_capacity(num_sequences);
+
+    for window in offsets.windows(2) {
+        let start = window[0] as usize;
+        let end = window[1] as usize;
+        let qual = &quality[start..end];
+        results.push(quality::quality_avg(qual, ascii_offset));
+    }
+
+    Ok(results)
+}
+
 mod utils {
 
     /// Validate that `offsets` is a well-formed batch layout for `sequences`.
@@ -644,6 +678,48 @@ mod tests {
         .err()
         .expect("out-of-bounds offset [0, 100] was not rejected");
         assert!(err.reason.contains("final offset"), "{}", err.reason);
+    }
+
+    #[test]
+    fn quality_avg_batch_matches_per_sequence_calls() {
+        let seqs: &[&[u8]] = &[
+            b"IIIIIIIII", // Phred+33 Q40 uniform → 40.0
+            b"!!!!",      // Phred+33 Q0 uniform → 0.0
+            b"",          // empty → 0.0
+            b"5",         // single byte, ASCII 53 → 53-33 = 20.0
+        ];
+        let (data, offsets) = make_batch(seqs);
+        let results = quality_avg_batch(&data, &offsets, 33)
+            .expect("offset validation rejected a well-formed batch");
+
+        assert_eq!(results.len(), 4);
+
+        for (i, seq) in seqs.iter().enumerate() {
+            let expected = quality::quality_avg(seq, 33);
+            assert!(
+                (results[i] - expected).abs() < f64::EPSILON,
+                "sequence {i}: got {}, expected {expected}",
+                results[i]
+            );
+        }
+    }
+
+    #[test]
+    fn quality_avg_batch_rejects_malformed_offsets() {
+        let err = quality_avg_batch(b"IIII", &[0, 100], 33)
+            .expect_err("out-of-bounds offset [0, 100] was not rejected");
+        assert!(err.reason.contains("final offset"), "{}", err.reason);
+
+        let err = quality_avg_batch(b"IIIIIIII", &[0, 4, 2, 8], 33)
+            .expect_err("non-monotonic offsets [0, 4, 2, 8] were not rejected");
+        assert!(err.reason.contains("non-monotonic"), "{}", err.reason);
+    }
+
+    #[test]
+    fn quality_avg_batch_empty_returns_empty() {
+        let results = quality_avg_batch(&[], &[0], 33)
+            .expect("empty batch with sentinel offset [0] is valid");
+        assert!(results.is_empty());
     }
 
     #[test]

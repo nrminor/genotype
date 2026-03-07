@@ -1,4 +1,4 @@
-import type { AbstractSequence } from "./types";
+import type { AbstractSequence, FastqSequence } from "./types";
 
 /**
  * The native kernel interface. Each function here corresponds to a
@@ -180,6 +180,20 @@ export interface NativeKernel {
    * @returns Buffer of length numSequences where each byte is 1 (valid) or 0 (invalid)
    */
   checkValidBatch(sequences: Buffer, offsets: Uint32Array, mode: ValidationMode): Buffer;
+
+  /**
+   * Compute the average quality score for each sequence in a batch.
+   *
+   * Quality bytes are Phred-encoded ASCII. The `asciiOffset` parameter
+   * (33 for Phred+33, 64 for Phred+64 and Solexa) is subtracted to
+   * convert from ASCII code to quality score.
+   *
+   * @param quality - Concatenated quality bytes
+   * @param offsets - N+1 offset array into the quality buffer
+   * @param asciiOffset - ASCII offset to subtract (33 or 64)
+   * @returns Array of average quality scores, one per sequence
+   */
+  qualityAvgBatch(quality: Buffer, offsets: Uint32Array, asciiOffset: number): number[];
 }
 
 /**
@@ -212,6 +226,38 @@ export function packSequences(sequences: readonly AbstractSequence[]): PackedBat
   let totalBytes = 0;
   for (let i = 0; i < count; i++) {
     const bytes = sequences[i]!.sequence.toBytes();
+    chunks[i] = bytes;
+    offsets[i] = totalBytes;
+    totalBytes += bytes.length;
+  }
+  offsets[count] = totalBytes;
+
+  const data = Buffer.allocUnsafe(totalBytes);
+  for (let i = 0; i < count; i++) {
+    data.set(chunks[i]!, offsets[i]!);
+  }
+
+  return { data, offsets };
+}
+
+/**
+ * Pack the quality strings from an array of FASTQ sequences into the
+ * contiguous batch layout that Rust kernel functions expect.
+ *
+ * Parallel to {@link packSequences} but reads `.quality` instead of
+ * `.sequence`. Returns the same `PackedBatch` shape.
+ *
+ * @param sequences - The FASTQ sequences whose quality strings to pack
+ * @returns The packed batch layout
+ */
+export function packQualityStrings(sequences: readonly FastqSequence[]): PackedBatch {
+  const count = sequences.length;
+  const offsets = new Uint32Array(count + 1);
+
+  const chunks: Uint8Array[] = new Array(count);
+  let totalBytes = 0;
+  for (let i = 0; i < count; i++) {
+    const bytes = sequences[i]!.quality.toBytes();
     chunks[i] = bytes;
     offsets[i] = totalBytes;
     totalBytes += bytes.length;

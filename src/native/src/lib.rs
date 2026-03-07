@@ -63,6 +63,78 @@ pub fn grep_batch(
     Ok(results.into())
 }
 
+/// CSR-style result for variable-length pattern match results.
+///
+/// Each sequence produces zero or more matches. `match_offsets` has length
+/// `num_sequences + 1`, and the matches for sequence `i` are at indices
+/// `match_offsets[i]..match_offsets[i+1]` in the `starts`, `ends`, and
+/// `costs` arrays.
+///
+/// This flat representation avoids nested `Vec<Vec<_>>` allocation across
+/// the napi boundary and mirrors the packed input format.
+#[derive(Debug)]
+#[napi(object)]
+pub struct PatternSearchResult {
+    pub starts: Vec<u32>,
+    pub ends: Vec<u32>,
+    pub costs: Vec<u32>,
+    pub match_offsets: Vec<u32>,
+}
+
+/// Find all pattern matches with positions and edit distances in a batch
+/// of sequences.
+///
+/// Uses the `Iupac` profile (forward-only) with traceback enabled, so
+/// IUPAC degenerate bases (N, R, Y, etc.) are handled correctly and exact
+/// match start positions are computed. The caller handles orientation by
+/// making separate calls with the original and reverse-complement patterns.
+///
+/// Returns a CSR-style `PatternSearchResult`. See its documentation for
+/// the indexing convention.
+///
+/// # Errors
+///
+/// Returns a napi error if the offset array is malformed.
+#[napi]
+#[allow(clippy::cast_possible_truncation)]
+pub fn find_pattern_batch(
+    sequences: &[u8],
+    offsets: &[u32],
+    pattern: &[u8],
+    max_edits: u32,
+    case_insensitive: bool,
+) -> napi::Result<PatternSearchResult> {
+    utils::validate_offsets(offsets, sequences.len())?;
+
+    let num_sequences = offsets.len().saturating_sub(1);
+    let mut starts = Vec::new();
+    let mut ends = Vec::new();
+    let mut costs = Vec::new();
+    let mut match_offsets = Vec::with_capacity(num_sequences + 1);
+
+    let mut ctx = grep::SearchContext::new_with_positions(pattern, max_edits, case_insensitive);
+
+    for window in offsets.windows(2) {
+        match_offsets.push(starts.len() as u32);
+        let seq_start = window[0] as usize;
+        let seq_end = window[1] as usize;
+        let seq = &sequences[seq_start..seq_end];
+        for (s, e, c) in ctx.find_matches(seq) {
+            starts.push(s);
+            ends.push(e);
+            costs.push(c);
+        }
+    }
+    match_offsets.push(starts.len() as u32);
+
+    Ok(PatternSearchResult {
+        starts,
+        ends,
+        costs,
+        match_offsets,
+    })
+}
+
 /// The result of a batch transform operation.
 ///
 /// For length-preserving operations, `offsets` is identical to the input
@@ -925,6 +997,123 @@ mod tests {
             .expect("empty batch with sentinel offset [0] is valid");
         assert_eq!(result.data.as_ref(), &[] as &[u8]);
         assert_eq!(result.offsets, vec![0]);
+    }
+
+    #[test]
+    fn find_pattern_batch_returns_csr_results() {
+        // Seq 0: GATC at position 3
+        // Seq 1: no match
+        // Seq 2: GATC at position 0
+        let (data, offsets) = make_batch(&[b"ATCGATCG", b"TTTTTTTT", b"GATCAAAA"]);
+        let result = find_pattern_batch(&data, &offsets, b"GATC", 0, false)
+            .expect("offset validation rejected a well-formed batch");
+
+        assert_eq!(
+            result.match_offsets.len(),
+            4,
+            "match_offsets should have num_sequences + 1 entries"
+        );
+
+        // Seq 0: one match
+        let s0_start = result.match_offsets[0] as usize;
+        let s0_end = result.match_offsets[1] as usize;
+        assert_eq!(s0_end - s0_start, 1, "seq 0 should have 1 match");
+        assert_eq!(result.starts[s0_start], 3);
+        assert_eq!(result.ends[s0_start], 7);
+        assert_eq!(result.costs[s0_start], 0);
+
+        // Seq 1: no matches
+        let s1_start = result.match_offsets[1] as usize;
+        let s1_end = result.match_offsets[2] as usize;
+        assert_eq!(s1_end - s1_start, 0, "seq 1 should have 0 matches");
+
+        // Seq 2: one match at position 0
+        let s2_start = result.match_offsets[2] as usize;
+        let s2_end = result.match_offsets[3] as usize;
+        assert_eq!(s2_end - s2_start, 1, "seq 2 should have 1 match");
+        assert_eq!(result.starts[s2_start], 0);
+        assert_eq!(result.ends[s2_start], 4);
+        assert_eq!(result.costs[s2_start], 0);
+    }
+
+    #[test]
+    fn find_pattern_batch_approximate_matches() {
+        // GTTC is 1 edit from GATC
+        let (data, offsets) = make_batch(&[b"AAAAGTTCAAAA", b"TTTTTTTTTTTT"]);
+        let result = find_pattern_batch(&data, &offsets, b"GATC", 1, false)
+            .expect("offset validation rejected a well-formed batch");
+
+        let s0_start = result.match_offsets[0] as usize;
+        let s0_end = result.match_offsets[1] as usize;
+        assert!(s0_end > s0_start, "seq 0 should have at least 1 match");
+
+        // Find the match at position 4
+        let idx = (s0_start..s0_end)
+            .find(|&i| result.starts[i] == 4)
+            .expect("should find match starting at position 4");
+        assert_eq!(result.ends[idx], 8);
+        assert_eq!(result.costs[idx], 1);
+
+        // Seq 1: no match even with 1 edit tolerance
+        let s1_start = result.match_offsets[1] as usize;
+        let s1_end = result.match_offsets[2] as usize;
+        assert_eq!(s1_end - s1_start, 0, "seq 1 should have 0 matches");
+    }
+
+    #[test]
+    fn find_pattern_batch_empty_returns_sentinel() {
+        let result = find_pattern_batch(&[], &[0], b"GATC", 0, false)
+            .expect("empty batch with sentinel offset [0] is valid");
+        assert!(result.starts.is_empty());
+        assert!(result.ends.is_empty());
+        assert!(result.costs.is_empty());
+        assert_eq!(result.match_offsets, vec![0]);
+    }
+
+    #[test]
+    fn find_pattern_batch_rejects_malformed_offsets() {
+        let err = find_pattern_batch(b"ATCG", &[0, 100], b"ATCG", 0, false)
+            .expect_err("out-of-bounds offset [0, 100] was not rejected");
+        assert!(err.reason.contains("final offset"), "{}", err.reason);
+
+        let err = find_pattern_batch(b"ATCGATCG", &[0, 4, 2, 8], b"ATCG", 0, false)
+            .expect_err("non-monotonic offsets [0, 4, 2, 8] were not rejected");
+        assert!(err.reason.contains("non-monotonic"), "{}", err.reason);
+    }
+
+    #[test]
+    fn find_pattern_batch_iupac_degenerate() {
+        // N in pattern matches any base
+        let (data, offsets) = make_batch(&[b"AAAAGATCAAAA"]);
+        let result = find_pattern_batch(&data, &offsets, b"NATC", 0, false)
+            .expect("offset validation rejected a well-formed batch");
+
+        let s0_start = result.match_offsets[0] as usize;
+        let s0_end = result.match_offsets[1] as usize;
+        assert!(s0_end > s0_start, "IUPAC N should produce matches");
+        let idx = (s0_start..s0_end)
+            .find(|&i| result.starts[i] == 4)
+            .expect("should find match at position 4");
+        assert_eq!(result.costs[idx], 0, "IUPAC match should have cost 0");
+    }
+
+    #[test]
+    fn find_pattern_batch_multiple_matches_per_sequence() {
+        // Two occurrences of GATC
+        let (data, offsets) = make_batch(&[b"GATCTTTTGATC"]);
+        let result = find_pattern_batch(&data, &offsets, b"GATC", 0, false)
+            .expect("offset validation rejected a well-formed batch");
+
+        let s0_start = result.match_offsets[0] as usize;
+        let s0_end = result.match_offsets[1] as usize;
+        assert!(
+            s0_end - s0_start >= 2,
+            "expected at least 2 matches, got {}",
+            s0_end - s0_start
+        );
+        let match_starts: Vec<u32> = (s0_start..s0_end).map(|i| result.starts[i]).collect();
+        assert!(match_starts.contains(&0), "should find match at position 0");
+        assert!(match_starts.contains(&8), "should find match at position 8");
     }
 
     #[test]

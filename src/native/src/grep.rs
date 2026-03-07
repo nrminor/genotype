@@ -1,11 +1,21 @@
 //! Grep kernel: SIMD-accelerated pattern matching for genomic sequences.
 //!
-//! This module provides the core search logic used by the `grep_batch` napi
-//! function. It wraps sassy's `Searcher` to support exact matching (k=0),
-//! approximate matching with edit distance (k>0), case-insensitive search,
-//! and reverse complement search. The public interface is a single function
-//! that answers "does this sequence contain the pattern?" — no match
-//! positions or CIGAR strings are returned.
+//! This module provides the core search logic used by the `grep_batch` and
+//! `find_pattern_batch` napi functions. It wraps sassy's `Searcher` to
+//! support exact matching (k=0), approximate matching with edit distance
+//! (k>0), case-insensitive search, and reverse complement search.
+//!
+//! Two search modes are provided:
+//!
+//! - `contains_match`: answers "does this sequence contain the pattern?"
+//!   Uses `.without_trace()` for maximum throughput since only a boolean
+//!   is needed.
+//!
+//! - `find_matches`: answers "where does this pattern match, and how well?"
+//!   Returns `(start, end, cost)` tuples. Uses traceback to compute exact
+//!   alignment start positions, which `.without_trace()` would discard.
+//!   Always uses the `Iupac` profile (forward-only) since the amplicon
+//!   use case involves primers with IUPAC degenerate bases.
 //!
 //! Forward-only searches use the `Ascii` profile (case-sensitive by default,
 //! with manual uppercasing for case-insensitive mode). Both-strand searches
@@ -86,6 +96,10 @@ pub(crate) enum SearchContext {
 }
 
 impl SearchContext {
+    /// Create a context for boolean "does it match?" searches (`contains_match`).
+    ///
+    /// The searcher is created with `.without_trace()` for maximum throughput
+    /// since only a boolean result is needed.
     pub(crate) fn new(pattern: &[u8], max_edits: u32, mode: &SearchMode) -> Self {
         let k = max_edits as usize;
         let uppercase = mode.needs_uppercase();
@@ -113,6 +127,31 @@ impl SearchContext {
         }
     }
 
+    /// Create a context for position-returning searches (`find_matches`).
+    ///
+    /// Uses the `Iupac` profile (forward-only) with traceback enabled so
+    /// that sassy computes exact `text_start` positions. The Iupac profile
+    /// is inherently case-insensitive and handles degenerate bases (N, R,
+    /// Y, etc.), which is required for primer matching.
+    ///
+    /// The `case_insensitive` parameter is accepted for API consistency
+    /// with the grep kernel but has no effect: the Iupac profile already
+    /// handles case folding internally.
+    pub(crate) fn new_with_positions(
+        pattern: &[u8],
+        max_edits: u32,
+        case_insensitive: bool,
+    ) -> Self {
+        let _ = case_insensitive;
+        Self::Iupac {
+            searcher: Box::new(Searcher::<Iupac>::new_fwd()),
+            pattern: pattern.to_vec(),
+            max_edits: max_edits as usize,
+            seq_buf: Vec::new(),
+            needs_uppercase: false,
+        }
+    }
+
     /// Check whether `seq` contains the pattern within the configured edit
     /// distance. The searcher and any reusable buffers are mutated in place
     /// to avoid per-call allocation.
@@ -127,7 +166,7 @@ impl SearchContext {
                 max_edits,
                 seq_buf,
                 needs_uppercase,
-            } => Self::search_with(
+            } => Self::search_bool(
                 searcher,
                 pattern,
                 *max_edits,
@@ -141,7 +180,7 @@ impl SearchContext {
                 max_edits,
                 seq_buf,
                 needs_uppercase,
-            } => Self::search_with(
+            } => Self::search_bool(
                 searcher,
                 pattern,
                 *max_edits,
@@ -152,7 +191,62 @@ impl SearchContext {
         }
     }
 
-    fn search_with<P: Profile>(
+    /// Find all matches of the pattern in `seq` within the configured edit
+    /// distance. Returns `(text_start, text_end, cost)` tuples.
+    ///
+    /// The context must have been created with `new_with_positions` so that
+    /// traceback is enabled and `text_start` is computed. If called on a
+    /// `without_trace` context, `text_start` values will be `usize::MAX`
+    /// (sassy's sentinel for "not computed").
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    pub(crate) fn find_matches(&mut self, seq: &[u8]) -> Vec<(u32, u32, u32)> {
+        match self {
+            Self::Ascii {
+                searcher,
+                pattern,
+                max_edits,
+                seq_buf,
+                needs_uppercase,
+            } => Self::search_positions(
+                searcher,
+                pattern,
+                *max_edits,
+                seq_buf,
+                *needs_uppercase,
+                seq,
+            ),
+            Self::Iupac {
+                searcher,
+                pattern,
+                max_edits,
+                seq_buf,
+                needs_uppercase,
+            } => Self::search_positions(
+                searcher,
+                pattern,
+                *max_edits,
+                seq_buf,
+                *needs_uppercase,
+                seq,
+            ),
+        }
+    }
+
+    fn prepare_haystack<'a>(
+        seq: &'a [u8],
+        seq_buf: &'a mut Vec<u8>,
+        needs_uppercase: bool,
+    ) -> &'a [u8] {
+        if needs_uppercase {
+            seq_buf.clear();
+            seq_buf.extend(seq.iter().map(u8::to_ascii_uppercase));
+            seq_buf.as_slice()
+        } else {
+            seq
+        }
+    }
+
+    fn search_bool<P: Profile>(
         searcher: &mut Searcher<P>,
         pattern: &[u8],
         max_edits: usize,
@@ -163,14 +257,28 @@ impl SearchContext {
         if pattern.is_empty() || pattern.len() > seq.len() {
             return false;
         }
-        let haystack = if needs_uppercase {
-            seq_buf.clear();
-            seq_buf.extend(seq.iter().map(u8::to_ascii_uppercase));
-            seq_buf.as_slice()
-        } else {
-            seq
-        };
+        let haystack = Self::prepare_haystack(seq, seq_buf, needs_uppercase);
         !searcher.search(pattern, haystack, max_edits).is_empty()
+    }
+
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    fn search_positions<P: Profile>(
+        searcher: &mut Searcher<P>,
+        pattern: &[u8],
+        max_edits: usize,
+        seq_buf: &mut Vec<u8>,
+        needs_uppercase: bool,
+        seq: &[u8],
+    ) -> Vec<(u32, u32, u32)> {
+        if seq.is_empty() || pattern.is_empty() || pattern.len() > seq.len() {
+            return Vec::new();
+        }
+        let haystack = Self::prepare_haystack(seq, seq_buf, needs_uppercase);
+        searcher
+            .search(pattern, haystack, max_edits)
+            .into_iter()
+            .map(|m| (m.text_start as u32, m.text_end as u32, m.cost as u32))
+            .collect()
     }
 }
 
@@ -188,6 +296,11 @@ mod tests {
         let mode = SearchMode::from_flags(case_insensitive, search_both_strands);
         let mut ctx = SearchContext::new(pattern, max_edits, &mode);
         ctx.contains_match(seq)
+    }
+
+    fn find(seq: &[u8], pattern: &[u8], max_edits: u32) -> Vec<(u32, u32, u32)> {
+        let mut ctx = SearchContext::new_with_positions(pattern, max_edits, false);
+        ctx.find_matches(seq)
     }
 
     #[test]
@@ -314,5 +427,133 @@ mod tests {
         assert!(ctx.contains_match(b"atcgatcg"));
         assert!(!ctx.contains_match(b"tttttttt"));
         assert!(ctx.contains_match(b"xxgatcxx"));
+    }
+
+    #[test]
+    fn find_exact_match_position() {
+        // GATC at position 3 in ATCGATCG
+        let matches = find(b"ATCGATCG", b"GATC", 0);
+        assert_eq!(matches.len(), 1, "expected exactly one match");
+        let (start, end, cost) = matches[0];
+        assert_eq!(start, 3, "match should start at position 3");
+        assert_eq!(end, 7, "match should end at position 7 (exclusive)");
+        assert_eq!(cost, 0, "exact match should have cost 0");
+    }
+
+    #[test]
+    fn find_exact_match_at_start() {
+        let matches = find(b"GATCAAAA", b"GATC", 0);
+        assert_eq!(matches.len(), 1);
+        assert_eq!(matches[0], (0, 4, 0));
+    }
+
+    #[test]
+    fn find_exact_match_at_end() {
+        let matches = find(b"AAAAGATC", b"GATC", 0);
+        assert_eq!(matches.len(), 1);
+        assert_eq!(matches[0], (4, 8, 0));
+    }
+
+    #[test]
+    fn find_no_match_returns_empty() {
+        let matches = find(b"TTTTTTTT", b"GATC", 0);
+        assert!(matches.is_empty());
+    }
+
+    #[test]
+    fn find_approximate_match_with_cost() {
+        // GTTC is 1 edit from GATC (substitution at position 1)
+        let matches = find(b"AAAAGTTCAAAA", b"GATC", 1);
+        assert!(!matches.is_empty(), "should find approximate match");
+        let (start, end, cost) = matches[0];
+        assert_eq!(start, 4);
+        assert_eq!(end, 8);
+        assert_eq!(cost, 1);
+    }
+
+    #[test]
+    fn find_no_match_when_edits_exceed_threshold() {
+        let matches = find(b"TTTTTTTT", b"GATC", 1);
+        assert!(matches.is_empty());
+    }
+
+    #[test]
+    fn find_empty_sequence_returns_empty() {
+        let matches = find(b"", b"GATC", 0);
+        assert!(matches.is_empty());
+    }
+
+    #[test]
+    fn find_empty_pattern_returns_empty() {
+        let matches = find(b"ATCG", b"", 0);
+        assert!(matches.is_empty());
+    }
+
+    #[test]
+    fn find_pattern_longer_than_sequence_returns_empty() {
+        let matches = find(b"AT", b"ATCGATCG", 0);
+        assert!(matches.is_empty());
+    }
+
+    #[test]
+    fn find_iupac_degenerate_pattern() {
+        // N in pattern matches any base; NATC should match GATC, AATC, etc.
+        let matches = find(b"AAAAGATCAAAA", b"NATC", 0);
+        assert!(!matches.is_empty(), "IUPAC N should match any base");
+        let (start, end, cost) = matches[0];
+        assert_eq!(start, 4);
+        assert_eq!(end, 8);
+        assert_eq!(cost, 0, "IUPAC match should have cost 0");
+    }
+
+    #[test]
+    fn find_case_insensitive_via_iupac() {
+        // Iupac profile is inherently case-insensitive
+        let matches = find(b"aaaagatcaaaa", b"GATC", 0);
+        assert!(
+            !matches.is_empty(),
+            "Iupac profile should match case-insensitively"
+        );
+        assert_eq!(matches[0].2, 0);
+    }
+
+    #[test]
+    fn find_full_sequence_match() {
+        let matches = find(b"GATC", b"GATC", 0);
+        assert_eq!(matches.len(), 1);
+        assert_eq!(matches[0], (0, 4, 0));
+    }
+
+    #[test]
+    fn find_context_reuse_across_sequences() {
+        let mut ctx = SearchContext::new_with_positions(b"GATC", 0, false);
+
+        let m1 = ctx.find_matches(b"AAAAGATCAAAA");
+        assert_eq!(m1.len(), 1, "first sequence should have one match");
+        assert_eq!(m1[0], (4, 8, 0));
+
+        let m2 = ctx.find_matches(b"TTTTTTTT");
+        assert!(m2.is_empty(), "second sequence should have no matches");
+
+        let m3 = ctx.find_matches(b"GATCTTTTGATC");
+        assert!(
+            m3.len() >= 2,
+            "third sequence should have at least two matches"
+        );
+    }
+
+    #[test]
+    fn find_multiple_matches_in_sequence() {
+        // Two occurrences of GATC
+        let matches = find(b"GATCTTTTGATC", b"GATC", 0);
+        assert!(
+            matches.len() >= 2,
+            "expected at least 2 matches, got {}",
+            matches.len()
+        );
+        // Verify both positions are present (order may vary)
+        let starts: Vec<u32> = matches.iter().map(|m| m.0).collect();
+        assert!(starts.contains(&0), "should find match at position 0");
+        assert!(starts.contains(&8), "should find match at position 8");
     }
 }

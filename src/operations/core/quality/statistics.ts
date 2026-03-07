@@ -7,7 +7,7 @@
 
 import type { GenotypeString } from "../../../genotype-string";
 import type { QualityEncoding } from "../../../types";
-import { qualityToScores } from "./conversion";
+import { getEncodingInfo } from "./encoding-info";
 import type { QualityStats } from "./types";
 
 /**
@@ -101,12 +101,17 @@ export function calculateAverageQuality(
   quality: GenotypeString | string,
   encoding: QualityEncoding = "phred33"
 ): number {
-  if (!quality || quality.length === 0) {
+  const len = quality.length;
+  if (len === 0) {
     return 0;
   }
 
-  const scores = qualityToScores(quality, encoding);
-  return scores.reduce((sum, score) => sum + score, 0) / scores.length;
+  const { offset } = getEncodingInfo(encoding);
+  let sum = 0;
+  for (let i = 0; i < len; i++) {
+    sum += quality.charCodeAt(i);
+  }
+  return sum / len - offset;
 }
 
 /**
@@ -170,18 +175,18 @@ export function calculateErrorRate(
   quality: GenotypeString | string,
   encoding: QualityEncoding = "phred33"
 ): number {
-  if (!quality || quality.length === 0) {
+  const len = quality.length;
+  if (len === 0) {
     return 0;
   }
 
-  const scores = qualityToScores(quality, encoding);
+  const { offset } = getEncodingInfo(encoding);
   let sumProbability = 0;
-
-  for (const score of scores) {
-    sumProbability += scoreToErrorProbability(score);
+  for (let i = 0; i < len; i++) {
+    const score = quality.charCodeAt(i) - offset;
+    sumProbability += 10 ** (-score / 10);
   }
-
-  return sumProbability / scores.length;
+  return sumProbability / len;
 }
 
 /**
@@ -205,11 +210,18 @@ export function percentAboveThreshold(
   threshold: number,
   encoding: QualityEncoding = "phred33"
 ): number {
-  if (!quality || quality.length === 0) {
+  const len = quality.length;
+  if (len === 0) {
     return 0;
   }
 
-  const scores = qualityToScores(quality, encoding);
-  const countAbove = scores.filter((score) => score >= threshold).length;
-  return (countAbove / scores.length) * 100;
+  const { offset } = getEncodingInfo(encoding);
+  const thresholdCharCode = threshold + offset;
+  let countAbove = 0;
+  for (let i = 0; i < len; i++) {
+    if (quality.charCodeAt(i) >= thresholdCharCode) {
+      countAbove++;
+    }
+  }
+  return (countAbove / len) * 100;
 }

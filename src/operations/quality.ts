@@ -2,9 +2,8 @@
  * QualityProcessor - FASTQ quality score operations
  *
  * This processor implements quality-based filtering and trimming
- * specifically for FASTQ sequences. Operations are no-ops for
- * non-FASTQ sequences.
- *
+ * for FASTQ sequences. The type system guarantees that only FASTQ
+ * sequences reach the processor (via the SeqOps.quality() constraint).
  */
 
 import { withQuality, withSequence } from "../constructors";
@@ -50,12 +49,6 @@ export class QualityProcessor implements Processor<QualityOptions> {
     // NATIVE_CANDIDATE: Hot loop processing FASTQ sequences
     // Quality score calculations are CPU-intensive
     for await (const seq of source) {
-      // Skip non-FASTQ sequences
-      if (!this.isFastq(seq)) {
-        yield seq;
-        continue;
-      }
-
       const processed = this.processQuality(seq, options);
 
       // Filter out sequences that don't meet quality thresholds
@@ -63,16 +56,6 @@ export class QualityProcessor implements Processor<QualityOptions> {
         yield processed;
       }
     }
-  }
-
-  /**
-   * Check if sequence is FASTQ format
-   *
-   * @param seq - Sequence to check
-   * @returns True if sequence is FASTQ
-   */
-  private isFastq(seq: AbstractSequence): seq is FastqSequence {
-    return "quality" in seq && seq.quality !== undefined;
   }
 
   /**

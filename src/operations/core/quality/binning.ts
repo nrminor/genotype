@@ -401,9 +401,12 @@ export function findBinIndex(score: number, boundaries: readonly number[]): numb
  * ```
  */
 export function binQualityString(qualityString: string, strategy: BinningStrategy): string {
-  let result = "";
+  const len = qualityString.length;
+  const result = new Array<string>(len);
 
-  for (const char of qualityString) {
+  for (let i = 0; i < len; i++) {
+    const char = qualityString[i]!;
+
     // Convert ASCII character to numeric quality score
     const score = charToScore(char, strategy.encoding);
 
@@ -420,11 +423,10 @@ export function binQualityString(qualityString: string, strategy: BinningStrateg
     }
 
     // Convert representative score back to ASCII character
-    const binnedChar = scoreToChar(representative, strategy.encoding);
-    result += binnedChar;
+    result[i] = scoreToChar(representative, strategy.encoding);
   }
 
-  return result;
+  return result.join("");
 }
 
 /**

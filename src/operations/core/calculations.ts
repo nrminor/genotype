@@ -9,7 +9,6 @@
 import { type GenotypeString, asString } from "../../genotype-string";
 import { ValidationError } from "../../errors";
 import { getGeneticCode } from "./genetic-codes";
-import { calculateAverageQuality } from "./quality";
 
 /**
  * Calculate GC content percentage of a sequence
@@ -215,99 +214,6 @@ export function translateSimple(
 }
 
 /**
- * Find quality trim position from start of sequence using sliding window
- *
- * @example
- * ```typescript
- * const trimPos = findQualityTrimStart('!!!IIIIII', 20, 4, 'phred33');
- * console.log(trimPos); // 3 (where quality becomes acceptable)
- * ```
- *
- * @param quality - Quality string
- * @param threshold - Quality threshold
- * @param windowSize - Sliding window size
- * @param encoding - Quality encoding
- * @returns Start position for trimming
- *
- * 🔥 NATIVE: Sliding window quality analysis - vectorizable
- */
-export function findQualityTrimStart(
-  quality: GenotypeString | string,
-  threshold: number,
-  windowSize: number,
-  encoding: "phred33" | "phred64" | "solexa"
-): number {
-  const qual = asString(quality);
-  if (qual.length === 0) {
-    throw new ValidationError("Quality string must be non-empty");
-  }
-  if (windowSize <= 0) {
-    throw new ValidationError("Window size must be positive");
-  }
-
-  // 🔥 NATIVE: Sliding window analysis with quality score conversion
-  for (let i = 0; i <= qual.length - windowSize; i++) {
-    const window = qual.slice(i, i + windowSize);
-    const avgQual = calculateAverageQuality(window, encoding);
-
-    if (avgQual >= threshold) {
-      return i;
-    }
-  }
-
-  return qual.length; // No good quality found
-}
-
-/**
- * Find quality trim position from end of sequence using sliding window
- *
- * @example
- * ```typescript
- * const trimPos = findQualityTrimEnd('IIIIII!!!', 20, 4, 'phred33', 0);
- * console.log(trimPos); // 6 (where quality becomes unacceptable)
- * ```
- *
- * @param quality - Quality string
- * @param threshold - Quality threshold
- * @param windowSize - Sliding window size
- * @param encoding - Quality encoding
- * @param start - Start position (don't trim before this)
- * @returns End position for trimming
- *
- * 🔥 NATIVE: Sliding window quality analysis - vectorizable
- */
-export function findQualityTrimEnd(
-  quality: GenotypeString | string,
-  threshold: number,
-  windowSize: number,
-  encoding: "phred33" | "phred64" | "solexa",
-  start: number
-): number {
-  const qual = asString(quality);
-  if (qual.length === 0) {
-    throw new ValidationError("Quality string must be non-empty");
-  }
-  if (windowSize <= 0) {
-    throw new ValidationError("Window size must be positive");
-  }
-  if (start < 0 || start > qual.length) {
-    throw new ValidationError("Start position out of range");
-  }
-
-  // 🔥 NATIVE: Sliding window analysis from end
-  for (let i = qual.length - windowSize; i >= start; i--) {
-    const window = qual.slice(i, i + windowSize);
-    const avgQual = calculateAverageQuality(window, encoding);
-
-    if (avgQual >= threshold) {
-      return i + windowSize;
-    }
-  }
-
-  return start; // No good quality found
-}
-
-/**
  * Calculate content percentage of specified bases in a sequence
  *
  * This is a generalized version of gcContent/atContent that works with any base set.
@@ -458,6 +364,4 @@ export const SequenceCalculations = {
   baseCount,
   sequenceAlphabet,
   translateSimple,
-  findQualityTrimStart,
-  findQualityTrimEnd,
 } as const;

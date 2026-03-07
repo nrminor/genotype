@@ -420,6 +420,52 @@ pub fn quality_avg_batch(
     Ok(results)
 }
 
+/// Find trim positions (start, end) for each sequence in a batch using a
+/// sliding window average quality threshold.
+///
+/// Returns a flat `Vec<u32>` of length `num_sequences * 2`, where
+/// `result[i*2]` is the start position and `result[i*2+1]` is the end
+/// position (exclusive) for sequence `i`. A `(0, 0)` pair means trimming
+/// consumed the entire sequence.
+///
+/// The `threshold` and `ascii_offset` are combined into a single
+/// `threshold_sum = (threshold + offset) * window_size` that the kernel
+/// compares against the integer window sum, avoiding per-byte floating
+/// point arithmetic.
+///
+/// # Errors
+///
+/// Returns a napi error if the offset array is malformed.
+#[napi]
+#[allow(clippy::cast_possible_truncation)]
+pub fn quality_trim_batch(
+    quality: &[u8],
+    offsets: &[u32],
+    ascii_offset: u8,
+    threshold: f64,
+    window_size: u32,
+    trim_start: bool,
+    trim_end: bool,
+) -> napi::Result<Vec<u32>> {
+    utils::validate_offsets(offsets, quality.len())?;
+
+    let num_sequences = offsets.len().saturating_sub(1);
+    let threshold_sum = (threshold + f64::from(ascii_offset)) * f64::from(window_size);
+    let mut results = Vec::with_capacity(num_sequences * 2);
+
+    for window in offsets.windows(2) {
+        let start = window[0] as usize;
+        let end = window[1] as usize;
+        let qual = &quality[start..end];
+        let (trim_s, trim_e) =
+            quality::quality_trim(qual, window_size, trim_start, trim_end, threshold_sum);
+        results.push(trim_s);
+        results.push(trim_e);
+    }
+
+    Ok(results)
+}
+
 mod utils {
 
     /// Validate that `offsets` is a well-formed batch layout for `sequences`.
@@ -718,6 +764,54 @@ mod tests {
     #[test]
     fn quality_avg_batch_empty_returns_empty() {
         let results = quality_avg_batch(&[], &[0], 33)
+            .expect("empty batch with sentinel offset [0] is valid");
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn quality_trim_batch_matches_per_sequence_calls() {
+        let seqs: &[&[u8]] = &[
+            b"!!!IIIIII!!!", // low-high-low, should trim both ends
+            b"IIIIIIIIII",   // all high, no trimming
+            b"!!!!!!!!!!",   // all low, trimmed to nothing
+            b"",             // empty
+        ];
+        let (data, offsets) = make_batch(seqs);
+        let threshold = 20.0_f64;
+        let window_size = 4_u32;
+        let ascii_offset = 33_u8;
+
+        let results = quality_trim_batch(
+            &data,
+            &offsets,
+            ascii_offset,
+            threshold,
+            window_size,
+            true,
+            true,
+        )
+        .expect("offset validation rejected a well-formed batch");
+
+        assert_eq!(results.len(), seqs.len() * 2);
+
+        let threshold_sum = (threshold + f64::from(ascii_offset)) * f64::from(window_size);
+        for (i, seq) in seqs.iter().enumerate() {
+            let (exp_s, exp_e) = quality::quality_trim(seq, window_size, true, true, threshold_sum);
+            assert_eq!(results[i * 2], exp_s, "sequence {i}: start mismatch");
+            assert_eq!(results[i * 2 + 1], exp_e, "sequence {i}: end mismatch");
+        }
+    }
+
+    #[test]
+    fn quality_trim_batch_rejects_malformed_offsets() {
+        let err = quality_trim_batch(b"IIII", &[0, 100], 33, 20.0, 4, true, true)
+            .expect_err("out-of-bounds offset [0, 100] was not rejected");
+        assert!(err.reason.contains("final offset"), "{}", err.reason);
+    }
+
+    #[test]
+    fn quality_trim_batch_empty_returns_empty() {
+        let results = quality_trim_batch(&[], &[0], 33, 20.0, 4, true, true)
             .expect("empty batch with sentinel offset [0] is valid");
         assert!(results.is_empty());
     }

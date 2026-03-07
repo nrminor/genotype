@@ -194,6 +194,34 @@ export interface NativeKernel {
    * @returns Array of average quality scores, one per sequence
    */
   qualityAvgBatch(quality: Buffer, offsets: Uint32Array, asciiOffset: number): number[];
+
+  /**
+   * Find trim positions for each sequence in a batch using a sliding
+   * window average quality threshold.
+   *
+   * Returns a flat array of length `numSequences * 2`, where
+   * `result[i*2]` is the start position and `result[i*2+1]` is the
+   * end position (exclusive). A `(0, 0)` pair means trimming consumed
+   * the entire sequence.
+   *
+   * @param quality - Concatenated quality bytes
+   * @param offsets - N+1 offset array into the quality buffer
+   * @param asciiOffset - ASCII offset to subtract (33 or 64)
+   * @param threshold - Minimum average quality score for a window to pass
+   * @param windowSize - Number of bases in the sliding window
+   * @param trimStart - Whether to trim from the 5' end
+   * @param trimEnd - Whether to trim from the 3' end
+   * @returns Flat array of start/end pairs, two per sequence
+   */
+  qualityTrimBatch(
+    quality: Buffer,
+    offsets: Uint32Array,
+    asciiOffset: number,
+    threshold: number,
+    windowSize: number,
+    trimStart: boolean,
+    trimEnd: boolean
+  ): number[];
 }
 
 /**

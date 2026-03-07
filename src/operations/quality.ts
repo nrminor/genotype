@@ -13,9 +13,9 @@
  */
 
 import { withQuality, withSequence } from "../constructors";
+import { ValidationError } from "../errors";
 import { type NativeKernel, getNativeKernel, packQualityStrings } from "../native";
 import type { AbstractSequence, FastqSequence, QualityEncoding } from "../types";
-import { findQualityTrimEnd, findQualityTrimStart } from "./core/calculations";
 import {
   type BinningStrategy,
   calculateRepresentatives,
@@ -24,7 +24,6 @@ import {
 } from "./core/quality/binning";
 import { detectEncoding } from "./core/quality/detection";
 import { getEncodingInfo } from "./core/quality/encoding-info";
-import { calculateAverageQuality } from "./core/quality/statistics";
 import type { Processor, QualityOptions } from "./types";
 
 /**
@@ -62,10 +61,14 @@ export class QualityProcessor implements Processor<QualityOptions> {
   /**
    * Process sequences with quality operations
    *
-   * When average quality filtering is active (minScore/maxScore), sequences
-   * accumulate into batches for the native SIMD quality average kernel.
-   * Trimming is applied per-sequence before batching; binning is applied
-   * per-sequence after the batch filter.
+   * When trim or average quality filtering is active, sequences
+   * accumulate into batches for the native SIMD kernels. The trim
+   * kernel returns positions that the processor uses to slice both
+   * sequence and quality strings; the avg quality kernel filters by
+   * score. Binning is applied per-sequence to survivors.
+   *
+   * When only binning is requested (no trim, no avg quality filter),
+   * sequences are processed per-sequence without the native kernel.
    *
    * @param source - Input sequences
    * @param options - Quality options
@@ -75,18 +78,22 @@ export class QualityProcessor implements Processor<QualityOptions> {
     source: AsyncIterable<FastqSequence>,
     options: QualityOptions
   ): AsyncIterable<FastqSequence> {
-    const needsAvgQuality =
-      options.minScore !== undefined || options.maxScore !== undefined;
-    const kernel = needsAvgQuality ? getNativeKernel() : undefined;
+    const needsTrim = options.trim === true;
+    const needsAvgQuality = options.minScore !== undefined || options.maxScore !== undefined;
+    const needsKernel = needsTrim || needsAvgQuality;
 
-    if (kernel === undefined) {
+    if (!needsKernel) {
       for await (const seq of source) {
-        const processed = this.processQuality(seq, options);
-        if (processed) {
-          yield processed;
-        }
+        yield applyBinning(seq, options);
       }
       return;
+    }
+
+    const kernel = getNativeKernel();
+    if (kernel === undefined) {
+      throw new ValidationError(
+        "Native kernel is required for quality trim/filter but could not be loaded"
+      );
     }
 
     const encoding = options.encoding ?? "phred33";
@@ -94,11 +101,8 @@ export class QualityProcessor implements Processor<QualityOptions> {
     let batchBytes = 0;
 
     for await (const seq of source) {
-      const candidate = applyTrim(seq, options, encoding);
-      if (candidate === null) continue;
-
-      batch.push(candidate);
-      batchBytes += candidate.quality.length;
+      batch.push(seq);
+      batchBytes += seq.quality.length;
       if (batchBytes >= BATCH_BYTE_BUDGET) {
         yield* flushQualityBatch(batch, kernel, options, encoding);
         batch = [];
@@ -110,66 +114,20 @@ export class QualityProcessor implements Processor<QualityOptions> {
       yield* flushQualityBatch(batch, kernel, options, encoding);
     }
   }
-
-  /**
-   * Per-sequence fallback when the native kernel is unavailable.
-   * Applies trim, average quality filter, and binning in sequence.
-   */
-  private processQuality(seq: FastqSequence, options: QualityOptions): FastqSequence | null {
-    const encoding = options.encoding ?? "phred33";
-
-    let candidate = applyTrim(seq, options, encoding);
-    if (candidate === null) return null;
-
-    if (options.minScore !== undefined || options.maxScore !== undefined) {
-      const avgQuality = calculateAverageQuality(candidate.quality, encoding);
-      if (options.minScore !== undefined && avgQuality < options.minScore) return null;
-      if (options.maxScore !== undefined && avgQuality > options.maxScore) return null;
-    }
-
-    return applyBinning(candidate, options);
-  }
 }
 
 /**
- * Apply quality trimming to a sequence, returning the (possibly modified)
- * FastqSequence or null if trimming consumed the entire sequence.
- */
-function applyTrim(
-  seq: FastqSequence,
-  options: QualityOptions,
-  encoding: QualityEncoding
-): FastqSequence | null {
-  if (options.trim !== true) return seq;
-
-  const seqStr = seq.sequence.toString();
-  const qualStr = seq.quality.toString();
-  const threshold = options.trimThreshold ?? 20;
-  const windowSize = options.trimWindow ?? 4;
-  const fromStart = options.trimFromStart ?? true;
-  const fromEnd = options.trimFromEnd ?? true;
-
-  let start = 0;
-  let end = seqStr.length;
-
-  if (fromStart) {
-    start = findQualityTrimStart(qualStr, threshold, windowSize, encoding);
-  }
-  if (fromEnd && start < end) {
-    end = findQualityTrimEnd(qualStr, threshold, windowSize, encoding, start);
-  }
-  if (start >= end) return null;
-
-  if (start === 0 && end === seqStr.length) return seq;
-
-  let result = withSequence(seq, seqStr.slice(start, end));
-  result = withQuality(result, qualStr.slice(start, end));
-  return result;
-}
-
-/**
- * Run the quality average kernel on a batch of (post-trim) sequences,
- * filter by minScore/maxScore, then apply binning to survivors.
+ * Process a batch of sequences through the native trim and avg quality
+ * kernels, then apply binning to survivors.
+ *
+ * Phase 1 (trim): if trim is enabled, pack quality strings and call
+ * `qualityTrimBatch` to get start/end positions. Reconstruct post-trim
+ * sequences, filtering out any that were trimmed to nothing.
+ *
+ * Phase 2 (avg quality): if minScore/maxScore is set, pack the post-trim
+ * quality strings and call `qualityAvgBatch` to filter by score.
+ *
+ * Phase 3 (binning): apply per-sequence binning to survivors.
  */
 function* flushQualityBatch(
   batch: FastqSequence[],
@@ -177,16 +135,63 @@ function* flushQualityBatch(
   options: QualityOptions,
   encoding: QualityEncoding
 ): Iterable<FastqSequence> {
-  const { data, offsets } = packQualityStrings(batch);
   const { offset } = getEncodingInfo(encoding);
-  const averages = kernel.qualityAvgBatch(data, offsets, offset);
 
-  for (let i = 0; i < batch.length; i++) {
-    const avg = averages[i]!;
-    if (options.minScore !== undefined && avg < options.minScore) continue;
-    if (options.maxScore !== undefined && avg > options.maxScore) continue;
+  let candidates: FastqSequence[] = batch;
 
-    yield applyBinning(batch[i]!, options);
+  if (options.trim === true) {
+    const { data, offsets } = packQualityStrings(candidates);
+    const threshold = options.trimThreshold ?? 20;
+    const windowSize = options.trimWindow ?? 4;
+    const fromStart = options.trimFromStart ?? true;
+    const fromEnd = options.trimFromEnd ?? true;
+    const trimPositions = kernel.qualityTrimBatch(
+      data,
+      offsets,
+      offset,
+      threshold,
+      windowSize,
+      fromStart,
+      fromEnd
+    );
+
+    const trimmed: FastqSequence[] = [];
+    for (let i = 0; i < candidates.length; i++) {
+      const start = trimPositions[i * 2]!;
+      const end = trimPositions[i * 2 + 1]!;
+      if (start >= end) continue;
+
+      const seq = candidates[i]!;
+      if (start === 0 && end === seq.sequence.length) {
+        trimmed.push(seq);
+      } else {
+        const seqStr = seq.sequence.toString().slice(start, end);
+        const qualStr = seq.quality.toString().slice(start, end);
+        trimmed.push(withQuality(withSequence(seq, seqStr), qualStr));
+      }
+    }
+    candidates = trimmed;
+  }
+
+  if (candidates.length === 0) return;
+
+  const needsAvgQuality = options.minScore !== undefined || options.maxScore !== undefined;
+
+  if (needsAvgQuality) {
+    const { data, offsets } = packQualityStrings(candidates);
+    const averages = kernel.qualityAvgBatch(data, offsets, offset);
+
+    for (let i = 0; i < candidates.length; i++) {
+      const avg = averages[i]!;
+      if (options.minScore !== undefined && avg < options.minScore) continue;
+      if (options.maxScore !== undefined && avg > options.maxScore) continue;
+
+      yield applyBinning(candidates[i]!, options);
+    }
+  } else {
+    for (const seq of candidates) {
+      yield applyBinning(seq, options);
+    }
   }
 }
 

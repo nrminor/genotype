@@ -39,8 +39,6 @@ export {
   baseComposition,
   baseContent,
   baseCount,
-  findQualityTrimEnd,
-  findQualityTrimStart,
   gcContent,
   SequenceCalculations,
   sequenceAlphabet,

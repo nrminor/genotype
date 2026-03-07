@@ -36,6 +36,9 @@ on:
       - "scripts/*native*"
   workflow_dispatch:
 
+env:
+  RUST_TOOLCHAIN: nightly-2026-03-05
+
 jobs:
   build-native:
     name: Build ${{ matrix.platform }}
@@ -69,7 +72,7 @@ jobs:
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly-2026-03-05
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
           targets: ${{ matrix.target }}
 
       - name: Cache Rust dependencies

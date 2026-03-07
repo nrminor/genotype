@@ -7,6 +7,7 @@ on:
 
 env:
   BUN_VERSION: latest
+  RUST_TOOLCHAIN: nightly-2026-03-05
 
 jobs:
   lint:
@@ -40,7 +41,7 @@ jobs:
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly-2026-03-05
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
           components: clippy, rustfmt
 
       - name: Cache Rust dependencies
@@ -72,8 +73,21 @@ jobs:
         with:
           bun-version: ${{ matrix.bun-version }}
 
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "src/native"
+
       - name: Install dependencies
         run: bun install
+
+      - name: Build native module
+        run: bun run build:native:dev
 
       - name: Run TypeScript tests
         run: bun test
@@ -93,7 +107,7 @@ jobs:
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly-2026-03-05
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
@@ -119,7 +133,7 @@ jobs:
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly-2026-03-05
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
@@ -129,9 +143,8 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      # Comment out native build for now since native module isn't ready
-      # - name: Build native module
-      #   run: bun run build:native
+      - name: Build native module
+        run: bun run build:native:dev
 
       - name: Run full validation suite
         run: bun run validate

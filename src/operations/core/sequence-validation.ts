@@ -441,91 +441,6 @@ export class SequenceValidator {
   }
 
   /**
-   * Validate and clean a sequence in one operation
-   *
-   * @param sequence - The sequence to validate and clean
-   * @param options - Additional options
-   * @returns Validation result with cleaned sequence if validation fails
-   *
-   * @example
-   * ```typescript
-   * const validator = new SequenceValidator(ValidationMode.NORMAL, SequenceType.DNA);
-   * const result = validator.validateAndClean('ATCG123XYZ');
-   *
-   * console.log(result.isValid); // false
-   * console.log(result.cleanedSequence); // 'ATCGNNNNNN'
-   * console.log(result.errors); // ['Sequence contains invalid characters']
-   * ```
-   */
-  validateAndClean(
-    sequence: string,
-    options: { replaceChar?: string; returnCleaned?: boolean } = {}
-  ): {
-    isValid: boolean;
-    originalSequence: string;
-    cleanedSequence?: string;
-    errors: string[];
-    warnings: string[];
-  } {
-    const errors: string[] = [];
-    const warnings: string[] = [];
-    const { replaceChar = "N", returnCleaned = false } = options;
-
-    try {
-      // Validate the original sequence
-      const isValid = this.validate(sequence);
-
-      if (!isValid) {
-        errors.push(
-          `Sequence contains characters not valid for ${this.mode} ${this.type} validation`
-        );
-      }
-
-      // Clean sequence if requested or if validation failed
-      const shouldClean = returnCleaned || !isValid;
-      const result: {
-        isValid: boolean;
-        originalSequence: string;
-        cleanedSequence?: string;
-        errors: string[];
-        warnings: string[];
-      } = {
-        isValid,
-        originalSequence: sequence,
-        errors,
-        warnings,
-      };
-
-      if (shouldClean) {
-        try {
-          const cleaned = this.clean(sequence, replaceChar);
-          result.cleanedSequence = cleaned;
-
-          // Check if cleaning changed the sequence
-          if (cleaned !== sequence && cleaned.includes(replaceChar)) {
-            warnings.push(`Invalid characters replaced with '${replaceChar}'`);
-          }
-        } catch (cleanError) {
-          errors.push(
-            `Failed to clean sequence: ${cleanError instanceof Error ? cleanError.message : String(cleanError)}`
-          );
-        }
-      }
-
-      return result;
-    } catch (error) {
-      errors.push(`Validation error: ${error instanceof Error ? error.message : String(error)}`);
-
-      return {
-        isValid: false,
-        originalSequence: sequence,
-        errors,
-        warnings,
-      };
-    }
-  }
-
-  /**
    * Create a new validator with different settings
    *
    * @param mode - New validation mode (uses current if not specified)
@@ -620,35 +535,6 @@ export class SequenceValidator {
     // Return expansion if found, otherwise return the original base
     return expansionMap[upperBase] || [upperBase];
   }
-}
-
-/**
- * Convenience function to validate and clean a sequence in one operation
- *
- * Creates a temporary validator instance for one-off operations.
- *
- * @param sequence - The sequence to validate and clean
- * @param mode - Validation mode
- * @param type - Sequence type
- * @param options - Additional options
- * @returns Validation result with cleaned sequence if validation fails
- *
- * @deprecated Since 0.2.0 - Use validator instance methods instead
- */
-export function validateAndClean(
-  sequence: string,
-  mode: ValidationMode = "normal",
-  type: SequenceType = "dna",
-  options: { replaceChar?: string; returnCleaned?: boolean } = {}
-): {
-  isValid: boolean;
-  originalSequence: string;
-  cleanedSequence?: string;
-  errors: string[];
-  warnings: string[];
-} {
-  const validator = new SequenceValidator(mode, type);
-  return validator.validateAndClean(sequence, options);
 }
 
 /**

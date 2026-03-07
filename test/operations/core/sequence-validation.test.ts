@@ -6,17 +6,13 @@
  */
 
 import { describe, expect, test } from "bun:test";
-// Import IUPAC constants and utilities from core/sequence-validation
 import {
   detectSequenceType,
+  expandAmbiguous,
   expandAmbiguousSequence,
   IUPAC_DNA,
   IUPAC_PROTEIN,
   IUPAC_RNA,
-  validateAndClean,
-} from "../../../src/operations/core/sequence-validation";
-import {
-  expandAmbiguous,
   SequenceValidator,
 } from "../../../src/operations/core/sequence-validation";
 
@@ -226,50 +222,6 @@ describe("SequenceValidator instance", () => {
     });
   });
 
-  describe("validateAndClean method", () => {
-    test("validates and cleans sequence", () => {
-      const validator = new SequenceValidator("normal", "dna");
-      const result = validator.validateAndClean("ATCG123XYZ");
-
-      expect(result.isValid).toBe(false);
-      expect(result.originalSequence).toBe("ATCG123XYZ");
-      expect(result.cleanedSequence).toBe("ATCGNNNNYN"); // Y is valid IUPAC code, Z is not
-      expect(result.errors).toHaveLength(1);
-      expect(result.warnings).toHaveLength(1);
-    });
-
-    test("handles valid sequences", () => {
-      const validator = new SequenceValidator("normal", "dna");
-      const result = validator.validateAndClean("ATCG");
-
-      expect(result.isValid).toBe(true);
-      expect(result.originalSequence).toBe("ATCG");
-      expect(result.cleanedSequence).toBeUndefined();
-      expect(result.errors).toHaveLength(0);
-      expect(result.warnings).toHaveLength(0);
-    });
-
-    test("returns cleaned sequence when requested", () => {
-      const validator = new SequenceValidator("normal", "dna");
-      const result = validator.validateAndClean("ATCG", {
-        returnCleaned: true,
-      });
-
-      expect(result.isValid).toBe(true);
-      expect(result.cleanedSequence).toBe("ATCG");
-    });
-
-    test("uses custom replacement character", () => {
-      const validator = new SequenceValidator("normal", "dna");
-      const result = validator.validateAndClean("ATCG123", {
-        replaceChar: "X",
-      });
-
-      expect(result.isValid).toBe(false);
-      expect(result.cleanedSequence).toBe("ATCGXXX");
-    });
-  });
-
   describe("withSettings method", () => {
     test("creates new validator with different mode", () => {
       const validator1 = new SequenceValidator("normal", "dna");
@@ -385,31 +337,6 @@ describe("expandAmbiguous (static method)", () => {
       expect(expandAmbiguous(".")).toEqual(["."]);
       expect(expandAmbiguous("*")).toEqual(["*"]);
     });
-  });
-});
-
-describe("validateAndClean function (deprecated)", () => {
-  test("creates temporary validator and uses it", () => {
-    const result = validateAndClean("ATCG123", "normal", "dna");
-
-    expect(result.isValid).toBe(false);
-    expect(result.cleanedSequence).toBe("ATCGNNN"); // 3 digits replaced with N
-  });
-
-  test("uses default parameters", () => {
-    const result = validateAndClean("ATCG");
-
-    expect(result.isValid).toBe(true);
-    expect(result.originalSequence).toBe("ATCG");
-  });
-
-  test("accepts options", () => {
-    const result = validateAndClean("ATCG123", "normal", "dna", {
-      replaceChar: "X",
-      returnCleaned: true,
-    });
-
-    expect(result.cleanedSequence).toBe("ATCGXXX");
   });
 });
 

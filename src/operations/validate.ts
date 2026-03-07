@@ -4,14 +4,23 @@
  * This processor validates sequences against various criteria and
  * can reject, fix, or warn about invalid sequences. All hot paths
  * run through native SIMD kernels (checkValidBatch, replaceInvalidBatch,
- * removeGapsBatch).
+ * classifyBatch, removeGapsBatch).
  */
 
 import { type } from "arktype";
 import { withSequence } from "../constructors";
 import { ValidationError } from "../errors";
 import {
+  CLASS_BDHV,
+  CLASS_N,
+  CLASS_OTHER,
+  CLASS_STRONG,
+  CLASS_T,
+  CLASS_TWO_BASE,
+  CLASS_U,
+  CLASS_WEAK,
   type NativeKernel,
+  NUM_CLASSES,
   getNativeKernel,
   packSequences,
   ValidationMode,
@@ -187,16 +196,112 @@ function* flushValidateBatch(
     }
 
     case "warn": {
-      const flags = kernel.checkValidBatch(data, offsets, mode);
+      const result = kernel.classifyBatch(data, offsets);
       for (let i = 0; i < batch.length; i++) {
-        if (flags[i] !== 1) {
-          console.warn(`Invalid sequence: ${batch[i]!.id}`);
+        const base = i * NUM_CLASSES;
+        if (!isValidForMode(result.counts, base, mode)) {
+          const seqLen = offsets[i + 1]! - offsets[i]!;
+          console.warn(formatValidationDiagnostic(
+            batch[i]!.id, result.counts, base, mode, seqLen,
+          ));
         }
         yield sequenceFromBatch(batch[i]!, data, offsets, i, stripGaps);
       }
       break;
     }
   }
+}
+
+/**
+ * Determine whether a sequence is valid for the given mode using
+ * classify counts. This mirrors the logic of `checkValidBatch` but
+ * works from the 12-class histogram that `classifyBatch` already
+ * computed, avoiding a second kernel call in the warn path.
+ */
+function isValidForMode(counts: number[], base: number, mode: ValidationMode): boolean {
+  if (counts[base + CLASS_OTHER]! > 0) return false;
+
+  if (mode === ValidationMode.NormalDna) return true;
+
+  if (counts[base + CLASS_T]! > 0
+    && (mode === ValidationMode.NormalRna || mode === ValidationMode.StrictRna)) {
+    return false;
+  }
+
+  if (mode === ValidationMode.NormalRna) return true;
+
+  const ambig = counts[base + CLASS_N]!
+    + counts[base + CLASS_STRONG]!
+    + counts[base + CLASS_WEAK]!
+    + counts[base + CLASS_TWO_BASE]!
+    + counts[base + CLASS_BDHV]!;
+  if (ambig > 0) return false;
+
+  if (mode === ValidationMode.StrictDna && counts[base + CLASS_U]! > 0) return false;
+
+  return true;
+}
+
+/**
+ * Build a diagnostic message for an invalid sequence from its classify
+ * counts. Reports each category of invalidity with counts and
+ * actionable suggestions where applicable.
+ */
+function formatValidationDiagnostic(
+  seqId: string,
+  counts: number[],
+  base: number,
+  mode: ValidationMode,
+  seqLength: number,
+): string {
+  const t     = counts[base + CLASS_T]!;
+  const u     = counts[base + CLASS_U]!;
+  const n     = counts[base + CLASS_N]!;
+  const s     = counts[base + CLASS_STRONG]!;
+  const w     = counts[base + CLASS_WEAK]!;
+  const tb    = counts[base + CLASS_TWO_BASE]!;
+  const bdhv  = counts[base + CLASS_BDHV]!;
+  const other = counts[base + CLASS_OTHER]!;
+
+  const problems: string[] = [];
+  let invalidCount = 0;
+
+  if (mode === ValidationMode.StrictDna && u > 0) {
+    invalidCount += u;
+    problems.push(`${u} uracil (U) base${u > 1 ? "s" : ""} (did you mean sequenceType: "rna"?)`);
+  }
+
+  if ((mode === ValidationMode.StrictRna || mode === ValidationMode.NormalRna) && t > 0) {
+    invalidCount += t;
+    problems.push(`${t} thymine (T) base${t > 1 ? "s" : ""} (did you mean sequenceType: "dna"?)`);
+  }
+
+  if (mode === ValidationMode.StrictDna || mode === ValidationMode.StrictRna) {
+    const ambig = n + s + w + tb + bdhv;
+    if (ambig > 0) {
+      invalidCount += ambig;
+      problems.push(
+        `${ambig} IUPAC ambiguity code${ambig > 1 ? "s" : ""} (did you mean allowAmbiguous: true?)`
+      );
+    }
+  }
+
+  if (other > 0) {
+    invalidCount += other;
+    if (other > seqLength * 0.5) {
+      problems.push(`${other} unrecognized character${other > 1 ? "s" : ""} (sequence may not be nucleotide data)`);
+    } else {
+      problems.push(`${other} unrecognized character${other > 1 ? "s" : ""}`);
+    }
+  }
+
+  const modeLabel = mode === ValidationMode.StrictDna ? "strict DNA"
+    : mode === ValidationMode.StrictRna ? "strict RNA"
+    : mode === ValidationMode.NormalDna ? "DNA"
+    : "RNA";
+
+  const pct = ((invalidCount / seqLength) * 100).toFixed(1);
+  return `Sequence "${seqId}" (${seqLength} bp): ${problems.join(", ")} — ${invalidCount} of ${seqLength} bases (${pct}%) invalid for ${modeLabel} validation`;
 }
 
 /**

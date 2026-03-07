@@ -2,7 +2,7 @@
  * Tests for SeqOps - main fluent interface for sequence operations
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import "../matchers";
 import { promises as fs } from "fs";
 import { tmpdir } from "os";
@@ -1659,6 +1659,155 @@ describe("SeqOps", () => {
       // Validate with 'reject' filters out invalid sequences rather than throwing
       expect(results).toHaveLength(1);
       expect(results[0]?.id).toBe("seq1");
+    });
+
+    test("warn action yields all sequences and emits diagnostics for invalid ones", async () => {
+      const sequences = [
+        createSequence("valid", "ATCG"),
+        createSequence("has_junk", "ATCG123"),
+      ];
+
+      const warnings: string[] = [];
+      const warnSpy = spyOn(console, "warn").mockImplementation((msg: string) => {
+        warnings.push(msg);
+      });
+
+      const results = await seqops(toAsync(sequences))
+        .validate({ sequenceType: "dna", allowAmbiguous: false, action: "warn" })
+        .collect();
+
+      warnSpy.mockRestore();
+
+      expect(results).toHaveLength(2);
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain("has_junk");
+      expect(warnings[0]).toContain("unrecognized character");
+    });
+
+    test("warn diagnostic suggests sequenceType: rna when uracil found in strict DNA", async () => {
+      const sequences = [createSequence("rna_in_dna", "ACGU")];
+
+      const warnings: string[] = [];
+      const warnSpy = spyOn(console, "warn").mockImplementation((msg: string) => {
+        warnings.push(msg);
+      });
+
+      const results = await seqops(toAsync(sequences))
+        .validate({ sequenceType: "dna", allowAmbiguous: false, action: "warn" })
+        .collect();
+
+      warnSpy.mockRestore();
+
+      expect(results).toHaveLength(1);
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain("uracil (U)");
+      expect(warnings[0]).toContain('sequenceType: "rna"');
+    });
+
+    test("warn diagnostic suggests allowAmbiguous when IUPAC codes found in strict mode", async () => {
+      const sequences = [createSequence("has_ambig", "ATCGRYSWN")];
+
+      const warnings: string[] = [];
+      const warnSpy = spyOn(console, "warn").mockImplementation((msg: string) => {
+        warnings.push(msg);
+      });
+
+      const results = await seqops(toAsync(sequences))
+        .validate({ sequenceType: "dna", allowAmbiguous: false, action: "warn" })
+        .collect();
+
+      warnSpy.mockRestore();
+
+      expect(results).toHaveLength(1);
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain("IUPAC ambiguity code");
+      expect(warnings[0]).toContain("allowAmbiguous: true");
+    });
+
+    test("warn diagnostic suggests sequenceType: dna when thymine found in RNA mode", async () => {
+      const sequences = [createSequence("dna_in_rna", "ACGT")];
+
+      const warnings: string[] = [];
+      const warnSpy = spyOn(console, "warn").mockImplementation((msg: string) => {
+        warnings.push(msg);
+      });
+
+      const results = await seqops(toAsync(sequences))
+        .validate({ sequenceType: "rna", action: "warn" })
+        .collect();
+
+      warnSpy.mockRestore();
+
+      expect(results).toHaveLength(1);
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain("thymine (T)");
+      expect(warnings[0]).toContain('sequenceType: "dna"');
+    });
+
+    test("warn diagnostic reports percentage of invalid bases", async () => {
+      // 5 of 8 characters are junk (>50%), triggering the "may not be nucleotide" hint
+      const sequences = [createSequence("mostly_bad", "ATG12345")];
+
+      const warnings: string[] = [];
+      const warnSpy = spyOn(console, "warn").mockImplementation((msg: string) => {
+        warnings.push(msg);
+      });
+
+      const results = await seqops(toAsync(sequences))
+        .validate({ sequenceType: "dna", allowAmbiguous: false, action: "warn" })
+        .collect();
+
+      warnSpy.mockRestore();
+
+      expect(results).toHaveLength(1);
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain("5 of 8 bases");
+      expect(warnings[0]).toContain("62.5%");
+      expect(warnings[0]).toContain("sequence may not be nucleotide data");
+    });
+
+    test("warn emits no diagnostics for valid sequences", async () => {
+      const sequences = [
+        createSequence("ok1", "ATCG"),
+        createSequence("ok2", "GCTA"),
+      ];
+
+      const warnings: string[] = [];
+      const warnSpy = spyOn(console, "warn").mockImplementation((msg: string) => {
+        warnings.push(msg);
+      });
+
+      const results = await seqops(toAsync(sequences))
+        .validate({ sequenceType: "dna", allowAmbiguous: true, action: "warn" })
+        .collect();
+
+      warnSpy.mockRestore();
+
+      expect(results).toHaveLength(2);
+      expect(warnings).toHaveLength(0);
+    });
+
+    test("warn diagnostic reports multiple problem categories", async () => {
+      // Sequence with both U (wrong nucleotide type for strict DNA) and junk characters
+      const sequences = [createSequence("multi_problem", "ATCGU12N")];
+
+      const warnings: string[] = [];
+      const warnSpy = spyOn(console, "warn").mockImplementation((msg: string) => {
+        warnings.push(msg);
+      });
+
+      const results = await seqops(toAsync(sequences))
+        .validate({ sequenceType: "dna", allowAmbiguous: false, action: "warn" })
+        .collect();
+
+      warnSpy.mockRestore();
+
+      expect(results).toHaveLength(1);
+      expect(warnings).toHaveLength(1);
+      // Should mention all three categories: uracil, ambiguity codes, and unrecognized
+      expect(warnings[0]).toContain("uracil (U)");
+      expect(warnings[0]).toContain("IUPAC ambiguity code");
+      expect(warnings[0]).toContain("unrecognized character");
     });
 
     test("handles errors in forEach", async () => {

@@ -16,8 +16,29 @@
 
 import { type } from "arktype";
 import { SequenceError, ValidationError } from "../errors";
+import {
+  type NativeKernel,
+  getNativeKernel,
+  packSequences,
+  NUM_CLASSES,
+  CLASS_A,
+  CLASS_T,
+  CLASS_U,
+  CLASS_G,
+  CLASS_C,
+  CLASS_N,
+  CLASS_STRONG,
+  CLASS_WEAK,
+  CLASS_TWO_BASE,
+  CLASS_BDHV,
+  CLASS_GAP,
+  CLASS_OTHER,
+} from "../native";
 import type { AbstractSequence, FASTXSequence, FastqSequence, QualityEncoding } from "../types";
 import { charToScore } from "./core/quality";
+
+/** Byte budget per native batch. Sequences accumulate until this threshold. */
+const BATCH_BYTE_BUDGET = 4 * 1024 * 1024;
 
 /**
  * Comprehensive sequence statistics result
@@ -266,13 +287,35 @@ export class SequenceStatsCalculator {
     };
     const accumulator = this.createAccumulator();
 
+    const useKernel =
+      opts.gapChars === this.defaultOptions.gapChars &&
+      opts.ambiguousChars === this.defaultOptions.ambiguousChars;
+    const nativeKernel = useKernel ? getNativeKernel() : undefined;
+
     try {
-      // Process sequences and accumulate statistics
+      let batch: AbstractSequence[] = [];
+      let batchBytes = 0;
+
       for await (const sequence of sequences) {
-        this.processSequence(sequence, accumulator, opts);
+        this.processSequenceBookkeeping(sequence, accumulator, opts);
+
+        if (nativeKernel !== undefined) {
+          batch.push(sequence);
+          batchBytes += sequence.sequence.length;
+          if (batchBytes >= BATCH_BYTE_BUDGET) {
+            flushClassifyBatch(batch, nativeKernel, accumulator, opts.includeComposition);
+            batch = [];
+            batchBytes = 0;
+          }
+        } else {
+          this.analyzeComposition(sequence.sequence.toString(), accumulator, opts);
+        }
       }
 
-      // Calculate final statistics from accumulated data
+      if (nativeKernel !== undefined && batch.length > 0) {
+        flushClassifyBatch(batch, nativeKernel, accumulator, opts.includeComposition);
+      }
+
       return this.finalizeStatistics(accumulator, opts);
     } catch (error) {
       throw new SequenceError(
@@ -422,44 +465,32 @@ export class SequenceStatsCalculator {
   }
 
   /**
-   * Process a single sequence and update accumulator
-   * @private
+   * Process per-sequence bookkeeping that doesn't touch sequence content.
    *
-   * @optimize NATIVE_CANDIDATE - HOT LOOP FOR BASE COMPOSITION
-   * - Character-by-character iteration for counting
-   * - SIMD: Population count instructions for base composition
-   * - Parallel accumulation of multiple statistics
-   * - Expected speedup: 20-40x
+   * Length stats, format detection, and quality scoring are cheap and stay
+   * per-sequence. Composition analysis is handled separately — either by
+   * the batched classify kernel or by the TS analyzeComposition fallback.
+   * @private
    */
-  private processSequence(
+  private processSequenceBookkeeping(
     sequence: AbstractSequence | FASTXSequence,
     accumulator: StatsAccumulator,
     options: {
       detailed: boolean;
-      includeComposition: boolean;
-      gapChars: string;
-      ambiguousChars: string;
       includeQuality: boolean;
     }
   ): void {
-    // Update count and length statistics
     accumulator.count++;
     accumulator.totalLength += sequence.length;
     accumulator.minLength = Math.min(accumulator.minLength, sequence.length);
     accumulator.maxLength = Math.max(accumulator.maxLength, sequence.length);
 
-    // Store length for N50 calculation if detailed stats requested
     if (options.detailed) {
       accumulator.lengths.push(sequence.length);
     }
 
-    // Analyze sequence composition
-    this.analyzeComposition(sequence.sequence.toString(), accumulator, options);
-
-    // Detect format and type
     this.detectFormat(sequence, accumulator);
 
-    // Process quality if FASTQ
     if (this.isFastqSequence(sequence) && options.includeQuality) {
       this.processQuality(sequence, accumulator);
     }
@@ -710,6 +741,85 @@ export class SequenceStatsCalculator {
       sequence.quality !== undefined &&
       sequence.qualityEncoding !== undefined
     );
+  }
+}
+
+/**
+ * Pack a batch of sequences, run the classify kernel, and fold the
+ * 12-class counts into the stats accumulator.
+ */
+function flushClassifyBatch(
+  batch: AbstractSequence[],
+  kernel: NativeKernel,
+  accumulator: StatsAccumulator,
+  includeComposition: boolean
+): void {
+  const { data, offsets } = packSequences(batch);
+  const result = kernel.classifyBatch(data, offsets);
+  const counts = result.counts;
+
+  for (let i = 0; i < batch.length; i++) {
+    const base = i * NUM_CLASSES;
+    const a = counts[base + CLASS_A]!;
+    const t = counts[base + CLASS_T]!;
+    const u = counts[base + CLASS_U]!;
+    const g = counts[base + CLASS_G]!;
+    const c = counts[base + CLASS_C]!;
+    const n = counts[base + CLASS_N]!;
+    const s = counts[base + CLASS_STRONG]!;
+    const w = counts[base + CLASS_WEAK]!;
+    const tb = counts[base + CLASS_TWO_BASE]!;
+    const bdhv = counts[base + CLASS_BDHV]!;
+    const gap = counts[base + CLASS_GAP]!;
+    const other = counts[base + CLASS_OTHER]!;
+
+    accumulator.gcCount += g + c;
+    accumulator.atCount += a + t + u;
+    accumulator.gapCount += gap;
+    accumulator.ambiguousCount += n + s + w + tb + bdhv;
+
+    if (u > 0) accumulator.hasRNA = true;
+
+    if (other > 0 && !accumulator.hasProtein) {
+      scanForProtein(batch[i]!, accumulator);
+    }
+
+    if (includeComposition) {
+      accumulator.baseComposition.A += a;
+      accumulator.baseComposition.T += t;
+      accumulator.baseComposition.G += g;
+      accumulator.baseComposition.C += c;
+      accumulator.baseComposition.U += u;
+      accumulator.baseComposition.N += n;
+      accumulator.baseComposition.other += s + w + tb + bdhv + gap + other;
+    }
+  }
+}
+
+/**
+ * Scan a sequence's raw bytes for protein-specific amino acid letters.
+ *
+ * Only called when the classify kernel reports non-zero Other count for a
+ * sequence, which means it contains bytes outside the nucleotide+IUPAC+gap
+ * alphabet. This function checks for E, F, I, L, P, Q — the amino acids
+ * that are NOT also IUPAC nucleotide ambiguity codes. Early-exits on the
+ * first match.
+ */
+function scanForProtein(seq: AbstractSequence, accumulator: StatsAccumulator): void {
+  const bytes = seq.sequence.toBytes();
+  for (let i = 0; i < bytes.length; i++) {
+    const upper = bytes[i]! & ~0x20;
+    if (
+      upper === 0x45 ||
+      upper === 0x46 ||
+      upper === 0x49 ||
+      upper === 0x4c ||
+      upper === 0x50 ||
+      upper === 0x51
+    ) {
+      accumulator.hasProtein = true;
+      return;
+    }
   }
 }
 

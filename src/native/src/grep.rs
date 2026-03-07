@@ -525,6 +525,26 @@ mod tests {
     }
 
     #[test]
+    fn find_n_in_sequence_matches_any_pattern_base() {
+        // N means "unknown base" — the Iupac profile correctly treats it
+        // as matching any pattern base with cost 0. This means a region
+        // of N's will produce matches wherever the sliding window fits.
+        let mut seq = b"ATCGATCGATCGATCG".to_vec();
+        seq.extend(std::iter::repeat_n(b'N', 84));
+        let matches = find(&seq, b"ATCGATCGATCGATCG", 0);
+        assert!(
+            matches.len() > 1,
+            "N region should produce multiple matches, got {}",
+            matches.len()
+        );
+        assert_eq!(
+            matches[0],
+            (0, 16, 0),
+            "first match should be the exact primer at position 0"
+        );
+    }
+
+    #[test]
     fn find_context_reuse_across_sequences() {
         let mut ctx = SearchContext::new_with_positions(b"GATC", 0, false);
 

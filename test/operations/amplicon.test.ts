@@ -420,7 +420,7 @@ describe("AmpliconProcessor", () => {
     test("windowed search performance: skips middle of long reads", async () => {
       const veryLongSequence = createFasta(
         "nanopore_read",
-        "ATCGATCGATCGATCG" + "N".repeat(10000) + "CGATCGATCGATCGAT"
+        "ATCGATCGATCGATCG" + "T".repeat(10000) + "CGATCGATCGATCGAT"
       );
 
       const efficientOptions = {
@@ -645,7 +645,7 @@ describe("AmpliconProcessor", () => {
     test("all features work together: canonical + windowed + flanking", async () => {
       const nanoporeSequence = createFasta(
         "nanopore_integration_test",
-        "ACCAGGAACTAATCAGACAAG" + "N".repeat(5000) + "CTTGTCTGATTAGTTCCTGGT"
+        "ACCAGGAACTAATCAGACAAG" + "T".repeat(5000) + "CTTGTCTGATTAGTTCCTGGT"
       );
 
       const ultimateOptions = {

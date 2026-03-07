@@ -32,11 +32,17 @@
 
 import { type } from "arktype";
 import { ValidationError } from "../errors";
-import type { GenotypeString } from "../genotype-string";
 import type { AbstractSequence, PrimerSequence } from "../types";
+import {
+  type NativeKernel,
+  type PackedBatch,
+  type PatternSearchResult,
+  getNativeKernel,
+  packStrings,
+} from "../native";
 import { isPrimerSequence } from "./core/alphabet";
 import { parseEndPosition, parseStartPosition, validateRegionString } from "./core/coordinates";
-import { findPatternWithMismatches, type PatternMatch } from "./core/pattern-matching";
+import type { PatternMatch } from "./core/pattern-matching";
 import { reverseComplement } from "./core/sequence-manipulation";
 import { IUPAC_DNA } from "./core/sequence-validation";
 import type { AmpliconOptions, Processor } from "./types";
@@ -113,6 +119,28 @@ const AmpliconOptionsSchema = type({
   };
 });
 
+/** Byte budget per native batch. Sequences accumulate until this threshold. */
+const BATCH_BYTE_BUDGET = 4 * 1024 * 1024;
+
+/** A search job describes one kernel call: one pattern against one packed buffer. */
+interface SearchJob {
+  /** The primer bytes to search for. */
+  pattern: Buffer;
+  /** Which packed buffer to search against. */
+  target: "forward" | "reverse";
+  /** Whether this job searches the original or reverse-complement orientation. */
+  orientation: "as-provided" | "canonical";
+  /** The original primer string (for building PatternMatch objects). */
+  primerString: string;
+}
+
+/** Per-sequence metadata accumulated during a batch. */
+interface BatchEntry {
+  sequence: AbstractSequence;
+  forwardWindowStart: number;
+  reverseWindowStart: number;
+}
+
 /**
  * Result of matching a primer pair within a sequence
  */
@@ -139,526 +167,504 @@ interface CanonicalPatternMatch<T extends string = string> extends PatternMatch<
 /**
  * Processor for extracting amplicons via primer sequences
  *
- * Follows established processor pattern with enhanced type safety through
- * branded primer types and generic pattern matching integration.
+ * Primer search is batched across sequences using the native SIMD kernel.
+ * Sequences accumulate until the byte budget is reached, then the batch
+ * is flushed: windowed regions are packed into buffers, 2-4 kernel calls
+ * search all sequences at once, and results are distributed back to
+ * per-sequence pairing and extraction.
  */
 export class AmpliconProcessor implements Processor<AmpliconOptions> {
   async *process(
     source: AsyncIterable<AbstractSequence>,
     options: AmpliconOptions
   ): AsyncIterable<AbstractSequence> {
-    // Validate options and brand primers using ArkType schema
     const validOptions = AmpliconOptionsSchema(options);
     if (validOptions instanceof type.errors) {
       throw new ValidationError(`Invalid amplicon options: ${validOptions.summary}`);
     }
 
-    // Process each sequence with type-safe primers
-    for await (const sequence of source) {
-      const amplicons = this.findAmplicons(sequence, validOptions);
-      yield* this.extractAmplicons(sequence, amplicons, validOptions);
+    const kernel = getNativeKernel();
+    if (kernel === undefined) {
+      throw new ValidationError(
+        "Native kernel is required for amplicon operations but could not be loaded"
+      );
+    }
+
+    const useCanonical = shouldUseCanonicalSearch(validOptions);
+    const searchJobs = buildSearchJobs(validOptions, useCanonical);
+    const maxMismatches = validOptions.maxMismatches ?? 0;
+
+    let batch: BatchEntry[] = [];
+    let batchBytes = 0;
+
+    for await (const seq of source) {
+      batch.push({
+        sequence: seq,
+        forwardWindowStart: computeWindowStart(seq, "forward", validOptions),
+        reverseWindowStart: computeWindowStart(seq, "reverse", validOptions),
+      });
+      batchBytes += seq.sequence.length;
+
+      if (batchBytes >= BATCH_BYTE_BUDGET) {
+        yield* flushAmpliconBatch(
+          batch,
+          kernel,
+          validOptions,
+          searchJobs,
+          useCanonical,
+          maxMismatches
+        );
+        batch = [];
+        batchBytes = 0;
+      }
+    }
+
+    if (batch.length > 0) {
+      yield* flushAmpliconBatch(
+        batch,
+        kernel,
+        validOptions,
+        searchJobs,
+        useCanonical,
+        maxMismatches
+      );
     }
   }
+}
 
-  /**
-   * Find primer pair matches within a sequence
-   * Supports canonical matching, windowed search, and standard PCR workflows
-   */
-  private findAmplicons(
-    sequence: AbstractSequence,
-    options: AmpliconOptions & { forwardPrimer: PrimerSequence; reversePrimer?: PrimerSequence }
-  ): AmpliconMatch[] {
-    // Determine search strategy using smart auto-detection
-    const useCanonical = this.shouldUseCanonicalSearch(options);
+/**
+ * Process a batch of sequences through the native pattern search kernel.
+ *
+ * Packs windowed regions into two buffers (forward and reverse), runs
+ * 2-4 kernel calls (one per search job), distributes CSR results back
+ * to per-sequence match arrays, then runs per-sequence pairing and
+ * extraction.
+ */
+function* flushAmpliconBatch(
+  batch: BatchEntry[],
+  kernel: NativeKernel,
+  options: AmpliconOptions & { forwardPrimer: PrimerSequence; reversePrimer?: PrimerSequence },
+  searchJobs: SearchJob[],
+  useCanonical: boolean,
+  maxMismatches: number
+): Iterable<AbstractSequence> {
+  const forwardPacked = packWindowedRegions(batch, "forward", options);
+  const reversePacked = packWindowedRegions(batch, "reverse", options);
 
-    // Use enhanced windowed/canonical search for performance and accuracy
-    const { forwardMatches, reverseMatches } = this.findPrimersInWindows(
-      sequence,
-      options,
+  const jobResults = new Map<SearchJob, PatternSearchResult>();
+  for (const job of searchJobs) {
+    const packed = job.target === "forward" ? forwardPacked : reversePacked;
+    const result = kernel.findPatternBatch(
+      packed.data,
+      packed.offsets,
+      job.pattern,
+      maxMismatches,
+      false
+    );
+    jobResults.set(job, result);
+  }
+
+  const forwardJobs = searchJobs.filter((j) => j.target === "forward");
+  const reverseJobs = searchJobs.filter((j) => j.target === "reverse");
+
+  for (let i = 0; i < batch.length; i++) {
+    const entry = batch[i]!;
+
+    const forwardMatches = gatherMatches(
+      forwardJobs,
+      jobResults,
+      i,
+      entry.forwardWindowStart,
+      entry.sequence,
       useCanonical
     );
 
-    // Pair primers with appropriate validation logic
+    const reverseMatches = gatherMatches(
+      reverseJobs,
+      jobResults,
+      i,
+      entry.reverseWindowStart,
+      entry.sequence,
+      useCanonical
+    );
+
+    let amplicons: AmpliconMatch[];
     if (useCanonical) {
-      return this.pairCanonicalMatches(
+      amplicons = pairCanonicalMatches(
         forwardMatches as CanonicalPatternMatch[],
         reverseMatches as CanonicalPatternMatch[]
       );
     } else {
-      return this.pairPrimers(forwardMatches as PatternMatch[], reverseMatches as PatternMatch[]);
+      amplicons = pairPrimers(forwardMatches as PatternMatch[], reverseMatches as PatternMatch[]);
     }
+
+    yield* extractAmplicons(entry.sequence, amplicons, options);
   }
+}
 
-  /**
-   * Pair forward and reverse primer matches with biological validation
-   */
-  private pairPrimers<TForward extends string, TReverse extends string>(
-    forwardMatches: PatternMatch<TForward>[],
-    reverseMatches: PatternMatch<TReverse>[]
-  ): AmpliconMatch<TForward, TReverse>[] {
-    const pairs: AmpliconMatch<TForward, TReverse>[] = [];
+/**
+ * Build the list of search jobs for a run. Each job is one kernel call
+ * per batch: one pattern against one packed buffer.
+ *
+ * Standard mode: 2 jobs (forward primer on forward buffer, RC of reverse
+ * primer on reverse buffer). Canonical mode: 4 jobs (each primer searched
+ * as-is and as RC).
+ */
+function buildSearchJobs(
+  options: AmpliconOptions & { forwardPrimer: PrimerSequence; reversePrimer?: PrimerSequence },
+  useCanonical: boolean
+): SearchJob[] {
+  const reversePrimer = (options.reversePrimer ?? options.forwardPrimer) as string;
+  const forwardPrimer = options.forwardPrimer as string;
+  const jobs: SearchJob[] = [];
 
-    for (const forward of forwardMatches) {
-      for (const reverse of reverseMatches) {
-        if (this.isValidPrimerPair(forward, reverse)) {
-          pairs.push({
-            forwardMatch: forward,
-            reverseMatch: reverse,
-            ampliconStart: forward.position + forward.length,
-            ampliconEnd: reverse.position,
-            ampliconLength: reverse.position - (forward.position + forward.length),
-            totalMismatches: forward.mismatches + reverse.mismatches,
-          });
-        }
-      }
-    }
-
-    // Sort by fewest mismatches, then by longest amplicon (addressing seqkit limitation)
-    return pairs.sort((a, b) => {
-      if (a.totalMismatches !== b.totalMismatches) {
-        return a.totalMismatches - b.totalMismatches;
-      }
-      return b.ampliconLength - a.ampliconLength;
+  if (useCanonical) {
+    jobs.push({
+      pattern: Buffer.from(forwardPrimer, "latin1"),
+      target: "forward",
+      orientation: "as-provided",
+      primerString: forwardPrimer,
+    });
+    jobs.push({
+      pattern: Buffer.from(reverseComplement(forwardPrimer), "latin1"),
+      target: "forward",
+      orientation: "canonical",
+      primerString: forwardPrimer,
+    });
+    jobs.push({
+      pattern: Buffer.from(reversePrimer, "latin1"),
+      target: "reverse",
+      orientation: "as-provided",
+      primerString: reversePrimer,
+    });
+    jobs.push({
+      pattern: Buffer.from(reverseComplement(reversePrimer), "latin1"),
+      target: "reverse",
+      orientation: "canonical",
+      primerString: reversePrimer,
+    });
+  } else {
+    jobs.push({
+      pattern: Buffer.from(forwardPrimer, "latin1"),
+      target: "forward",
+      orientation: "as-provided",
+      primerString: forwardPrimer,
+    });
+    jobs.push({
+      pattern: Buffer.from(reverseComplement(reversePrimer), "latin1"),
+      target: "reverse",
+      orientation: "as-provided",
+      primerString: reversePrimer,
     });
   }
 
-  /**
-   * Validate primer pair geometry and biological constraints
-   */
-  private isValidPrimerPair(forward: PatternMatch, reverse: PatternMatch): boolean {
-    // Forward must be upstream of reverse
-    if (forward.position >= reverse.position) return false;
+  return jobs;
+}
 
-    // Minimum amplicon length (biological constraint)
-    const ampliconLength = reverse.position - (forward.position + forward.length);
-    if (ampliconLength < 1) return false; // Must have some sequence between primers
-
-    // Maximum amplicon length (typical PCR constraints)
-    if (ampliconLength > 10000) return false; // 10kb is practical PCR limit
-
-    return true;
+/**
+ * Compute the coordinate offset for a windowed search region.
+ *
+ * For the forward window (start of sequence), the offset is always 0.
+ * For the reverse window (end of sequence), the offset is the number
+ * of bases before the window starts. When no window is configured,
+ * the offset is 0 (full sequence search).
+ */
+function computeWindowStart(
+  seq: AbstractSequence,
+  side: "forward" | "reverse",
+  options: AmpliconOptions
+): number {
+  if (side === "reverse" && options.searchWindow?.reverse) {
+    return Math.max(0, seq.sequence.length - options.searchWindow.reverse);
   }
+  return 0;
+}
 
-  /**
-   * Extract amplicon sequences with coordinate system integration
-   */
-  private extractAmplicons(
-    sequence: AbstractSequence,
-    matches: AmpliconMatch[],
-    options: AmpliconOptions
-  ): AbstractSequence[] {
-    return matches.map((match, index) => {
-      let start: number, end: number;
+/**
+ * Pack the windowed search regions for one side (forward or reverse)
+ * from all sequences in a batch.
+ *
+ * When a search window is configured, packs only the windowed slice.
+ * Otherwise packs the full sequence. Uses {@link packStrings} for the
+ * actual buffer construction.
+ */
+function packWindowedRegions(
+  batch: BatchEntry[],
+  side: "forward" | "reverse",
+  options: AmpliconOptions
+): PackedBatch {
+  const strings: string[] = new Array(batch.length);
+  for (let i = 0; i < batch.length; i++) {
+    const seq = batch[i]!.sequence.sequence;
+    if (side === "forward" && options.searchWindow?.forward) {
+      strings[i] = seq.slice(0, options.searchWindow.forward).toString();
+    } else if (side === "reverse" && options.searchWindow?.reverse) {
+      strings[i] = seq.slice(-options.searchWindow.reverse).toString();
+    } else {
+      strings[i] = seq.toString();
+    }
+  }
+  return packStrings(strings);
+}
 
-      if (options.region) {
-        // Use existing coordinate parsing infrastructure
-        const hasNegativeIndices = false;
-        const regionStart = parseStartPosition(
-          options.region,
-          sequence.length,
-          true,
-          hasNegativeIndices
-        );
-        const regionEnd = parseEndPosition(
-          options.region,
-          sequence.length,
-          true,
-          hasNegativeIndices
-        );
+/**
+ * Extract per-sequence matches from CSR results across multiple search
+ * jobs, adjusting coordinates by the window offset and converting to
+ * the `PatternMatch` / `CanonicalPatternMatch` interfaces.
+ */
+function gatherMatches(
+  jobs: SearchJob[],
+  results: Map<SearchJob, PatternSearchResult>,
+  seqIndex: number,
+  windowStart: number,
+  sequence: AbstractSequence,
+  useCanonical: boolean
+): PatternMatch[] | CanonicalPatternMatch[] {
+  const matches: (PatternMatch | CanonicalPatternMatch)[] = [];
 
-        if (options.flanking) {
-          // Flanking regions: relative to primer boundaries (include primers)
-          start = Math.max(0, match.forwardMatch.position + regionStart.value);
-          end = Math.min(
-            sequence.length,
-            match.reverseMatch.position + match.reverseMatch.length + regionEnd.value
-          );
-        } else {
-          // Inner regions: relative to amplicon boundaries (between primers)
-          start = Math.max(0, match.ampliconStart + regionStart.value);
-          end = Math.min(sequence.length, match.ampliconEnd + regionEnd.value);
-        }
-      } else {
-        // Default behavior
-        if (options.flanking) {
-          // Include primers in output (seqkit --flanking-region behavior)
-          start = match.forwardMatch.position;
-          end = match.reverseMatch.position + match.reverseMatch.length;
-        } else {
-          // Inner amplicon only (current default behavior)
-          start = match.ampliconStart;
-          end = match.ampliconEnd;
-        }
-      }
+  for (const job of jobs) {
+    const csr = results.get(job)!;
+    const rangeStart = csr.matchOffsets[seqIndex]!;
+    const rangeEnd = csr.matchOffsets[seqIndex + 1]!;
 
-      // Extract amplicon sequence with metadata
-      const ampliconSequence = sequence.sequence.slice(start, end);
-      const description = this.createAmpliconDescription(match, options);
+    for (let m = rangeStart; m < rangeEnd; m++) {
+      const start = csr.starts[m]! + windowStart;
+      const end = csr.ends[m]! + windowStart;
+      const cost = csr.costs[m]!;
+      const length = end - start;
+      const matched = sequence.sequence.slice(start, end).toString();
 
-      return {
-        ...sequence,
-        id: `${sequence.id}_amplicon_${index + 1}`,
-        sequence: ampliconSequence,
-        length: ampliconSequence.length,
-        description: description,
+      const base: PatternMatch = {
+        position: start,
+        length,
+        mismatches: cost,
+        matched,
+        pattern: job.primerString,
       };
-    });
-  }
 
-  /**
-   * Pair canonical matches with orientation-aware validation
-   *
-   * More permissive than standard PCR since primer orientation is flexible
-   * in BED-extracted scenarios. Validates biological constraints while
-   * allowing various orientation combinations.
-   *
-   * @param forwardMatches - Forward primer matches with orientation info
-   * @param reverseMatches - Reverse primer matches with orientation info
-   * @returns Valid amplicon matches with canonical metadata
-   */
-  private pairCanonicalMatches(
-    forwardMatches: CanonicalPatternMatch[],
-    reverseMatches: CanonicalPatternMatch[]
-  ): AmpliconMatch[] {
-    const pairs: AmpliconMatch[] = [];
-
-    for (const forward of forwardMatches) {
-      for (const reverse of reverseMatches) {
-        if (this.isValidCanonicalPair(forward, reverse)) {
-          pairs.push(this.createCanonicalAmpliconMatch(forward, reverse));
-        }
+      if (useCanonical) {
+        matches.push({
+          ...base,
+          strand: job.orientation === "canonical" ? ("-" as const) : ("+" as const),
+          isCanonical: job.orientation === "canonical",
+          matchedOrientation:
+            job.orientation === "canonical" ? ("canonical" as const) : ("forward" as const),
+        });
+      } else {
+        matches.push(base);
       }
     }
-
-    return this.sortAmpliconsByQuality(pairs);
   }
 
-  /**
-   * Validate canonical primer pair geometry and orientation
-   * More flexible than standard PCR constraints for BED-extracted primers
-   */
-  private isValidCanonicalPair(
-    forward: CanonicalPatternMatch,
-    reverse: CanonicalPatternMatch
-  ): boolean {
-    // Basic geometric constraints
-    if (forward.position >= reverse.position) return false;
+  return matches.sort((a, b) => a.position - b.position) as
+    | PatternMatch[]
+    | CanonicalPatternMatch[];
+}
 
-    const ampliconLength = reverse.position - (forward.position + forward.length);
-    if (ampliconLength < 1 || ampliconLength > 10000) return false;
-
-    // Canonical matching is more permissive about orientation
-    // since primers from BED coordinates may be in any orientation
+/**
+ * Determine search strategy based on primer usage patterns.
+ *
+ * Single primer or identical primers → canonical matching (unknown
+ * target orientation). Different primers → standard PCR (known design).
+ */
+function shouldUseCanonicalSearch(options: AmpliconOptions): boolean {
+  if (options.canonical !== undefined) {
+    return options.canonical;
+  }
+  if (!options.reversePrimer) {
     return true;
   }
-
-  /**
-   * Create amplicon match with canonical orientation metadata
-   */
-  private createCanonicalAmpliconMatch(
-    forward: CanonicalPatternMatch,
-    reverse: CanonicalPatternMatch
-  ): AmpliconMatch {
-    return {
-      forwardMatch: forward,
-      reverseMatch: reverse,
-      ampliconStart: forward.position + forward.length,
-      ampliconEnd: reverse.position,
-      ampliconLength: reverse.position - (forward.position + forward.length),
-      totalMismatches: forward.mismatches + reverse.mismatches,
-    };
+  if (options.forwardPrimer === options.reversePrimer) {
+    return true;
   }
+  return false;
+}
 
-  /**
-   * Sort amplicons by biological relevance and quality
-   *
-   * Prioritizes matches with fewer mismatches, then prefers non-canonical
-   * orientations (exact matches), then longer amplicons.
-   *
-   * @param amplicons - Array of amplicon matches to sort
-   * @returns Sorted amplicons with best matches first
-   */
-  private sortAmpliconsByQuality(amplicons: AmpliconMatch[]): AmpliconMatch[] {
-    return amplicons.sort((a, b) => {
-      // Fewest total mismatches first (biological accuracy)
-      if (a.totalMismatches !== b.totalMismatches) {
-        return a.totalMismatches - b.totalMismatches;
+/** Pair forward and reverse primer matches with biological validation. */
+function pairPrimers(
+  forwardMatches: PatternMatch[],
+  reverseMatches: PatternMatch[]
+): AmpliconMatch[] {
+  const pairs: AmpliconMatch[] = [];
+
+  for (const forward of forwardMatches) {
+    for (const reverse of reverseMatches) {
+      if (isValidPrimerPair(forward, reverse)) {
+        pairs.push({
+          forwardMatch: forward,
+          reverseMatch: reverse,
+          ampliconStart: forward.position + forward.length,
+          ampliconEnd: reverse.position,
+          ampliconLength: reverse.position - (forward.position + forward.length),
+          totalMismatches: forward.mismatches + reverse.mismatches,
+        });
       }
+    }
+  }
 
-      // For canonical matches, prefer exact orientation over reverse complement
-      const aCanonicalCount = this.countCanonicalOrientations(a);
-      const bCanonicalCount = this.countCanonicalOrientations(b);
+  return pairs.sort((a, b) => {
+    if (a.totalMismatches !== b.totalMismatches) {
+      return a.totalMismatches - b.totalMismatches;
+    }
+    return b.ampliconLength - a.ampliconLength;
+  });
+}
 
-      if (aCanonicalCount !== bCanonicalCount) {
-        return aCanonicalCount - bCanonicalCount; // Fewer RC matches first
+/** Validate primer pair geometry and biological constraints. */
+function isValidPrimerPair(forward: PatternMatch, reverse: PatternMatch): boolean {
+  if (forward.position >= reverse.position) return false;
+  const ampliconLength = reverse.position - (forward.position + forward.length);
+  if (ampliconLength < 1) return false;
+  if (ampliconLength > 10000) return false;
+  return true;
+}
+
+/** Pair canonical matches with orientation-aware validation. */
+function pairCanonicalMatches(
+  forwardMatches: CanonicalPatternMatch[],
+  reverseMatches: CanonicalPatternMatch[]
+): AmpliconMatch[] {
+  const pairs: AmpliconMatch[] = [];
+
+  for (const forward of forwardMatches) {
+    for (const reverse of reverseMatches) {
+      if (isValidCanonicalPair(forward, reverse)) {
+        pairs.push({
+          forwardMatch: forward,
+          reverseMatch: reverse,
+          ampliconStart: forward.position + forward.length,
+          ampliconEnd: reverse.position,
+          ampliconLength: reverse.position - (forward.position + forward.length),
+          totalMismatches: forward.mismatches + reverse.mismatches,
+        });
       }
-
-      // Longest amplicons first (more informative)
-      return b.ampliconLength - a.ampliconLength;
-    });
+    }
   }
 
-  /**
-   * Count how many primers matched in canonical (reverse complement) orientation
-   */
-  private countCanonicalOrientations(match: AmpliconMatch): number {
-    let canonicalCount = 0;
+  return sortAmpliconsByQuality(pairs);
+}
 
-    // Check if forward match is canonical (if it has orientation info)
-    if ("isCanonical" in match.forwardMatch && match.forwardMatch.isCanonical) {
-      canonicalCount++;
+function isValidCanonicalPair(
+  forward: CanonicalPatternMatch,
+  reverse: CanonicalPatternMatch
+): boolean {
+  if (forward.position >= reverse.position) return false;
+  const ampliconLength = reverse.position - (forward.position + forward.length);
+  if (ampliconLength < 1 || ampliconLength > 10000) return false;
+  return true;
+}
+
+function sortAmpliconsByQuality(amplicons: AmpliconMatch[]): AmpliconMatch[] {
+  return amplicons.sort((a, b) => {
+    if (a.totalMismatches !== b.totalMismatches) {
+      return a.totalMismatches - b.totalMismatches;
     }
-
-    // Check if reverse match is canonical (if it has orientation info)
-    if ("isCanonical" in match.reverseMatch && match.reverseMatch.isCanonical) {
-      canonicalCount++;
+    const aCanonical = countCanonicalOrientations(a);
+    const bCanonical = countCanonicalOrientations(b);
+    if (aCanonical !== bCanonical) {
+      return aCanonical - bCanonical;
     }
+    return b.ampliconLength - a.ampliconLength;
+  });
+}
 
-    return canonicalCount;
-  }
+function countCanonicalOrientations(match: AmpliconMatch): number {
+  let count = 0;
+  if ("isCanonical" in match.forwardMatch && match.forwardMatch.isCanonical) count++;
+  if ("isCanonical" in match.reverseMatch && match.reverseMatch.isCanonical) count++;
+  return count;
+}
 
-  /**
-   * Find pattern matches in both orientations (canonical matching)
-   *
-   * Essential for BED-extracted primers where orientation is unknown.
-   * Searches for both the pattern as-provided and its reverse complement.
-   *
-   * @param sequence - Text to search in
-   * @param pattern - Pattern to search (will search both orientations)
-   * @param maxMismatches - Maximum allowed mismatches
-   * @returns Matches with orientation metadata preserving original pattern type
-   */
-  private findCanonicalMatches<T extends string>(
-    sequence: GenotypeString | string,
-    pattern: T,
-    maxMismatches: number
-  ): CanonicalPatternMatch<T>[] {
-    const allMatches: CanonicalPatternMatch<T>[] = [];
+/** Extract amplicon sequences with coordinate system integration. */
+function extractAmplicons(
+  sequence: AbstractSequence,
+  matches: AmpliconMatch[],
+  options: AmpliconOptions
+): AbstractSequence[] {
+  return matches.map((match, index) => {
+    let start: number, end: number;
 
-    // Search pattern as-provided (forward orientation)
-    const forwardMatches = findPatternWithMismatches(sequence, pattern, maxMismatches, false);
-    allMatches.push(
-      ...forwardMatches.map((match) => ({
-        ...match,
-        strand: "+" as const,
-        isCanonical: false,
-        matchedOrientation: "forward" as const,
-      }))
-    );
+    if (options.region) {
+      const hasNegativeIndices = false;
+      const regionStart = parseStartPosition(
+        options.region,
+        sequence.length,
+        true,
+        hasNegativeIndices
+      );
+      const regionEnd = parseEndPosition(options.region, sequence.length, true, hasNegativeIndices);
 
-    // Search reverse complement (canonical orientation)
-    const rcPattern = reverseComplement(pattern);
-    const reverseMatches = findPatternWithMismatches(sequence, rcPattern, maxMismatches, false);
-
-    // Preserve original pattern type while noting canonical matching
-    const canonicalMatches = reverseMatches.map((match) => ({
-      ...match,
-      pattern: pattern, // ✅ Keep original pattern type
-      strand: "-" as const,
-      isCanonical: true,
-      matchedOrientation: "canonical" as const,
-      actualMatchedSequence: match.matched, // What actually matched (RC)
-    }));
-
-    allMatches.push(...canonicalMatches);
-    return allMatches.sort((a, b) => a.position - b.position);
-  }
-
-  /**
-   * Determine search strategy based on primer usage patterns
-   *
-   * Provides invisible intelligence that "just works" for common scenarios:
-   * - Single primer → canonical matching (unknown target orientation)
-   * - Identical primers → canonical matching (likely BED-extracted)
-   * - Different primers → standard PCR (known design)
-   *
-   * @param options - Amplicon options to analyze
-   * @returns True if canonical matching should be used
-   */
-  private shouldUseCanonicalSearch(options: AmpliconOptions): boolean {
-    // Explicit override takes precedence (progressive disclosure)
-    if (options.canonical !== undefined) {
-      return options.canonical;
-    }
-
-    // Auto-detection logic for common scenarios
-
-    // Single primer: canonical matching makes biological sense
-    if (!options.reversePrimer) {
-      return true;
-    }
-
-    // Identical primers: likely BED-extracted or symmetric amplification
-    if (options.forwardPrimer === options.reversePrimer) {
-      return true;
-    }
-
-    // Different primers: standard PCR workflow (current behavior)
-    return false;
-  }
-
-  /**
-   * High-performance windowed primer search for long reads
-   *
-   * Reduces search space from entire read to terminal regions, providing
-   * massive performance improvements for PacBio/Nanopore workflows.
-   *
-   * @param sequence - Sequence to search in
-   * @param options - Amplicon options with window specifications
-   * @returns Forward and reverse matches with global coordinates
-   */
-  private findPrimersInWindows(
-    sequence: AbstractSequence,
-    options: AmpliconOptions & {
-      forwardPrimer: PrimerSequence;
-      reversePrimer?: PrimerSequence;
-    },
-    useCanonical: boolean = false
-  ): {
-    forwardMatches: PatternMatch[] | CanonicalPatternMatch[];
-    reverseMatches: PatternMatch[] | CanonicalPatternMatch[];
-  } {
-    let forwardMatches: PatternMatch[] | CanonicalPatternMatch[] = [];
-    let reverseMatches: PatternMatch[] | CanonicalPatternMatch[] = [];
-
-    const reversePrimer = options.reversePrimer || options.forwardPrimer;
-
-    if (options.searchWindow) {
-      // Forward primer: search beginning of sequence
-      if (options.searchWindow.forward) {
-        const forwardWindow = sequence.sequence.slice(0, options.searchWindow.forward);
-        forwardMatches = useCanonical
-          ? this.findCanonicalMatches(
-              forwardWindow,
-              options.forwardPrimer,
-              options.maxMismatches || 0
-            )
-          : findPatternWithMismatches(
-              forwardWindow,
-              options.forwardPrimer,
-              options.maxMismatches || 0,
-              false
-            );
-      }
-
-      // Reverse primer: search end of sequence
-      if (options.searchWindow.reverse) {
-        const reverseWindow = sequence.sequence.slice(-options.searchWindow.reverse);
-        const windowStart = sequence.sequence.length - options.searchWindow.reverse;
-
-        let windowMatches: PatternMatch[] | CanonicalPatternMatch[];
-
-        if (useCanonical) {
-          // Canonical: search reverse primer in both orientations
-          windowMatches = this.findCanonicalMatches(
-            reverseWindow,
-            reversePrimer,
-            options.maxMismatches || 0
-          );
-        } else {
-          // Standard PCR: search reverse complement of reverse primer
-          const searchPattern = reverseComplement(reversePrimer) as PrimerSequence;
-          windowMatches = findPatternWithMismatches(
-            reverseWindow,
-            searchPattern,
-            options.maxMismatches || 0,
-            false
-          );
-        }
-
-        // Adjust positions to global coordinates
-        reverseMatches = windowMatches.map((match) => ({
-          ...match,
-          position: match.position + windowStart,
-        }));
+      if (options.flanking) {
+        start = Math.max(0, match.forwardMatch.position + regionStart.value);
+        end = Math.min(
+          sequence.length,
+          match.reverseMatch.position + match.reverseMatch.length + regionEnd.value
+        );
+      } else {
+        start = Math.max(0, match.ampliconStart + regionStart.value);
+        end = Math.min(sequence.length, match.ampliconEnd + regionEnd.value);
       }
     } else {
-      // Full sequence search
-      if (useCanonical) {
-        forwardMatches = this.findCanonicalMatches(
-          sequence.sequence,
-          options.forwardPrimer,
-          options.maxMismatches || 0
-        );
-        reverseMatches = this.findCanonicalMatches(
-          sequence.sequence,
-          reversePrimer,
-          options.maxMismatches || 0
-        );
+      if (options.flanking) {
+        start = match.forwardMatch.position;
+        end = match.reverseMatch.position + match.reverseMatch.length;
       } else {
-        // Standard PCR search (current behavior)
-        forwardMatches = findPatternWithMismatches(
-          sequence.sequence,
-          options.forwardPrimer,
-          options.maxMismatches || 0,
-          false
-        );
-        const searchPattern = reverseComplement(reversePrimer) as PrimerSequence;
-        reverseMatches = findPatternWithMismatches(
-          sequence.sequence,
-          searchPattern,
-          options.maxMismatches || 0,
-          false
-        );
+        start = match.ampliconStart;
+        end = match.ampliconEnd;
       }
     }
 
-    return { forwardMatches, reverseMatches };
+    const ampliconSequence = sequence.sequence.slice(start, end);
+    const description = createAmpliconDescription(match, options);
+
+    return {
+      ...sequence,
+      id: `${sequence.id}_amplicon_${index + 1}`,
+      sequence: ampliconSequence,
+      length: ampliconSequence.length,
+      description: description,
+    };
+  });
+}
+
+/** Create descriptive metadata for amplicon sequences. */
+function createAmpliconDescription(match: AmpliconMatch, options: AmpliconOptions): string {
+  const regionType = options.flanking ? "flanking" : "inner";
+  let description = `Amplicon ${regionType} ${match.ampliconStart}-${match.ampliconEnd} (${match.ampliconLength}bp)`;
+
+  if (options.flanking) {
+    description += ` [includes primers: ${match.forwardMatch.position}-${match.forwardMatch.position + match.forwardMatch.length}, ${match.reverseMatch.position}-${match.reverseMatch.position + match.reverseMatch.length}]`;
   }
 
-  /**
-   * Create descriptive metadata for amplicon sequences
-   */
-  private createAmpliconDescription(match: AmpliconMatch, options: AmpliconOptions): string {
-    const regionType = options.flanking ? "flanking" : "inner";
-    let description = `Amplicon ${regionType} ${match.ampliconStart}-${match.ampliconEnd} (${match.ampliconLength}bp)`;
-
-    // Primer position information for flanking regions
-    if (options.flanking) {
-      description += ` [includes primers: ${match.forwardMatch.position}-${match.forwardMatch.position + match.forwardMatch.length}, ${match.reverseMatch.position}-${match.reverseMatch.position + match.reverseMatch.length}]`;
-    }
-
-    // Mismatch information for debugging
-    if (options.outputMismatches) {
-      description += ` [${match.totalMismatches} mismatches: forward=${match.forwardMatch.mismatches}, reverse=${match.reverseMatch.mismatches}]`;
-    }
-
-    // Canonical matching information (for BED-extracted primers)
-    if (this.hasCanonicalMatches(match)) {
-      const forwardOrientation = this.getMatchOrientation(match.forwardMatch);
-      const reverseOrientation = this.getMatchOrientation(match.reverseMatch);
-      description += ` [orientations: forward=${forwardOrientation}, reverse=${reverseOrientation}]`;
-    }
-
-    // Performance optimization information
-    if (options.searchWindow) {
-      const windowInfo = [];
-      if (options.searchWindow.forward)
-        windowInfo.push(`forward=${options.searchWindow.forward}bp`);
-      if (options.searchWindow.reverse)
-        windowInfo.push(`reverse=${options.searchWindow.reverse}bp`);
-      description += ` [windowed search: ${windowInfo.join(", ")}]`;
-    }
-
-    return description;
+  if (options.outputMismatches) {
+    description += ` [${match.totalMismatches} mismatches: forward=${match.forwardMatch.mismatches}, reverse=${match.reverseMatch.mismatches}]`;
   }
 
-  /**
-   * Check if amplicon match contains canonical orientation information
-   */
-  private hasCanonicalMatches(match: AmpliconMatch): boolean {
-    return "isCanonical" in match.forwardMatch || "isCanonical" in match.reverseMatch;
+  if (hasCanonicalMatches(match)) {
+    const forwardOrientation = getMatchOrientation(match.forwardMatch);
+    const reverseOrientation = getMatchOrientation(match.reverseMatch);
+    description += ` [orientations: forward=${forwardOrientation}, reverse=${reverseOrientation}]`;
   }
 
-  /**
-   * Get orientation description for match metadata
-   */
-  private getMatchOrientation(match: PatternMatch | CanonicalPatternMatch): string {
-    if ("isCanonical" in match) {
-      return match.isCanonical ? "canonical" : "as-provided";
-    }
-    return "standard";
+  if (options.searchWindow) {
+    const windowInfo = [];
+    if (options.searchWindow.forward) windowInfo.push(`forward=${options.searchWindow.forward}bp`);
+    if (options.searchWindow.reverse) windowInfo.push(`reverse=${options.searchWindow.reverse}bp`);
+    description += ` [windowed search: ${windowInfo.join(", ")}]`;
   }
+
+  return description;
+}
+
+function hasCanonicalMatches(match: AmpliconMatch): boolean {
+  return "isCanonical" in match.forwardMatch || "isCanonical" in match.reverseMatch;
+}
+
+function getMatchOrientation(match: PatternMatch | CanonicalPatternMatch): string {
+  if ("isCanonical" in match) {
+    return match.isCanonical ? "canonical" : "as-provided";
+  }
+  return "standard";
 }
 
 /**

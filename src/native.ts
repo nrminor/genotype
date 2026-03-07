@@ -4,6 +4,7 @@ import type { AbstractSequence, FastqSequence } from "./types";
  * The native kernel interface. Each function here corresponds to a
  * `#[napi]` export from the Rust crate in `src/native/`.
  */
+
 /** The result of a batch transform operation from the native kernel. */
 export interface TransformResult {
   /** Transformed sequence bytes, contiguous in a single Buffer. */
@@ -91,6 +92,25 @@ export const enum ValidationMode {
   Protein = "Protein",
 }
 
+/**
+ * CSR-style result for variable-length pattern match results.
+ *
+ * Each sequence produces zero or more matches. `matchOffsets` has length
+ * `numSequences + 1`, and the matches for sequence `i` are at indices
+ * `matchOffsets[i]..matchOffsets[i+1]` in the `starts`, `ends`, and
+ * `costs` arrays.
+ */
+export interface PatternSearchResult {
+  /** Match start positions (0-based, inclusive). */
+  starts: number[];
+  /** Match end positions (0-based, exclusive). */
+  ends: number[];
+  /** Edit distance costs for each match. */
+  costs: number[];
+  /** CSR offset array of length numSequences + 1. */
+  matchOffsets: number[];
+}
+
 export interface NativeKernel {
   /** Search a batch of sequences for a pattern within a given edit distance. */
   grepBatch(
@@ -101,6 +121,30 @@ export interface NativeKernel {
     caseInsensitive: boolean,
     searchBothStrands: boolean
   ): Buffer;
+
+  /**
+   * Find all pattern matches with positions and edit distances in a batch
+   * of sequences.
+   *
+   * Uses the Iupac profile (forward-only) with traceback enabled, so IUPAC
+   * degenerate bases are handled correctly and exact match start positions
+   * are computed. The caller handles orientation by making separate calls
+   * with the original and reverse-complement patterns.
+   *
+   * @param sequences - Concatenated sequence bytes
+   * @param offsets - N+1 offset array into the sequences buffer
+   * @param pattern - Pattern to search for
+   * @param maxEdits - Maximum edit distance
+   * @param caseInsensitive - Whether to ignore case (Iupac profile is inherently case-insensitive)
+   * @returns CSR-style result with match positions and costs
+   */
+  findPatternBatch(
+    sequences: Buffer,
+    offsets: Uint32Array,
+    pattern: Buffer,
+    maxEdits: number,
+    caseInsensitive: boolean
+  ): PatternSearchResult;
 
   /**
    * Apply a length-preserving byte-level transformation to every sequence
@@ -306,6 +350,40 @@ export function packQualityStrings(sequences: readonly FastqSequence[]): PackedB
   let totalBytes = 0;
   for (let i = 0; i < count; i++) {
     const bytes = sequences[i]!.quality.toBytes();
+    chunks[i] = bytes;
+    offsets[i] = totalBytes;
+    totalBytes += bytes.length;
+  }
+  offsets[count] = totalBytes;
+
+  const data = Buffer.allocUnsafe(totalBytes);
+  for (let i = 0; i < count; i++) {
+    data.set(chunks[i]!, offsets[i]!);
+  }
+
+  return { data, offsets };
+}
+
+/**
+ * Pack an array of raw strings into the contiguous batch layout that
+ * Rust kernel functions expect.
+ *
+ * Unlike {@link packSequences} which reads `.sequence` from
+ * `AbstractSequence` objects, this packs arbitrary strings — useful
+ * for packing windowed subsequences that have already been sliced
+ * in TypeScript.
+ *
+ * @param strings - The strings to pack (encoded as latin1 bytes)
+ * @returns The packed batch layout
+ */
+export function packStrings(strings: readonly string[]): PackedBatch {
+  const count = strings.length;
+  const offsets = new Uint32Array(count + 1);
+
+  const chunks: Uint8Array[] = new Array(count);
+  let totalBytes = 0;
+  for (let i = 0; i < count; i++) {
+    const bytes = Buffer.from(strings[i]!, "latin1");
     chunks[i] = bytes;
     offsets[i] = totalBytes;
     totalBytes += bytes.length;

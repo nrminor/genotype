@@ -95,7 +95,6 @@ export {
   findOverlapping,
   findPalindromes,
   findPattern,
-  findPatternWithMismatches,
   findSimplePattern,
   findTandemRepeats,
   fuzzyMatch,
@@ -107,11 +106,8 @@ export {
   type MatcherOptions,
   matchWithAmbiguous,
   type PatternMatch,
-  // Legacy compatibility
-  PatternMatcher,
   rabinKarp,
   type SequenceMatch,
-  // High-level class
   SequenceMatcher,
 } from "./pattern-matching";
 // Quality score encoding detection and conversion

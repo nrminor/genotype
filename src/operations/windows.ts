@@ -5,6 +5,7 @@
 import { type } from "arktype";
 import { createKmerRecord } from "../constructors";
 import { ValidationError } from "../errors";
+import { GenotypeString } from "../genotype-string";
 import type { AbstractSequence, KmerSequence } from "../types";
 import type { Processor, WindowOptions } from "./types";
 
@@ -149,13 +150,9 @@ export class WindowsProcessor<K extends number = number> implements Processor<Wi
     const length = source.sequence.length;
 
     // Extract sequence (handle wrapping for circular mode)
-    let seq: string;
-    if (isWrapped) {
-      seq =
-        source.sequence.slice(start).toString() + source.sequence.slice(0, end - length).toString();
-    } else {
-      seq = source.sequence.slice(start, end).toString();
-    }
+    const seq = isWrapped
+      ? GenotypeString.concat(source.sequence.slice(start), source.sequence.slice(0, end - length))
+      : source.sequence.slice(start, end);
 
     // Calculate display coordinates
     const displayStart = zeroBased ? start : start + 1;

@@ -56,6 +56,7 @@
  */
 
 import { createFastaRecord, createFastqRecord } from "../../constructors";
+import { Bases } from "../../genotype-string";
 import type { AbstractSequence, FastqSequence, QualityEncoding } from "../../types";
 import { ExternalSorter } from "./memory";
 import { calculateAverageQuality } from "./quality";
@@ -455,7 +456,11 @@ export class SequenceSorter {
   }
 
   private getGCContent(seq: AbstractSequence): number {
-    const gcCount = (seq.sequence.match(/[GCgc]/g) || []).length;
+    const upper = seq.sequence.toUpperCase();
+    let gcCount = 0;
+    for (let i = 0; i < upper.length; i++) {
+      if (upper.isAnyOf(i, Bases.GC)) gcCount++;
+    }
     return gcCount / seq.sequence.length;
   }
 

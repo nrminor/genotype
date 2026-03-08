@@ -1,5 +1,5 @@
 // GenotypeString — dual-representation string type for sequence/quality data
-export { GenotypeString } from "./genotype-string";
+export { GenotypeString, CharSet, Bases } from "./genotype-string";
 // Record constructors and immutable update helpers
 export {
   type BamAlignmentInput,

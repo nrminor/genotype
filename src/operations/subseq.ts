@@ -16,6 +16,7 @@
 
 import { type } from "arktype";
 import { SequenceError, ValidationError } from "../errors";
+import { GenotypeString } from "../genotype-string";
 import { BedParser } from "../formats/bed";
 import { type GtfFeature, GtfParser } from "../formats/gtf";
 import type { AbstractSequence, BedInterval, FastqSequence } from "../types";
@@ -533,14 +534,16 @@ export class SubseqExtractor {
     region: ParsedRegion,
     options: SubseqOptions
   ): T | null {
-    const upstreamSeq = sequence.sequence
-      .slice(Math.max(0, region.start - (options.upstream ?? 0)), region.start)
-      .toString();
-    const downstreamSeq = sequence.sequence
-      .slice(region.end, Math.min(sequence.length, region.end + (options.downstream ?? 0)))
-      .toString();
+    const upstream = sequence.sequence.slice(
+      Math.max(0, region.start - (options.upstream ?? 0)),
+      region.start
+    );
+    const downstream = sequence.sequence.slice(
+      region.end,
+      Math.min(sequence.length, region.end + (options.downstream ?? 0))
+    );
 
-    const subseq = upstreamSeq + downstreamSeq;
+    const subseq = GenotypeString.concat(upstream, downstream);
     if (subseq.length === 0) {
       return null;
     }
@@ -557,22 +560,19 @@ export class SubseqExtractor {
     sequence: T,
     coords: ParsedRegion,
     options: SubseqOptions
-  ): string {
-    // Handle circular sequences
-    let subseq: string;
+  ): GenotypeString | string {
+    let subseq: GenotypeString;
     if (options.circular === true && coords.start >= coords.end) {
-      // Wrap around for circular sequences
-      subseq =
-        sequence.sequence.slice(coords.start).toString() +
-        sequence.sequence.slice(0, coords.end).toString();
+      subseq = GenotypeString.concat(
+        sequence.sequence.slice(coords.start),
+        sequence.sequence.slice(0, coords.end)
+      );
     } else {
-      // Normal extraction
-      subseq = sequence.sequence.slice(coords.start, coords.end).toString();
+      subseq = sequence.sequence.slice(coords.start, coords.end);
     }
 
-    // Handle strand if specified
     if (options.strand === "-") {
-      subseq = reverseComplement(subseq);
+      return reverseComplement(subseq);
     }
 
     return subseq;
@@ -584,18 +584,19 @@ export class SubseqExtractor {
    */
   private createExtractedSequence<T extends AbstractSequence>(
     original: T,
-    subseq: string,
+    subseq: GenotypeString | string,
     region: ParsedRegion,
     options: SubseqOptions
   ): T {
     const newId = this.buildSequenceId(original.id, region, options);
     const quality = this.extractQualityScores(original, region, options);
+    const seq = GenotypeString.fromString(subseq);
 
     return {
       ...original,
       id: newId,
-      sequence: subseq,
-      length: subseq.length,
+      sequence: seq,
+      length: seq.length,
       ...(quality !== undefined && { quality }),
     } as T;
   }

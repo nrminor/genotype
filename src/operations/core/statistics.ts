@@ -6,6 +6,7 @@
  */
 
 import type { AbstractSequence, QualityEncoding } from "../../types";
+import { Bases } from "../../genotype-string";
 import { charToScore } from "./quality";
 
 /**
@@ -99,17 +100,12 @@ export class SequenceStatsAccumulator {
     }
 
     // Update base composition
-    const seq = sequence.sequence.toString().toUpperCase();
-    for (let i = 0; i < seq.length; i++) {
-      const base = seq[i];
-      if (base !== undefined && base !== null && base !== "") {
-        this.baseCount[base] =
-          (this.baseCount[base] !== undefined &&
-          this.baseCount[base] !== null &&
-          this.baseCount[base] !== 0
-            ? this.baseCount[base]
-            : 0) + 1;
-        if (base === "G" || base === "C" || base === "S") {
+    const upper = sequence.sequence.toUpperCase();
+    for (let i = 0; i < upper.length; i++) {
+      const base = upper.charAt(i);
+      if (base !== "") {
+        this.baseCount[base] = (this.baseCount[base] ?? 0) + 1;
+        if (upper.isAnyOf(i, Bases.Strong)) {
           this.gcCount++;
         }
       }

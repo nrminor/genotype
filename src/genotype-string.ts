@@ -23,6 +23,115 @@
 const textEnc = new TextEncoder();
 const textDec = new TextDecoder("utf-8");
 
+/**
+ * A 256-bit lookup table for O(1) ASCII character membership testing.
+ *
+ * CharSet stores one bit per possible byte value (0–255) in a compact
+ * 32-byte Uint8Array. Membership tests are a single array lookup and
+ * bit mask — no hashing, no branching, no string allocation.
+ *
+ * Use the {@link from} factory to create a CharSet from a string of
+ * characters. For common nucleotide groupings, use the pre-built sets
+ * in {@link Bases} instead of constructing your own.
+ *
+ * @example
+ * ```typescript
+ * const vowels = CharSet.from("AEIOU");
+ * vowels.has(0x41);  // true ('A')
+ * vowels.has(0x42);  // false ('B')
+ *
+ * // With GenotypeString:
+ * const gs = GenotypeString.fromString("ATCG");
+ * gs.isAnyOf(0, vowels);  // true (position 0 is 'A')
+ * ```
+ */
+export class CharSet {
+  /** @internal */
+  readonly bits: Uint8Array;
+
+  private constructor(bits: Uint8Array) {
+    this.bits = bits;
+  }
+
+  /**
+   * Creates a CharSet containing all characters in the given string.
+   *
+   * Each character's ASCII code point sets the corresponding bit in the
+   * internal 256-bit table. Duplicate characters are harmless.
+   */
+  static from(chars: string): CharSet {
+    const bits = new Uint8Array(32);
+    for (let i = 0; i < chars.length; i++) {
+      const code = chars.charCodeAt(i);
+      bits[code >> 3]! |= 1 << (code & 7);
+    }
+    return new CharSet(bits);
+  }
+
+  /**
+   * Returns whether the given byte value is a member of this set.
+   *
+   * @param code - An ASCII code point (0–255)
+   */
+  has(code: number): boolean {
+    return ((this.bits[code >> 3] ?? 0) & (1 << (code & 7))) !== 0;
+  }
+}
+
+/**
+ * Pre-built {@link CharSet} constants for common nucleotide groupings.
+ *
+ * These follow IUPAC nomenclature for nucleic acid ambiguity codes. Use
+ * them with {@link GenotypeString.isAnyOf} for efficient positional
+ * character classification without string conversion.
+ *
+ * @example
+ * ```typescript
+ * const gs = GenotypeString.fromString("ATCGRYN");
+ * for (let i = 0; i < gs.length; i++) {
+ *   if (gs.isAnyOf(i, Bases.Strong)) {
+ *     // G, C, or S at this position
+ *   }
+ * }
+ * ```
+ */
+export const Bases = {
+  /** The four canonical DNA bases: A, C, G, T */
+  DNA: CharSet.from("ACGT"),
+  /** The four canonical RNA bases: A, C, G, U */
+  RNA: CharSet.from("ACGU"),
+  /** All five canonical bases (DNA + RNA): A, C, G, T, U */
+  Canonical: CharSet.from("ACGTU"),
+
+  /** Purines (double-ring): A, G, and the ambiguity code R */
+  Purine: CharSet.from("AGR"),
+  /** Pyrimidines (single-ring): C, T, U, and the ambiguity code Y */
+  Pyrimidine: CharSet.from("CTUY"),
+  /** Strong bases (3 hydrogen bonds): G, C, and the ambiguity code S */
+  Strong: CharSet.from("GCS"),
+  /** Weak bases (2 hydrogen bonds): A, T, U, and the ambiguity code W */
+  Weak: CharSet.from("ATUW"),
+  /** Amino group bases: A, C, and the ambiguity code M */
+  Amino: CharSet.from("ACM"),
+  /** Keto group bases: G, T, U, and the ambiguity code K */
+  Keto: CharSet.from("GTUK"),
+
+  /** Two-fold ambiguity codes: R, Y, S, W, K, M */
+  TwoFold: CharSet.from("RYSWKM"),
+  /** Three-fold ambiguity codes: B, D, H, V */
+  ThreeFold: CharSet.from("BDHV"),
+  /** All ambiguity codes including N: R, Y, S, W, K, M, B, D, H, V, N */
+  Ambiguous: CharSet.from("RYSWKMBDHVN"),
+
+  /** Gap and stop characters: -, ., * */
+  Gap: CharSet.from("-.*"),
+
+  /** Alias for Strong — G, C, S (commonly used in GC content calculations) */
+  GC: CharSet.from("GCS"),
+  /** Alias for Weak — A, T, U, W (commonly used in AT content calculations) */
+  AT: CharSet.from("ATUW"),
+} as const;
+
 /** Unexported symbols for library-internal mutable access. */
 const kMutableBytes: unique symbol = Symbol("GenotypeString.mutableBytes");
 const kSetBytes: unique symbol = Symbol("GenotypeString.setBytes");
@@ -108,6 +217,60 @@ export class GenotypeString {
   }
 
   /**
+   * Creates a new GenotypeString by concatenating multiple parts.
+   *
+   * When all parts are bytes-backed GenotypeStrings, the concatenation is
+   * performed entirely in byte-land — one Uint8Array is allocated at the
+   * total length and each part is copied in. No string conversion occurs.
+   *
+   * Accepts any mix of GenotypeString and plain string arguments.
+   *
+   * @example
+   * ```typescript
+   * const a = GenotypeString.fromString("ATCG");
+   * const b = GenotypeString.fromString("NNNN");
+   * const c = GenotypeString.fromString("GCTA");
+   * const joined = GenotypeString.concat(a, b, c);
+   * // GenotypeString("ATCGNNNNGCTA")
+   *
+   * // Also works with plain strings:
+   * GenotypeString.concat(a, "NNNN", c);
+   * ```
+   */
+  static concat(...parts: (GenotypeString | string)[]): GenotypeString {
+    if (parts.length === 0) {
+      return new GenotypeString({ kind: "string", value: "" });
+    }
+    if (parts.length === 1) {
+      const p = parts[0]!;
+      return p instanceof GenotypeString ? p : GenotypeString.fromString(p);
+    }
+
+    let totalLength = 0;
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i]!;
+      totalLength += p.length;
+    }
+
+    const result = new Uint8Array(totalLength);
+    let offset = 0;
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i]!;
+      if (p instanceof GenotypeString) {
+        const bytes = p.#ensureBytes();
+        result.set(bytes, offset);
+        offset += bytes.length;
+      } else {
+        const bytes = textEnc.encode(p);
+        result.set(bytes, offset);
+        offset += bytes.length;
+      }
+    }
+
+    return new GenotypeString({ kind: "bytes", value: result });
+  }
+
+  /**
    * The number of characters (or bytes) in the content.
    *
    * For ASCII content this is the same regardless of internal representation.
@@ -127,6 +290,17 @@ export class GenotypeString {
       return this.#repr.value.includes(pattern);
     }
     return byteIncludes(this.#repr.value, textEnc.encode(pattern));
+  }
+
+  /**
+   * Alias for {@link includes}. Returns whether the content contains the
+   * given substring.
+   *
+   * This name follows the convention used by Rust's `str::contains` and
+   * Python's `in` operator. Functionally identical to `includes`.
+   */
+  contains(pattern: string): boolean {
+    return this.includes(pattern);
   }
 
   /**
@@ -185,6 +359,46 @@ export class GenotypeString {
       kind: "bytes",
       value: this.#repr.value.slice(s, e),
     });
+  }
+
+  /**
+   * Returns a new GenotypeString with the content repeated the given number
+   * of times.
+   *
+   * Follows the same semantics as {@link String.prototype.repeat}. When the
+   * data is in byte form, the repetition is performed by allocating a single
+   * Uint8Array and copying the source bytes into each segment.
+   *
+   * @param count - The number of times to repeat (must be non-negative and finite)
+   *
+   * @example
+   * ```typescript
+   * const gs = GenotypeString.fromString("N");
+   * gs.repeat(5).toString();  // "NNNNN"
+   *
+   * const qual = GenotypeString.fromString("I");
+   * qual.repeat(100);  // 100-character quality string, stays in bytes if byte-backed
+   * ```
+   */
+  repeat(count: number): GenotypeString {
+    if (count < 0 || !Number.isFinite(count)) {
+      throw new RangeError("Invalid count value");
+    }
+    if (count === 0) {
+      return new GenotypeString({ kind: "string", value: "" });
+    }
+    if (count === 1) {
+      return this;
+    }
+    if (this.#repr.kind === "string") {
+      return GenotypeString.fromString(this.#repr.value.repeat(count));
+    }
+    const src = this.#repr.value;
+    const result = new Uint8Array(src.length * count);
+    for (let i = 0; i < count; i++) {
+      result.set(src, i * src.length);
+    }
+    return new GenotypeString({ kind: "bytes", value: result });
   }
 
   /**
@@ -271,6 +485,73 @@ export class GenotypeString {
     }
     if (index < 0 || index >= this.#repr.value.length) return NaN;
     return this.#repr.value[index]!;
+  }
+
+  /**
+   * Returns whether the character at the given index matches a single
+   * character.
+   *
+   * This is the representation-agnostic way to test a character at a
+   * position without forcing string conversion or dealing with raw byte
+   * values. When the data is in byte form, the comparison is done on
+   * byte values directly.
+   *
+   * Returns false for out-of-range indices.
+   *
+   * @param index - The position to check
+   * @param char - A single-character string to compare against
+   *
+   * @example
+   * ```typescript
+   * const gs = GenotypeString.fromString("ATCG");
+   * gs.is(0, "A");  // true
+   * gs.is(1, "A");  // false
+   * gs.is(-1, "A"); // false (out of range)
+   * ```
+   */
+  is(index: number, char: string): boolean {
+    if (this.#repr.kind === "string") {
+      if (index < 0 || index >= this.#repr.value.length) return false;
+      return this.#repr.value.charCodeAt(index) === char.charCodeAt(0);
+    }
+    if (index < 0 || index >= this.#repr.value.length) return false;
+    return this.#repr.value[index] === char.charCodeAt(0);
+  }
+
+  /**
+   * Returns whether the character at the given index is a member of the
+   * given character set.
+   *
+   * Accepts either a {@link CharSet} (preferred for hot loops — O(1) lookup
+   * with no allocation) or a plain string of characters (convenient for
+   * one-off checks — converted to code point comparisons internally).
+   *
+   * Returns false for out-of-range indices.
+   *
+   * @param index - The position to check
+   * @param set - A CharSet or a string of characters to test membership in
+   *
+   * @example
+   * ```typescript
+   * import { Bases } from "./genotype-string";
+   *
+   * const gs = GenotypeString.fromString("ATCGRYN");
+   * gs.isAnyOf(0, Bases.Purine);    // true ('A' is a purine)
+   * gs.isAnyOf(2, Bases.Purine);    // false ('C' is not a purine)
+   * gs.isAnyOf(0, "AC");            // true ('A' is in "AC")
+   * gs.isAnyOf(4, Bases.Ambiguous); // true ('R' is ambiguous)
+   * ```
+   */
+  isAnyOf(index: number, set: CharSet | string): boolean {
+    const code = this.charCodeAt(index);
+    if (Number.isNaN(code)) return false;
+    if (set instanceof CharSet) {
+      return set.has(code);
+    }
+    for (let i = 0; i < set.length; i++) {
+      if (code === set.charCodeAt(i)) return true;
+    }
+    return false;
   }
 
   /**

@@ -6,9 +6,13 @@
  *
  */
 
-import { type GenotypeString, asString } from "../../genotype-string";
+import { GenotypeString, CharSet, Bases } from "../../genotype-string";
 import { ValidationError } from "../../errors";
 import { getGeneticCode } from "./genetic-codes";
+
+const PARTIAL_GC = CharSet.from("RYKM");
+const PARTIAL_AMBIGUOUS = CharSet.from("NBDHV");
+const COMPOSITION_CHARS = CharSet.from("ABCDEFGHIJKLMNOPQRSTUVWXYZ-.*");
 
 /**
  * Calculate GC content percentage of a sequence
@@ -24,39 +28,30 @@ import { getGeneticCode } from "./genetic-codes";
  *
  * @param sequence - DNA or RNA sequence
  * @returns GC content as percentage (0-100)
- *
- * 🔥 NATIVE: Base counting could use SIMD population count
  */
 export function gcContent(sequence: GenotypeString | string): number {
-  const seq = asString(sequence);
-  if (seq.length === 0) {
+  const gs = GenotypeString.fromString(sequence);
+  if (gs.length === 0) {
     throw new ValidationError("Sequence must be non-empty");
   }
 
-  const upper = seq.toUpperCase();
+  const upper = gs.toUpperCase();
   let gcCount = 0;
   let totalBases = 0;
 
-  // 🔥 NATIVE: SIMD character counting
   for (let i = 0; i < upper.length; i++) {
-    const base = upper[i];
-    if (base === "G" || base === "C" || base === "S") {
-      // S = Strong (G or C)
+    if (upper.isAnyOf(i, Bases.Strong)) {
       gcCount++;
       totalBases++;
-    } else if (base === "A" || base === "T" || base === "U" || base === "W") {
-      // W = Weak (A or T)
+    } else if (upper.isAnyOf(i, Bases.Weak)) {
       totalBases++;
-    } else if (base === "R" || base === "Y" || base === "K" || base === "M") {
-      // Ambiguous with partial GC
+    } else if (upper.isAnyOf(i, PARTIAL_GC)) {
       gcCount += 0.5;
       totalBases++;
-    } else if (base === "N" || base === "B" || base === "D" || base === "H" || base === "V") {
-      // Ambiguous bases - assume average
+    } else if (upper.isAnyOf(i, PARTIAL_AMBIGUOUS)) {
       gcCount += 0.5;
       totalBases++;
     }
-    // Skip gaps and other characters
   }
 
   return totalBases === 0 ? 0 : (gcCount / totalBases) * 100;
@@ -76,39 +71,30 @@ export function gcContent(sequence: GenotypeString | string): number {
  *
  * @param sequence - DNA or RNA sequence
  * @returns AT content as percentage (0-100)
- *
- * 🔥 NATIVE: Base counting could use SIMD population count
  */
 export function atContent(sequence: GenotypeString | string): number {
-  const seq = asString(sequence);
-  if (seq.length === 0) {
+  const gs = GenotypeString.fromString(sequence);
+  if (gs.length === 0) {
     throw new ValidationError("Sequence must be non-empty");
   }
 
-  const upper = seq.toUpperCase();
+  const upper = gs.toUpperCase();
   let atCount = 0;
   let totalBases = 0;
 
-  // 🔥 NATIVE: SIMD character counting
   for (let i = 0; i < upper.length; i++) {
-    const base = upper[i];
-    if (base === "A" || base === "T" || base === "U" || base === "W") {
-      // W = Weak (A or T)
+    if (upper.isAnyOf(i, Bases.Weak)) {
       atCount++;
       totalBases++;
-    } else if (base === "G" || base === "C" || base === "S") {
-      // S = Strong (G or C)
+    } else if (upper.isAnyOf(i, Bases.Strong)) {
       totalBases++;
-    } else if (base === "R" || base === "Y" || base === "K" || base === "M") {
-      // Ambiguous with partial AT
+    } else if (upper.isAnyOf(i, PARTIAL_GC)) {
       atCount += 0.5;
       totalBases++;
-    } else if (base === "N" || base === "B" || base === "D" || base === "H" || base === "V") {
-      // Ambiguous bases - assume average
+    } else if (upper.isAnyOf(i, PARTIAL_AMBIGUOUS)) {
       atCount += 0.5;
       totalBases++;
     }
-    // Skip gaps and other characters
   }
 
   return totalBases === 0 ? 0 : (atCount / totalBases) * 100;
@@ -128,27 +114,20 @@ export function atContent(sequence: GenotypeString | string): number {
  *
  * @param sequence - DNA or RNA sequence
  * @returns Object with base counts
- *
- * 🔥 NATIVE: Character histogram - perfect for SIMD
  */
 export function baseComposition(sequence: GenotypeString | string): Record<string, number> {
-  const seq = asString(sequence);
-  if (seq.length === 0) {
+  const gs = GenotypeString.fromString(sequence);
+  if (gs.length === 0) {
     throw new ValidationError("Sequence must be non-empty");
   }
 
+  const upper = gs.toUpperCase();
   const composition: Record<string, number> = {};
 
-  // 🔥 NATIVE: SIMD histogram calculation
-  for (let i = 0; i < seq.length; i++) {
-    const base = seq[i]?.toUpperCase();
-    if (base !== undefined && base !== null && base !== "" && /[A-Z\-.*]/.test(base)) {
-      composition[base] =
-        (composition[base] !== undefined &&
-        composition[base] !== null &&
-        !Number.isNaN(composition[base])
-          ? composition[base]
-          : 0) + 1;
+  for (let i = 0; i < upper.length; i++) {
+    if (upper.isAnyOf(i, COMPOSITION_CHARS)) {
+      const base = upper.charAt(i);
+      composition[base] = (composition[base] ?? 0) + 1;
     }
   }
 
@@ -168,15 +147,13 @@ export function baseComposition(sequence: GenotypeString | string): Record<strin
  * @param sequence - DNA sequence to translate
  * @param geneticCodeId - Genetic code ID to use (default: 1 for standard)
  * @returns Array of protein sequences for each reading frame
- *
- * 🔥 NATIVE: Codon lookup could be optimized with perfect hashing
  */
 export function translateSimple(
   sequence: GenotypeString | string,
   geneticCodeId: number = 1
 ): string[] {
-  const seq = asString(sequence);
-  if (seq.length === 0) {
+  const gs = GenotypeString.fromString(sequence);
+  if (gs.length === 0) {
     throw new ValidationError("Sequence must be non-empty");
   }
 
@@ -186,23 +163,19 @@ export function translateSimple(
   }
 
   const table = geneticCode.codons;
-  const upper = seq.toUpperCase().replace(/U/g, "T"); // Convert RNA to DNA
+  const upper = gs.toUpperCase().replace(/U/g, "T").toString();
   const results: string[] = [];
 
-  // Translate all 3 reading frames
   for (let frame = 0; frame < 3; frame++) {
     let protein = "";
 
-    // 🔥 NATIVE: Vectorized codon extraction and lookup
     for (let i = frame; i + 2 < upper.length; i += 3) {
       const codon = upper.substring(i, i + 3);
 
-      // Skip incomplete or ambiguous codons
       if (codon.length === 3 && /^[ACGT]{3}$/.test(codon)) {
         const aa = table[codon] !== undefined ? table[codon] : "X";
         protein += aa;
 
-        // Stop at stop codon
         if (aa === "*") break;
       }
     }
@@ -231,30 +204,26 @@ export function translateSimple(
  * @param bases - Bases to count (e.g., "AT", "GC", "N")
  * @param caseSensitive - Whether to use case-sensitive matching (default: false)
  * @returns Percentage of specified bases (0-100)
- *
- * 🔥 NATIVE: SIMD character counting for specific base sets
  */
 export function baseContent(
   sequence: GenotypeString | string,
   bases: string,
   caseSensitive = false
 ): number {
-  const normalized = asString(sequence);
-  if (normalized.length === 0) {
+  const gs = GenotypeString.fromString(sequence);
+  if (gs.length === 0) {
     throw new ValidationError("Sequence must be non-empty");
   }
   if (!bases || typeof bases !== "string") {
     throw new ValidationError("Bases must be a non-empty string");
   }
 
-  const seq = caseSensitive ? normalized : normalized.toUpperCase();
-  const baseSet = new Set(caseSensitive ? bases : bases.toUpperCase());
+  const seq = caseSensitive ? gs : gs.toUpperCase();
+  const charSet = CharSet.from(caseSensitive ? bases : bases.toUpperCase());
   let count = 0;
 
-  // 🔥 NATIVE: SIMD character matching against set
   for (let i = 0; i < seq.length; i++) {
-    const char = seq[i];
-    if (char && baseSet.has(char)) {
+    if (seq.isAnyOf(i, charSet)) {
       count++;
     }
   }
@@ -276,30 +245,26 @@ export function baseContent(
  * @param bases - Bases to count (e.g., "AT", "GC", "N")
  * @param caseSensitive - Whether to use case-sensitive matching (default: false)
  * @returns Count of specified bases
- *
- * 🔥 NATIVE: SIMD population count for base matching
  */
 export function baseCount(
   sequence: GenotypeString | string,
   bases: string,
   caseSensitive = false
 ): number {
-  const normalized = asString(sequence);
-  if (normalized.length === 0) {
+  const gs = GenotypeString.fromString(sequence);
+  if (gs.length === 0) {
     throw new ValidationError("Sequence must be non-empty");
   }
   if (!bases || typeof bases !== "string") {
     throw new ValidationError("Bases must be a non-empty string");
   }
 
-  const seq = caseSensitive ? normalized : normalized.toUpperCase();
-  const baseSet = new Set(caseSensitive ? bases : bases.toUpperCase());
+  const seq = caseSensitive ? gs : gs.toUpperCase();
+  const charSet = CharSet.from(caseSensitive ? bases : bases.toUpperCase());
   let count = 0;
 
-  // 🔥 NATIVE: SIMD character counting
   for (let i = 0; i < seq.length; i++) {
-    const char = seq[i];
-    if (char && baseSet.has(char)) {
+    if (seq.isAnyOf(i, charSet)) {
       count++;
     }
   }
@@ -324,24 +289,18 @@ export function baseCount(
  * @param sequence - Input sequence
  * @param caseSensitive - Whether to preserve case (default: false)
  * @returns Sorted string of unique characters
- *
- * 🔥 NATIVE: Bit vector for character presence
  */
 export function sequenceAlphabet(sequence: GenotypeString | string, caseSensitive = false): string {
-  const normalized = asString(sequence);
-  if (normalized.length === 0) {
+  const gs = GenotypeString.fromString(sequence);
+  if (gs.length === 0) {
     throw new ValidationError("Sequence must be non-empty");
   }
 
-  const seq = caseSensitive ? normalized : normalized.toUpperCase();
+  const seq = caseSensitive ? gs : gs.toUpperCase();
   const chars = new Set<string>();
 
-  // 🔥 NATIVE: Bit vector character accumulation
   for (let i = 0; i < seq.length; i++) {
-    const char = seq[i];
-    if (char) {
-      chars.add(char);
-    }
+    chars.add(seq.charAt(i));
   }
 
   return Array.from(chars).sort().join("");

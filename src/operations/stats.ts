@@ -16,6 +16,7 @@
 
 import { type } from "arktype";
 import { SequenceError, ValidationError } from "../errors";
+import { GenotypeString, CharSet } from "../genotype-string";
 import {
   type NativeKernel,
   getNativeKernel,
@@ -308,7 +309,7 @@ export class SequenceStatsCalculator {
             batchBytes = 0;
           }
         } else {
-          this.analyzeComposition(sequence.sequence.toString(), accumulator, opts);
+          this.analyzeComposition(sequence.sequence, accumulator, opts);
         }
       }
 
@@ -501,7 +502,7 @@ export class SequenceStatsCalculator {
    * @private
    */
   private analyzeComposition(
-    sequence: string,
+    sequence: GenotypeString | string,
     accumulator: StatsAccumulator,
     options: {
       gapChars: string;
@@ -509,56 +510,46 @@ export class SequenceStatsCalculator {
       includeComposition: boolean;
     }
   ): void {
-    const upperSeq = sequence.toUpperCase();
+    const upper = GenotypeString.fromString(sequence).toUpperCase();
+    const gapSet = CharSet.from(options.gapChars);
+    const ambigSet = CharSet.from(options.ambiguousChars);
+    const proteinSet = CharSet.from("DEFHIKLMPQVWY");
 
-    for (const char of upperSeq) {
-      // Count bases
-      switch (char) {
-        case "G":
-        case "C":
-          accumulator.gcCount++;
-          if (options.includeComposition) {
-            accumulator.baseComposition[char]++;
-          }
-          break;
-        case "A":
-        case "T":
-          accumulator.atCount++;
-          if (options.includeComposition) {
-            accumulator.baseComposition[char as "A" | "T"]++;
-          }
-          break;
-        case "U":
-          accumulator.atCount++;
-          accumulator.hasRNA = true;
-          if (options.includeComposition) {
-            accumulator.baseComposition.U++;
-          }
-          break;
-        case "N":
+    for (let i = 0; i < upper.length; i++) {
+      if (upper.is(i, "G") || upper.is(i, "C")) {
+        accumulator.gcCount++;
+        if (options.includeComposition) {
+          const ch = upper.charAt(i) as "G" | "C";
+          accumulator.baseComposition[ch]++;
+        }
+      } else if (upper.is(i, "A") || upper.is(i, "T")) {
+        accumulator.atCount++;
+        if (options.includeComposition) {
+          const ch = upper.charAt(i) as "A" | "T";
+          accumulator.baseComposition[ch]++;
+        }
+      } else if (upper.is(i, "U")) {
+        accumulator.atCount++;
+        accumulator.hasRNA = true;
+        if (options.includeComposition) {
+          accumulator.baseComposition.U++;
+        }
+      } else if (upper.is(i, "N")) {
+        accumulator.ambiguousCount++;
+        if (options.includeComposition) {
+          accumulator.baseComposition.N++;
+        }
+      } else {
+        if (upper.isAnyOf(i, gapSet)) {
+          accumulator.gapCount++;
+        } else if (upper.isAnyOf(i, ambigSet)) {
           accumulator.ambiguousCount++;
-          if (options.includeComposition) {
-            accumulator.baseComposition.N++;
-          }
-          break;
-        default:
-          // Check for gaps
-          if (options.gapChars.includes(char)) {
-            accumulator.gapCount++;
-          }
-          // Check for ambiguous
-          else if (options.ambiguousChars.includes(char)) {
-            accumulator.ambiguousCount++;
-          }
-          // Check for protein
-          else if ("DEFHIKLMPQVWY".includes(char)) {
-            accumulator.hasProtein = true;
-          }
-
-          if (options.includeComposition) {
-            accumulator.baseComposition.other++;
-          }
-          break;
+        } else if (upper.isAnyOf(i, proteinSet)) {
+          accumulator.hasProtein = true;
+        }
+        if (options.includeComposition) {
+          accumulator.baseComposition.other++;
+        }
       }
     }
   }

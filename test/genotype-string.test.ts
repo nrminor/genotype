@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { GenotypeString, genotypeStringInternal } from "../src/genotype-string";
+import { GenotypeString, genotypeStringInternal, CharSet, Bases } from "../src/genotype-string";
 
 describe("GenotypeString", () => {
   describe("factory methods", () => {
@@ -857,6 +857,367 @@ describe("GenotypeString", () => {
       expect(b.localeCompare(a)).toBeGreaterThan(0);
       expect(a.localeCompare(GenotypeString.fromString("AAAA"))).toBe(0);
     });
+  });
+
+  describe("contains", () => {
+    test("finds substring in string-backed instance", () => {
+      const gs = GenotypeString.fromString("ATCGATCG");
+      expect(gs.contains("CGA")).toBe(true);
+      expect(gs.contains("XYZ")).toBe(false);
+    });
+
+    test("finds substring in bytes-backed instance", () => {
+      const gs = GenotypeString.fromBytes(new TextEncoder().encode("ATCGATCG"));
+      expect(gs.contains("CGA")).toBe(true);
+      expect(gs.contains("XYZ")).toBe(false);
+    });
+
+    test("behaves identically to includes", () => {
+      const gs = GenotypeString.fromString("ATCGATCG");
+      expect(gs.contains("CGA")).toBe(gs.includes("CGA"));
+      expect(gs.contains("XYZ")).toBe(gs.includes("XYZ"));
+      expect(gs.contains("")).toBe(gs.includes(""));
+      expect(gs.contains("ATCGATCG")).toBe(gs.includes("ATCGATCG"));
+    });
+  });
+
+  describe("is", () => {
+    test("matches character at index in string-backed instance", () => {
+      const gs = GenotypeString.fromString("ATCG");
+      expect(gs.is(0, "A")).toBe(true);
+      expect(gs.is(1, "T")).toBe(true);
+      expect(gs.is(0, "T")).toBe(false);
+    });
+
+    test("matches character at index in bytes-backed instance", () => {
+      const gs = GenotypeString.fromBytes(new TextEncoder().encode("ATCG"));
+      expect(gs.is(0, "A")).toBe(true);
+      expect(gs.is(1, "T")).toBe(true);
+      expect(gs.is(0, "T")).toBe(false);
+    });
+
+    test("returns false for out-of-range indices", () => {
+      const gs = GenotypeString.fromString("ATCG");
+      expect(gs.is(-1, "A")).toBe(false);
+      expect(gs.is(4, "A")).toBe(false);
+      expect(gs.is(100, "A")).toBe(false);
+    });
+
+    test("is case-sensitive", () => {
+      const gs = GenotypeString.fromString("atcg");
+      expect(gs.is(0, "a")).toBe(true);
+      expect(gs.is(0, "A")).toBe(false);
+    });
+
+    test("works with non-alphabetic characters", () => {
+      const gs = GenotypeString.fromString("AT-CG");
+      expect(gs.is(2, "-")).toBe(true);
+      expect(gs.is(2, ".")).toBe(false);
+    });
+  });
+
+  describe("isAnyOf", () => {
+    test("matches against CharSet in string-backed instance", () => {
+      const gs = GenotypeString.fromString("ATCG");
+      expect(gs.isAnyOf(0, Bases.Purine)).toBe(true); // A is a purine
+      expect(gs.isAnyOf(1, Bases.Purine)).toBe(false); // T is not a purine
+      expect(gs.isAnyOf(2, Bases.Pyrimidine)).toBe(true); // C is a pyrimidine
+      expect(gs.isAnyOf(3, Bases.Purine)).toBe(true); // G is a purine
+    });
+
+    test("matches against CharSet in bytes-backed instance", () => {
+      const gs = GenotypeString.fromBytes(new TextEncoder().encode("ATCG"));
+      expect(gs.isAnyOf(0, Bases.Purine)).toBe(true);
+      expect(gs.isAnyOf(1, Bases.Purine)).toBe(false);
+    });
+
+    test("matches against plain string", () => {
+      const gs = GenotypeString.fromString("ATCG");
+      expect(gs.isAnyOf(0, "AC")).toBe(true);
+      expect(gs.isAnyOf(1, "AC")).toBe(false);
+      expect(gs.isAnyOf(2, "AC")).toBe(true);
+    });
+
+    test("returns false for out-of-range indices", () => {
+      const gs = GenotypeString.fromString("ATCG");
+      expect(gs.isAnyOf(-1, Bases.DNA)).toBe(false);
+      expect(gs.isAnyOf(4, Bases.DNA)).toBe(false);
+    });
+
+    test("works with Bases.Strong and Bases.Weak", () => {
+      const gs = GenotypeString.fromString("GCATSW");
+      expect(gs.isAnyOf(0, Bases.Strong)).toBe(true); // G
+      expect(gs.isAnyOf(1, Bases.Strong)).toBe(true); // C
+      expect(gs.isAnyOf(2, Bases.Strong)).toBe(false); // A
+      expect(gs.isAnyOf(3, Bases.Strong)).toBe(false); // T
+      expect(gs.isAnyOf(4, Bases.Strong)).toBe(true); // S (strong ambiguity)
+      expect(gs.isAnyOf(5, Bases.Weak)).toBe(true); // W (weak ambiguity)
+    });
+
+    test("works with Bases.Ambiguous", () => {
+      const gs = GenotypeString.fromString("ATCGRYN");
+      expect(gs.isAnyOf(0, Bases.Ambiguous)).toBe(false); // A is canonical
+      expect(gs.isAnyOf(4, Bases.Ambiguous)).toBe(true); // R is ambiguous
+      expect(gs.isAnyOf(5, Bases.Ambiguous)).toBe(true); // Y is ambiguous
+      expect(gs.isAnyOf(6, Bases.Ambiguous)).toBe(true); // N is ambiguous
+    });
+
+    test("works with Bases.Gap", () => {
+      const gs = GenotypeString.fromString("AT-C.G*");
+      expect(gs.isAnyOf(2, Bases.Gap)).toBe(true); // -
+      expect(gs.isAnyOf(4, Bases.Gap)).toBe(true); // .
+      expect(gs.isAnyOf(6, Bases.Gap)).toBe(true); // *
+      expect(gs.isAnyOf(0, Bases.Gap)).toBe(false); // A
+    });
+
+    test("custom CharSet works", () => {
+      const stopCodons = CharSet.from("*");
+      const gs = GenotypeString.fromString("MAK*LR");
+      expect(gs.isAnyOf(3, stopCodons)).toBe(true);
+      expect(gs.isAnyOf(0, stopCodons)).toBe(false);
+    });
+  });
+
+  describe("concat", () => {
+    test("concatenates string-backed instances", () => {
+      const a = GenotypeString.fromString("ATCG");
+      const b = GenotypeString.fromString("GCTA");
+      const result = GenotypeString.concat(a, b);
+      expect(result.toString()).toBe("ATCGGCTA");
+      expect(result.length).toBe(8);
+    });
+
+    test("concatenates bytes-backed instances without string conversion", () => {
+      const enc = new TextEncoder();
+      const a = GenotypeString.fromBytes(enc.encode("ATCG"));
+      const b = GenotypeString.fromBytes(enc.encode("GCTA"));
+      const result = GenotypeString.concat(a, b);
+      expect(result.toString()).toBe("ATCGGCTA");
+      expect(result.toBytes()).toEqual(enc.encode("ATCGGCTA"));
+    });
+
+    test("concatenates mixed GenotypeString and plain strings", () => {
+      const gs = GenotypeString.fromString("ATCG");
+      const result = GenotypeString.concat(gs, "NNNN", "GCTA");
+      expect(result.toString()).toBe("ATCGNNNNGCTA");
+    });
+
+    test("concatenates multiple parts", () => {
+      const parts = ["AT", "CG", "NN", "GC", "TA"].map(GenotypeString.fromString);
+      const result = GenotypeString.concat(...parts);
+      expect(result.toString()).toBe("ATCGNNGCTA");
+    });
+
+    test("returns empty GenotypeString for no arguments", () => {
+      const result = GenotypeString.concat();
+      expect(result.toString()).toBe("");
+      expect(result.length).toBe(0);
+    });
+
+    test("returns the same instance for a single GenotypeString argument", () => {
+      const gs = GenotypeString.fromString("ATCG");
+      const result = GenotypeString.concat(gs);
+      expect(result).toBe(gs);
+    });
+
+    test("wraps a single plain string argument", () => {
+      const result = GenotypeString.concat("ATCG");
+      expect(result).toBeInstanceOf(GenotypeString);
+      expect(result.toString()).toBe("ATCG");
+    });
+
+    test("handles empty parts", () => {
+      const a = GenotypeString.fromString("ATCG");
+      const b = GenotypeString.fromString("");
+      const c = GenotypeString.fromString("GCTA");
+      const result = GenotypeString.concat(a, b, c);
+      expect(result.toString()).toBe("ATCGGCTA");
+    });
+
+    test("result is independent of source instances", () => {
+      const enc = new TextEncoder();
+      const a = GenotypeString.fromBytes(enc.encode("ATCG"));
+      const b = GenotypeString.fromBytes(enc.encode("GCTA"));
+      const result = GenotypeString.concat(a, b);
+      expect(result.toString()).toBe("ATCGGCTA");
+      expect(a.toString()).toBe("ATCG");
+      expect(b.toString()).toBe("GCTA");
+    });
+
+    test("replaces slice+toString+concatenation pattern", () => {
+      const gs = GenotypeString.fromBytes(new TextEncoder().encode("ATCGATCG"));
+      const result = GenotypeString.concat(gs.slice(0, 4), gs.slice(4));
+      expect(result.toString()).toBe("ATCGATCG");
+    });
+  });
+
+  describe("repeat", () => {
+    test("repeats string-backed instance", () => {
+      const gs = GenotypeString.fromString("AT");
+      expect(gs.repeat(3).toString()).toBe("ATATAT");
+    });
+
+    test("repeats bytes-backed instance", () => {
+      const gs = GenotypeString.fromBytes(new TextEncoder().encode("AT"));
+      const result = gs.repeat(3);
+      expect(result.toString()).toBe("ATATAT");
+      expect(result.toBytes()).toEqual(new TextEncoder().encode("ATATAT"));
+    });
+
+    test("repeat(0) returns empty", () => {
+      const gs = GenotypeString.fromString("ATCG");
+      const result = gs.repeat(0);
+      expect(result.toString()).toBe("");
+      expect(result.length).toBe(0);
+    });
+
+    test("repeat(1) returns same instance", () => {
+      const gs = GenotypeString.fromString("ATCG");
+      expect(gs.repeat(1)).toBe(gs);
+    });
+
+    test("repeat with single character", () => {
+      const gs = GenotypeString.fromString("N");
+      expect(gs.repeat(5).toString()).toBe("NNNNN");
+    });
+
+    test("repeat with quality character", () => {
+      const gs = GenotypeString.fromString("I");
+      const result = gs.repeat(10);
+      expect(result.toString()).toBe("IIIIIIIIII");
+      expect(result.length).toBe(10);
+    });
+
+    test("throws on negative count", () => {
+      const gs = GenotypeString.fromString("AT");
+      expect(() => gs.repeat(-1)).toThrow(RangeError);
+    });
+
+    test("throws on Infinity", () => {
+      const gs = GenotypeString.fromString("AT");
+      expect(() => gs.repeat(Infinity)).toThrow(RangeError);
+    });
+
+    test("matches String.prototype.repeat parity", () => {
+      const str = "ATCG";
+      const gs = GenotypeString.fromString(str);
+      const gsBytes = GenotypeString.fromBytes(new TextEncoder().encode(str));
+      for (const n of [0, 1, 2, 5, 10]) {
+        expect(gs.repeat(n).toString()).toBe(str.repeat(n));
+        expect(gsBytes.repeat(n).toString()).toBe(str.repeat(n));
+      }
+    });
+  });
+});
+
+describe("CharSet", () => {
+  test("from creates a set from a string of characters", () => {
+    const set = CharSet.from("ACGT");
+    expect(set.has(0x41)).toBe(true); // A
+    expect(set.has(0x43)).toBe(true); // C
+    expect(set.has(0x47)).toBe(true); // G
+    expect(set.has(0x54)).toBe(true); // T
+    expect(set.has(0x4e)).toBe(false); // N
+  });
+
+  test("has returns false for characters not in the set", () => {
+    const set = CharSet.from("AC");
+    expect(set.has(0x41)).toBe(true); // A
+    expect(set.has(0x42)).toBe(false); // B
+    expect(set.has(0x43)).toBe(true); // C
+    expect(set.has(0x44)).toBe(false); // D
+  });
+
+  test("handles duplicate characters", () => {
+    const set = CharSet.from("AAACCC");
+    expect(set.has(0x41)).toBe(true);
+    expect(set.has(0x43)).toBe(true);
+    expect(set.has(0x47)).toBe(false);
+  });
+
+  test("handles empty string", () => {
+    const set = CharSet.from("");
+    expect(set.has(0x41)).toBe(false);
+    expect(set.has(0x00)).toBe(false);
+  });
+
+  test("handles non-alphabetic characters", () => {
+    const set = CharSet.from("-.*");
+    expect(set.has(0x2d)).toBe(true); // -
+    expect(set.has(0x2e)).toBe(true); // .
+    expect(set.has(0x2a)).toBe(true); // *
+    expect(set.has(0x41)).toBe(false); // A
+  });
+});
+
+describe("Bases", () => {
+  test("DNA contains exactly A, C, G, T", () => {
+    expect(Bases.DNA.has(0x41)).toBe(true); // A
+    expect(Bases.DNA.has(0x43)).toBe(true); // C
+    expect(Bases.DNA.has(0x47)).toBe(true); // G
+    expect(Bases.DNA.has(0x54)).toBe(true); // T
+    expect(Bases.DNA.has(0x55)).toBe(false); // U
+    expect(Bases.DNA.has(0x4e)).toBe(false); // N
+  });
+
+  test("RNA contains exactly A, C, G, U", () => {
+    expect(Bases.RNA.has(0x41)).toBe(true); // A
+    expect(Bases.RNA.has(0x43)).toBe(true); // C
+    expect(Bases.RNA.has(0x47)).toBe(true); // G
+    expect(Bases.RNA.has(0x55)).toBe(true); // U
+    expect(Bases.RNA.has(0x54)).toBe(false); // T
+  });
+
+  test("Canonical contains A, C, G, T, U", () => {
+    for (const code of [0x41, 0x43, 0x47, 0x54, 0x55]) {
+      expect(Bases.Canonical.has(code)).toBe(true);
+    }
+    expect(Bases.Canonical.has(0x4e)).toBe(false); // N
+  });
+
+  test("Purine contains A, G, R", () => {
+    expect(Bases.Purine.has(0x41)).toBe(true); // A
+    expect(Bases.Purine.has(0x47)).toBe(true); // G
+    expect(Bases.Purine.has(0x52)).toBe(true); // R
+    expect(Bases.Purine.has(0x43)).toBe(false); // C
+  });
+
+  test("Pyrimidine contains C, T, U, Y", () => {
+    expect(Bases.Pyrimidine.has(0x43)).toBe(true); // C
+    expect(Bases.Pyrimidine.has(0x54)).toBe(true); // T
+    expect(Bases.Pyrimidine.has(0x55)).toBe(true); // U
+    expect(Bases.Pyrimidine.has(0x59)).toBe(true); // Y
+    expect(Bases.Pyrimidine.has(0x41)).toBe(false); // A
+  });
+
+  test("Ambiguous contains all IUPAC ambiguity codes", () => {
+    const ambiguousCodes = "RYSWKMBDHVN";
+    for (const char of ambiguousCodes) {
+      expect(Bases.Ambiguous.has(char.charCodeAt(0))).toBe(true);
+    }
+    // Canonical bases are not ambiguous
+    for (const char of "ACGTU") {
+      expect(Bases.Ambiguous.has(char.charCodeAt(0))).toBe(false);
+    }
+  });
+
+  test("Gap contains -, ., *", () => {
+    expect(Bases.Gap.has("-".charCodeAt(0))).toBe(true);
+    expect(Bases.Gap.has(".".charCodeAt(0))).toBe(true);
+    expect(Bases.Gap.has("*".charCodeAt(0))).toBe(true);
+    expect(Bases.Gap.has("A".charCodeAt(0))).toBe(false);
+  });
+
+  test("GC is an alias for Strong", () => {
+    for (let i = 0; i < 128; i++) {
+      expect(Bases.GC.has(i)).toBe(Bases.Strong.has(i));
+    }
+  });
+
+  test("AT is an alias for Weak", () => {
+    for (let i = 0; i < 128; i++) {
+      expect(Bases.AT.has(i)).toBe(Bases.Weak.has(i));
+    }
   });
 });
 

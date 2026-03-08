@@ -7,11 +7,7 @@
 
 import { type } from "arktype";
 import { Effect, FileSystem, Layer, Stream } from "effect";
-import {
-  CompressionDetector,
-  CompressionService,
-  createDecompressor,
-} from "../compression";
+import { CompressionDetector, CompressionService, createDecompressor } from "../compression";
 import { CompatibilityError, FileError } from "../errors";
 import type { FileMetadata, FilePath, FileReaderOptions } from "../types";
 import { FilePathSchema, FileReaderOptionsSchema } from "../types";

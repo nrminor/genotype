@@ -35,6 +35,7 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "lib": ["ES2022", "DOM"],
+    "types": ["bun", "node"],
     "plugins": [{ "name": "@effect/language-service" }]
   },
   "include": ["src/**/*"],

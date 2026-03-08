@@ -160,9 +160,8 @@ export class CompressionService extends ServiceMap.Service<
    * Use this when you only need gzip support. No async initialization required.
    * Attempting to use zstd format will result in an error.
    */
-  static readonly Live: Layer.Layer<CompressionService> = Layer.succeed(
-    CompressionService
-  )(createGzipOnlyService());
+  static readonly Live: Layer.Layer<CompressionService> =
+    Layer.succeed(CompressionService)(createGzipOnlyService());
 
   /**
    * Multi-format compression service layer with Zstd support
@@ -172,20 +171,22 @@ export class CompressionService extends ServiceMap.Service<
    */
   static readonly WithZstd: Layer.Layer<CompressionService, CompressionError> = Layer.effect(
     CompressionService
-  )(Effect.gen(function* () {
-    // Load Zstd WASM module
-    const zstd = yield* Effect.tryPromise({
-      try: () => Zstd.load(),
-      catch: (error) =>
-        new CompressionError(
-          `Failed to initialize Zstd WASM: ${error instanceof Error ? error.message : String(error)}`,
-          "zstd",
-          "validate"
-        ),
-    });
+  )(
+    Effect.gen(function* () {
+      // Load Zstd WASM module
+      const zstd = yield* Effect.tryPromise({
+        try: () => Zstd.load(),
+        catch: (error) =>
+          new CompressionError(
+            `Failed to initialize Zstd WASM: ${error instanceof Error ? error.message : String(error)}`,
+            "zstd",
+            "validate"
+          ),
+      });
 
-    return createMultiFormatService(zstd);
-  }));
+      return createMultiFormatService(zstd);
+    })
+  );
 }
 
 /**
@@ -389,5 +390,3 @@ function createPassthroughStream(): TransformStream<Uint8Array, Uint8Array> {
     },
   });
 }
-
-

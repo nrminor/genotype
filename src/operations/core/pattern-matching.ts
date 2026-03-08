@@ -1820,5 +1820,3 @@ function isPalindrome(sequence: string): boolean {
   }
   return true;
 }
-
-

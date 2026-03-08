@@ -233,7 +233,6 @@ export interface MatcherOptions {
  * @see {@link https://dl.acm.org/doi/10.1145/359146.359148} Original Boyer-Moore Paper (ACM Communications)
  * @see {@link https://en.wikipedia.org/wiki/Boyer–Moore_string-search_algorithm} Boyer-Moore Algorithm (Wikipedia)
  *
- * 🔥 NATIVE CRITICAL: Core string search algorithm
  */
 export function boyerMoore(text: GenotypeString | string, pattern: string): number[] {
   const t = asString(text);
@@ -333,7 +332,6 @@ export function boyerMoore(text: GenotypeString | string, pattern: string): numb
  * @see {@link https://en.wikipedia.org/wiki/Approximate_string_matching} Approximate String Matching (Wikipedia)
  * @see {@link https://medium.com/@m.nath/fuzzy-matching-algorithms-81914b1bc498} Fuzzy Matching Algorithms (Medium)
  *
- * 🔥 NATIVE CRITICAL: Approximate string matching
  */
 export function fuzzyMatch<T extends string>(
   text: GenotypeString | string,
@@ -447,7 +445,6 @@ export function fuzzyMatch<T extends string>(
  * @see {@link https://www.bioinformatics.org/sms/iupac.html} IUPAC Nucleotide Codes Reference
  * @see {@link https://genome.ucsc.edu/goldenPath/help/iupac.html} UCSC Genome Browser IUPAC Guide
  *
- * 🔥 NATIVE OPTIMIZATION: Degenerate base matching
  */
 export function matchWithAmbiguous(sequence: GenotypeString | string, pattern: string): number[] {
   const seq = asString(sequence);
@@ -543,7 +540,6 @@ export function matchWithAmbiguous(sequence: GenotypeString | string, pattern: s
  * @see {@link https://en.wikipedia.org/wiki/Knuth–Morris–Pratt_algorithm} KMP Algorithm (Wikipedia)
  * @see {@link https://medium.com/pattern-searching-algorithm/knuth-morris-pratt-algorithm-74200dcc71fe} KMP Pattern Searching Guide (Medium)
  *
- * ⚡ NATIVE BENEFICIAL: Alternative to Boyer-Moore for specific patterns
  */
 export function kmpSearch(text: GenotypeString | string, pattern: string): number[] {
   const t = asString(text);
@@ -651,7 +647,6 @@ export function kmpSearch(text: GenotypeString | string, pattern: string): numbe
  * @see {@link https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9477578/} Pattern Matching in DNA Sequencing (PMC)
  * @see {@link https://en.wikipedia.org/wiki/Rabin–Karp_algorithm} Rabin-Karp Algorithm (Wikipedia)
  *
- * ⚡ NATIVE BENEFICIAL: Good for searching multiple patterns
  */
 export function rabinKarp(
   text: GenotypeString | string,
@@ -871,7 +866,6 @@ export function findOverlapping(text: GenotypeString | string, pattern: string):
  * @see {@link https://www.ncbi.nlm.nih.gov/books/NBK62051/} Sequence Homology and Similarity (NCBI)
  * @see {@link https://academic.oup.com/bioinformatics/article/35/9/1556/5160341} Genomic Homology Detection Methods (Bioinformatics)
  *
- * ⚡ NATIVE BENEFICIAL: Matrix operations could be optimized
  */
 export function longestCommonSubstring(
   seq1: GenotypeString | string,
@@ -1720,7 +1714,6 @@ export function hasPatternWithMismatches(
  * @see {@link https://en.wikipedia.org/wiki/Palindromic_sequence} Palindromic Sequences in Biology (Wikipedia)
  * @see {@link https://www.nature.com/articles/nrg1655} DNA-Protein Interactions and Palindromic Recognition (Nature Reviews)
  *
- * 🔥 NATIVE: Vectorized comparison could speed up palindrome checking
  */
 export function isPalindromic(sequence: GenotypeString | string): boolean {
   const seq = asString(sequence);

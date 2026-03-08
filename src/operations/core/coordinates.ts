@@ -100,7 +100,6 @@ export function validateFinalCoordinates(
  * parseStartPosition("-10", 100, false, true); // {value: 90, hasNegative: true}
  * ```
  *
- * 🔥 NATIVE: String parsing and arithmetic - vectorizable
  */
 export function parseStartPosition(
   startStr: string,
@@ -153,7 +152,6 @@ export function parseStartPosition(
  * parseEndPosition("-1", 1000, false, true);   // {value: 1000, hasNegative: true}
  * ```
  *
- * 🔥 NATIVE: String parsing and arithmetic - vectorizable
  */
 export function parseEndPosition(
   endStr: string,

@@ -332,9 +332,6 @@ export class SequenceValidator {
    * This method performs pattern matching validation using the mode and type
    * configured at construction time.
    *
-   * // NATIVE OPTIMIZATION: This method is a prime candidate for SIMD optimization
-   * // using vectorized character validation operations in native implementation
-   *
    * @param sequence - The sequence string to validate
    * @returns True if sequence matches the pattern for the configured mode and type
    * @throws {ValidationError} When sequence parameter is invalid
@@ -374,9 +371,6 @@ export class SequenceValidator {
    * This method processes sequences to remove or replace characters that don't
    * match the validation pattern for the configured mode. Invalid characters are
    * replaced with the specified replacement character (default 'N').
-   *
-   * // NATIVE OPTIMIZATION: Character filtering and replacement operations
-   * // are ideal for SIMD vectorization in native implementation
    *
    * @param sequence - The sequence string to clean
    * @param replaceChar - Character to replace invalid characters with (default: 'N')

@@ -135,7 +135,6 @@ export class ReservoirSampler<T> {
    * Add item to reservoir using reservoir sampling algorithm
    * Each item has equal probability of being selected
    *
-   * 🔥 NATIVE OPTIMIZATION: Random number generation
    */
   add(item: T): void {
     this.seen++;
@@ -197,7 +196,6 @@ export class ReservoirSampler<T> {
    * Create seeded random number generator using xorshift algorithm
    * Provides reproducible sampling when seed is specified
    *
-   * 🔥 NATIVE OPTIMIZATION: Fast PRNG implementation
    */
   private createSeededRNG(seed: number): () => number {
     // Use xorshift32 for fast, good-quality random numbers

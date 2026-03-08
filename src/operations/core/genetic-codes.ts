@@ -1230,7 +1230,6 @@ export function isAlternativeStart(codon: string): boolean {
  * translateCodon('NTG', table); // 'X' (ambiguous)
  * ```
  *
- * 🔥 NATIVE: Codon lookup - perfect for optimized hash tables
  */
 export function translateCodon(
   codon: string,

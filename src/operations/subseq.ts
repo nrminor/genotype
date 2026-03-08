@@ -403,11 +403,6 @@ export class SubseqExtractor {
    * // Returns: { start: 99, end: 200, original: "100:200", hasNegativeIndices: false }
    * ```
    *
-   * @optimize NATIVE_CANDIDATE - STRING PARSING WITH BOUNDS CHECKING
-   * - Lots of string operations and integer parsing
-   * - Boundary checking and coordinate conversion
-   * - Could be optimized with pre-compiled regex or state machine
-   * - Expected speedup: 5-10x
    */
   parseRegion(
     region: string,
@@ -454,11 +449,6 @@ export class SubseqExtractor {
    * Extract a specific region from a sequence
    * @private
    *
-   * @optimize NATIVE_CANDIDATE - SUBSTRING OPERATIONS
-   * - Multiple string allocations for substring extraction
-   * - Memory copy operations that could be optimized
-   * - Boundary checking overhead
-   * - Expected speedup: 10-15x
    */
   private extractRegion<T extends AbstractSequence>(
     sequence: T,

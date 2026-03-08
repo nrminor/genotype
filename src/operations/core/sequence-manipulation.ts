@@ -12,7 +12,6 @@ import { ValidationError } from "../../errors";
 
 /**
  * DNA complement mapping including IUPAC ambiguity codes
- * 🔥 NATIVE OPTIMIZATION: Lookup table could be SIMD-accelerated
  */
 const DNA_COMPLEMENT_MAP: Record<string, string> = {
   A: "T",
@@ -77,7 +76,6 @@ const RNA_COMPLEMENT_MAP: Record<string, string> = {
  * @param isRNA - Whether to use RNA complement rules (default: false)
  * @returns Complemented sequence (same type as input)
  *
- * 🔥 NATIVE CRITICAL: Lookup table with SIMD processing
  */
 export function complement(sequence: GenotypeString, isRNA?: boolean): GenotypeString;
 export function complement(sequence: string, isRNA?: boolean): string;
@@ -92,7 +90,6 @@ export function complement(
 
   const complementMap = isRNA ? RNA_COMPLEMENT_MAP : DNA_COMPLEMENT_MAP;
 
-  // 🔥 NATIVE: Vectorized lookup table operations
   const upper = seq.toUpperCase();
   const result = new Array(seq.length);
 
@@ -137,7 +134,6 @@ export function complement(
  * @param sequence - Sequence to reverse
  * @returns Reversed sequence (same type as input)
  *
- * 🔥 NATIVE CRITICAL: Simple array reversal could be SIMD-optimized
  */
 export function reverse(sequence: GenotypeString): GenotypeString;
 export function reverse(sequence: string): string;
@@ -147,7 +143,6 @@ export function reverse(sequence: GenotypeString | string): GenotypeString | str
     throw new ValidationError("Sequence must be non-empty");
   }
 
-  // 🔥 NATIVE: Could use SIMD shuffle operations
   const out = seq.split("").reverse().join("");
   return sequence instanceof GenotypeString ? GenotypeString.fromString(out) : out;
 }
@@ -168,7 +163,6 @@ export function reverse(sequence: GenotypeString | string): GenotypeString | str
  * @param isRNA - Whether to use RNA complement rules (default: false)
  * @returns Reverse complemented sequence (same type as input)
  *
- * 🔥 NATIVE CRITICAL: Most common operation - prime optimization target
  */
 export function reverseComplement(sequence: GenotypeString, isRNA?: boolean): GenotypeString;
 export function reverseComplement(sequence: string, isRNA?: boolean): string;
@@ -181,7 +175,6 @@ export function reverseComplement(
     throw new ValidationError("Sequence must be non-empty");
   }
 
-  // 🔥 NATIVE: Could combine both operations in single SIMD pass
   // Pass the plain string to avoid double-wrapping — complement and reverse
   // will return strings, then we wrap once at the end if needed.
   const out = reverse(complement(seq, isRNA));
@@ -200,7 +193,6 @@ export function reverseComplement(
  * @param sequence - DNA sequence to convert
  * @returns RNA sequence (same type as input)
  *
- * 🔥 NATIVE: Simple character replacement - vectorizable
  */
 export function toRNA(sequence: GenotypeString): GenotypeString;
 export function toRNA(sequence: string): string;
@@ -210,7 +202,6 @@ export function toRNA(sequence: GenotypeString | string): GenotypeString | strin
     throw new ValidationError("Sequence must be non-empty");
   }
 
-  // 🔥 NATIVE: SIMD search and replace
   const out = seq.replace(/[Tt]/g, (match) => (match === "T" ? "U" : "u"));
   return sequence instanceof GenotypeString ? GenotypeString.fromString(out) : out;
 }
@@ -227,7 +218,6 @@ export function toRNA(sequence: GenotypeString | string): GenotypeString | strin
  * @param sequence - RNA sequence to convert
  * @returns DNA sequence (same type as input)
  *
- * 🔥 NATIVE: Simple character replacement - vectorizable
  */
 export function toDNA(sequence: GenotypeString): GenotypeString;
 export function toDNA(sequence: string): string;
@@ -237,7 +227,6 @@ export function toDNA(sequence: GenotypeString | string): GenotypeString | strin
     throw new ValidationError("Sequence must be non-empty");
   }
 
-  // 🔥 NATIVE: SIMD search and replace
   const out = seq.replace(/[Uu]/g, (match) => (match === "U" ? "T" : "t"));
   return sequence instanceof GenotypeString ? GenotypeString.fromString(out) : out;
 }
@@ -258,7 +247,6 @@ export function toDNA(sequence: GenotypeString | string): GenotypeString | strin
  * @param gapChars - Characters to remove (default: '.-*')
  * @returns Sequence with gaps removed (same type as input)
  *
- * 🔥 NATIVE: Character filtering loop - vectorizable
  */
 export function removeGaps(sequence: GenotypeString, gapChars?: string): GenotypeString;
 export function removeGaps(sequence: string, gapChars?: string): string;
@@ -271,7 +259,6 @@ export function removeGaps(
     return sequence instanceof GenotypeString ? GenotypeString.fromString(seq) : seq;
   }
 
-  // 🔥 NATIVE: Character filtering could use SIMD
   // Create regex pattern from gap characters, escaping special regex chars
   const escapedChars = gapChars
     .split("")
@@ -306,7 +293,6 @@ export function removeGaps(
  * @param replaceChar - Character to use for replacement (default: 'N')
  * @returns Sequence with ambiguous bases replaced (same type as input)
  *
- * 🔥 NATIVE: Character validation and replacement loop - vectorizable
  */
 export function replaceAmbiguousBases(
   sequence: GenotypeString,
@@ -325,7 +311,6 @@ export function replaceAmbiguousBases(
     throw new ValidationError("Replace character must be a single character");
   }
 
-  // 🔥 NATIVE: Character replacement could use lookup table with SIMD
   // Replace any non-standard DNA/RNA bases
   // Standard bases: A, C, G, T, U
   // Everything else (including IUPAC codes) gets replaced

@@ -183,7 +183,6 @@ export class TranslateProcessor {
     geneticCode: GeneticCode,
     options: TranslateOptions
   ): string | null {
-    // NATIVE_CRITICAL: String manipulation hot path - toUpperCase and character replacement
     let sequence = seq.sequence.toString().toUpperCase().replace(/U/g, "T");
 
     // Handle empty sequences
@@ -193,7 +192,6 @@ export class TranslateProcessor {
 
     // Handle reverse frames
     if (frame < 0) {
-      // NATIVE_CRITICAL: Reverse complement is a hot path for large sequences
       sequence = reverseComplement(sequence);
     }
 

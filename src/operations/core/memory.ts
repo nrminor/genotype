@@ -134,7 +134,6 @@ export class ExternalSorter<T> {
 
   /**
    * Merge sorted chunks using k-way merge
-   * 🔥 NATIVE: Could optimize with binary heap for merge
    */
   private async *mergeSortedChunks(compareFn: (a: T, b: T) => number): AsyncIterable<T> {
     if (this.chunkFiles.length === 0) return;

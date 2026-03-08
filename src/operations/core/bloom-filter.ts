@@ -100,7 +100,6 @@ export class BloomFilter {
   /**
    * Add item to filter
    *
-   * 🔥 NATIVE CRITICAL: Bit manipulation operations
    */
   add(item: string): void {
     // Set bits for all hash functions
@@ -117,7 +116,6 @@ export class BloomFilter {
    * Returns false if definitely not in set (no false negatives)
    * Returns true if might be in set (possible false positive)
    *
-   * 🔥 NATIVE CRITICAL: Bit testing operations
    */
   contains(item: string): boolean {
     // Check bits for all hash functions
@@ -178,7 +176,6 @@ export class BloomFilter {
   /**
    * MurmurHash3 implementation for fast, high-quality hashing
    *
-   * 🔥 NATIVE CRITICAL: Hash function performance
    */
   private hash(str: string, seed: number): number {
     let h1 = seed;
@@ -431,7 +428,6 @@ export class CountingBloomFilter {
   /**
    * Add item (increment counters)
    *
-   * 🔥 NATIVE OPTIMIZATION: Vectorized counter updates
    */
   add(item: string): void {
     for (const seed of this.hashSeeds) {

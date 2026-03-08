@@ -18,7 +18,7 @@
  * - **Use when:** You need to handle `.zst` files or want better compression
  * - **Initialization:** Async (loads ~160KB WASM module on first use)
  * - **Bundle impact:** Adds @hpcc-js/wasm-zstd WASM module
- * - **Resource management:** Uses `Layer.scoped` for proper lifecycle
+ * - **Resource management:** Uses `Layer.effect` for proper lifecycle
  *
  * ## Direct Function Usage (Non-Effect)
  *
@@ -390,13 +390,4 @@ function createPassthroughStream(): TransformStream<Uint8Array, Uint8Array> {
   });
 }
 
-/**
- * @deprecated Use `CompressionService.Live` instead
- */
-export const GzipCompressionService: Layer.Layer<CompressionService> = CompressionService.Live;
 
-/**
- * @deprecated Use `CompressionService.WithZstd` instead
- */
-export const MultiFormatCompressionService: Layer.Layer<CompressionService, CompressionError> =
-  CompressionService.WithZstd;

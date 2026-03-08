@@ -11,7 +11,6 @@ import {
   CompressionDetector,
   CompressionService,
   createDecompressor,
-  MultiFormatCompressionService,
 } from "../compression";
 import { CompatibilityError, FileError } from "../errors";
 import type { FileMetadata, FilePath, FileReaderOptions } from "../types";
@@ -31,7 +30,7 @@ const DEFAULT_OPTIONS: Required<FileReaderOptions> = {
 };
 
 /** Merged layer providing both platform and compression services */
-const FullLayer = Layer.merge(getPlatform(), MultiFormatCompressionService);
+const FullLayer = Layer.merge(getPlatform(), CompressionService.WithZstd);
 
 /** Validate file path using ArkType */
 function validatePath(path: string): FilePath {

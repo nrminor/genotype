@@ -39,11 +39,7 @@ import { ZstdDecompressor } from "./zstd";
 export { CompressionDetector } from "./detector";
 export { compress, createCompressionStream, GzipDecompressor } from "./gzip";
 // Effect-based service layer
-export {
-  CompressionService,
-  GzipCompressionService,
-  MultiFormatCompressionService,
-} from "./service";
+export { CompressionService } from "./service";
 export { ZstdDecompressor } from "./zstd";
 
 // Error exports

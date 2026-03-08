@@ -6,16 +6,12 @@
  */
 
 import { Effect, FileSystem, Layer, Path } from "effect";
-import {
-  CompressionDetector,
-  CompressionService,
-  MultiFormatCompressionService,
-} from "../compression";
+import { CompressionDetector, CompressionService } from "../compression";
 import type { WriteOptions } from "../types";
 import { getPlatform } from "./runtime";
 
 /** Merged layer providing both platform and compression services */
-const FullLayer = Layer.merge(getPlatform(), MultiFormatCompressionService);
+const FullLayer = Layer.merge(getPlatform(), CompressionService.WithZstd);
 
 /**
  * Handle for writing to a file multiple times within a scope

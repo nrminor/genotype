@@ -70,7 +70,7 @@
     "@effect/platform-bun": "^0.87.0",
     "@effect/platform-node": "^0.104.0",
     "@hpcc-js/wasm-zstd": "^1.9.0",
-    "arktype": "^2.1.29",
+    "arktype": "^2.2.0",
     "effect": "^3.19.14",
     "fflate": "^0.8.2"
   },

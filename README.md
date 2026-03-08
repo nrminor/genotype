@@ -22,15 +22,14 @@
 
 ## GenoType's Goal
 
-GenoType's goal is to fill a gap in the TypeScript ecosystem by providing a
-fully type-safe, performant, idiomatic library for parsing and processing
-genomic data in any of the major bioinformatic data formats. It's built with an
-obsession with developer experience and is meant to enable users to compose
-their own pipelines of sequence transformations in a fluent
-[DSL](https://en.wikipedia.org/wiki/Domain-specific_language). For example, the
-following "pipeline", mirroring a Unix pipeline of operations from the excellent
-[Seqkit command line interface](https://bioinf.shenwei.me/seqkit/), can be
-composed in TypeScript like so:
+GenoType's goal is to fill a gap in the TypeScript ecosystem by providing a fully
+type-safe, performant, idiomatic library for parsing and processing genomic data in any
+of the major bioinformatic data formats. It's built with an obsession with developer
+experience and enables users to compose their own pipelines of sequence transformations
+in a fluent [DSL](https://en.wikipedia.org/wiki/Domain-specific_language). For example,
+the following "pipeline", mirroring a Unix pipeline of operations from the excellent
+[Seqkit command line interface](https://bioinf.shenwei.me/seqkit/), can be composed in
+TypeScript like so:
 
 ```typescript
 import { seqops } from "genotype";
@@ -50,13 +49,14 @@ plus some extra goodies that make sense in the context of a TypeScript library
 
 ### Fast internals
 
-Also on the GenoType roadmap are Rust implementations that bring SIMD
-acceleration and multi-core parallelism to particular operations. These
-optimizations, together with the overall speed of modern JavaScript runtimes,
-will make GenoType's performance competitive with if not better than SeqKit,
-which is implemented in Go. Additionally, Rust implementations can be compiled
-to native extensions or WebAssembly modules, which opens the possibility for
-GenoType to be run on the server, in the browser, or anywhere in between.
+Where possible, GenoType delegates sequence operations to SIMD accelerated kernels
+implemented in Rust. These optimizations, together with the overall speed of modern
+JavaScript runtimes, make GenoType's performance competitive with if not better than
+SeqKit, which is implemented in Go and was one of the inspirations behind GenoType's
+DSL. Additionally, Rust can be compiled both to native extensions and WebAssembly
+modules, which opens the possibility for GenoType to be run on the server, in the
+browser, or anywhere in between. Browser execution is currently not supported but is an
+important part of the library's path to 1.0.
 
 ### Runtime-Agnostic Architecture
 
@@ -114,8 +114,7 @@ bun add @nrminor/genotype
 always, it needs quality control before analysis.
 
 ```typescript
-import { seqops } from "genotype";
-import { FastqParser } from "genotype/formats";
+import { seqops, FastqParser } from "genotype";
 
 // Parse FASTQ with quality encoding specification (or automatic detection)
 const parser = new FastqParser({
@@ -148,11 +147,11 @@ const qcStats = await seqops(reads)
 
 console.log(`
 QC Report:
-- Input reads: ${qcStats.totalSequences}
-- Passed QC: ${qcStats.passedSequences} (${qcStats.passRate}%)
-- Mean quality: ${qcStats.meanQuality}
+- Sequences: ${qcStats.numSequences}
+- Total length: ${qcStats.totalLength}
+- Mean quality: ${qcStats.qualityStats?.meanQuality?.toFixed(1) ?? "N/A"}
 - N50: ${qcStats.n50}
-- GC content: ${qcStats.gcContent}%
+- GC content: ${((qcStats.gcContent ?? 0) * 100).toFixed(1)}%
 `);
 ```
 
@@ -162,7 +161,7 @@ QC Report:
 using PCR primers, with support for long reads and biological validation.
 
 ```typescript
-import { primer, seqops } from "genotype";
+import { FastqParser, primer, seqops } from "genotype";
 
 // Define primers with compile-time validation and IUPAC support
 const forwardPrimer = primer.literal("TCGTCGGCAGCGTCAGATGTGTATAAGAGACAG"); // Nextera adapter
@@ -189,21 +188,17 @@ const optimizedAmplicons = await seqops(nanoporeReads)
   .writeFasta("validated_amplicons.fasta");
 
 // Real-world COVID-19 diagnostic example
-import { FastqParser } from "genotype/formats";
-
-const covidResults = await seqops(
-  new FastqParser().parseFile("covid_samples.fastq.gz"),
-)
+const covidResults = await seqops(new FastqParser().parseFile("covid_samples.fastq.gz"))
   .quality({ minScore: 20, trim: true })
   .amplicon(
     primer.literal("ACCAGGAACTAATCAGACAAG"), // N gene forward
     primer.literal("CAAAGACCAATCCTACCATGAG"), // N gene reverse
-    3, // Allow for sequencing errors
+    3 // Allow for sequencing errors
   )
   .validate({ mode: "strict" })
   .stats({ detailed: true });
 
-console.log(`Found ${covidResults.count} COVID amplicons`);
+console.log(`Found ${covidResults.numSequences} COVID amplicons`);
 ```
 
 ### CRISPR Guide RNA Design
@@ -242,7 +237,7 @@ const potentialGuides = await seqops(sequences)
   // Check for off-targets in genome
   .filter({
     custom: async guide => {
-      const offTargets = await searchGenome(guide.sequence, maxMismatches: 3);
+      const offTargets = await searchGenome(guide.sequence, { maxMismatches: 3 });
       return offTargets.length === 1; // Only one perfect match
     }
   })
@@ -272,11 +267,8 @@ const processedReads = await seqops(rnaseqReads)
   .filter({
     custom: (seq) => calculateComplexity(seq.sequence) > 0.5,
   })
-  // Deduplicate while preserving read counts
-  .deduplicate({
-    by: "sequence",
-    keepCounts: true,
-  })
+  // Remove duplicates
+  .rmdup("sequence")
   // Convert to format for aligner
   .transform({ upperCase: true })
   .writeFastq("processed_rnaseq.fastq");
@@ -307,21 +299,8 @@ const validationReport = await seqops(assemblies)
       return orfs.every((orf) => orf.length % 3 === 0);
     },
   })
-  // Add metadata for submission
-  .annotate({
-    organism: "Severe acute respiratory syndrome coronavirus 2",
-    molType: "genomic RNA",
-    isolate: metadata.isolate,
-    country: metadata.country,
-    collectionDate: metadata.date,
-  })
   .stats({ detailed: true });
 
-if (validationReport.passedSequences === validationReport.totalSequences) {
-  console.log("✅ All genomes passed validation");
-} else {
-  console.log(
-    `⚠️ ${validationReport.failedSequences} genomes failed validation`,
-  );
-}
+console.log(`Validated ${validationReport.numSequences} genomes`);
+console.log(`N50: ${validationReport.n50}, GC: ${((validationReport.gcContent ?? 0) * 100).toFixed(1)}%`);
 ```

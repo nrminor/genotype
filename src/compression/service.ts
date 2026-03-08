@@ -52,7 +52,7 @@
  *
  */
 
-import { Context, Effect, Layer } from "effect";
+import { Effect, Layer, ServiceMap } from "effect";
 import { Zstd } from "@hpcc-js/wasm-zstd";
 import { CompressionError } from "../errors";
 import type { CompressionFormat } from "../types";
@@ -150,10 +150,10 @@ export interface CompressionServiceShape {
  * await Effect.runPromise(program.pipe(Effect.provide(CompressionService.WithZstd)));
  * ```
  */
-export class CompressionService extends Context.Tag("@genotype/CompressionService")<
+export class CompressionService extends ServiceMap.Service<
   CompressionService,
   CompressionServiceShape
->() {
+>()("@genotype/CompressionService") {
   /**
    * Gzip-only compression service layer
    *
@@ -161,9 +161,8 @@ export class CompressionService extends Context.Tag("@genotype/CompressionServic
    * Attempting to use zstd format will result in an error.
    */
   static readonly Live: Layer.Layer<CompressionService> = Layer.succeed(
-    CompressionService,
-    createGzipOnlyService()
-  );
+    CompressionService
+  )(createGzipOnlyService());
 
   /**
    * Multi-format compression service layer with Zstd support
@@ -171,23 +170,22 @@ export class CompressionService extends Context.Tag("@genotype/CompressionServic
    * Initializes the Zstd WASM module on layer construction.
    * Supports gzip, zstd, and passthrough (none) formats.
    */
-  static readonly WithZstd: Layer.Layer<CompressionService, CompressionError> = Layer.scoped(
-    CompressionService,
-    Effect.gen(function* () {
-      // Load Zstd WASM module
-      const zstd = yield* Effect.tryPromise({
-        try: () => Zstd.load(),
-        catch: (error) =>
-          new CompressionError(
-            `Failed to initialize Zstd WASM: ${error instanceof Error ? error.message : String(error)}`,
-            "zstd",
-            "validate"
-          ),
-      });
+  static readonly WithZstd: Layer.Layer<CompressionService, CompressionError> = Layer.effect(
+    CompressionService
+  )(Effect.gen(function* () {
+    // Load Zstd WASM module
+    const zstd = yield* Effect.tryPromise({
+      try: () => Zstd.load(),
+      catch: (error) =>
+        new CompressionError(
+          `Failed to initialize Zstd WASM: ${error instanceof Error ? error.message : String(error)}`,
+          "zstd",
+          "validate"
+        ),
+    });
 
-      return createMultiFormatService(zstd);
-    })
-  );
+    return createMultiFormatService(zstd);
+  }));
 }
 
 /**

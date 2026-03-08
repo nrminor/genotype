@@ -5,10 +5,8 @@
  * appropriate Effect platform layers for cross-platform file I/O.
  */
 
-// Use subpath imports to avoid loading @effect/cluster modules
-// (BunClusterHttp/BunClusterSocket require @effect/cluster peer dependency)
-import * as BunContext from "@effect/platform-bun/BunContext";
-import * as NodeContext from "@effect/platform-node/NodeContext";
+import * as BunServices from "@effect/platform-bun/BunServices";
+import * as NodeServices from "@effect/platform-node/NodeServices";
 
 /**
  * Supported JavaScript runtimes
@@ -52,10 +50,10 @@ export function getPlatform() {
 
   switch (runtime) {
     case "bun":
-      return BunContext.layer;
+      return BunServices.layer;
     case "deno":
-      return NodeContext.layer; // Deno uses Node.js compatibility layer
+      return NodeServices.layer; // Deno uses Node.js compatibility layer
     case "node":
-      return NodeContext.layer;
+      return NodeServices.layer;
   }
 }

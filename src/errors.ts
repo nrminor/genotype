@@ -202,7 +202,7 @@ export class FileError extends GenotypeError {
   private static getSuggestionForSystemError(errorMessage: string): string | undefined {
     const msg = errorMessage.toLowerCase();
 
-    if (msg.includes("enoent") || msg.includes("no such file")) {
+    if (msg.includes("enoent") || msg.includes("no such file") || msg.includes("notfound")) {
       return "Check that the file path is correct and the file exists";
     }
     if (msg.includes("eacces") || msg.includes("permission denied")) {

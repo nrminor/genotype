@@ -42,7 +42,7 @@ describe("Effect DI Error Handling", () => {
         expect.unreachable("Should have thrown");
       } catch (error) {
         expect(error).toBeInstanceOf(FileError);
-        expect((error as FileError).message).toContain("ENOENT");
+        expect((error as FileError).message).toContain("NotFound");
       }
     });
 

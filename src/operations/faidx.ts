@@ -6,9 +6,8 @@
  *
  */
 
-import { FileSystem } from "@effect/platform";
 import { type } from "arktype";
-import { Effect } from "effect";
+import { Effect, FileSystem } from "effect";
 import { CompressionDetector } from "../compression/detector";
 import { createFastaRecord } from "../constructors";
 import { ParseError, ValidationError } from "../errors";

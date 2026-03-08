@@ -5,8 +5,7 @@
  * All Effect complexity is hidden behind Promise-based APIs.
  */
 
-import { FileSystem, Path } from "@effect/platform";
-import { Effect, Layer } from "effect";
+import { Effect, FileSystem, Layer, Path } from "effect";
 import {
   CompressionDetector,
   CompressionService,

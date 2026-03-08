@@ -5,9 +5,8 @@
  * JavaScript runtimes using Effect Platform for runtime abstraction.
  */
 
-import { FileSystem } from "@effect/platform";
 import { type } from "arktype";
-import { Effect, Layer, Stream } from "effect";
+import { Effect, FileSystem, Layer, Stream } from "effect";
 import {
   CompressionDetector,
   CompressionService,
@@ -297,7 +296,7 @@ export async function createStream(
 
     // Create base stream
     const effectStream = fs.stream(validatedPath, {
-      bufferSize: mergedOptions.bufferSize,
+      chunkSize: mergedOptions.bufferSize,
     });
     let stream = Stream.toReadableStream(effectStream);
 

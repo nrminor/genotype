@@ -4,6 +4,11 @@
 //! exposed to TypeScript via napi-rs. The #[napi] functions in this file
 //! are thin wrappers around pure-Rust kernel modules (grep.rs, etc.) that
 //! contain no napi dependencies and are independently testable.
+//!
+//! The search kernels (`grep_batch`, `find_pattern_batch`) and
+//! `classify_batch` use rayon to parallelize across sequences within a
+//! batch. The search functions use `map_init` to create per-thread
+//! `SearchContext` instances that cache sassy's internal DP matrices.
 
 #![feature(portable_simd)]
 #![allow(clippy::must_use_candidate)]
@@ -15,6 +20,7 @@ mod transform;
 
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
+use rayon::prelude::*;
 
 /// Search a batch of sequences for a pattern within a given edit distance.
 ///
@@ -48,17 +54,22 @@ pub fn grep_batch(
     utils::validate_offsets(offsets, sequences.len())?;
 
     let num_sequences = offsets.len().saturating_sub(1);
-    let mut results = vec![0u8; num_sequences];
 
-    let mode = grep::SearchMode::from_flags(case_insensitive, search_both_strands);
-    let mut ctx = grep::SearchContext::new(pattern, max_edits, &mode);
-
-    for (i, window) in offsets.windows(2).enumerate() {
-        let start = window[0] as usize;
-        let end = window[1] as usize;
-        let seq = &sequences[start..end];
-        results[i] = u8::from(ctx.contains_match(seq));
-    }
+    let results: Vec<u8> = (0..num_sequences)
+        .into_par_iter()
+        .map_init(
+            || {
+                let mode = grep::SearchMode::from_flags(case_insensitive, search_both_strands);
+                grep::SearchContext::new(pattern, max_edits, &mode)
+            },
+            |ctx, i| {
+                let start = offsets[i] as usize;
+                let end = offsets[i + 1] as usize;
+                let seq = &sequences[start..end];
+                u8::from(ctx.contains_match(seq))
+            },
+        )
+        .collect();
 
     Ok(results.into())
 }
@@ -107,19 +118,27 @@ pub fn find_pattern_batch(
     utils::validate_offsets(offsets, sequences.len())?;
 
     let num_sequences = offsets.len().saturating_sub(1);
+
+    let per_seq: Vec<Vec<(u32, u32, u32)>> = (0..num_sequences)
+        .into_par_iter()
+        .map_init(
+            || grep::SearchContext::new_with_positions(pattern, max_edits, case_insensitive),
+            |ctx, i| {
+                let start = offsets[i] as usize;
+                let end = offsets[i + 1] as usize;
+                let seq = &sequences[start..end];
+                ctx.find_matches(seq)
+            },
+        )
+        .collect();
+
     let mut starts = Vec::new();
     let mut ends = Vec::new();
     let mut costs = Vec::new();
     let mut match_offsets = Vec::with_capacity(num_sequences + 1);
-
-    let mut ctx = grep::SearchContext::new_with_positions(pattern, max_edits, case_insensitive);
-
-    for window in offsets.windows(2) {
+    for matches in &per_seq {
         match_offsets.push(starts.len() as u32);
-        let seq_start = window[0] as usize;
-        let seq_end = window[1] as usize;
-        let seq = &sequences[seq_start..seq_end];
-        for (s, e, c) in ctx.find_matches(seq) {
+        for &(s, e, c) in matches {
             starts.push(s);
             ends.push(e);
             costs.push(c);
@@ -378,16 +397,22 @@ pub fn classify_batch(sequences: &[u8], offsets: &[u32]) -> napi::Result<Classif
     utils::validate_offsets(offsets, sequences.len())?;
 
     let num_sequences = offsets.len().saturating_sub(1);
+
+    let per_seq: Vec<[u32; classify::NUM_CLASSES]> = (0..num_sequences)
+        .into_par_iter()
+        .map(|i| {
+            let start = offsets[i] as usize;
+            let end = offsets[i + 1] as usize;
+            let seq = &sequences[start..end];
+            let mut counts = [0u32; classify::NUM_CLASSES];
+            classify::classify(seq, &mut counts);
+            counts
+        })
+        .collect();
+
     let mut all_counts = Vec::with_capacity(num_sequences * classify::NUM_CLASSES);
-
-    for window in offsets.windows(2) {
-        let start = window[0] as usize;
-        let end = window[1] as usize;
-        let seq = &sequences[start..end];
-
-        let mut counts = [0u32; classify::NUM_CLASSES];
-        classify::classify(seq, &mut counts);
-        all_counts.extend_from_slice(&counts);
+    for counts in &per_seq {
+        all_counts.extend_from_slice(counts);
     }
 
     Ok(ClassifyResult { counts: all_counts })
@@ -1132,3 +1157,6 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod bench;

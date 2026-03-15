@@ -62,28 +62,3 @@ export function getEncodingInfo(encoding: QualityEncoding): QualityEncodingInfo 
   }
   return info;
 }
-
-/**
- * List all supported quality encodings
- *
- * @returns Array of supported encoding names
- *
- * @example
- * ```typescript
- * const encodings = getSupportedEncodings();
- * console.log(encodings); // ['phred33', 'phred64', 'solexa']
- * ```
- */
-export function getSupportedEncodings(): QualityEncoding[] {
-  return Object.keys(ENCODING_INFO) as QualityEncoding[];
-}
-
-/**
- * Check if an encoding is supported
- *
- * @param encoding - Encoding name to check
- * @returns True if encoding is supported
- */
-export function isValidEncoding(encoding: string): encoding is QualityEncoding {
-  return encoding in ENCODING_INFO;
-}

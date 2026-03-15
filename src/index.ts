@@ -136,27 +136,17 @@ export {
   // Branded types
   type AsciiOffset,
   calculateAverageQuality,
-  calculateErrorRate,
   calculateQualityStats,
   charToScore,
   convertQuality,
   type DetectionResult,
   detectEncoding,
-  detectEncodingStatistical,
   detectEncodingWithConfidence,
-  errorProbabilityToScore,
   getEncodingInfo,
-  getSupportedEncodings,
-  isValidAsciiOffset,
-  isValidEncoding,
-  isValidQualityScore,
-  percentAboveThreshold,
-  type QualityChar,
   type QualityScore,
   qualityToScores,
   scoresToQuality,
   scoreToChar,
-  scoreToErrorProbability,
 } from "./operations/core/quality";
 // Core types
 export type {

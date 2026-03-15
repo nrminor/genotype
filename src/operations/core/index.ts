@@ -114,7 +114,6 @@ export {
 // Now re-exported from the unified quality module
 export {
   calculateAverageQuality,
-  calculateErrorRate,
   // Statistics
   calculateQualityStats,
   // Core conversions
@@ -124,14 +123,10 @@ export {
   type DetectionResult,
   // Detection
   detectEncoding,
-  detectEncodingStatistical,
   detectEncodingWithConfidence,
   errorProbabilityToScore,
   // Encoding info
   getEncodingInfo,
-  getSupportedEncodings,
-  isValidEncoding,
-  percentAboveThreshold,
   type QualityEncodingInfo,
   type QualityStats,
   qualityToScores,
@@ -188,8 +183,6 @@ export {
   SequenceType,
   ValidationMode,
 } from "./sequence-validation";
-// Statistics accumulator for streaming analysis
-export { calculateSequenceStats, type SequenceStats, SequenceStatsAccumulator } from "./statistics";
 // Common validation utilities for operations
 export {
   CommonValidators,

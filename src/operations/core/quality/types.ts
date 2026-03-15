@@ -37,17 +37,6 @@ export type SolexaScore = number & {
 export type AsciiOffset = (33 | 59 | 64) & { readonly __brand: "AsciiOffset" };
 
 /**
- * Branded type for ASCII character codes in quality strings
- * @minimum 33 (!)
- * @maximum 126 (~)
- */
-export type QualityChar = number & {
-  readonly __brand: "QualityChar";
-  readonly __min: 33;
-  readonly __max: 126;
-};
-
-/**
  * Valid Phred+33 quality characters (ASCII 33-126)
  * Used for compile-time validation of literal quality characters
  */
@@ -237,20 +226,6 @@ export const isValidSolexaScore = (score: number): score is SolexaScore => {
 };
 
 /**
- * Type guard to validate ASCII offset
- */
-export const isValidAsciiOffset = (offset: number): offset is AsciiOffset => {
-  return offset === 33 || offset === 59 || offset === 64;
-};
-
-/**
- * Type guard to validate quality character code
- */
-export const isValidQualityChar = (charCode: number): charCode is QualityChar => {
-  return charCode >= 33 && charCode <= 126 && Number.isInteger(charCode);
-};
-
-/**
  * Convert branded quality scores to plain numbers for comparison and interop
  *
  * Useful when passing quality scores to functions expecting plain numbers,
@@ -262,25 +237,6 @@ export const isValidQualityChar = (charCode: number): charCode is QualityChar =>
 export function asNumbers(scores: readonly (QualityScore | SolexaScore)[]): number[] {
   return [...scores] as number[];
 }
-
-/**
- * Type guard to check if a string is a valid quality character for an encoding
- */
-export const isValidQualityCharForEncoding = (char: string, encoding: QualityEncoding): boolean => {
-  if (char.length !== 1) return false;
-  const code = char.charCodeAt(0);
-
-  switch (encoding) {
-    case "phred33":
-      return code >= 33 && code <= 126;
-    case "phred64":
-      return code >= 64 && code <= 126;
-    case "solexa":
-      return code >= 59 && code <= 126;
-    default:
-      return false;
-  }
-};
 
 /**
  * Type guard to check if a number is a valid quality score for an encoding

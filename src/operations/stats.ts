@@ -106,6 +106,8 @@ export interface SequenceStats {
   readonly q20Percentage?: number;
   /** Percentage of bases with quality >= 30 */
   readonly q30Percentage?: number;
+  /** Mean per-base error probability computed in probability space: mean(10^(-Q/10)) */
+  readonly meanErrorRate?: number;
   /** Quality encoding detected or specified */
   readonly qualityEncoding?: QualityEncoding;
 }
@@ -165,6 +167,7 @@ interface StatsAccumulator {
   maxQuality: number;
   q20Count: number;
   q30Count: number;
+  errorProbabilitySum: number;
 
   // Format detection
   hasFasta: boolean;
@@ -390,9 +393,10 @@ export class SequenceStatsCalculator {
     max: number;
     q20Percentage: number;
     q30Percentage: number;
+    meanErrorRate: number;
   } {
     if (qualities.length === 0) {
-      return { mean: 0, min: 0, max: 0, q20Percentage: 0, q30Percentage: 0 };
+      return { mean: 0, min: 0, max: 0, q20Percentage: 0, q30Percentage: 0, meanErrorRate: 0 };
     }
 
     let totalScore = 0;
@@ -401,6 +405,7 @@ export class SequenceStatsCalculator {
     let maxScore = -Infinity;
     let q20Count = 0;
     let q30Count = 0;
+    let errorProbabilitySum = 0;
 
     for (const qualityString of qualities) {
       for (const char of qualityString) {
@@ -412,6 +417,7 @@ export class SequenceStatsCalculator {
 
         if (score >= 20) q20Count++;
         if (score >= 30) q30Count++;
+        errorProbabilitySum += 10 ** (-score / 10);
       }
     }
 
@@ -421,6 +427,7 @@ export class SequenceStatsCalculator {
       max: maxScore === -Infinity ? 0 : maxScore,
       q20Percentage: totalBases > 0 ? (q20Count / totalBases) * 100 : 0,
       q30Percentage: totalBases > 0 ? (q30Count / totalBases) * 100 : 0,
+      meanErrorRate: totalBases > 0 ? errorProbabilitySum / totalBases : 0,
     };
   }
 
@@ -456,6 +463,7 @@ export class SequenceStatsCalculator {
       maxQuality: -Infinity,
       q20Count: 0,
       q30Count: 0,
+      errorProbabilitySum: 0,
 
       hasFasta: false,
       hasFastq: false,
@@ -590,6 +598,7 @@ export class SequenceStatsCalculator {
 
       if (score >= 20) accumulator.q20Count++;
       if (score >= 30) accumulator.q30Count++;
+      accumulator.errorProbabilitySum += 10 ** (-score / 10);
     }
   }
 
@@ -663,6 +672,7 @@ export class SequenceStatsCalculator {
           maxQuality: accumulator.maxQuality === -Infinity ? 0 : accumulator.maxQuality,
           q20Percentage: (accumulator.q20Count / accumulator.qualityCount) * 100,
           q30Percentage: (accumulator.q30Count / accumulator.qualityCount) * 100,
+          meanErrorRate: accumulator.errorProbabilitySum / accumulator.qualityCount,
           qualityEncoding: accumulator.qualityEncoding,
         }),
     };

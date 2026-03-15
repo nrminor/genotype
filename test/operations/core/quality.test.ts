@@ -19,19 +19,13 @@ import {
   convertQuality,
   // Detection
   detectEncoding,
-  detectEncodingStatistical,
   detectEncodingWithConfidence,
   errorProbabilityToScore,
   // Encoding info
   getEncodingInfo,
-  getSupportedEncodings,
-  isValidAsciiOffset,
-  isValidEncoding,
-  isValidQualityChar,
   // Type guards and branded types
   isValidQualityScore,
   isValidSolexaScore,
-  percentAboveThreshold,
   type QualityScore,
   qualityToScores,
   scoreToChar,
@@ -69,81 +63,6 @@ describe("Quality Operations - Type Safety", () => {
       expect(isValidQualityScore(NaN)).toBe(false);
       expect(isValidQualityScore(Infinity)).toBe(false);
       expect(isValidQualityScore(-Infinity)).toBe(false);
-    });
-  });
-
-  describe("isValidAsciiOffset type guard", () => {
-    test("accepts only valid offsets 33, 59, 64", () => {
-      expect(isValidAsciiOffset(33)).toBe(true); // Phred+33
-      expect(isValidAsciiOffset(59)).toBe(true); // Solexa (for -5)
-      expect(isValidAsciiOffset(64)).toBe(true); // Phred+64/Solexa
-    });
-
-    test("rejects all other numeric values", () => {
-      expect(isValidAsciiOffset(0)).toBe(false);
-      expect(isValidAsciiOffset(32)).toBe(false);
-      expect(isValidAsciiOffset(34)).toBe(false);
-      expect(isValidAsciiOffset(58)).toBe(false);
-      expect(isValidAsciiOffset(60)).toBe(false);
-      expect(isValidAsciiOffset(63)).toBe(false);
-      expect(isValidAsciiOffset(65)).toBe(false);
-      expect(isValidAsciiOffset(100)).toBe(false);
-    });
-
-    test("rejects special values", () => {
-      expect(isValidAsciiOffset(NaN)).toBe(false);
-      expect(isValidAsciiOffset(Infinity)).toBe(false);
-      expect(isValidAsciiOffset(-Infinity)).toBe(false);
-    });
-  });
-
-  describe("isValidQualityChar type guard", () => {
-    test("accepts valid ASCII character codes (33-126)", () => {
-      // Test boundary values
-      expect(isValidQualityChar(33)).toBe(true); // '!' - minimum
-      expect(isValidQualityChar(126)).toBe(true); // '~' - maximum
-
-      // Test common quality character codes
-      expect(isValidQualityChar(73)).toBe(true); // 'I' - common Phred+33
-      expect(isValidQualityChar(64)).toBe(true); // '@' - Phred+64 start
-      expect(isValidQualityChar(104)).toBe(true); // 'h' - common Phred+64
-
-      // Test range
-      for (let i = 33; i <= 126; i++) {
-        expect(isValidQualityChar(i)).toBe(true);
-      }
-    });
-
-    test("rejects character codes outside ASCII printable range", () => {
-      expect(isValidQualityChar(32)).toBe(false); // Space (below range)
-      expect(isValidQualityChar(127)).toBe(false); // DEL (above range)
-      expect(isValidQualityChar(0)).toBe(false); // NULL
-      expect(isValidQualityChar(10)).toBe(false); // Newline
-      expect(isValidQualityChar(255)).toBe(false); // Extended ASCII
-      expect(isValidQualityChar(-1)).toBe(false); // Negative
-    });
-
-    test("rejects non-integer values", () => {
-      expect(isValidQualityChar(33.5)).toBe(false);
-      expect(isValidQualityChar(64.99)).toBe(false);
-      expect(isValidQualityChar(100.1)).toBe(false);
-    });
-
-    test("rejects special numeric values", () => {
-      expect(isValidQualityChar(NaN)).toBe(false);
-      expect(isValidQualityChar(Infinity)).toBe(false);
-      expect(isValidQualityChar(-Infinity)).toBe(false);
-    });
-
-    test("works with actual character conversions", () => {
-      const char = "I";
-      const charCode = char.charCodeAt(0);
-      expect(isValidQualityChar(charCode)).toBe(true);
-
-      const qualityString = "IIII@@@@~~~~!!!!";
-      for (const c of qualityString) {
-        expect(isValidQualityChar(c.charCodeAt(0))).toBe(true);
-      }
     });
   });
 
@@ -196,11 +115,8 @@ describe("Quality Operations - Type Safety", () => {
         expect(score as number).toBe(40);
       }
 
-      if (isValidAsciiOffset(unknownOffset as number)) {
-        // This assignment would fail without proper narrowing
-        const offset: AsciiOffset = unknownOffset as AsciiOffset;
-        expect(offset as number).toBe(33);
-      }
+      const offset: AsciiOffset = unknownOffset as AsciiOffset;
+      expect(offset as number).toBe(33);
     });
 
     test("type guards work in conditional chains", () => {
@@ -253,7 +169,7 @@ describe("Quality Operations - Type Safety", () => {
       // @ts-expect-error - 65 is not a valid AsciiOffset
       const _anotherInvalid: AsciiOffset = 65;
 
-      expect(isValidAsciiOffset(validOffset)).toBe(true);
+      expect(validOffset as number).toBe(33);
     });
 
     test("functions require proper type validation", () => {
@@ -372,18 +288,18 @@ describe("Quality Operations - Type Safety", () => {
 
       // All valid offsets pass
       for (const offset of allPossibleOffsets) {
-        expect(isValidAsciiOffset(offset)).toBe(true);
+        expect([33, 59, 64]).toContain(offset);
       }
 
       // All others fail
       for (const offset of invalidOffsets) {
-        expect(isValidAsciiOffset(offset)).toBe(false);
+        expect([33, 59, 64]).not.toContain(offset);
       }
 
       // Property: exactly 3 valid offsets
       let validCount = 0;
       for (let i = -1000; i <= 1000; i++) {
-        if (isValidAsciiOffset(i)) validCount++;
+        if ([33, 59, 64].includes(i)) validCount++;
       }
       expect(validCount).toBe(3);
     });
@@ -562,42 +478,6 @@ describe("Quality Operations - Encoding Detection", () => {
     });
   });
 
-  describe("detectEncodingStatistical", () => {
-    test("analyzes multiple sequences for confident detection", async () => {
-      const sequences = [
-        { quality: "IIIIIIIIII" },
-        { quality: "GGGGGGGGGG" },
-        { quality: "FFFFFFFFFF" },
-      ];
-
-      async function* generateSequences() {
-        for (const seq of sequences) {
-          yield seq;
-        }
-      }
-
-      const result = await detectEncodingStatistical(generateSequences());
-      expect(result.encoding).toBe("phred33");
-      expect(result.confidence).toBeGreaterThanOrEqual(0.6); // Ambiguous range gets moderate confidence
-    });
-
-    test("handles mixed quality patterns", async () => {
-      const sequences = [
-        { quality: "!!!###" }, // Low quality
-        { quality: "IIIIII" }, // High quality
-        { quality: "<<<>>>" }, // Medium quality
-      ];
-
-      async function* generateSequences() {
-        for (const seq of sequences) {
-          yield seq;
-        }
-      }
-
-      const result = await detectEncodingStatistical(generateSequences());
-      expect(result.evidence.some((e) => e.includes("Analyzed 3 sequences"))).toBe(true);
-    });
-  });
 });
 
 describe("Quality Operations - Statistics", () => {
@@ -652,19 +532,6 @@ describe("Quality Operations - Statistics", () => {
     });
   });
 
-  describe("percentAboveThreshold", () => {
-    test("calculates Q30 percentage correctly", () => {
-      const quality = "IIIIGGGGFFFF"; // Mix of Q40, Q38, Q37
-      const q30Percent = percentAboveThreshold(quality, 30, "phred33");
-      expect(q30Percent).toBeCloseTo(100, 1); // All above Q30
-    });
-
-    test("calculates Q20 percentage correctly", () => {
-      const quality = "555IIIII"; // Mix of Q20 and Q40
-      const q20Percent = percentAboveThreshold(quality, 20, "phred33");
-      expect(q20Percent).toBeCloseTo(100, 1);
-    });
-  });
 });
 
 describe("Quality Operations - Encoding Info", () => {
@@ -677,19 +544,10 @@ describe("Quality Operations - Encoding Info", () => {
     expect(phred33Info.maxChar).toBe("~");
   });
 
-  test("lists all supported encodings", () => {
-    const encodings = getSupportedEncodings();
-    expect(encodings).toContain("phred33");
-    expect(encodings).toContain("phred64");
-    expect(encodings).toContain("solexa");
-    expect(encodings.length).toBe(3);
-  });
-
-  test("validates encoding names", () => {
-    expect(isValidEncoding("phred33")).toBe(true);
-    expect(isValidEncoding("phred64")).toBe(true);
-    expect(isValidEncoding("solexa")).toBe(true);
-    expect(isValidEncoding("invalid")).toBe(false);
+  test("exposes encoding information for all supported encodings", () => {
+    expect(getEncodingInfo("phred33").name).toBe("phred33");
+    expect(getEncodingInfo("phred64").name).toBe("phred64");
+    expect(getEncodingInfo("solexa").name).toBe("solexa");
   });
 });
 

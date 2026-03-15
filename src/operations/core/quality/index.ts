@@ -24,7 +24,6 @@
 export type {
   AsciiOffset,
   DetectionResult,
-  QualityChar,
   QualityEncodingInfo,
   QualityScore,
   QualityStats,
@@ -37,9 +36,6 @@ export type {
 // Export type guards for branded types
 export {
   asNumbers,
-  isValidAsciiOffset,
-  isValidQualityChar,
-  isValidQualityCharForEncoding,
   isValidQualityScore,
   isValidQualityScoreForEncoding,
   isValidSolexaScore,
@@ -53,20 +49,17 @@ export {
   scoreToChar,
 } from "./conversion";
 
-export { getEncodingInfo, getSupportedEncodings, isValidEncoding } from "./encoding-info";
+export { getEncodingInfo } from "./encoding-info";
 
 export {
   detectEncoding,
-  detectEncodingStatistical,
   detectEncodingWithConfidence,
 } from "./detection";
 
 export {
   calculateAverageQuality,
-  calculateErrorRate,
   calculateQualityStats,
   errorProbabilityToScore,
-  percentAboveThreshold,
   scoreToErrorProbability,
 } from "./statistics";
 

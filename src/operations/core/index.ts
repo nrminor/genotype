@@ -10,13 +10,9 @@ export { QualityEncoding } from "../../types";
 export { SequenceValidator } from "./sequence-validation";
 export type {
   DNASequence,
-  DnaTag,
   IUPACSequence,
-  IupacTag,
   PrimerSequence,
-  PrimerTag,
   RNASequence,
-  RnaTag,
 } from "./alphabet";
 // Alphabet validation and template literal tags
 export {

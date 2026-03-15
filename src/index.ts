@@ -173,7 +173,6 @@ export type {
   DecompressorOptions,
   // Alphabet validation types
   DNASequence,
-  DnaTag,
   // Alphabet validation template literal tags
   dna,
   FASTXSequence,
@@ -187,7 +186,6 @@ export type {
   FileValidationResult,
   FormatDetection,
   IUPACSequence,
-  IupacTag,
   isDNASequence,
   isIUPACSequence,
   isPrimerSequence,
@@ -200,11 +198,9 @@ export type {
   ParseResult,
   ParserOptions,
   PrimerSequence,
-  PrimerTag,
   primer,
   QualityEncoding,
   RNASequence,
-  RnaTag,
   rna,
   SAMAlignment,
   SAMFlag,
@@ -216,39 +212,6 @@ export type {
   StreamStats,
   VirtualOffset,
 } from "./types";
-export {
-  BAIBinNumberSchema,
-  BAIBinSchema,
-  BAIChunkSchema,
-  BAIIndexSchema,
-  BAILinearIndexSchema,
-  BAIQueryResultSchema,
-  BAIReaderOptionsSchema,
-  BAIReferenceSchema,
-  BAIWriterOptionsSchema,
-  BedIntervalSchema,
-  CIGAROperationSchema,
-  CompressionDetectionSchema,
-  CompressionFormatSchema,
-  DecompressorOptionsSchema,
-  FastaSequenceSchema,
-  FastqSequenceSchema,
-  FileMetadataSchema,
-  FilePathSchema,
-  FileReaderOptionsSchema,
-  MAPQScoreSchema,
-  QualitySchema,
-  SAMAlignmentSchema,
-  SAMFlagSchema,
-  SAMHeaderSchema,
-  SAMTagSchema,
-  SequenceIdSchema,
-  SequenceSchema,
-  StreamChunkSchema,
-  // BAI Index schemas
-  VirtualOffsetSchema,
-} from "./types";
-
 import { ParseError } from "./errors";
 import { BedParser, FastaParser, FastqParser } from "./formats";
 // Import types for internal use

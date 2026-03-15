@@ -2264,13 +2264,9 @@ export const BAIReaderOptionsSchema = type({
 
 export type {
   DNASequence,
-  DnaTag,
   IUPACSequence,
-  IupacTag,
   PrimerSequence,
-  PrimerTag,
   RNASequence,
-  RnaTag,
 } from "./operations/core/alphabet";
 // Re-export template literal tags and types for convenient library access
 export {

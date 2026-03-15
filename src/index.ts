@@ -26,7 +26,6 @@ export {
 // Error types
 export {
   AlphabetValidationError,
-  assertUnreachable,
   BAIIndexError,
   BamError,
   BedError,
@@ -36,15 +35,12 @@ export {
   CompatibilityError,
   CompressionError,
   ConcatError,
-  createContextualError,
   DSVParseError,
-  ERROR_SUGGESTIONS,
   FileError,
   FormatDetectionError,
   GenomicCoordinateError,
   GenotypeError,
   GrepError,
-  getErrorSuggestion,
   LocateError,
   MemoryError,
   PairSyncError,

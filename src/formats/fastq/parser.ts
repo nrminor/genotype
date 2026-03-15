@@ -36,7 +36,6 @@
 import { type } from "arktype";
 import { createFastqRecord } from "../../constructors";
 import {
-  getErrorSuggestion,
   ParseError,
   QualityError,
   SequenceError,
@@ -874,12 +873,9 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
     if (!this.options.skipValidation) {
       const validation = SequenceSchema(cleaned);
       if (validation instanceof type.errors) {
-        const suggestion = getErrorSuggestion(
-          new ValidationError(`Invalid sequence characters: ${validation.summary}`)
-        );
-
         throw new SequenceError(
-          `Invalid sequence characters found. ${suggestion}`,
+          `Invalid sequence characters found. ` +
+            `Use IUPAC nucleotide codes: A, C, G, T, U, R, Y, S, W, K, M, B, D, H, V, N`,
           "unknown",
           lineNumber,
           sequenceLine

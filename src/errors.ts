@@ -415,44 +415,6 @@ export class BamError extends ParseError {
 }
 
 /**
- * Helper function to create context-aware error messages
- */
-export function createContextualError(
-  ErrorClass: typeof GenotypeError,
-  message: string,
-  options: {
-    lineNumber?: number;
-    context?: string;
-    data?: Record<string, unknown>;
-  } = {}
-): GenotypeError {
-  const { lineNumber, context, data } = options;
-  let contextStr = context;
-
-  if (data && (contextStr === undefined || contextStr === null || contextStr === "")) {
-    contextStr = Object.entries(data)
-      .map(([key, value]) => `${key}: ${value}`)
-      .join(", ");
-  }
-
-  return new ErrorClass(message, "CONTEXTUAL_ERROR", lineNumber, contextStr);
-}
-
-/**
- * Error recovery suggestions for common issues
- */
-export const ERROR_SUGGESTIONS = {
-  INVALID_FASTA_HEADER: 'FASTA headers must start with ">" followed by an identifier',
-  INVALID_FASTQ_HEADER: 'FASTQ headers must start with "@" followed by an identifier',
-  SEQUENCE_QUALITY_MISMATCH: "Sequence and quality strings must have the same length",
-  INVALID_NUCLEOTIDE: "Use IUPAC nucleotide codes: A, C, G, T, U, R, Y, S, W, K, M, B, D, H, V, N",
-  INVALID_BED_COORDINATES: "BED coordinates must be non-negative integers with start < end",
-  COMPRESSED_FILE_ERROR: "Try installing appropriate compression libraries or check file integrity",
-  MEMORY_EXCEEDED: "Consider using streaming API or processing file in chunks",
-  MALFORMED_LINE: "Check for extra whitespace, special characters, or encoding issues",
-} as const;
-
-/**
  * Stream processing errors for I/O operations
  */
 export class StreamError extends GenotypeError {
@@ -995,37 +957,6 @@ export class PairSyncError extends ParseError {
     msg += `\nSuggestion: Check that R1 and R2 files are from the same sequencing run and properly synchronized`;
     return msg;
   }
-}
-
-/**
- * Get helpful suggestion for common error patterns
- */
-export function getErrorSuggestion(error: GenotypeError): string | undefined {
-  const message = error.message.toLowerCase();
-
-  if (message.includes("fasta") && message.includes("header")) {
-    return ERROR_SUGGESTIONS.INVALID_FASTA_HEADER;
-  }
-  if (message.includes("fastq") && message.includes("header")) {
-    return ERROR_SUGGESTIONS.INVALID_FASTQ_HEADER;
-  }
-  if (message.includes("quality") && message.includes("length")) {
-    return ERROR_SUGGESTIONS.SEQUENCE_QUALITY_MISMATCH;
-  }
-  if (message.includes("nucleotide") || message.includes("sequence")) {
-    return ERROR_SUGGESTIONS.INVALID_NUCLEOTIDE;
-  }
-  if (message.includes("bed") && message.includes("coordinate")) {
-    return ERROR_SUGGESTIONS.INVALID_BED_COORDINATES;
-  }
-  if (message.includes("compression") || message.includes("gzip") || message.includes("zstd")) {
-    return ERROR_SUGGESTIONS.COMPRESSED_FILE_ERROR;
-  }
-  if (message.includes("memory") || message.includes("allocation")) {
-    return ERROR_SUGGESTIONS.MEMORY_EXCEEDED;
-  }
-
-  return ERROR_SUGGESTIONS.MALFORMED_LINE;
 }
 
 /**

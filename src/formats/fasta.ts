@@ -13,7 +13,6 @@
 import { type } from "arktype";
 import {
   FileError,
-  getErrorSuggestion,
   ParseError,
   SequenceError,
   ValidationError,
@@ -824,14 +823,10 @@ function validateFastaSequence(
   if (!options.skipValidation) {
     const validation = SequenceSchema(cleaned);
     if (validation instanceof type.errors) {
-      const suggestion = getErrorSuggestion(
-        new ValidationError(`Invalid sequence characters: ${validation.summary}`)
-      );
-
       throw new SequenceError(
-        `Invalid FASTA sequence characters found at line ${lineNumber}. ${suggestion}\n` +
-          `FASTA sequences should contain IUPAC nucleotide codes (A,C,G,T,U), ambiguity codes (R,Y,S,W,K,M,B,D,H,V,N), ` +
-          `and gap characters (-,.) for alignments. Check for invalid characters or encoding issues.`,
+        `Invalid FASTA sequence characters found at line ${lineNumber}. ` +
+          `Use IUPAC nucleotide codes: A, C, G, T, U, R, Y, S, W, K, M, B, D, H, V, N. ` +
+          `Gap characters (-,.) are allowed for alignments. Check for invalid characters or encoding issues.`,
         "unknown",
         lineNumber,
         sequenceLine

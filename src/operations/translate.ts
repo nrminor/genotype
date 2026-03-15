@@ -9,7 +9,7 @@
 
 import { type } from "arktype";
 import { createFastaRecord } from "../constructors";
-import { createContextualError, SequenceError, ValidationError } from "../errors";
+import { SequenceError, ValidationError } from "../errors";
 import type { AbstractSequence } from "../types";
 import {
   GeneticCode,
@@ -215,10 +215,12 @@ export class TranslateProcessor {
   ): string {
     const codeTable = getGeneticCode(geneticCode);
     if (!codeTable) {
-      throw createContextualError(SequenceError, `Invalid genetic code: ${geneticCode}`, {
-        context: "Use genetic codes 1-33",
-        data: { providedCode: geneticCode },
-      });
+      throw new SequenceError(
+        `Invalid genetic code: ${geneticCode}. Use genetic codes 1-33`,
+        "CONTEXTUAL_ERROR",
+        undefined,
+        `providedCode: ${geneticCode}`
+      );
     }
 
     let protein = "";

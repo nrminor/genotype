@@ -9,7 +9,7 @@
 import { type } from "arktype";
 import { ParseError, ValidationError } from "../../errors";
 import { createStream } from "../../io/file-reader";
-import { StreamUtils } from "../../io/stream-utils";
+import { readLines } from "../../io/stream-utils";
 import type { Strand } from "../../types";
 import { AbstractParser } from "../abstract-parser";
 import type {
@@ -587,7 +587,7 @@ class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
         maxFileSize: 10_000_000_000, // 10GB max for large annotation files
       });
 
-      const lines = StreamUtils.readLines(stream, "utf8");
+      const lines = readLines(stream, "utf8");
       yield* this.parseLinesFromAsyncIterable(lines);
     } catch (error) {
       throw new ParseError(
@@ -643,7 +643,7 @@ class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
    * @returns AsyncIterable of GTF features
    */
   override async *parse(stream: ReadableStream<Uint8Array>): AsyncIterable<GtfFeature> {
-    const lines = StreamUtils.readLines(stream, "utf8");
+    const lines = readLines(stream, "utf8");
     yield* this.parseLinesFromAsyncIterable(lines);
   }
 

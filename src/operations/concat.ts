@@ -9,7 +9,7 @@
 
 import { ConcatError, FileError } from "../errors";
 import { detectFormat, parseAny } from "../index";
-import { FileReader } from "../io/file-reader";
+import { exists, getMetadata, readToString } from "../io/file-reader";
 import type {
   AbstractSequence,
   BedInterval,
@@ -169,11 +169,11 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
       // File path source
       try {
         // Check if file exists and get metadata
-        if (!(await FileReader.exists(source))) {
+        if (!(await exists(source))) {
           throw new ConcatError(`Cannot access source file: File does not exist`, source);
         }
 
-        const metadata = await FileReader.getMetadata(source);
+        const metadata = await getMetadata(source);
 
         // Check if file is readable
         if (!metadata.readable) {
@@ -220,7 +220,7 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
   private async readSampleContent(filePath: string): Promise<string> {
     try {
       // Read first 8KB for format detection
-      const content = await FileReader.readToString(filePath, {
+      const content = await readToString(filePath, {
         encoding: "utf8",
         maxFileSize: 8192,
       });
@@ -265,7 +265,7 @@ export class ConcatProcessor implements Processor<ConcatOptions> {
     _format?: FormatDetection
   ): Promise<AsyncIterable<AbstractSequence>> {
     try {
-      const content = await FileReader.readToString(filePath);
+      const content = await readToString(filePath);
 
       // Use parseAny to handle different formats
       // Parse any format and filter to sequences only

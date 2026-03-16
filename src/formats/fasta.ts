@@ -11,14 +11,9 @@
  */
 
 import { type } from "arktype";
-import {
-  FileError,
-  ParseError,
-  SequenceError,
-  ValidationError,
-} from "../errors";
+import { FileError, ParseError, SequenceError, ValidationError } from "../errors";
 import { createStream, exists, getMetadata } from "../io/file-reader";
-import { StreamUtils } from "../io/stream-utils";
+import { readLines } from "../io/stream-utils";
 import { createFastaRecord } from "../constructors";
 import type { FastaSequence, ParserOptions } from "../types";
 import { FastaSequenceSchema, SequenceIdSchema, SequenceSchema } from "../types";
@@ -189,7 +184,7 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
       const stream = await createStream(validatedPath, options);
 
       // Convert binary stream to lines and parse
-      const lines = StreamUtils.readLines(stream, options?.encoding || "utf8");
+      const lines = readLines(stream, options?.encoding || "utf8");
       yield* this.parseLinesFromAsyncIterable(lines);
     } catch (error) {
       // Re-throw file errors unchanged to preserve error type

@@ -20,7 +20,6 @@ export {
   CompressionDetector,
   createDecompressor,
   GzipDecompressor,
-  isCompressionSupported,
   ZstdDecompressor,
 } from "./compression";
 // Error types
@@ -56,17 +55,7 @@ export {
   ValidationError,
 } from "./errors";
 // BAM format and BAI indexing
-export {
-  BAIReader,
-  BAIWriter,
-  BAMParser,
-  BAMUtils,
-  BAMWriter,
-  type BAMWriterOptions,
-  BGZFCompressor,
-  BinningUtils,
-  VirtualOffsetUtils,
-} from "./formats/bam";
+export { BAMParser, BAMUtils, BAMWriter, type BAMWriterOptions } from "./formats/bam";
 // BED format
 export { BedFormat, BedParser, BedUtils, BedWriter } from "./formats/bed";
 // DSV/CSV/TSV format
@@ -90,16 +79,6 @@ export { FastqParser, FastqUtils, FastqWriter } from "./formats/fastq";
 // SAM format
 export { SAMParser, SAMUtils, SAMWriter } from "./formats/sam";
 // File I/O infrastructure
-export { FileReader } from "./io/file-reader";
-export { detectRuntime, type Runtime } from "./io/runtime";
-export {
-  batchLines,
-  pipe,
-  processBuffer,
-  processChunks,
-  readLines,
-  StreamUtils,
-} from "./io/stream-utils";
 // Native performance library (napi-rs addon)
 export { getNativeKernel, isNativeAvailable, type NativeKernel } from "./native";
 // SeqOps - Unix pipeline-style sequence operations
@@ -152,20 +131,11 @@ export {
 export type {
   AbstractSequence,
   AbstractSequence as Sequence,
-  BAIBin,
-  BAIBinNumber,
-  BAIChunk,
-  BAIIndex,
-  BAILinearIndex,
-  BAIQueryResult,
   BAIReaderOptions,
-  BAIReference,
   BAIStatistics,
-  BAIWriterOptions,
   BAMAlignment,
   BAMHeader,
   BedInterval,
-  BGZFBlock,
   CIGARString,
   CompressedStream,
   CompressionDetection,
@@ -178,12 +148,9 @@ export type {
   FASTXSequence,
   FastaSequence,
   FastqSequence,
-  FileHandle,
-  FileIOContext,
   FileMetadata,
   FilePath,
   FileReaderOptions,
-  FileValidationResult,
   FormatDetection,
   IUPACSequence,
   isDNASequence,

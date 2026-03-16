@@ -16,10 +16,11 @@ import { createSamAlignment } from "../constructors";
 import { SamError, ValidationError } from "../errors";
 import { createStream, exists, getMetadata } from "../io/file-reader";
 import { writeString } from "../io/file-writer";
-import { StreamUtils } from "../io/stream-utils";
+import { readLines } from "../io/stream-utils";
 import type {
   CIGARString,
   MAPQScore,
+  ParseResult,
   ParserOptions,
   QualityEncoding,
   SAMAlignment,
@@ -47,37 +48,6 @@ interface SamParserOptions extends ParserOptions {
   /** Whether to parse quality scores immediately */
   parseQualityScores?: boolean;
 }
-
-/**
- * Result type for parsing operations that may fail
- *
- * Discriminated union encoding success or failure states.
- * Success state carries parsed value, failure state carries error.
- *
- * @example Success case
- * ```ts
- * const result: ParseResult<number, Error> = { success: true, value: 42 };
- * if (result.success) {
- *   console.log(result.value); // TypeScript knows value exists
- * }
- * ```
- *
- * @example Failure case
- * ```ts
- * const result: ParseResult<number, Error> = {
- *   success: false,
- *   error: new Error("Parse failed")
- * };
- * if (!result.success) {
- *   console.error(result.error); // TypeScript knows error exists
- * }
- * ```
- *
- * @category Types
- */
-type ParseResult<T, E = Error> =
-  | { readonly success: true; readonly value: T }
-  | { readonly success: false; readonly error: E };
 
 /**
  * SAM format mandatory fields - exactly 11 fields required by specification
@@ -219,7 +189,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
   override async *parse(
     stream: ReadableStream<Uint8Array>
   ): AsyncIterable<SAMHeader | SAMAlignment> {
-    const lines = StreamUtils.readLines(stream, "utf8");
+    const lines = readLines(stream, "utf8");
     yield* this.parseLinesFromAsyncIterable(lines);
   }
 
@@ -262,7 +232,7 @@ class SAMParser extends AbstractParser<SAMAlignment | SAMHeader, SamParserOption
       const stream = await createStream(validatedPath, options);
 
       // Convert binary stream to lines and parse
-      const lines = StreamUtils.readLines(stream, options?.encoding || "utf8");
+      const lines = readLines(stream, options?.encoding || "utf8");
       yield* this.parseLinesFromAsyncIterable(lines);
     } catch (error) {
       // Re-throw with enhanced context

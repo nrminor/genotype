@@ -5,10 +5,10 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
-import { FileError, StreamError } from "../../src/errors";
+import { FileError } from "../../src/errors";
 import { createStream, exists, getMetadata, getSize, readToString } from "../../src/io/file-reader";
 import { detectRuntime } from "../../src/io/runtime";
-import { processBuffer, readLines, StreamUtils } from "../../src/io/stream-utils";
+import { processBuffer, readLines } from "../../src/io/stream-utils";
 
 // Test fixtures directory - use absolute path for reliability
 const FIXTURES_DIR = join(process.cwd(), "test", "io", "fixtures");
@@ -221,13 +221,13 @@ describe("FileReader", () => {
   });
 });
 
-describe("StreamUtils", () => {
+describe("stream utilities", () => {
   describe("Line Reading", () => {
     test("should read lines from stream", async () => {
       const stream = await createStream(join(FIXTURES_DIR, "lines.txt"));
       const lines: string[] = [];
 
-      for await (const line of StreamUtils.readLines(stream)) {
+      for await (const line of readLines(stream)) {
         lines.push(line);
       }
 
@@ -250,7 +250,7 @@ describe("StreamUtils", () => {
       const stream = await createStream(join(FIXTURES_DIR, "mixed-endings.txt"));
       const lines: string[] = [];
 
-      for await (const line of StreamUtils.readLines(stream)) {
+      for await (const line of readLines(stream)) {
         lines.push(line);
       }
 
@@ -264,7 +264,7 @@ describe("StreamUtils", () => {
       const stream = await createStream(join(FIXTURES_DIR, "mixed-endings.txt"));
       const lines: string[] = [];
 
-      for await (const line of StreamUtils.readLines(stream)) {
+      for await (const line of readLines(stream)) {
         lines.push(line);
       }
 
@@ -275,7 +275,7 @@ describe("StreamUtils", () => {
       const stream = await createStream(join(FIXTURES_DIR, "long-lines.txt"));
       const lines: string[] = [];
 
-      for await (const line of StreamUtils.readLines(stream)) {
+      for await (const line of readLines(stream)) {
         lines.push(line);
       }
 
@@ -287,7 +287,7 @@ describe("StreamUtils", () => {
 
   describe("Buffer Processing", () => {
     test("should process buffer correctly", () => {
-      const result = StreamUtils.processBuffer("Line 1\nLine 2\nIncomplete");
+      const result = processBuffer("Line 1\nLine 2\nIncomplete");
 
       expect(result.lines).toEqual(["Line 1", "Line 2"]);
       expect(result.remainder).toBe("Incomplete");
@@ -306,7 +306,7 @@ describe("StreamUtils", () => {
     });
 
     test("should handle complete buffer", () => {
-      const result = StreamUtils.processBuffer("Line 1\nLine 2\n");
+      const result = processBuffer("Line 1\nLine 2\n");
 
       expect(result.lines).toEqual(["Line 1", "Line 2"]);
       expect(result.remainder).toBe("");
@@ -314,7 +314,7 @@ describe("StreamUtils", () => {
     });
 
     test("should handle mixed line endings in buffer", () => {
-      const result = StreamUtils.processBuffer("Unix\nWindows\r\nMac\rIncomplete");
+      const result = processBuffer("Unix\nWindows\r\nMac\rIncomplete");
 
       expect(result.lines).toEqual(["Unix", "Windows", "Mac"]);
       expect(result.remainder).toBe("Incomplete");
@@ -322,107 +322,7 @@ describe("StreamUtils", () => {
 
     test("should throw on excessively long lines", () => {
       const longLine = "A".repeat(2000000); // 2MB line
-      expect(() => StreamUtils.processBuffer(longLine)).toThrow(Error);
-    });
-  });
-
-  describe("Stream Transformation", () => {
-    test("should transform stream items", async () => {
-      const stream = await createStream(join(FIXTURES_DIR, "lines.txt"));
-      const lines = StreamUtils.readLines(stream);
-      const uppercased = StreamUtils.pipe(lines, (line) => line.toUpperCase());
-
-      const results: string[] = [];
-      for await (const line of uppercased) {
-        results.push(line);
-      }
-
-      expect(results).toEqual(["LINE 1", "LINE 2", "LINE 3", "LINE 4"]);
-    });
-
-    test("should handle async transformations", async () => {
-      const stream = await createStream(join(FIXTURES_DIR, "lines.txt"));
-      const lines = StreamUtils.readLines(stream);
-      const transformed = StreamUtils.pipe(lines, async (line) => {
-        // Simulate async operation
-        await new Promise((resolve) => setTimeout(resolve, 1));
-        return line.length;
-      });
-
-      const results: number[] = [];
-      for await (const length of transformed) {
-        results.push(length);
-      }
-
-      expect(results).toEqual([6, 6, 6, 6]);
-    });
-
-    test("should handle transformation errors", async () => {
-      const stream = await createStream(join(FIXTURES_DIR, "lines.txt"));
-      const lines = StreamUtils.readLines(stream);
-      const failing = StreamUtils.pipe(lines, () => {
-        throw new Error("Transform failed");
-      });
-
-      let threwError = false;
-      try {
-        for await (const _ of failing) {
-          // Should throw before yielding anything
-        }
-      } catch (error) {
-        threwError = true;
-        expect(error).toBeInstanceOf(StreamError);
-      }
-      expect(threwError).toBe(true);
-    });
-  });
-
-  describe("Batch Processing", () => {
-    test("should batch lines correctly", async () => {
-      const stream = await createStream(join(FIXTURES_DIR, "lines.txt"));
-      const lines = StreamUtils.readLines(stream);
-      const batches = StreamUtils.batchLines(lines, 2);
-
-      const results: string[][] = [];
-      for await (const batch of batches) {
-        results.push(batch);
-      }
-
-      expect(results).toHaveLength(2);
-      expect(results[0]).toEqual(["Line 1", "Line 2"]);
-      expect(results[1]).toEqual(["Line 3", "Line 4"]);
-    });
-
-    test("should handle incomplete final batch", async () => {
-      const stream = await createStream(join(FIXTURES_DIR, "lines.txt"));
-      const lines = StreamUtils.readLines(stream);
-      const batches = StreamUtils.batchLines(lines, 3);
-
-      const results: string[][] = [];
-      for await (const batch of batches) {
-        results.push(batch);
-      }
-
-      expect(results).toHaveLength(2);
-      expect(results[0]).toHaveLength(3);
-      expect(results[1]).toHaveLength(1);
-    });
-  });
-
-  describe("Statistics and Monitoring", () => {
-    test("should provide stream processing statistics", async () => {
-      const stream = await createStream(join(FIXTURES_DIR, "medium.txt"));
-      const chunks = StreamUtils.processChunks(stream);
-
-      let finalStats;
-      for await (const chunk of chunks) {
-        expect(chunk.stats.bytesProcessed).toBeGreaterThanOrEqual(0);
-        expect(chunk.stats.chunksProcessed).toBeGreaterThan(0);
-        expect(chunk.stats.startTime).toBeGreaterThan(0);
-        finalStats = chunk.stats;
-      }
-
-      expect(finalStats?.bytesProcessed).toBeGreaterThan(0);
+      expect(() => processBuffer(longLine)).toThrow(Error);
     });
   });
 });

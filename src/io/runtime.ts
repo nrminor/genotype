@@ -9,11 +9,6 @@ import * as BunServices from "@effect/platform-bun/BunServices";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 
 /**
- * Supported JavaScript runtimes
- */
-export type Runtime = "node" | "bun" | "deno";
-
-/**
  * Detect the current JavaScript runtime
  *
  * Used for telemetry/logging and platform layer selection.
@@ -26,7 +21,7 @@ export type Runtime = "node" | "bun" | "deno";
  * console.log(`Running on ${runtime}`);
  * ```
  */
-export const detectRuntime = (): Runtime => {
+export const detectRuntime = (): "node" | "bun" | "deno" => {
   // Check for Bun first (most specific)
   if (typeof (globalThis as any).Bun !== "undefined") return "bun";
 

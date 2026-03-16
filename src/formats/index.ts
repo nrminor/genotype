@@ -16,16 +16,7 @@
  */
 
 // BAM format exports
-export {
-  BAIReader,
-  BAIWriter,
-  BAMParser,
-  BAMUtils,
-  BAMWriter,
-  BGZFCompressor,
-  BinningUtils,
-  VirtualOffsetUtils,
-} from "./bam";
+export { BAMParser, BAMUtils, BAMWriter } from "./bam";
 // BED format exports
 export {
   BedFormat,

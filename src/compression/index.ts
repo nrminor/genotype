@@ -96,13 +96,3 @@ export function createDecompressor(
       );
   }
 }
-
-/**
- * Utility function to check if a compression format is supported
- *
- * @param format Compression format to check
- * @returns Whether the format is supported by this library
- */
-export function isCompressionSupported(format: string): format is CompressionFormat {
-  return ["gzip", "zstd", "none"].includes(format);
-}

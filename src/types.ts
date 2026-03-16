@@ -494,17 +494,14 @@ export interface MotifLocation {
 /**
  * Generic parsing result that can represent success or failure
  */
-export type ParseResult<T> =
+export type ParseResult<T, E = Error> =
   | {
-      success: true;
-      data: T;
-      warnings?: string[];
+      readonly success: true;
+      readonly value: T;
     }
   | {
-      success: false;
-      error: string;
-      lineNumber?: number;
-      context?: string;
+      readonly success: false;
+      readonly error: E;
     };
 
 /**
@@ -1177,17 +1174,6 @@ export type FilePath = string & {
 };
 
 /**
- * Runtime-specific file handle with type safety
- * Maintains reference to the originating runtime for proper cleanup
- */
-export type FileHandle = unknown & {
-  readonly __brand: "FileHandle";
-  readonly __runtime: "node" | "deno" | "bun";
-  readonly __readable: boolean;
-  readonly __writable: boolean;
-};
-
-/**
  * File reading configuration options with sensible defaults
  * Provides control over streaming behavior and safety limits
  */
@@ -1281,23 +1267,6 @@ export interface LineProcessingResult {
 }
 
 /**
- * File validation result with detailed feedback
- * Provides context for file accessibility and format detection
- */
-export interface FileValidationResult {
-  /** Whether file is valid and accessible */
-  readonly isValid: boolean;
-  /** File metadata if accessible */
-  readonly metadata?: FileMetadata;
-  /** Validation error if any */
-  readonly error?: string;
-  /** Detected file format */
-  readonly detectedFormat?: "fasta" | "fastq" | "sam" | "bam" | "bed" | "unknown";
-  /** Confidence level for format detection (0-1) */
-  readonly confidence?: number;
-}
-
-/**
  * Stream processing statistics for monitoring
  * Tracks performance and resource usage during I/O operations
  */
@@ -1314,27 +1283,6 @@ export interface StreamStats {
   readonly estimatedTimeRemaining?: number;
   /** Memory usage in bytes */
   readonly memoryUsage: number;
-}
-
-/**
- * File I/O operation context for error handling and debugging
- * Provides comprehensive context for troubleshooting I/O issues
- */
-export interface FileIOContext {
-  /** File path being operated on */
-  readonly filePath: string;
-  /** Type of operation being performed */
-  readonly operation: "read" | "write" | "stat" | "open" | "close" | "seek";
-  /** Runtime environment */
-  readonly runtime: "node" | "deno" | "bun";
-  /** Operation start timestamp */
-  readonly startTime: number;
-  /** Current position in file */
-  readonly position?: number;
-  /** Buffer size being used */
-  readonly bufferSize: number;
-  /** Additional context data */
-  readonly context?: Record<string, unknown>;
 }
 
 // Validation schemas for file I/O types using ArkType

@@ -51,10 +51,7 @@ export {
 
 export { getEncodingInfo } from "./encoding-info";
 
-export {
-  detectEncoding,
-  detectEncodingWithConfidence,
-} from "./detection";
+export { detectEncoding, detectEncodingWithConfidence } from "./detection";
 
 export {
   calculateAverageQuality,

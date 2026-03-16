@@ -35,14 +35,9 @@
 
 import { type } from "arktype";
 import { createFastqRecord } from "../../constructors";
-import {
-  ParseError,
-  QualityError,
-  SequenceError,
-  ValidationError,
-} from "../../errors";
+import { ParseError, QualityError, SequenceError, ValidationError } from "../../errors";
 import { createStream, exists, getMetadata, getSize, readByteRange } from "../../io/file-reader";
-import { StreamUtils } from "../../io/stream-utils";
+import { readLines } from "../../io/stream-utils";
 import { detectEncoding, qualityToScores } from "../../operations/core/quality";
 import type { FastqSequence, FileReaderOptions, QualityEncoding } from "../../types";
 import { SequenceSchema } from "../../types";
@@ -573,7 +568,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
 
       // Create fresh stream for actual parsing
       const stream = await createStream(validatedPath, options);
-      const lines = StreamUtils.readLines(stream, options?.encoding || "utf8");
+      const lines = readLines(stream, options?.encoding || "utf8");
 
       // Use the appropriate parser
       if (useStateMachine) {

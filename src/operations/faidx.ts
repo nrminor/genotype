@@ -13,7 +13,7 @@ import { createFastaRecord } from "../constructors";
 import { ParseError, ValidationError } from "../errors";
 import { exists, readByteRange, readToString } from "../io/file-reader";
 import { getPlatform } from "../io/runtime";
-import type { FastaSequence } from "../types";
+import type { FastaSequence, ParseResult } from "../types";
 import { reverseComplement } from "./core/sequence-manipulation";
 
 /**
@@ -59,33 +59,6 @@ const ExtractOptionsSchema = type({
   "caseInsensitive?": "boolean",
   "onError?": "'throw' | 'skip'",
 });
-
-/**
- * Result type for parsing operations
- *
- * Discriminated union encoding success/failure without exceptions.
- * Enables type-safe error handling with TypeScript's control flow analysis.
- *
- * @template T - Success value type
- * @template E - Error type (defaults to Error)
- *
- * @example
- * ```ts
- * const result = parseCoordinateRange("123-456");
- * if (result.success) {
- *   // TypeScript knows result.value exists
- *   console.log(result.value);
- * } else {
- *   // TypeScript knows result.error exists
- *   console.error(result.error.message);
- * }
- * ```
- *
- * @category Types
- */
-type ParseResult<T, E = Error> =
-  | { readonly success: true; readonly value: T }
-  | { readonly success: false; readonly error: E };
 
 /**
  * Coordinate range specification with discriminated union encoding

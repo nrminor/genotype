@@ -323,12 +323,3 @@ export async function createStream(
     throw FileError.fromSystemError("read", validatedPath, error);
   }
 }
-
-/** Backward compatibility namespace export */
-export const FileReader = {
-  exists,
-  getSize,
-  getMetadata,
-  createStream,
-  readToString,
-} as const;

@@ -477,7 +477,6 @@ describe("Quality Operations - Encoding Detection", () => {
       expect(result.evidence).toContain("Empty quality string, defaulting to modern standard");
     });
   });
-
 });
 
 describe("Quality Operations - Statistics", () => {
@@ -531,7 +530,6 @@ describe("Quality Operations - Statistics", () => {
       expect(recoveredScore).toBeCloseTo(originalScore, 1);
     });
   });
-
 });
 
 describe("Quality Operations - Encoding Info", () => {

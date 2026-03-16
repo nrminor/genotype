@@ -8,12 +8,7 @@
 // Re-export quality encoding from types to maintain backward compatibility
 export { QualityEncoding } from "../../types";
 export { SequenceValidator } from "./sequence-validation";
-export type {
-  DNASequence,
-  IUPACSequence,
-  PrimerSequence,
-  RNASequence,
-} from "./alphabet";
+export type { DNASequence, IUPACSequence, PrimerSequence, RNASequence } from "./alphabet";
 // Alphabet validation and template literal tags
 export {
   dna,

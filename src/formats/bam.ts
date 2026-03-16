@@ -19,7 +19,6 @@
 import { createBamAlignment } from "../constructors";
 import { BamError, CompressionError, ValidationError } from "../errors";
 import { createStream as createFileStream, exists, getMetadata } from "../io/file-reader";
-// BAIWriter imported but not used in current implementation
 import type {
   BAIChunk,
   BAIIndex,
@@ -36,7 +35,6 @@ import { AbstractParser } from "./abstract-parser";
 import { BAIReader } from "./bam/bai-reader";
 import { BAMWriter, type BAMWriterOptions } from "./bam/bam-writer";
 import { createStream, detectFormat } from "./bam/bgzf";
-import { BGZFCompressor } from "./bam/bgzf-compressor";
 import {
   isBunOptimized,
   isValidBAMMagic,
@@ -1479,9 +1477,4 @@ const BAMUtils = {
 };
 
 // Exports - grouped at end per project style guide
-export { BAMParser, BAMUtils, BAMWriter, type BAMWriterOptions, BGZFCompressor };
-
-// Re-export BAI indexing components
-export { BAIReader } from "./bam/bai-reader";
-export { BinningUtils, VirtualOffsetUtils } from "./bam/bai-utils";
-export { BAIWriter } from "./bam/bai-writer";
+export { BAMParser, BAMUtils, BAMWriter, type BAMWriterOptions };

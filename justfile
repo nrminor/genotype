@@ -84,6 +84,8 @@ alias cr := clean-rust
 
 # ===== Testing =====
 
+BUN_CI_VERSION := "1.3.10"
+
 # Run all tests
 [group('test')]
 test:
@@ -139,6 +141,20 @@ test-all: test test-rust test-node test-deno
     @echo "✓ All tests passed across all environments!"
 
 alias ta := test-all
+
+# Run a single Bun test file inside the Linux CI container image
+[group('test')]
+ci-linux-file file:
+    docker run --rm -v "$PWD":/workspace -w /workspace oven/bun:{{ BUN_CI_VERSION }} bash -lc "bun install >/tmp/bun-install.log 2>&1 && bun test {{ file }} --timeout 30000"
+
+alias clf := ci-linux-file
+
+# Run the genomics-heavy format and operation suites in a Linux CI-like container
+[group('test')]
+ci-linux-genomics:
+    docker run --rm -v "$PWD":/workspace -w /workspace oven/bun:{{ BUN_CI_VERSION }} bash -lc "bun install >/tmp/bun-install.log 2>&1 && bun test test/operations/core/sequence-sorter.test.ts --timeout 30000 && bun test test/formats/paired-fastq.test.ts --timeout 30000 && bun test test/formats/dsv.test.ts --timeout 30000 && bun test test/io/file-reader.test.ts --timeout 30000"
+
+alias clg := ci-linux-genomics
 
 # ===== Code Quality =====
 

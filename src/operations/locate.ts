@@ -9,10 +9,24 @@
 
 import { type } from "arktype";
 import { ValidationError } from "../errors";
+import {
+  type NativeKernel,
+  type PatternSearchResult,
+  getNativeKernel,
+  packSequences,
+} from "../native";
 import type { AbstractSequence, MotifLocation } from "../types";
 import { fuzzyMatch } from "./core/pattern-matching";
 import { reverseComplement } from "./core/sequence-manipulation";
 import type { LocateOptions } from "./types";
+
+const BATCH_BYTE_BUDGET = 4 * 1024 * 1024;
+
+interface LocateSearchJob {
+  readonly pattern: Buffer;
+  readonly searchPattern: string;
+  readonly strand: "+" | "-";
+}
 
 /**
  * Schema for validating LocateOptions using ArkType
@@ -86,6 +100,19 @@ export class LocateProcessor {
       throw new ValidationError(`Invalid locate options: ${validationResult.summary}`);
     }
 
+    if (options.pattern instanceof RegExp) {
+      const regexOptions = options as LocateOptions & { pattern: RegExp };
+      yield* this.locateRegex(source, regexOptions);
+      return;
+    }
+
+    const nativeKernel = getNativeKernel();
+    if (nativeKernel !== undefined && options.allowOverlaps !== true) {
+      const stringOptions = options as LocateOptions & { pattern: string };
+      yield* this.locateNative(source, nativeKernel, stringOptions);
+      return;
+    }
+
     let totalYielded = 0;
 
     for await (const seq of source) {
@@ -100,6 +127,174 @@ export class LocateProcessor {
         totalYielded++;
       }
     }
+  }
+
+  private async *locateRegex(
+    source: AsyncIterable<AbstractSequence>,
+    options: LocateOptions & { pattern: RegExp }
+  ): AsyncIterable<MotifLocation> {
+    let totalYielded = 0;
+
+    for await (const seq of source) {
+      const locations = this.findRegexMatches(seq, options);
+      const filtered = options.allowOverlaps === true ? locations : this.filterOverlaps(locations);
+
+      for (const location of filtered) {
+        if (options.maxMatches !== undefined && totalYielded >= options.maxMatches) {
+          return;
+        }
+        yield location;
+        totalYielded++;
+      }
+    }
+  }
+
+  private async *locateNative(
+    source: AsyncIterable<AbstractSequence>,
+    kernel: NativeKernel,
+    options: LocateOptions & { pattern: string }
+  ): AsyncIterable<MotifLocation> {
+    const minLength = options.minLength ?? options.pattern.length;
+    if (options.pattern.length < minLength) {
+      return;
+    }
+
+    const jobs = this.buildSearchJobs(options);
+    let batch: AbstractSequence[] = [];
+    let batchBytes = 0;
+    let totalYielded = 0;
+
+    for await (const seq of source) {
+      batch.push(seq);
+      batchBytes += seq.sequence.length;
+
+      if (batchBytes >= BATCH_BYTE_BUDGET) {
+        totalYielded += yield* this.flushNativeBatch(batch, jobs, kernel, options, totalYielded);
+        batch = [];
+        batchBytes = 0;
+      }
+    }
+
+    if (batch.length > 0) {
+      yield* this.flushNativeBatch(batch, jobs, kernel, options, totalYielded);
+    }
+  }
+
+  private buildSearchJobs(
+    options: LocateOptions & { pattern: string }
+  ): readonly LocateSearchJob[] {
+    const jobs: LocateSearchJob[] = [
+      {
+        pattern: Buffer.from(options.pattern, "latin1"),
+        searchPattern: options.pattern,
+        strand: "+",
+      },
+    ];
+
+    if (options.searchBothStrands === true) {
+      const reversePattern = reverseComplement(options.pattern);
+      jobs.push({
+        pattern: Buffer.from(reversePattern, "latin1"),
+        searchPattern: reversePattern,
+        strand: "-",
+      });
+    }
+
+    return jobs;
+  }
+
+  private *flushNativeBatch(
+    batch: readonly AbstractSequence[],
+    jobs: readonly LocateSearchJob[],
+    kernel: NativeKernel,
+    options: LocateOptions & { pattern: string },
+    totalYieldedSoFar: number
+  ): Generator<MotifLocation, number> {
+    const { data, offsets } = packSequences(batch);
+    const caseInsensitive = options.ignoreCase === true;
+    const maxEdits = options.allowMismatches ?? 0;
+    const results = new Map<LocateSearchJob, PatternSearchResult>();
+    let yielded = 0;
+
+    for (const job of jobs) {
+      results.set(
+        job,
+        kernel.findPatternBatch(data, offsets, job.pattern, maxEdits, caseInsensitive)
+      );
+    }
+
+    for (let seqIndex = 0; seqIndex < batch.length; seqIndex++) {
+      const matches: MotifLocation[] = [];
+
+      for (const job of jobs) {
+        matches.push(
+          ...this.decodeNativeMatches(batch[seqIndex]!, seqIndex, results.get(job)!, job, options)
+        );
+      }
+
+      const filtered = this.filterOverlaps(matches);
+
+      for (const location of filtered) {
+        if (options.maxMatches !== undefined && totalYieldedSoFar + yielded >= options.maxMatches) {
+          return yielded;
+        }
+        yield location;
+        yielded++;
+      }
+    }
+
+    return yielded;
+  }
+
+  private decodeNativeMatches(
+    seq: AbstractSequence,
+    seqIndex: number,
+    result: PatternSearchResult,
+    job: LocateSearchJob,
+    options: LocateOptions & { pattern: string }
+  ): MotifLocation[] {
+    const rangeStart = result.matchOffsets[seqIndex]!;
+    const rangeEnd = result.matchOffsets[seqIndex + 1]!;
+    const seqStr = seq.sequence.toString();
+    const maxMismatches = options.allowMismatches ?? 0;
+    const caseInsensitive = options.ignoreCase === true;
+    const matches: MotifLocation[] = [];
+
+    for (let i = rangeStart; i < rangeEnd; i++) {
+      const start = result.starts[i]!;
+      const end = result.ends[i]!;
+      const length = end - start;
+      if (length !== job.searchPattern.length) {
+        continue;
+      }
+
+      const matchedSequence = seqStr.slice(start, end);
+      const mismatches = this.countLiteralMismatches(
+        matchedSequence,
+        job.searchPattern,
+        caseInsensitive
+      );
+      if (mismatches > maxMismatches) {
+        continue;
+      }
+
+      matches.push({
+        sequenceId: seq.id,
+        start,
+        end,
+        length,
+        strand: job.strand,
+        matchedSequence,
+        mismatches,
+        score: this.calculateScore(mismatches, job.searchPattern.length),
+        pattern: options.pattern,
+        ...(options.outputFormat !== "bed" && {
+          context: this.extractContext(seqStr, start, length),
+        }),
+      });
+    }
+
+    return matches;
   }
 
   /**
@@ -264,6 +459,30 @@ export class LocateProcessor {
   private calculateScore(mismatches: number, patternLength: number): number {
     if (patternLength === 0) return 0;
     return Math.max(0, 1 - mismatches / patternLength);
+  }
+
+  private countLiteralMismatches(sequence: string, pattern: string, ignoreCase: boolean): number {
+    let mismatches = 0;
+
+    for (let i = 0; i < pattern.length; i++) {
+      const seqChar = sequence[i];
+      const patternChar = pattern[i];
+
+      if (seqChar === undefined || patternChar === undefined) {
+        return pattern.length;
+      }
+
+      const matches =
+        ignoreCase === true
+          ? seqChar.toLowerCase() === patternChar.toLowerCase()
+          : seqChar === patternChar;
+
+      if (!matches) {
+        mismatches++;
+      }
+    }
+
+    return mismatches;
   }
 
   /**

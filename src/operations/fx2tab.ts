@@ -31,6 +31,13 @@ import {
 import { createStream, exists, getSize } from "../io/file-reader";
 import { openForWriting } from "../io/file-writer";
 import { readLines } from "../io/stream-utils";
+import {
+  SequenceMetricFlag,
+  getNativeKernel,
+  packSequences,
+  type PackedBatch,
+  type SequenceMetricsResult,
+} from "../native";
 import type { AbstractSequence, FastaSequence, FastqSequence } from "../types";
 import {
   atContent,
@@ -49,6 +56,41 @@ const DEFAULT_COLUMNS = ["id", "sequence", "length"] as const;
 
 /** Default decimal precision for floating point values */
 const DEFAULT_PRECISION = 2;
+
+/** Internal batch budget for native metric precomputation */
+const BATCH_BYTE_BUDGET = 4 * 1024 * 1024;
+
+const ALPHABET_MASK_ORDER = [
+  "*",
+  "-",
+  ".",
+  "A",
+  "B",
+  "C",
+  "D",
+  "E",
+  "F",
+  "G",
+  "H",
+  "I",
+  "J",
+  "K",
+  "L",
+  "M",
+  "N",
+  "O",
+  "P",
+  "Q",
+  "R",
+  "S",
+  "T",
+  "U",
+  "V",
+  "W",
+  "X",
+  "Y",
+  "Z",
+] as const;
 
 /** Number of lines to sample for delimiter detection */
 const DELIMITER_DETECTION_SAMPLE_LINES = 5;
@@ -677,6 +719,8 @@ export async function* fx2tab<Columns extends readonly ColumnId[]>(
 
   let sequenceIndex = 0;
   let lineNumber = 1;
+  let batch: AbstractSequence[] = [];
+  let batchBytes = 0;
 
   // Yield header row if requested
   if (header) {
@@ -702,41 +746,69 @@ export async function* fx2tab<Columns extends readonly ColumnId[]>(
     yield createRow(effectiveColumns, headerRow, headerRow, headerString, delimiter);
   }
 
-  // Process each sequence
-  for await (const seq of source) {
-    const values: Array<string | number | null> = [];
-    const stringValues: string[] = [];
+  const flushBatch = function* (
+    sequences: readonly AbstractSequence[]
+  ): Generator<Fx2TabRow<Columns>, void> {
+    const nativeMetrics = computeNativeMetricBatch(sequences, effectiveColumns, caseSensitive);
 
-    for (const col of effectiveColumns) {
-      // Get column value
-      const value = getColumnValue(seq, col, {
-        customColumns,
-        index: sequenceIndex,
-        lineNumber: includeLineNumbers ? lineNumber : 0,
-        nullValue,
-        caseSensitive,
-      });
+    for (let rowIndex = 0; rowIndex < sequences.length; rowIndex++) {
+      const seq = sequences[rowIndex]!;
+      const values: Array<string | number | null> = [];
+      const stringValues: string[] = [];
 
-      // Store raw value for object access
-      values.push(value);
+      for (const col of effectiveColumns) {
+        const value = getColumnValue(seq, col, {
+          customColumns,
+          index: sequenceIndex,
+          lineNumber: includeLineNumbers ? lineNumber : 0,
+          nullValue,
+          caseSensitive,
+          nativeMetrics,
+          rowIndex,
+        });
 
-      // Format for string representation
-      const stringValue = formatColumnValue(value, col, {
-        excelSafe,
-        precision,
-        nullValue,
-      });
-      stringValues.push(stringValue);
+        values.push(value);
+        stringValues.push(
+          formatColumnValue(value, col, {
+            excelSafe,
+            precision,
+            nullValue,
+          })
+        );
+      }
+
+      const rawString = writer.formatRow(stringValues);
+      yield createRow(effectiveColumns, values, stringValues, rawString, delimiter);
+
+      sequenceIndex++;
+      const isFastq =
+        "format" in seq && (seq as AbstractSequence & { format?: string }).format === "fastq";
+      lineNumber += isFastq ? 4 : 2;
     }
+  };
 
-    const rawString = writer.formatRow(stringValues);
-    yield createRow(effectiveColumns, values, stringValues, rawString, delimiter);
+  try {
+    for await (const seq of source) {
+      batch.push(seq);
+      batchBytes += seq.sequence?.length ?? 0;
 
-    sequenceIndex++;
-    // Check if sequence has format property (FASTQ vs FASTA)
-    const isFastq =
-      "format" in seq && (seq as AbstractSequence & { format?: string }).format === "fastq";
-    lineNumber += isFastq ? 4 : 2;
+      if (batchBytes >= BATCH_BYTE_BUDGET) {
+        yield* flushBatch(batch);
+        batch = [];
+        batchBytes = 0;
+      }
+    }
+  } catch (error) {
+    if (batch.length > 0) {
+      yield* flushBatch(batch);
+      batch = [];
+      batchBytes = 0;
+    }
+    throw error;
+  }
+
+  if (batch.length > 0) {
+    yield* flushBatch(batch);
   }
 }
 
@@ -992,6 +1064,198 @@ function createRow<Columns extends readonly ColumnId[]>(
   return row as Fx2TabRow<Columns>;
 }
 
+interface NativeMetricBatch {
+  readonly result: SequenceMetricsResult;
+  readonly qualityPresent: readonly boolean[];
+}
+
+function buildMetricFlags(columns: readonly ColumnId[], includeAlphabet: boolean): number {
+  let flags = 0;
+
+  for (const column of columns) {
+    switch (column) {
+      case "length":
+        flags |= SequenceMetricFlag.Length;
+        break;
+      case "gc":
+        flags |= SequenceMetricFlag.Gc;
+        break;
+      case "at":
+        flags |= SequenceMetricFlag.At;
+        break;
+      case "gc_skew":
+        flags |= SequenceMetricFlag.GcSkew;
+        break;
+      case "at_skew":
+        flags |= SequenceMetricFlag.AtSkew;
+        break;
+      case "entropy":
+        flags |= SequenceMetricFlag.Entropy;
+        break;
+      case "alphabet":
+        if (includeAlphabet) {
+          flags |= SequenceMetricFlag.Alphabet;
+        }
+        break;
+      case "avg_qual":
+        flags |= SequenceMetricFlag.AvgQual;
+        break;
+      case "min_qual":
+        flags |= SequenceMetricFlag.MinQual;
+        break;
+      case "max_qual":
+        flags |= SequenceMetricFlag.MaxQual;
+        break;
+    }
+  }
+
+  return flags;
+}
+
+function packOptionalQualityStrings(sequences: readonly AbstractSequence[]): {
+  readonly batch: PackedBatch;
+  readonly qualityPresent: readonly boolean[];
+  readonly uniformAsciiOffset: number | null;
+} {
+  const count = sequences.length;
+  const offsets = new Uint32Array(count + 1);
+  const chunks: Uint8Array[] = new Array(count);
+  const qualityPresent = new Array<boolean>(count);
+  let totalBytes = 0;
+  let uniformAsciiOffset: number | null = null;
+
+  for (let i = 0; i < count; i++) {
+    const seq = sequences[i] as Partial<FastqSequence>;
+    const quality = seq.quality;
+    const qualityEncoding = seq.qualityEncoding;
+    offsets[i] = totalBytes;
+
+    if (quality !== undefined) {
+      const bytes = quality.toBytes();
+      chunks[i] = bytes;
+      qualityPresent[i] = true;
+      totalBytes += bytes.length;
+
+      const asciiOffset =
+        qualityEncoding === "phred64" || qualityEncoding === "solexa" ? 64 : 33;
+      if (uniformAsciiOffset === null) {
+        uniformAsciiOffset = asciiOffset;
+      } else if (uniformAsciiOffset !== asciiOffset) {
+        uniformAsciiOffset = -1;
+      }
+    } else {
+      chunks[i] = new Uint8Array(0);
+      qualityPresent[i] = false;
+    }
+  }
+
+  offsets[count] = totalBytes;
+  const data = Buffer.allocUnsafe(totalBytes);
+  for (let i = 0; i < count; i++) {
+    data.set(chunks[i]!, offsets[i]!);
+  }
+
+  return {
+    batch: { data, offsets },
+    qualityPresent,
+    uniformAsciiOffset: uniformAsciiOffset === -1 ? null : uniformAsciiOffset,
+  };
+}
+
+function alphabetFromMask(mask: number): string {
+  let out = "";
+  for (let i = 0; i < ALPHABET_MASK_ORDER.length; i++) {
+    if ((mask & (1 << i)) !== 0) {
+      out += ALPHABET_MASK_ORDER[i]!;
+    }
+  }
+  return out;
+}
+
+function computeNativeMetricBatch(
+  sequences: readonly AbstractSequence[],
+  columns: readonly ColumnId[],
+  caseSensitive: boolean
+): NativeMetricBatch | null {
+  const kernel = getNativeKernel();
+  if (kernel === undefined || typeof kernel.sequenceMetricsBatch !== "function") {
+    return null;
+  }
+
+  const metricFlags = buildMetricFlags(columns, !caseSensitive);
+  if (metricFlags === 0) {
+    return null;
+  }
+
+  const sequenceBatch = packSequences(sequences);
+  const qualityBatch = packOptionalQualityStrings(sequences);
+  const needsQualityMetrics =
+    (metricFlags &
+      (SequenceMetricFlag.AvgQual | SequenceMetricFlag.MinQual | SequenceMetricFlag.MaxQual)) !==
+    0;
+
+  const effectiveFlags =
+    needsQualityMetrics && qualityBatch.uniformAsciiOffset === null
+      ? metricFlags &
+        ~(SequenceMetricFlag.AvgQual | SequenceMetricFlag.MinQual | SequenceMetricFlag.MaxQual)
+      : metricFlags;
+
+  if (effectiveFlags === 0) {
+    return null;
+  }
+
+  const result = kernel.sequenceMetricsBatch(
+    sequenceBatch.data,
+    sequenceBatch.offsets,
+    qualityBatch.batch.data,
+    qualityBatch.batch.offsets,
+    effectiveFlags,
+    qualityBatch.uniformAsciiOffset ?? 33
+  );
+
+  return {
+    result,
+    qualityPresent: qualityBatch.qualityPresent,
+  };
+}
+
+function getNativeMetricValue(
+  nativeMetrics: NativeMetricBatch | null,
+  rowIndex: number,
+  column: BuiltInColumnId | string
+): string | number | null | undefined {
+  if (nativeMetrics === null) {
+    return undefined;
+  }
+
+  switch (column) {
+    case "length":
+      return nativeMetrics.result.lengths?.[rowIndex];
+    case "gc":
+      return nativeMetrics.result.gc?.[rowIndex];
+    case "at":
+      return nativeMetrics.result.at?.[rowIndex];
+    case "gc_skew":
+      return nativeMetrics.result.gcSkew?.[rowIndex];
+    case "at_skew":
+      return nativeMetrics.result.atSkew?.[rowIndex];
+    case "entropy":
+      return nativeMetrics.result.entropy?.[rowIndex];
+    case "alphabet": {
+      const mask = nativeMetrics.result.alphabetMask?.[rowIndex];
+      return mask === undefined ? undefined : alphabetFromMask(mask);
+    }
+    case "avg_qual":
+      return nativeMetrics.qualityPresent[rowIndex] ? nativeMetrics.result.avgQual?.[rowIndex] : null;
+    case "min_qual":
+      return nativeMetrics.qualityPresent[rowIndex] ? nativeMetrics.result.minQual?.[rowIndex] : null;
+    case "max_qual":
+      return nativeMetrics.qualityPresent[rowIndex] ? nativeMetrics.result.maxQual?.[rowIndex] : null;
+    default:
+      return undefined;
+  }
+}
+
 /**
  * Get column value from custom or built-in columns
  */
@@ -1007,6 +1271,8 @@ function getColumnValue(
     lineNumber: number;
     nullValue: string;
     caseSensitive?: boolean;
+    nativeMetrics: NativeMetricBatch | null;
+    rowIndex: number;
   }
 ): string | number | null {
   const customCol = options.customColumns[column];
@@ -1073,8 +1339,20 @@ function formatColumnValue(
 function computeColumn(
   seq: AbstractSequence,
   column: BuiltInColumnId | string,
-  options: { index: number; lineNumber: number; nullValue: string; caseSensitive?: boolean }
+  options: {
+    index: number;
+    lineNumber: number;
+    nullValue: string;
+    caseSensitive?: boolean;
+    nativeMetrics: NativeMetricBatch | null;
+    rowIndex: number;
+  }
 ): string | number | null {
+  const nativeValue = getNativeMetricValue(options.nativeMetrics, options.rowIndex, column);
+  if (nativeValue !== undefined) {
+    return nativeValue;
+  }
+
   // Use column directly (no more aliases)
   const mappedColumn = column;
 

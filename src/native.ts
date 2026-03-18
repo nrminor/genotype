@@ -111,6 +111,32 @@ export interface PatternSearchResult {
   matchOffsets: number[];
 }
 
+export interface SequenceMetricsResult {
+  lengths?: number[];
+  gc?: number[];
+  at?: number[];
+  gcSkew?: number[];
+  atSkew?: number[];
+  entropy?: number[];
+  alphabetMask?: number[];
+  avgQual?: number[];
+  minQual?: number[];
+  maxQual?: number[];
+}
+
+export const enum SequenceMetricFlag {
+  Length = 1 << 0,
+  Gc = 1 << 1,
+  At = 1 << 2,
+  GcSkew = 1 << 3,
+  AtSkew = 1 << 4,
+  Entropy = 1 << 5,
+  Alphabet = 1 << 6,
+  AvgQual = 1 << 7,
+  MinQual = 1 << 8,
+  MaxQual = 1 << 9,
+}
+
 export interface NativeKernel {
   /** Search a batch of sequences for a pattern within a given edit distance. */
   grepBatch(
@@ -286,6 +312,15 @@ export interface NativeKernel {
     boundaries: Buffer,
     representatives: Buffer
   ): TransformResult;
+
+  sequenceMetricsBatch(
+    sequences: Buffer,
+    seqOffsets: Uint32Array,
+    quality: Buffer,
+    qualOffsets: Uint32Array,
+    metricFlags: number,
+    asciiOffset: number
+  ): SequenceMetricsResult;
 }
 
 /**

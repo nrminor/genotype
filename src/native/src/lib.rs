@@ -626,6 +626,20 @@ pub struct SequenceMetricsResult {
     pub max_qual: Option<Vec<i32>>,
 }
 
+#[derive(Clone)]
+#[allow(clippy::struct_excessive_bools)]
+#[napi(object)]
+pub struct TranslateBatchOptions {
+    pub frame_offset: u8,
+    pub reverse: bool,
+    pub convert_start_codons: bool,
+    pub allow_alternative_starts: bool,
+    pub trim_at_first_stop: bool,
+    pub remove_stop_codons: bool,
+    pub stop_codon_char: String,
+    pub unknown_codon_char: String,
+}
+
 const METRIC_LENGTH: u32 = 1 << 0;
 const METRIC_GC: u32 = 1 << 1;
 const METRIC_AT: u32 = 1 << 2;
@@ -636,6 +650,9 @@ const METRIC_ALPHABET: u32 = 1 << 6;
 const METRIC_AVG_QUAL: u32 = 1 << 7;
 const METRIC_MIN_QUAL: u32 = 1 << 8;
 const METRIC_MAX_QUAL: u32 = 1 << 9;
+
+const CODON_LUT_LEN: usize = 16 * 16 * 16;
+const EXACT_CODON_TABLE_LEN: usize = 64;
 
 const ALPHABET_STAR: usize = 0;
 const ALPHABET_DASH: usize = 1;
@@ -754,6 +771,103 @@ pub fn sequence_metrics_batch(
     ))
 }
 
+/// Translate a packed batch of nucleotide sequences into proteins.
+///
+/// This accelerates the direct frame-translation path. ORF-finding remains in
+/// TypeScript. Genetic-code semantics are driven by precomputed lookup buffers
+/// supplied by TypeScript so the source of truth for the code tables stays in
+/// the existing TS genetic-code definitions.
+///
+/// # Errors
+///
+/// Returns a napi error if the offset array is malformed, if any lookup table
+/// has the wrong length, or if the requested frame offset is outside 0..=2.
+#[napi]
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::needless_pass_by_value,
+    clippy::too_many_arguments,
+    clippy::fn_params_excessive_bools
+)]
+pub fn translate_batch(
+    sequences: &[u8],
+    offsets: &[u32],
+    translation_lut: &[u8],
+    start_mask: &[u8],
+    alternative_start_mask: &[u8],
+    options: TranslateBatchOptions,
+) -> napi::Result<TransformResult> {
+    utils::validate_offsets(offsets, sequences.len())?;
+
+    if translation_lut.len() != CODON_LUT_LEN {
+        return Err(napi::Error::from_reason(
+            "translate_batch: translation lookup table must have length 4096",
+        ));
+    }
+    if start_mask.len() != EXACT_CODON_TABLE_LEN {
+        return Err(napi::Error::from_reason(
+            "translate_batch: start mask must have length 64",
+        ));
+    }
+    if alternative_start_mask.len() != EXACT_CODON_TABLE_LEN {
+        return Err(napi::Error::from_reason(
+            "translate_batch: alternative start mask must have length 64",
+        ));
+    }
+    if options.frame_offset > 2 {
+        return Err(napi::Error::from_reason(
+            "translate_batch: frame_offset must be 0, 1, or 2",
+        ));
+    }
+
+    let stop_byte = options
+        .stop_codon_char
+        .as_bytes()
+        .first()
+        .copied()
+        .unwrap_or(b'*');
+    let unknown_byte = options
+        .unknown_codon_char
+        .as_bytes()
+        .first()
+        .copied()
+        .unwrap_or(b'X');
+    let num_sequences = offsets.len().saturating_sub(1);
+
+    let proteins: Vec<Vec<u8>> = (0..num_sequences)
+        .into_par_iter()
+        .map(|i| {
+            let start = offsets[i] as usize;
+            let end = offsets[i + 1] as usize;
+            let seq = &sequences[start..end];
+            translate_one(
+                seq,
+                translation_lut,
+                start_mask,
+                alternative_start_mask,
+                &options,
+                stop_byte,
+                unknown_byte,
+            )
+        })
+        .collect();
+
+    let total_len: usize = proteins.iter().map(Vec::len).sum();
+    let mut data = Vec::with_capacity(total_len);
+    let mut out_offsets = Vec::with_capacity(num_sequences + 1);
+    out_offsets.push(0);
+
+    for protein in proteins {
+        data.extend_from_slice(&protein);
+        out_offsets.push(data.len() as u32);
+    }
+
+    Ok(TransformResult {
+        data: data.into(),
+        offsets: out_offsets,
+    })
+}
+
 #[allow(clippy::cast_possible_truncation)]
 fn compute_seq_metrics(seq: &[u8]) -> SeqAccum {
     let mut counts = [0u32; ALPHABET_LEN];
@@ -826,6 +940,156 @@ fn compute_qual_metrics(quality: &[u8]) -> QualAccum {
         min_raw,
         max_raw,
         seen: true,
+    }
+}
+
+#[allow(clippy::too_many_arguments, clippy::fn_params_excessive_bools)]
+fn translate_one(
+    seq: &[u8],
+    translation_lut: &[u8],
+    start_mask: &[u8],
+    alternative_start_mask: &[u8],
+    options: &TranslateBatchOptions,
+    stop_byte: u8,
+    unknown_byte: u8,
+) -> Vec<u8> {
+    let normalized = if options.reverse {
+        reverse_complement_normalized(seq)
+    } else {
+        normalize_to_dna_upper(seq)
+    };
+
+    let frame_offset = options.frame_offset as usize;
+
+    if normalized.is_empty() || frame_offset >= normalized.len() {
+        return Vec::new();
+    }
+
+    let mut out = Vec::with_capacity(normalized.len() / 3);
+    let mut is_first_codon = true;
+    let mut i = frame_offset;
+
+    while i + 2 < normalized.len() {
+        let codon = [normalized[i], normalized[i + 1], normalized[i + 2]];
+        let codon_index = codon_lookup_index(codon);
+        let exact_index = exact_codon_index(codon);
+        let mut amino_acid = translation_lut[codon_index as usize];
+
+        if options.convert_start_codons
+            && is_first_codon
+            && (exact_index.is_some_and(|idx| start_mask[idx] != 0)
+                || (options.allow_alternative_starts
+                    && exact_index.is_some_and(|idx| alternative_start_mask[idx] != 0)))
+        {
+            amino_acid = b'M';
+        }
+        is_first_codon = false;
+
+        if amino_acid == b'*' {
+            if options.trim_at_first_stop {
+                break;
+            }
+            if options.remove_stop_codons {
+                i += 3;
+                continue;
+            }
+            amino_acid = stop_byte;
+        } else if amino_acid == b'X' {
+            amino_acid = unknown_byte;
+        }
+
+        out.push(amino_acid);
+        i += 3;
+    }
+
+    out
+}
+
+fn normalize_to_dna_upper(seq: &[u8]) -> Vec<u8> {
+    seq.iter()
+        .map(|&b| match b & !0x20 {
+            b'U' => b'T',
+            upper => upper,
+        })
+        .collect()
+}
+
+fn reverse_complement_normalized(seq: &[u8]) -> Vec<u8> {
+    seq.iter()
+        .rev()
+        .map(|&b| complement_iupac_dna(b & !0x20))
+        .collect()
+}
+
+fn complement_iupac_dna(base: u8) -> u8 {
+    match base {
+        b'A' => b'T',
+        b'C' => b'G',
+        b'G' => b'C',
+        b'T' | b'U' => b'A',
+        b'R' => b'Y',
+        b'Y' => b'R',
+        b'S' => b'S',
+        b'W' => b'W',
+        b'K' => b'M',
+        b'M' => b'K',
+        b'B' => b'V',
+        b'D' => b'H',
+        b'H' => b'D',
+        b'V' => b'B',
+        b'N' => b'N',
+        b'.' => b'.',
+        b'-' => b'-',
+        b'*' => b'*',
+        other => other,
+    }
+}
+
+fn base_mask(base: u8) -> u8 {
+    match base {
+        b'A' => 0b0001,
+        b'C' => 0b0010,
+        b'G' => 0b0100,
+        b'T' | b'U' => 0b1000,
+        b'R' => 0b0101,
+        b'Y' => 0b1010,
+        b'S' => 0b0110,
+        b'W' => 0b1001,
+        b'K' => 0b1100,
+        b'M' => 0b0011,
+        b'B' => 0b1110,
+        b'D' => 0b1101,
+        b'H' => 0b1011,
+        b'V' => 0b0111,
+        b'N' => 0b1111,
+        _ => 0,
+    }
+}
+
+fn codon_lookup_index(codon: [u8; 3]) -> u16 {
+    let a = u16::from(base_mask(codon[0]));
+    let b = u16::from(base_mask(codon[1]));
+    let c = u16::from(base_mask(codon[2]));
+    (a << 8) | (b << 4) | c
+}
+
+fn exact_codon_index(codon: [u8; 3]) -> Option<usize> {
+    let a = exact_base_bits(codon[0]);
+    let b = exact_base_bits(codon[1]);
+    let c = exact_base_bits(codon[2]);
+    match (a, b, c) {
+        (Some(a), Some(b), Some(c)) => Some((a << 4) | (b << 2) | c),
+        _ => None,
+    }
+}
+
+fn exact_base_bits(base: u8) -> Option<usize> {
+    match base {
+        b'A' => Some(0),
+        b'C' => Some(1),
+        b'G' => Some(2),
+        b'T' | b'U' => Some(3),
+        _ => None,
     }
 }
 

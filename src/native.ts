@@ -124,6 +124,17 @@ export interface SequenceMetricsResult {
   maxQual?: number[];
 }
 
+export interface TranslateBatchOptions {
+  frameOffset: number;
+  reverse: boolean;
+  convertStartCodons: boolean;
+  allowAlternativeStarts: boolean;
+  trimAtFirstStop: boolean;
+  removeStopCodons: boolean;
+  stopCodonChar: string;
+  unknownCodonChar: string;
+}
+
 export const enum SequenceMetricFlag {
   Length = 1 << 0,
   Gc = 1 << 1,
@@ -321,6 +332,15 @@ export interface NativeKernel {
     metricFlags: number,
     asciiOffset: number
   ): SequenceMetricsResult;
+
+  translateBatch(
+    sequences: Buffer,
+    offsets: Uint32Array,
+    translationLut: Buffer,
+    startMask: Buffer,
+    alternativeStartMask: Buffer,
+    options: TranslateBatchOptions
+  ): TransformResult;
 }
 
 /**

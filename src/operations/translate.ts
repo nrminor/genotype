@@ -10,6 +10,7 @@
 import { type } from "arktype";
 import { createFastaRecord } from "../constructors";
 import { SequenceError, ValidationError } from "../errors";
+import { getNativeKernel, packSequences, type TransformResult } from "../native";
 import type { AbstractSequence } from "../types";
 import {
   GeneticCode,
@@ -19,7 +20,126 @@ import {
   translateCodon,
 } from "./core/genetic-codes";
 import { reverseComplement } from "./core/sequence-manipulation";
+import { expandAmbiguous } from "./core/sequence-validation";
 import type { TranslateOptions } from "./types";
+
+interface TranslationKernelTables {
+  readonly translationLut: Buffer;
+  readonly startMask: Buffer;
+  readonly alternativeStartMask: Buffer;
+}
+
+const translationKernelTableCache = new Map<number, TranslationKernelTables>();
+
+const IUPAC_BASE_MASK: Record<string, number> = {
+  A: 0b0001,
+  C: 0b0010,
+  G: 0b0100,
+  T: 0b1000,
+  U: 0b1000,
+  R: 0b0101,
+  Y: 0b1010,
+  S: 0b0110,
+  W: 0b1001,
+  K: 0b1100,
+  M: 0b0011,
+  B: 0b1110,
+  D: 0b1101,
+  H: 0b1011,
+  V: 0b0111,
+  N: 0b1111,
+};
+
+const EXACT_BASE_BITS: Record<string, number> = {
+  A: 0,
+  C: 1,
+  G: 2,
+  T: 3,
+  U: 3,
+};
+
+function encodeExactCodon(codon: string): number {
+  const a = EXACT_BASE_BITS[codon[0]!] ?? 0;
+  const b = EXACT_BASE_BITS[codon[1]!] ?? 0;
+  const c = EXACT_BASE_BITS[codon[2]!] ?? 0;
+  return (a << 4) | (b << 2) | c;
+}
+
+function getTranslationKernelTables(geneticCode: GeneticCode): TranslationKernelTables {
+  const cached = translationKernelTableCache.get(geneticCode);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const codeTable = getGeneticCode(geneticCode);
+  if (!codeTable) {
+    throw new SequenceError(
+      `Invalid genetic code: ${geneticCode}. Use genetic codes 1-33`,
+      "CONTEXTUAL_ERROR",
+      undefined,
+      `providedCode: ${geneticCode}`
+    );
+  }
+
+  const translationLut = Buffer.alloc(16 * 16 * 16, "X".charCodeAt(0));
+  const startMask = Buffer.alloc(64, 0);
+  const alternativeStartMask = Buffer.alloc(64, 0);
+
+  for (let mask0 = 0; mask0 < 16; mask0++) {
+    for (let mask1 = 0; mask1 < 16; mask1++) {
+      for (let mask2 = 0; mask2 < 16; mask2++) {
+        const index = (mask0 << 8) | (mask1 << 4) | mask2;
+        const codon = [mask0, mask1, mask2]
+          .map((mask) => {
+            const entry = Object.entries(IUPAC_BASE_MASK).find(([, value]) => value === mask);
+            return entry?.[0] ?? "";
+          })
+          .join("");
+
+        if (codon.length !== 3) {
+          continue;
+        }
+
+        const results = ["" as string];
+        const bases = codon.split("").map((base) => expandAmbiguous(base));
+        let expansions = results;
+        for (const possibilities of bases) {
+          const next: string[] = [];
+          for (const prefix of expansions) {
+            for (const possibility of possibilities) {
+              next.push(prefix + possibility.replace(/U/g, "T"));
+            }
+          }
+          expansions = next;
+        }
+
+        const aminoAcids = new Set<string>();
+        for (const expanded of expansions) {
+          const aa = codeTable.codons[expanded];
+          if (aa !== undefined) {
+            aminoAcids.add(aa);
+          }
+        }
+
+        if (aminoAcids.size === 1) {
+          translationLut[index] = (Array.from(aminoAcids)[0] ?? "X").charCodeAt(0);
+        }
+      }
+    }
+  }
+
+  for (const startCodon of codeTable.startCodons) {
+    startMask[encodeExactCodon(startCodon)] = 1;
+  }
+
+  for (const codon of ["CTG", "TTG", "GTG"]) {
+    alternativeStartMask[encodeExactCodon(codon)] = 1;
+  }
+
+  const tables = { translationLut, startMask, alternativeStartMask };
+  translationKernelTableCache.set(geneticCode, tables);
+  return tables;
+}
 
 /**
  * Declarative ArkType schema for TranslateOptions with comprehensive constraints
@@ -124,8 +244,98 @@ export class TranslateProcessor {
       throw new ValidationError(`Invalid translation options: ${validationResult.summary}`);
     }
 
+    if (options.orfsOnly !== true) {
+      const kernel = getNativeKernel();
+      if (kernel !== undefined && typeof kernel.translateBatch === "function") {
+        yield* this.translateNative(source, kernel, options);
+        return;
+      }
+    }
+
     for await (const seq of source) {
       yield* this.translateSequence(seq, options);
+    }
+  }
+
+  private async *translateNative(
+    source: AsyncIterable<AbstractSequence>,
+    kernel: NonNullable<ReturnType<typeof getNativeKernel>>,
+    options: TranslateOptions
+  ): AsyncIterable<AbstractSequence> {
+    const frames = this.determineFrames(options);
+    const geneticCode = options.geneticCode ?? GeneticCode.STANDARD;
+    const tables = getTranslationKernelTables(geneticCode);
+    const stopCodonChar = options.stopCodonChar ?? "*";
+    const unknownCodonChar = options.unknownCodonChar ?? "X";
+
+    let batch: AbstractSequence[] = [];
+    let batchBytes = 0;
+    const BATCH_BYTE_BUDGET = 4 * 1024 * 1024;
+
+    const flush = function* (
+      processor: TranslateProcessor,
+      sequences: readonly AbstractSequence[]
+    ): Generator<AbstractSequence> {
+      const packed = packSequences(sequences);
+      const perFrame = new Map<number, TransformResult>();
+
+      for (const frame of frames) {
+        const frameOffset = Math.abs(frame) - 1;
+        const reverse = frame < 0;
+        perFrame.set(
+          frame,
+          kernel.translateBatch(
+            packed.data,
+            packed.offsets,
+            tables.translationLut,
+            tables.startMask,
+            tables.alternativeStartMask,
+            {
+              frameOffset,
+              reverse,
+              convertStartCodons: options.convertStartCodons === true,
+              allowAlternativeStarts: options.allowAlternativeStarts === true,
+              trimAtFirstStop: options.trimAtFirstStop === true,
+              removeStopCodons: options.removeStopCodons === true,
+              stopCodonChar,
+              unknownCodonChar,
+            }
+          )
+        );
+      }
+
+      for (let seqIndex = 0; seqIndex < sequences.length; seqIndex++) {
+        const seq = sequences[seqIndex]!;
+        for (const frame of frames) {
+          const translated = perFrame.get(frame)!;
+          const start = translated.offsets[seqIndex]!;
+          const end = translated.offsets[seqIndex + 1]!;
+          const protein = translated.data.subarray(start, end).toString("latin1");
+
+          if (
+            options.minOrfLength === undefined ||
+            options.minOrfLength === null ||
+            protein.length >= options.minOrfLength
+          ) {
+            yield processor.createTranslatedSequence(seq, protein, frame, options);
+          }
+        }
+      }
+    };
+
+    for await (const seq of source) {
+      batch.push(seq);
+      batchBytes += seq.sequence.length;
+
+      if (batchBytes >= BATCH_BYTE_BUDGET) {
+        yield* flush(this, batch);
+        batch = [];
+        batchBytes = 0;
+      }
+    }
+
+    if (batch.length > 0) {
+      yield* flush(this, batch);
     }
   }
 

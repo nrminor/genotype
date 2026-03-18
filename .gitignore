@@ -5,7 +5,7 @@
 # Package management and tooling config
 !/.gitignore
 !/package.json
-!/bun.lockb
+!/bun.lock
 !/tsconfig.json
 !/tsconfig.test.json
 !/.oxlintrc.json

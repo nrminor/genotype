@@ -119,7 +119,7 @@ pub fn find_pattern_batch(
 
     let num_sequences = offsets.len().saturating_sub(1);
 
-    let per_seq: Vec<Vec<(u32, u32, u32)>> = (0..num_sequences)
+    let per_seq: Vec<grep::PerSeqMatches> = (0..num_sequences)
         .into_par_iter()
         .map_init(
             || grep::SearchContext::new_with_positions(pattern, max_edits, case_insensitive),

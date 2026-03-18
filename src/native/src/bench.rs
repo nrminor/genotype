@@ -150,7 +150,7 @@ fn find_pattern() {
     };
 
     let run_parallel = || {
-        let per_seq: Vec<Vec<(u32, u32, u32)>> = (0..num_sequences)
+        let per_seq: Vec<grep::PerSeqMatches> = (0..num_sequences)
             .into_par_iter()
             .map_init(
                 || grep::SearchContext::new_with_positions(primer, max_edits, false),

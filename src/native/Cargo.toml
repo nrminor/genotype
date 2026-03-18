@@ -12,6 +12,7 @@ napi = { version = "3", features = ["napi8"] }
 napi-derive = "3"
 rayon = "1.11"
 sassy = { version = "0.2.0", default-features = false }
+smallvec = "1.15"
 
 [lints]
 workspace = true

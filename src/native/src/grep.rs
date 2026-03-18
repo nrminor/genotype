@@ -30,6 +30,10 @@ use sassy::{
     profiles::{Ascii, Iupac, Profile},
     Searcher,
 };
+use smallvec::SmallVec;
+
+pub(crate) type MatchTriple = (u32, u32, u32);
+pub(crate) type PerSeqMatches = SmallVec<[MatchTriple; 4]>;
 
 /// How the kernel should match the pattern against sequences.
 ///
@@ -199,7 +203,7 @@ impl SearchContext {
     /// `without_trace` context, `text_start` values will be `usize::MAX`
     /// (sassy's sentinel for "not computed").
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-    pub(crate) fn find_matches(&mut self, seq: &[u8]) -> Vec<(u32, u32, u32)> {
+    pub(crate) fn find_matches(&mut self, seq: &[u8]) -> PerSeqMatches {
         match self {
             Self::Ascii {
                 searcher,
@@ -269,9 +273,9 @@ impl SearchContext {
         seq_buf: &mut Vec<u8>,
         needs_uppercase: bool,
         seq: &[u8],
-    ) -> Vec<(u32, u32, u32)> {
+    ) -> PerSeqMatches {
         if seq.is_empty() || pattern.is_empty() || pattern.len() > seq.len() {
-            return Vec::new();
+            return PerSeqMatches::new();
         }
         let haystack = Self::prepare_haystack(seq, seq_buf, needs_uppercase);
         searcher
@@ -298,7 +302,7 @@ mod tests {
         ctx.contains_match(seq)
     }
 
-    fn find(seq: &[u8], pattern: &[u8], max_edits: u32) -> Vec<(u32, u32, u32)> {
+    fn find(seq: &[u8], pattern: &[u8], max_edits: u32) -> PerSeqMatches {
         let mut ctx = SearchContext::new_with_positions(pattern, max_edits, false);
         ctx.find_matches(seq)
     }

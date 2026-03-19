@@ -1136,8 +1136,7 @@ function packOptionalQualityStrings(sequences: readonly AbstractSequence[]): {
       qualityPresent[i] = true;
       totalBytes += bytes.length;
 
-      const asciiOffset =
-        qualityEncoding === "phred64" || qualityEncoding === "solexa" ? 64 : 33;
+      const asciiOffset = qualityEncoding === "phred64" || qualityEncoding === "solexa" ? 64 : 33;
       if (uniformAsciiOffset === null) {
         uniformAsciiOffset = asciiOffset;
       } else if (uniformAsciiOffset !== asciiOffset) {
@@ -1246,11 +1245,17 @@ function getNativeMetricValue(
       return mask === undefined ? undefined : alphabetFromMask(mask);
     }
     case "avg_qual":
-      return nativeMetrics.qualityPresent[rowIndex] ? nativeMetrics.result.avgQual?.[rowIndex] : null;
+      return nativeMetrics.qualityPresent[rowIndex]
+        ? nativeMetrics.result.avgQual?.[rowIndex]
+        : null;
     case "min_qual":
-      return nativeMetrics.qualityPresent[rowIndex] ? nativeMetrics.result.minQual?.[rowIndex] : null;
+      return nativeMetrics.qualityPresent[rowIndex]
+        ? nativeMetrics.result.minQual?.[rowIndex]
+        : null;
     case "max_qual":
-      return nativeMetrics.qualityPresent[rowIndex] ? nativeMetrics.result.maxQual?.[rowIndex] : null;
+      return nativeMetrics.qualityPresent[rowIndex]
+        ? nativeMetrics.result.maxQual?.[rowIndex]
+        : null;
     default:
       return undefined;
   }

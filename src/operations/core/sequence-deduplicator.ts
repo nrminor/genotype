@@ -331,6 +331,7 @@ export class SequenceDeduplicator {
   private bloom: BloomFilter | ScalableBloomFilter;
   private readonly options: Required<DeduplicationOptions>;
   private readonly getKey: (seq: AbstractSequence) => string;
+  private readonly nativeKeyMode: "sequence" | "both" | null;
   private stats: DeduplicationStats;
   private readonly duplicateTracker?: Map<string, number>;
 
@@ -356,6 +357,13 @@ export class SequenceDeduplicator {
 
     // Set up key generation function
     this.getKey = this.createKeyFunction(this.options.strategy);
+
+    // Determine whether the native hash path is eligible
+    const strategy = this.options.strategy;
+    this.nativeKeyMode =
+      typeof strategy === "string" && (strategy === "sequence" || strategy === "both")
+        ? strategy
+        : null;
 
     // Initialize statistics
     this.stats = {
@@ -390,6 +398,14 @@ export class SequenceDeduplicator {
    * ```
    */
   async *deduplicate(sequences: AsyncIterable<AbstractSequence>): AsyncGenerator<AbstractSequence> {
+    if (this.nativeKeyMode !== null) {
+      const kernel = getNativeKernel();
+      if (kernel !== undefined) {
+        yield* this.deduplicateNative(sequences, kernel);
+        return;
+      }
+    }
+
     for await (const seq of sequences) {
       if (this.processSequence(seq)) {
         yield seq;
@@ -415,6 +431,14 @@ export class SequenceDeduplicator {
    * ```
    */
   async process(sequences: AsyncIterable<AbstractSequence>): Promise<void> {
+    if (this.nativeKeyMode !== null) {
+      const kernel = getNativeKernel();
+      if (kernel !== undefined) {
+        await this.processNative(sequences, kernel);
+        return;
+      }
+    }
+
     for await (const seq of sequences) {
       this.processSequence(seq);
     }
@@ -437,7 +461,7 @@ export class SequenceDeduplicator {
    * ```
    */
   isUnique(sequence: AbstractSequence): boolean {
-    const key = this.getKey(sequence);
+    const key = this.getEffectiveKey(sequence);
     return !this.bloom.contains(key);
   }
 
@@ -457,9 +481,29 @@ export class SequenceDeduplicator {
    * ```
    */
   markAsSeen(sequence: AbstractSequence): void {
-    const key = this.getKey(sequence);
+    const key = this.getEffectiveKey(sequence);
     this.bloom.add(key);
     this.stats.uniqueCount++;
+  }
+
+  /**
+   * Produce the bloom filter key for a single sequence, using the
+   * native hash path when available and eligible, falling back to
+   * the scalar key function otherwise. This ensures that isUnique,
+   * markAsSeen, and the streaming deduplicate/process methods all
+   * use the same key space.
+   */
+  private getEffectiveKey(sequence: AbstractSequence): string {
+    if (this.nativeKeyMode !== null) {
+      const kernel = getNativeKernel();
+      if (kernel !== undefined) {
+        const { data, offsets } = packSequences([sequence]);
+        const hashBuffer = kernel.hashBatch(data, offsets, !this.options.caseSensitive);
+        const seqHash = extractHashKey(hashBuffer, 0);
+        return this.nativeKeyMode === "both" ? `${sequence.id}:${seqHash}` : seqHash;
+      }
+    }
+    return this.getKey(sequence);
   }
 
   /**
@@ -595,6 +639,97 @@ export class SequenceDeduplicator {
       this.bloom.add(key);
       this.stats.uniqueCount++;
       return true; // Yield unique sequences
+    }
+  }
+
+  private processSequenceWithHashKey(seq: AbstractSequence, key: string): boolean {
+    this.stats.totalProcessed++;
+
+    if (this.bloom.contains(key)) {
+      this.stats.duplicateCount++;
+      if (this.duplicateTracker) {
+        const count = this.duplicateTracker.get(seq.id) ?? 0;
+        this.duplicateTracker.set(seq.id, count + 1);
+      }
+      return false;
+    } else {
+      this.bloom.add(key);
+      this.stats.uniqueCount++;
+      return true;
+    }
+  }
+
+  private async *deduplicateNative(
+    sequences: AsyncIterable<AbstractSequence>,
+    kernel: NativeKernel
+  ): AsyncGenerator<AbstractSequence> {
+    let batch: AbstractSequence[] = [];
+    let batchBytes = 0;
+
+    for await (const seq of sequences) {
+      batch.push(seq);
+      batchBytes += seq.sequence.length;
+
+      if (batchBytes >= BATCH_BYTE_BUDGET) {
+        yield* this.flushNativeBatch(batch, kernel);
+        batch = [];
+        batchBytes = 0;
+      }
+    }
+
+    if (batch.length > 0) {
+      yield* this.flushNativeBatch(batch, kernel);
+    }
+  }
+
+  private async processNative(
+    sequences: AsyncIterable<AbstractSequence>,
+    kernel: NativeKernel
+  ): Promise<void> {
+    let batch: AbstractSequence[] = [];
+    let batchBytes = 0;
+
+    for await (const seq of sequences) {
+      batch.push(seq);
+      batchBytes += seq.sequence.length;
+
+      if (batchBytes >= BATCH_BYTE_BUDGET) {
+        this.flushNativeBatchNoYield(batch, kernel);
+        batch = [];
+        batchBytes = 0;
+      }
+    }
+
+    if (batch.length > 0) {
+      this.flushNativeBatchNoYield(batch, kernel);
+    }
+  }
+
+  private *flushNativeBatch(
+    batch: readonly AbstractSequence[],
+    kernel: NativeKernel
+  ): Iterable<AbstractSequence> {
+    const { data, offsets } = packSequences(batch);
+    const hashBuffer = kernel.hashBatch(data, offsets, !this.options.caseSensitive);
+
+    for (let i = 0; i < batch.length; i++) {
+      const seqHash = extractHashKey(hashBuffer, i);
+      const key = this.nativeKeyMode === "both" ? `${batch[i]!.id}:${seqHash}` : seqHash;
+
+      if (this.processSequenceWithHashKey(batch[i]!, key)) {
+        yield batch[i]!;
+      }
+    }
+  }
+
+  private flushNativeBatchNoYield(batch: readonly AbstractSequence[], kernel: NativeKernel): void {
+    const { data, offsets } = packSequences(batch);
+    const hashBuffer = kernel.hashBatch(data, offsets, !this.options.caseSensitive);
+
+    for (let i = 0; i < batch.length; i++) {
+      const seqHash = extractHashKey(hashBuffer, i);
+      const key = this.nativeKeyMode === "both" ? `${batch[i]!.id}:${seqHash}` : seqHash;
+      this.processSequenceWithHashKey(batch[i]!, key);
     }
   }
 

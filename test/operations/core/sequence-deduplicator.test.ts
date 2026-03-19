@@ -551,4 +551,172 @@ describe("SequenceDeduplicator", () => {
       expect(bloomStats.memoryUsage).toBeLessThan(exactStats.memoryUsage);
     });
   });
+
+  describe("Cross-Batch Deduplication", () => {
+    // These tests use sequences large enough to span multiple native
+    // batch flushes (4MB byte budget), verifying that deduplication
+    // state persists correctly across batch boundaries.
+
+    const MB = 1024 * 1024;
+
+    function longSeq(id: string, base: string, length: number): AbstractSequence {
+      const repeated = base.repeat(Math.ceil(length / base.length)).slice(0, length);
+      return createFastaRecord({ id, sequence: repeated });
+    }
+
+    test("SequenceDeduplicator detects duplicates across batch boundaries", async () => {
+      const dedup = new SequenceDeduplicator({ strategy: "sequence" });
+
+      async function* crossBatchStream(): AsyncGenerator<AbstractSequence> {
+        yield longSeq("first", "ATCG", 2 * MB);
+        yield longSeq("spacer", "GGCC", 2 * MB);
+        yield longSeq("duplicate", "ATCG", 2 * MB);
+      }
+
+      const unique: AbstractSequence[] = [];
+      for await (const s of dedup.deduplicate(crossBatchStream())) {
+        unique.push(s);
+      }
+
+      expect(unique).toHaveLength(2);
+      expect(unique[0]!.id).toBe("first");
+      expect(unique[1]!.id).toBe("spacer");
+
+      const stats = dedup.getStats();
+      expect(stats.totalProcessed).toBe(3);
+      expect(stats.duplicateCount).toBe(1);
+    });
+
+    test("SequenceDeduplicator case-insensitive across batch boundaries", async () => {
+      const dedup = new SequenceDeduplicator({
+        strategy: "sequence",
+        caseSensitive: false,
+      });
+
+      async function* crossBatchStream(): AsyncGenerator<AbstractSequence> {
+        yield longSeq("upper", "ATCG", 2 * MB);
+        yield longSeq("spacer", "GGCC", 2 * MB);
+        yield longSeq("lower", "atcg", 2 * MB);
+      }
+
+      const unique: AbstractSequence[] = [];
+      for await (const s of dedup.deduplicate(crossBatchStream())) {
+        unique.push(s);
+      }
+
+      expect(unique).toHaveLength(2);
+      expect(unique[0]!.id).toBe("upper");
+      expect(unique[1]!.id).toBe("spacer");
+    });
+
+    test("SequenceDeduplicator statistics correct across multiple batches", async () => {
+      const dedup = new SequenceDeduplicator({ strategy: "sequence" });
+
+      async function* manyLargeSeqs(): AsyncGenerator<AbstractSequence> {
+        // 5 unique + 3 duplicates, each ~1.5MB, totaling ~12MB (multiple batches)
+        yield longSeq("a", "AAAA", 1.5 * MB);
+        yield longSeq("b", "CCCC", 1.5 * MB);
+        yield longSeq("c", "GGGG", 1.5 * MB);
+        yield longSeq("a_dup", "AAAA", 1.5 * MB);
+        yield longSeq("d", "TTTT", 1.5 * MB);
+        yield longSeq("b_dup", "CCCC", 1.5 * MB);
+        yield longSeq("e", "ACGT", 1.5 * MB);
+        yield longSeq("c_dup", "GGGG", 1.5 * MB);
+      }
+
+      const unique: AbstractSequence[] = [];
+      for await (const s of dedup.deduplicate(manyLargeSeqs())) {
+        unique.push(s);
+      }
+
+      expect(unique).toHaveLength(5);
+
+      const stats = dedup.getStats();
+      expect(stats.totalProcessed).toBe(8);
+      expect(stats.uniqueCount).toBe(5);
+      expect(stats.duplicateCount).toBe(3);
+    });
+
+    test("SequenceDeduplicator process (stats-only) works across batches", async () => {
+      const dedup = new SequenceDeduplicator({ strategy: "sequence" });
+
+      async function* crossBatchStream(): AsyncGenerator<AbstractSequence> {
+        yield longSeq("first", "ATCG", 2 * MB);
+        yield longSeq("spacer", "GGCC", 2 * MB);
+        yield longSeq("duplicate", "ATCG", 2 * MB);
+      }
+
+      await dedup.process(crossBatchStream());
+
+      const stats = dedup.getStats();
+      expect(stats.totalProcessed).toBe(3);
+      expect(stats.uniqueCount).toBe(2);
+      expect(stats.duplicateCount).toBe(1);
+    });
+
+    test("isUnique consistent with streaming deduplicate path", async () => {
+      const dedup = new SequenceDeduplicator({ strategy: "sequence" });
+
+      const seenSeq = longSeq("seen", "ATCG", 2 * MB);
+      const unseenSeq = longSeq("unseen", "TTTT", 2 * MB);
+
+      async function* stream(): AsyncGenerator<AbstractSequence> {
+        yield seenSeq;
+        yield longSeq("spacer", "GGCC", 2 * MB);
+      }
+
+      // Populate via the streaming path (which may use native batching)
+      for await (const _s of dedup.deduplicate(stream())) {
+        // consume
+      }
+
+      // isUnique should agree with the streaming path's state
+      expect(dedup.isUnique(seenSeq)).toBe(false);
+      expect(dedup.isUnique(unseenSeq)).toBe(true);
+    });
+
+    test("ExactDeduplicator detects duplicates across batch boundaries", async () => {
+      const dedup = new ExactDeduplicator("sequence");
+
+      async function* crossBatchStream(): AsyncGenerator<AbstractSequence> {
+        yield longSeq("first", "ATCG", 2 * MB);
+        yield longSeq("spacer", "GGCC", 2 * MB);
+        yield longSeq("duplicate", "ATCG", 2 * MB);
+      }
+
+      const unique: AbstractSequence[] = [];
+      for await (const s of dedup.deduplicate(crossBatchStream())) {
+        unique.push(s);
+      }
+
+      expect(unique).toHaveLength(2);
+      expect(unique[0]!.id).toBe("first");
+      expect(unique[1]!.id).toBe("spacer");
+
+      const stats = dedup.getStats();
+      expect(stats.totalProcessed).toBe(3);
+      expect(stats.duplicateCount).toBe(1);
+    });
+
+    test("ExactDeduplicator by-both across batch boundaries", async () => {
+      const dedup = new ExactDeduplicator("both");
+
+      async function* crossBatchStream(): AsyncGenerator<AbstractSequence> {
+        yield longSeq("id1", "ATCG", 2 * MB);
+        yield longSeq("spacer", "GGCC", 2 * MB);
+        yield longSeq("id1", "ATCG", 2 * MB); // same id + same seq = duplicate
+        yield longSeq("id2", "ATCG", 2 * MB); // different id + same seq = unique
+      }
+
+      const unique: AbstractSequence[] = [];
+      for await (const s of dedup.deduplicate(crossBatchStream())) {
+        unique.push(s);
+      }
+
+      expect(unique).toHaveLength(3);
+      expect(unique[0]!.id).toBe("id1");
+      expect(unique[1]!.id).toBe("spacer");
+      expect(unique[2]!.id).toBe("id2");
+    });
+  });
 });

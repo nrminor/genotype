@@ -368,4 +368,103 @@ describe("UniqueProcessor", () => {
       expect(result[1]!.sequence).toEqualSequence("GCTA");
     });
   });
+
+  describe("cross-batch deduplication", () => {
+    // These tests use sequences large enough to span multiple native
+    // batch flushes (the batch byte budget is 4MB). This exercises the
+    // case where duplicate sequences land in different batches and the
+    // deduplication state must persist correctly across flushes.
+
+    const MB = 1024 * 1024;
+
+    function createLongSequence(id: string, base: string, length: number): AbstractSequence {
+      const repeated = base.repeat(Math.ceil(length / base.length)).slice(0, length);
+      return createFastaRecord({ id, sequence: repeated });
+    }
+
+    test("detects duplicates that span different batches (by sequence)", async () => {
+      // 3 sequences at ~2MB each = ~6MB total, forcing at least 2 batch flushes.
+      // The first and third have identical content.
+      const sequences = [
+        createLongSequence("first", "ATCG", 2 * MB),
+        createLongSequence("middle", "GGCC", 2 * MB),
+        createLongSequence("duplicate", "ATCG", 2 * MB),
+      ];
+
+      const processor = new UniqueProcessor();
+      const result: AbstractSequence[] = [];
+      for await (const seq of processor.process(makeAsync(sequences), { by: "sequence" })) {
+        result.push(seq);
+      }
+
+      expect(result.length).toBe(2);
+      expect(result[0]!.id).toBe("first");
+      expect(result[1]!.id).toBe("middle");
+    });
+
+    test("detects duplicates across batches with case-insensitive mode", async () => {
+      const upper = createLongSequence("upper", "ATCG", 2 * MB);
+      const spacer = createLongSequence("spacer", "GGCC", 2 * MB);
+      const lower = createLongSequence("lower", "atcg", 2 * MB);
+
+      const processor = new UniqueProcessor();
+      const result: AbstractSequence[] = [];
+      for await (const seq of processor.process(makeAsync([upper, spacer, lower]), {
+        by: "sequence",
+        caseSensitive: false,
+      })) {
+        result.push(seq);
+      }
+
+      expect(result.length).toBe(2);
+      expect(result[0]!.id).toBe("upper");
+      expect(result[1]!.id).toBe("spacer");
+    });
+
+    test("composite key (by both) works across batches", async () => {
+      // Same ID + same sequence in different batches should be detected.
+      // Different ID + same sequence should NOT be detected.
+      const seq1 = createLongSequence("shared_id", "ATCG", 2 * MB);
+      const spacer = createLongSequence("spacer", "GGCC", 2 * MB);
+      const seq1dup = createLongSequence("shared_id", "ATCG", 2 * MB);
+      const seq1diffId = createLongSequence("other_id", "ATCG", 2 * MB);
+
+      const processor = new UniqueProcessor();
+      const result: AbstractSequence[] = [];
+      for await (const seq of processor.process(makeAsync([seq1, spacer, seq1dup, seq1diffId]), {
+        by: "both",
+      })) {
+        result.push(seq);
+      }
+
+      expect(result.length).toBe(3);
+      expect(result[0]!.id).toBe("shared_id");
+      expect(result[1]!.id).toBe("spacer");
+      expect(result[2]!.id).toBe("other_id");
+    });
+
+    test("conflict resolution works across batches", async () => {
+      // "last" strategy: the duplicate in the second batch should win.
+      const short = createLongSequence("short", "ATCG", 2 * MB);
+      const spacer = createLongSequence("spacer", "GGCC", 2 * MB);
+      const long = createFastaRecord({
+        id: "long",
+        sequence: "ATCG".repeat(Math.ceil((2 * MB) / 4)).slice(0, 2 * MB),
+      });
+
+      const processor = new UniqueProcessor();
+      const result: AbstractSequence[] = [];
+      for await (const seq of processor.process(makeAsync([short, spacer, long]), {
+        by: "sequence",
+        conflictResolution: "last",
+      })) {
+        result.push(seq);
+      }
+
+      expect(result.length).toBe(2);
+      // The winner for the ATCG sequence should be "long" (last occurrence)
+      const atcgResult = result.find((s) => s.id === "long" || s.id === "short");
+      expect(atcgResult!.id).toBe("long");
+    });
+  });
 });

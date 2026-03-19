@@ -52,12 +52,20 @@ interface NativeModule {
   };
 }
 
+let cachedNativeModule: NativeModule | undefined;
+let nativeLoadAttempted = false;
+
 function loadNativeModule(): NativeModule | undefined {
+  if (nativeLoadAttempted) return cachedNativeModule;
+  nativeLoadAttempted = true;
+
   try {
-    return require("../native/index.js") as NativeModule;
+    cachedNativeModule = require("../native/index.js") as NativeModule;
   } catch {
-    return undefined;
+    // Native addon not available — BAM/SAM parsing will not be supported.
   }
+
+  return cachedNativeModule;
 }
 
 const DEFAULT_BATCH_SIZE = 4096;
@@ -171,11 +179,8 @@ function *unpackBatch(
   startIndex: number
 ): Iterable<AlignmentRecord> {
   const format = batch.format as "sam" | "bam";
-  const qnameData = Buffer.from(batch.qnameData);
-  const sequenceData = Buffer.from(batch.sequenceData);
-  const qualityData = Buffer.from(batch.qualityData);
-  const cigarData = Buffer.from(batch.cigarData);
-  const rnameData = Buffer.from(batch.rnameData);
+  // napi Buffers are already Node Buffers — use directly without copying.
+  const { qnameData, sequenceData, qualityData, cigarData, rnameData } = batch;
 
   for (let i = 0; i < batch.count; i++) {
     const seqStart = batch.sequenceOffsets[i]!;

@@ -10,13 +10,14 @@
 
 import { readFileSync } from "fs";
 import { join } from "path";
-import { describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, test } from "bun:test";
 import { AlignmentParser } from "../../src/formats/alignment";
 import type { AlignmentRecord } from "../../src/types";
 
 const FIXTURES = join(process.cwd(), "test", "fixtures");
 const SAM_PATH = join(FIXTURES, "valid-alignments.sam");
 const BAM_PATH = join(FIXTURES, "valid-alignments.bam");
+const HEADERS_ONLY_PATH = join(FIXTURES, "sample-headers.sam");
 
 async function collectRecords(path: string): Promise<AlignmentRecord[]> {
   const parser = new AlignmentParser();
@@ -28,15 +29,22 @@ async function collectRecords(path: string): Promise<AlignmentRecord[]> {
 }
 
 describe("AlignmentParser", () => {
+  // Parse fixtures once and share across tests within each describe block.
+  let samRecords: AlignmentRecord[];
+  let bamRecords: AlignmentRecord[];
+
+  beforeAll(async () => {
+    samRecords = await collectRecords(SAM_PATH);
+    bamRecords = await collectRecords(BAM_PATH);
+  });
+
   describe("SAM parsing", () => {
-    test("should parse all records from SAM file", async () => {
-      const records = await collectRecords(SAM_PATH);
-      expect(records).toHaveLength(7);
+    test("should parse all records from SAM file", () => {
+      expect(samRecords).toHaveLength(7);
     });
 
-    test("should populate AbstractSequence fields correctly", async () => {
-      const records = await collectRecords(SAM_PATH);
-      const first = records[0]!;
+    test("should populate AbstractSequence fields correctly", () => {
+      const first = samRecords[0]!;
 
       expect(first.id).toBe("read1");
       expect(first.sequence.toString()).toBe("ACGTACGTAC");
@@ -44,9 +52,8 @@ describe("AlignmentParser", () => {
       expect(first.format).toBe("sam");
     });
 
-    test("should populate alignment-specific fields correctly", async () => {
-      const records = await collectRecords(SAM_PATH);
-      const first = records[0]!;
+    test("should populate alignment-specific fields correctly", () => {
+      const first = samRecords[0]!;
 
       expect(first.flag).toBe(99);
       expect(first.referenceSequence).toBe("chr1");
@@ -55,18 +62,15 @@ describe("AlignmentParser", () => {
       expect(first.cigar).toBe("10M");
     });
 
-    test("should populate quality scores as Phred+33", async () => {
-      const records = await collectRecords(SAM_PATH);
-      const first = records[0]!;
+    test("should populate quality scores as Phred+33", () => {
+      const first = samRecords[0]!;
 
       expect(first.quality.toString()).toBe("IIIIIIIIII");
       expect(first.qualityEncoding).toBe("phred33");
     });
 
-    test("should handle unmapped reads", async () => {
-      const records = await collectRecords(SAM_PATH);
-      // read3 is the unmapped read (flag=4, rname=*, pos=0)
-      const unmapped = records.find((r) => r.id === "read3");
+    test("should handle unmapped reads", () => {
+      const unmapped = samRecords.find((r) => r.id === "read3");
       expect(unmapped).toBeDefined();
       expect(unmapped!.flag).toBe(4);
       expect(unmapped!.referenceSequence).toBe("*");
@@ -74,49 +78,41 @@ describe("AlignmentParser", () => {
       expect(unmapped!.cigar).toBe("*");
     });
 
-    test("should handle soft-clipped reads", async () => {
-      const records = await collectRecords(SAM_PATH);
-      // read2 forward has CIGAR 8M2S
-      const softClipped = records.find((r) => r.id === "read2" && r.flag === 99);
+    test("should handle soft-clipped reads", () => {
+      const softClipped = samRecords.find((r) => r.id === "read2" && r.flag === 99);
       expect(softClipped).toBeDefined();
       expect(softClipped!.cigar).toBe("8M2S");
     });
 
-    test("should handle insertions in CIGAR", async () => {
-      const records = await collectRecords(SAM_PATH);
-      // read4 forward has CIGAR 5M1I4M
-      const withInsertion = records.find((r) => r.id === "read4" && r.flag === 163);
+    test("should handle insertions in CIGAR", () => {
+      const withInsertion = samRecords.find((r) => r.id === "read4" && r.flag === 163);
       expect(withInsertion).toBeDefined();
       expect(withInsertion!.cigar).toBe("5M1I4M");
     });
 
-    test("should parse reads from multiple references", async () => {
-      const records = await collectRecords(SAM_PATH);
-      const refs = new Set(records.map((r) => r.referenceSequence));
+    test("should parse reads from multiple references", () => {
+      const refs = new Set(samRecords.map((r) => r.referenceSequence));
       expect(refs.has("chr1")).toBe(true);
       expect(refs.has("chr2")).toBe(true);
       expect(refs.has("*")).toBe(true);
     });
 
-    test("should preserve different mapping qualities", async () => {
-      const records = await collectRecords(SAM_PATH);
-      const mapqs = new Set(records.map((r) => r.mappingQuality));
+    test("should preserve different mapping qualities", () => {
+      const mapqs = new Set(samRecords.map((r) => r.mappingQuality));
       expect(mapqs.has(60)).toBe(true);
       expect(mapqs.has(50)).toBe(true);
       expect(mapqs.has(30)).toBe(true);
-      expect(mapqs.has(0)).toBe(true); // unmapped
+      expect(mapqs.has(0)).toBe(true);
     });
   });
 
   describe("BAM parsing", () => {
-    test("should parse all records from BAM file", async () => {
-      const records = await collectRecords(BAM_PATH);
-      expect(records).toHaveLength(7);
+    test("should parse all records from BAM file", () => {
+      expect(bamRecords).toHaveLength(7);
     });
 
-    test("should populate fields correctly from BAM", async () => {
-      const records = await collectRecords(BAM_PATH);
-      const first = records[0]!;
+    test("should populate fields correctly from BAM", () => {
+      const first = bamRecords[0]!;
 
       expect(first.id).toBe("read1");
       expect(first.sequence.toString()).toBe("ACGTACGTAC");
@@ -132,10 +128,7 @@ describe("AlignmentParser", () => {
   });
 
   describe("cross-format consistency", () => {
-    test("SAM and BAM should produce identical record content", async () => {
-      const samRecords = await collectRecords(SAM_PATH);
-      const bamRecords = await collectRecords(BAM_PATH);
-
+    test("SAM and BAM should produce identical record content", () => {
       expect(samRecords).toHaveLength(bamRecords.length);
 
       for (let i = 0; i < samRecords.length; i++) {
@@ -154,10 +147,7 @@ describe("AlignmentParser", () => {
       }
     });
 
-    test("only the format field should differ between SAM and BAM records", async () => {
-      const samRecords = await collectRecords(SAM_PATH);
-      const bamRecords = await collectRecords(BAM_PATH);
-
+    test("only the format field should differ between SAM and BAM records", () => {
       for (let i = 0; i < samRecords.length; i++) {
         expect(samRecords[i]!.format).toBe("sam");
         expect(bamRecords[i]!.format).toBe("bam");
@@ -165,7 +155,7 @@ describe("AlignmentParser", () => {
     });
   });
 
-  describe("error handling", () => {
+  describe("edge cases", () => {
     test("should throw for nonexistent file", async () => {
       const parser = new AlignmentParser();
       await expect(async () => {
@@ -173,6 +163,11 @@ describe("AlignmentParser", () => {
           // should not reach here
         }
       }).toThrow();
+    });
+
+    test("should produce zero records for a headers-only SAM file", async () => {
+      const records = await collectRecords(HEADERS_ONLY_PATH);
+      expect(records).toHaveLength(0);
     });
   });
 
@@ -212,37 +207,74 @@ describe("AlignmentParser", () => {
       expect(records).toHaveLength(7);
       expect(records[0]!.id).toBe("read1");
     });
+
+    test("should parse BAM binary data from a ReadableStream", async () => {
+      const bamBytes = readFileSync(BAM_PATH);
+
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(new Uint8Array(bamBytes));
+          controller.close();
+        },
+      });
+
+      const parser = new AlignmentParser();
+      const records: AlignmentRecord[] = [];
+      for await (const record of parser.parse(stream)) {
+        records.push(record);
+      }
+
+      expect(records).toHaveLength(7);
+      expect(records[0]!.id).toBe("read1");
+      expect(records[0]!.format).toBe("bam");
+    });
+  });
+
+  describe("batch boundaries", () => {
+    test("should handle more records than a single batch", async () => {
+      // Generate a SAM string with 5000 records (exceeds the 4096 batch size).
+      const header = "@HD\tVN:1.6\n@SQ\tSN:chr1\tLN:100000\n";
+      const lines: string[] = [];
+      for (let i = 0; i < 5000; i++) {
+        lines.push(`read${i}\t0\tchr1\t${i + 1}\t60\t4M\t*\t0\t0\tACGT\tIIII`);
+      }
+      const samText = header + lines.join("\n") + "\n";
+
+      const parser = new AlignmentParser();
+      const records: AlignmentRecord[] = [];
+      for await (const record of parser.parseString(samText)) {
+        records.push(record);
+      }
+
+      expect(records).toHaveLength(5000);
+      expect(records[0]!.id).toBe("read0");
+      expect(records[4999]!.id).toBe("read4999");
+      expect(records[4999]!.position).toBe(5000);
+    });
   });
 
   describe("pipeline integration", () => {
-    test("AlignmentRecord should work with seqops-style iteration", async () => {
-      const records = await collectRecords(SAM_PATH);
+    test("AlignmentRecord should work with seqops-style iteration", () => {
+      const mapped = samRecords.filter((r) => (r.flag & 4) === 0);
+      expect(mapped.length).toBe(6);
 
-      // Filter to mapped reads only (flag & 4 === 0)
-      const mapped = records.filter((r) => (r.flag & 4) === 0);
-      expect(mapped.length).toBe(6); // 7 total minus 1 unmapped
-
-      // All mapped reads should have a reference sequence
       for (const r of mapped) {
         expect(r.referenceSequence).not.toBe("*");
         expect(r.position).toBeGreaterThan(0);
       }
     });
 
-    test("AlignmentRecord has all AbstractSequence fields", async () => {
-      const records = await collectRecords(SAM_PATH);
-      const record = records[0]!;
+    test("AlignmentRecord has all AbstractSequence fields", () => {
+      const record = samRecords[0]!;
 
-      // These are the AbstractSequence contract fields
       expect(typeof record.id).toBe("string");
       expect(record.sequence).toBeDefined();
       expect(typeof record.length).toBe("number");
       expect(record.lineNumber).toBeDefined();
     });
 
-    test("AlignmentRecord has QualityScoreBearing fields", async () => {
-      const records = await collectRecords(SAM_PATH);
-      const record = records[0]!;
+    test("AlignmentRecord has QualityScoreBearing fields", () => {
+      const record = samRecords[0]!;
 
       expect(record.quality).toBeDefined();
       expect(record.qualityEncoding).toBe("phred33");

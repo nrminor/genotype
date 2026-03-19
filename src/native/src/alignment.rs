@@ -7,7 +7,7 @@
 
 use std::{
     fs::File,
-    io::{BufReader, Cursor},
+    io::{BufReader, Cursor, Read, Seek},
 };
 
 use napi::bindgen_prelude::*;
@@ -123,14 +123,35 @@ impl AlignmentReader {
     ///
     /// The header is read immediately. Records are read lazily via
     /// `readBatch`.
+    /// Open a BAM or SAM file for reading.
+    ///
+    /// The file is opened once. Format is detected by reading the
+    /// first two bytes and checking for the BGZF/gzip magic number,
+    /// then seeking back to the start before handing the file handle
+    /// to the appropriate noodles reader.
+    ///
+    /// The header is read immediately. Records are read lazily via
+    /// `readBatch`.
     #[napi(factory)]
     #[allow(clippy::needless_pass_by_value)] // napi requires String, not &str
     pub fn open(path: String) -> napi::Result<Self> {
-        let format = detect_format(&path)?;
+        let mut file = File::open(&path)
+            .map_err(|e| napi::Error::from_reason(format!("failed to open '{path}': {e}")))?;
 
-        match format {
-            Format::Bam => Self::open_bam(&path),
-            Format::Sam => Self::open_sam(&path),
+        // Detect format from magic bytes, then seek back to start.
+        let mut magic = [0u8; 2];
+        let n = file.read(&mut magic).map_err(|e| {
+            napi::Error::from_reason(format!("failed to read magic bytes from '{path}': {e}"))
+        })?;
+        file.seek(std::io::SeekFrom::Start(0))
+            .map_err(|e| napi::Error::from_reason(format!("failed to seek in '{path}': {e}")))?;
+
+        let is_bgzf = n >= 2 && magic[0] == 0x1f && magic[1] == 0x8b;
+
+        if is_bgzf {
+            Self::open_bam_from_file(file, &path)
+        } else {
+            Self::open_sam_from_file(file, &path)
         }
     }
 
@@ -338,10 +359,7 @@ impl AlignmentReader {
 
     // ── Private helpers ─────────────────────────────────────────
 
-    fn open_bam(path: &str) -> napi::Result<Self> {
-        let file = File::open(path).map_err(|e| {
-            napi::Error::from_reason(format!("failed to open BAM file '{path}': {e}"))
-        })?;
+    fn open_bam_from_file(file: File, path: &str) -> napi::Result<Self> {
         let mut reader = bam::io::Reader::new(BufReader::new(file));
 
         let header = reader.read_header().map_err(|e| {
@@ -359,10 +377,7 @@ impl AlignmentReader {
         })
     }
 
-    fn open_sam(path: &str) -> napi::Result<Self> {
-        let file = File::open(path).map_err(|e| {
-            napi::Error::from_reason(format!("failed to open SAM file '{path}': {e}"))
-        })?;
+    fn open_sam_from_file(file: File, path: &str) -> napi::Result<Self> {
         let mut reader = sam::io::Reader::new(BufReader::new(file));
 
         let header = reader.read_header().map_err(|e| {
@@ -424,24 +439,6 @@ fn format_cigar(cigar: &Cigar, out: &mut Vec<u8>) {
             Kind::SequenceMismatch => b'X',
         };
         let _ = write!(out, "{}{}", op.len(), ch as char);
-    }
-}
-
-/// Detect whether a file is BAM (BGZF-compressed) or SAM (text) by
-/// reading the first two bytes and checking for the gzip magic number.
-fn detect_format(path: &str) -> napi::Result<Format> {
-    use std::io::Read;
-    let mut file = File::open(path)
-        .map_err(|e| napi::Error::from_reason(format!("failed to open '{path}': {e}")))?;
-    let mut magic = [0u8; 2];
-    let n = file.read(&mut magic).map_err(|e| {
-        napi::Error::from_reason(format!("failed to read magic bytes from '{path}': {e}"))
-    })?;
-
-    if n >= 2 && magic[0] == 0x1f && magic[1] == 0x8b {
-        Ok(Format::Bam)
-    } else {
-        Ok(Format::Sam)
     }
 }
 

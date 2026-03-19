@@ -55,7 +55,11 @@
  */
 
 import type { AbstractSequence } from "../../types";
+import type { NativeKernel } from "../../native";
+import { extractHashKey, getNativeKernel, packSequences } from "../../native";
 import { BloomFilter, ScalableBloomFilter } from "./bloom-filter";
+
+const BATCH_BYTE_BUDGET = 4 * 1024 * 1024;
 
 /**
  * Strategy for determining sequence uniqueness.
@@ -654,6 +658,8 @@ export class SequenceDeduplicator {
 export class ExactDeduplicator {
   private readonly seen = new Set<string>();
   private readonly getKey: (seq: AbstractSequence) => string;
+  private readonly nativeKeyMode: "sequence" | "both" | null;
+  private readonly caseSensitive: boolean;
   private stats = {
     totalProcessed: 0,
     uniqueCount: 0,
@@ -661,13 +667,17 @@ export class ExactDeduplicator {
   };
 
   constructor(strategy: DeduplicationStrategy = "both", caseSensitive: boolean = true) {
+    this.caseSensitive = caseSensitive;
+
     const processSequence = caseSensitive
       ? (s: { toString(): string }): string => s.toString()
       : (s: { toString(): string }): string => s.toString().toUpperCase();
 
     if (typeof strategy === "function") {
       this.getKey = strategy;
+      this.nativeKeyMode = null;
     } else {
+      this.nativeKeyMode = strategy === "sequence" || strategy === "both" ? strategy : null;
       switch (strategy) {
         case "sequence":
           this.getKey = (seq): string => processSequence(seq.sequence);
@@ -696,7 +706,10 @@ export class ExactDeduplicator {
    * Deduplicate sequences with 100% accuracy.
    *
    * Uses a Set to track seen sequences, providing perfect accuracy
-   * at the cost of higher memory usage.
+   * at the cost of higher memory usage. When the native kernel is
+   * available and the strategy involves sequence content, sequences
+   * are batched and hashed in Rust to avoid materializing full
+   * JavaScript strings.
    *
    * @param sequences - Async iterable of sequences to deduplicate
    * @yields {Sequence} Unique sequences with no false positives
@@ -710,6 +723,20 @@ export class ExactDeduplicator {
    * ```
    */
   async *deduplicate(sequences: AsyncIterable<AbstractSequence>): AsyncGenerator<AbstractSequence> {
+    if (this.nativeKeyMode !== null) {
+      const kernel = getNativeKernel();
+      if (kernel !== undefined) {
+        yield* this.deduplicateNative(sequences, kernel);
+        return;
+      }
+    }
+
+    yield* this.deduplicateScalar(sequences);
+  }
+
+  private async *deduplicateScalar(
+    sequences: AsyncIterable<AbstractSequence>
+  ): AsyncGenerator<AbstractSequence> {
     for await (const seq of sequences) {
       this.stats.totalProcessed++;
       const key = this.getKey(seq);
@@ -718,6 +745,51 @@ export class ExactDeduplicator {
         this.seen.add(key);
         this.stats.uniqueCount++;
         yield seq;
+      } else {
+        this.stats.duplicateCount++;
+      }
+    }
+  }
+
+  private async *deduplicateNative(
+    sequences: AsyncIterable<AbstractSequence>,
+    kernel: NativeKernel
+  ): AsyncGenerator<AbstractSequence> {
+    let batch: AbstractSequence[] = [];
+    let batchBytes = 0;
+
+    for await (const seq of sequences) {
+      batch.push(seq);
+      batchBytes += seq.sequence.length;
+
+      if (batchBytes >= BATCH_BYTE_BUDGET) {
+        yield* this.flushNativeBatch(batch, kernel);
+        batch = [];
+        batchBytes = 0;
+      }
+    }
+
+    if (batch.length > 0) {
+      yield* this.flushNativeBatch(batch, kernel);
+    }
+  }
+
+  private *flushNativeBatch(
+    batch: readonly AbstractSequence[],
+    kernel: NativeKernel
+  ): Iterable<AbstractSequence> {
+    const { data, offsets } = packSequences(batch);
+    const hashBuffer = kernel.hashBatch(data, offsets, !this.caseSensitive);
+
+    for (let i = 0; i < batch.length; i++) {
+      this.stats.totalProcessed++;
+      const seqHash = extractHashKey(hashBuffer, i);
+      const key = this.nativeKeyMode === "both" ? `${batch[i]!.id}:${seqHash}` : seqHash;
+
+      if (!this.seen.has(key)) {
+        this.seen.add(key);
+        this.stats.uniqueCount++;
+        yield batch[i]!;
       } else {
         this.stats.duplicateCount++;
       }

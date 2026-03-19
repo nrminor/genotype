@@ -603,6 +603,41 @@ export interface BAMAlignment extends SAMAlignment {
 }
 
 /**
+ * Alignment record from a BAM or SAM file.
+ *
+ * Extends AbstractSequence so that alignment records flow through the
+ * operations pipeline (grep, filter, unique, translate, etc.) without
+ * conversion. Extends QualityScoreBearing so that quality-aware
+ * operations (trimming, filtering, binning) work on alignment records
+ * the same way they work on FASTQ records.
+ *
+ * The alignment-specific fields represent a focused subset of the
+ * SAM/BAM specification — enough for common sequence-oriented
+ * workflows without trying to model the full spec. Fields like mate
+ * info (RNEXT, PNEXT, TLEN), optional tags, and BAM binary metadata
+ * are excluded from the initial implementation and can be added later.
+ *
+ * The AbstractSequence fields are populated as:
+ * - `id` ← QNAME (the read name)
+ * - `sequence` ← decoded sequence bytes
+ * - `length` ← sequence length
+ * - `description` ← undefined (SAM/BAM records don't have descriptions)
+ */
+export interface AlignmentRecord extends AbstractSequence, QualityScoreBearing {
+  readonly format: "sam" | "bam";
+  /** SAM bitwise FLAG field (0-65535) */
+  readonly flag: number;
+  /** Reference sequence name, or "*" if unmapped */
+  readonly referenceSequence: string;
+  /** 1-based leftmost mapping position, or 0 if unmapped */
+  readonly position: number;
+  /** Mapping quality (0-255, where 255 indicates unavailable) */
+  readonly mappingQuality: number;
+  /** CIGAR string, or "*" if unavailable */
+  readonly cigar: string;
+}
+
+/**
  * BGZF block information for compressed BAM files
  */
 export interface BGZFBlock {

@@ -12,6 +12,7 @@
 import { GenotypeString } from "./genotype-string";
 import type {
   AbstractSequence,
+  AlignmentRecord,
   BAMAlignment,
   CIGARString,
   FastaSequence,
@@ -189,6 +190,43 @@ export function createBamAlignment(input: BamAlignmentInput): BAMAlignment {
     seq: GenotypeString.fromString(rawSeq),
     qual: GenotypeString.fromString(rawQual),
   } as BAMAlignment;
+}
+
+/**
+ * Input fields for creating an alignment record.
+ *
+ * The `sequence` and `quality` fields accept either a plain string or
+ * an existing GenotypeString. The `format` discriminant ("sam" or
+ * "bam") must be provided by the caller since the constructor doesn't
+ * know which parser produced the record.
+ */
+export interface AlignmentRecordInput {
+  readonly format: "sam" | "bam";
+  readonly id: string;
+  readonly sequence: GenotypeString | string;
+  readonly quality: GenotypeString | string;
+  readonly qualityEncoding: QualityEncoding;
+  readonly flag: number;
+  readonly referenceSequence: string;
+  readonly position: number;
+  readonly mappingQuality: number;
+  readonly cigar: string;
+  readonly description?: string | undefined;
+  readonly lineNumber?: number | undefined;
+}
+
+/**
+ * Creates a fully typed alignment record from the given fields.
+ *
+ * The `length` field is derived from the sequence. The `sequence` and
+ * `quality` fields are normalized to GenotypeString if provided as
+ * plain strings.
+ */
+export function createAlignmentRecord(input: AlignmentRecordInput): AlignmentRecord {
+  const sequence = GenotypeString.fromString(input.sequence);
+  const quality = GenotypeString.fromString(input.quality);
+  const { sequence: _s, quality: _q, ...rest } = input;
+  return { ...rest, sequence, quality, length: sequence.length } as AlignmentRecord;
 }
 
 /**

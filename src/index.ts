@@ -2,7 +2,9 @@
 export { GenotypeString, CharSet, Bases } from "./genotype-string";
 // Record constructors and immutable update helpers
 export {
+  type AlignmentRecordInput,
   type BamAlignmentInput,
+  createAlignmentRecord,
   createBamAlignment,
   createFastaRecord,
   createFastqRecord,
@@ -131,6 +133,7 @@ export {
 export type {
   AbstractSequence,
   AbstractSequence as Sequence,
+  AlignmentRecord,
   BAIReaderOptions,
   BAIStatistics,
   BAMAlignment,

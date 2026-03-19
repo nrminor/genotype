@@ -181,9 +181,12 @@ function* flushQualityBatch(
       if (start === 0 && end === seq.sequence.length) {
         trimmed.push(seq);
       } else {
-        const seqStr = seq.sequence.toString().slice(start, end);
-        const qualStr = seq.quality.toString().slice(start, end);
-        trimmed.push(withQuality(withSequence(seq, seqStr), qualStr));
+        trimmed.push(
+          withQuality(
+            withSequence(seq, seq.sequence.slice(start, end)),
+            seq.quality.slice(start, end)
+          )
+        );
       }
     }
     candidates = trimmed;

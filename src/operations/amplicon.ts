@@ -33,12 +33,12 @@
 import { type } from "arktype";
 import { ValidationError } from "../errors";
 import type { AbstractSequence, PrimerSequence } from "../types";
+import { GenotypeString } from "../genotype-string";
 import {
   type NativeKernel,
   type PackedBatch,
   type PatternSearchResult,
   getNativeKernel,
-  packStrings,
 } from "../native";
 import { isPrimerSequence } from "./core/alphabet";
 import { parseEndPosition, parseStartPosition, validateRegionString } from "./core/coordinates";
@@ -385,26 +385,42 @@ function computeWindowStart(
  * from all sequences in a batch.
  *
  * When a search window is configured, packs only the windowed slice.
- * Otherwise packs the full sequence. Uses {@link packStrings} for the
- * actual buffer construction.
+ * Otherwise packs the full sequence. Packs directly from
+ * GenotypeString bytes to avoid string materialization.
  */
 function packWindowedRegions(
   batch: BatchEntry[],
   side: "forward" | "reverse",
   options: AmpliconOptions
 ): PackedBatch {
-  const strings: string[] = new Array(batch.length);
-  for (let i = 0; i < batch.length; i++) {
+  const count = batch.length;
+  const offsets = new Uint32Array(count + 1);
+  const chunks: Uint8Array[] = new Array(count);
+  let totalBytes = 0;
+
+  for (let i = 0; i < count; i++) {
     const seq = batch[i]!.sequence.sequence;
+    let region: GenotypeString;
     if (side === "forward" && options.searchWindow?.forward) {
-      strings[i] = seq.slice(0, options.searchWindow.forward).toString();
+      region = seq.slice(0, options.searchWindow.forward);
     } else if (side === "reverse" && options.searchWindow?.reverse) {
-      strings[i] = seq.slice(-options.searchWindow.reverse).toString();
+      region = seq.slice(-options.searchWindow.reverse);
     } else {
-      strings[i] = seq.toString();
+      region = seq;
     }
+    const bytes = region.toBytes();
+    chunks[i] = bytes;
+    offsets[i] = totalBytes;
+    totalBytes += bytes.length;
   }
-  return packStrings(strings);
+  offsets[count] = totalBytes;
+
+  const data = Buffer.allocUnsafe(totalBytes);
+  for (let i = 0; i < count; i++) {
+    data.set(chunks[i]!, offsets[i]!);
+  }
+
+  return { data, offsets };
 }
 
 /**

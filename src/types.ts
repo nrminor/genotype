@@ -61,6 +61,37 @@ export interface AbstractSequence {
 }
 
 /**
+ * Quality encoding systems used in FASTQ and alignment files
+ */
+export const QualityEncoding = {
+  /** ASCII 33-126, scores 0-93 (modern standard since Illumina 1.8+) */
+  PHRED33: "phred33",
+  /** ASCII 64-126, scores 0-62 (legacy Illumina 1.3-1.7) */
+  PHRED64: "phred64",
+  /** Can have negative scores (-5 to 62), uses p/(1-p) probability */
+  SOLEXA: "solexa",
+} as const;
+
+/**
+ * Type for quality encoding values
+ */
+export type QualityEncoding = (typeof QualityEncoding)[keyof typeof QualityEncoding];
+
+/**
+ * A sequence record that carries per-base quality scores.
+ *
+ * This interface is shared by FastqSequence and AlignmentRecord so
+ * that quality-aware operations can accept either type without
+ * coupling to a specific format. The name uses "bearing" in the
+ * sense of "carrying" — a QualityScoreBearing type is one that
+ * carries quality score data.
+ */
+export interface QualityScoreBearing {
+  readonly quality: GenotypeString;
+  readonly qualityEncoding: QualityEncoding;
+}
+
+/**
  * FASTA/FASTQ unified representation
  * Encompasses all information from both text-based formats
  * Extends AbstractSequence to include quality information when present
@@ -91,32 +122,24 @@ export interface FastaSequence extends FASTXSequence {
 }
 
 /**
- * Quality encoding systems used in FASTQ files
- */
-export const QualityEncoding = {
-  /** ASCII 33-126, scores 0-93 (modern standard since Illumina 1.8+) */
-  PHRED33: "phred33",
-  /** ASCII 64-126, scores 0-62 (legacy Illumina 1.3-1.7) */
-  PHRED64: "phred64",
-  /** Can have negative scores (-5 to 62), uses p/(1-p) probability */
-  SOLEXA: "solexa",
-} as const;
-
-/**
- * Type for quality encoding values
- */
-export type QualityEncoding = (typeof QualityEncoding)[keyof typeof QualityEncoding];
-
-/**
  * FASTQ sequence with quality scores and statistics
  * Format: @id description\nsequence\n+\nquality
+ *
+ * Extends both AbstractSequence (for the operations pipeline) and
+ * QualityScoreBearing (for quality-aware operations shared with
+ * alignment records). The stats field is carried over from
+ * FASTXSequence for backward compatibility.
  */
-export interface FastqSequence extends FASTXSequence {
+export interface FastqSequence extends AbstractSequence, QualityScoreBearing {
   readonly format: "fastq";
-  /** Quality scores - required for FASTQ */
-  readonly quality: GenotypeString;
-  /** Quality encoding system detected or specified - required for FASTQ */
-  readonly qualityEncoding: QualityEncoding;
+  /** Computed sequence statistics */
+  readonly stats?: {
+    readonly length: number;
+    readonly gcContent?: number;
+    readonly hasAmbiguousBases?: boolean;
+    readonly hasGaps?: boolean;
+    readonly hasLowQuality?: boolean;
+  };
   /** Parsed numeric quality scores (lazy-loaded) */
   readonly qualityScores?: number[];
   /** Computed quality statistics */

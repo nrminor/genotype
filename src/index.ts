@@ -148,6 +148,7 @@ export type {
   FASTXSequence,
   FastaSequence,
   FastqSequence,
+  QualityScoreBearing,
   FileMetadata,
   FilePath,
   FileReaderOptions,

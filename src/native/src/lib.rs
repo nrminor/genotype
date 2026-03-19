@@ -13,6 +13,7 @@
 #![feature(portable_simd)]
 #![allow(clippy::must_use_candidate)]
 
+mod alignment;
 mod classify;
 mod grep;
 mod quality;

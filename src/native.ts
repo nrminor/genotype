@@ -341,6 +341,74 @@ export interface NativeKernel {
     alternativeStartMask: Buffer,
     options: TranslateBatchOptions
   ): TransformResult;
+
+  /**
+   * Hash every sequence in a packed batch using XXH3-128.
+   *
+   * Returns a `Buffer` of length `numSequences * 16` containing one
+   * 128-bit hash per sequence as two little-endian u64s (low half first).
+   *
+   * When `caseInsensitive` is true, ASCII letters are folded to lowercase
+   * before hashing so that `ATCG` and `atcg` produce the same hash.
+   *
+   * @param sequences - Concatenated sequence bytes
+   * @param offsets - N+1 offset array into the sequences buffer
+   * @param caseInsensitive - Whether to fold case before hashing
+   * @returns Buffer of 128-bit hashes, 16 bytes per sequence
+   */
+  hashBatch(sequences: Buffer, offsets: Uint32Array, caseInsensitive: boolean): Buffer;
+}
+
+/** Number of bytes per hash in the `hashBatch` output buffer. */
+export const HASH_BYTES = 16;
+
+/**
+ * Extract a hex string key from the `hashBatch` output buffer for
+ * use as a `Map` or `Set` key.
+ *
+ * Each 128-bit hash occupies 16 bytes in the buffer. This function
+ * reads those bytes and returns a 32-character lowercase hex string.
+ * The hex encoding is a modest cost compared to the string
+ * materialization it replaces, and it produces a fixed-length key
+ * that works well with V8's string interning.
+ *
+ * @param hashBuffer - The raw buffer returned by `hashBatch`
+ * @param index - Which sequence's hash to extract (0-based)
+ * @returns 32-character hex string suitable for Map/Set keys
+ */
+export function extractHashKey(hashBuffer: Buffer, index: number): string {
+  const offset = index * HASH_BYTES;
+  if (offset + HASH_BYTES > hashBuffer.length) {
+    throw new RangeError(
+      `extractHashKey: index ${index} out of bounds (buffer has ${Math.floor(hashBuffer.length / HASH_BYTES)} hashes)`
+    );
+  }
+  return hashBuffer.subarray(offset, offset + HASH_BYTES).toString("hex");
+}
+
+/**
+ * Read the two 64-bit halves of a 128-bit hash from the `hashBatch`
+ * output buffer as BigInts.
+ *
+ * This is the raw form needed for the double-hashing bloom filter
+ * probe scheme: `probe_i = (h1 + i * h2) % numBits`. Callers that
+ * need bloom filter integration should use this rather than the hex
+ * string form.
+ *
+ * @param hashBuffer - The raw buffer returned by `hashBatch`
+ * @param index - Which sequence's hash to extract (0-based)
+ * @returns Tuple of [low64, high64] as BigInts
+ */
+export function extractHashPair(hashBuffer: Buffer, index: number): [bigint, bigint] {
+  const offset = index * HASH_BYTES;
+  if (offset + HASH_BYTES > hashBuffer.length) {
+    throw new RangeError(
+      `extractHashPair: index ${index} out of bounds (buffer has ${Math.floor(hashBuffer.length / HASH_BYTES)} hashes)`
+    );
+  }
+  const lo = hashBuffer.readBigUInt64LE(offset);
+  const hi = hashBuffer.readBigUInt64LE(offset + 8);
+  return [lo, hi];
 }
 
 /**

@@ -1265,6 +1265,83 @@ fn alphabet_mask_value(seq: &SeqAccum) -> u32 {
     mask
 }
 
+/// Hash every sequence in a packed batch using XXH3-128.
+///
+/// Returns a `Buffer` of length `num_sequences * 16` containing one
+/// 128-bit hash per sequence as two little-endian u64s (low half first).
+/// When `case_insensitive` is true, each byte is OR-ed with 0x20 before
+/// hashing, folding ASCII uppercase into lowercase without a separate
+/// normalization pass.
+///
+/// The 128-bit output is designed for two uses:
+///
+/// 1. **Exact dedup**: the full 128-bit value (or a hex string derived
+///    from it) serves as a `Map`/`Set` key with negligible collision risk.
+/// 2. **Bloom filter probes**: the two 64-bit halves `h1` and `h2` feed
+///    the double-hashing scheme `h_i = h1 + i * h2` to derive `k` probe
+///    positions without re-hashing.
+///
+/// # Offset contract
+///
+/// `offsets` must be a monotonically non-decreasing `Uint32Array` of length
+/// `num_sequences + 1`, where `offsets[last] <= sequences.len()`.
+///
+/// # Errors
+///
+/// Returns a napi error if the offset array is malformed.
+#[napi]
+pub fn hash_batch(
+    sequences: &[u8],
+    offsets: &[u32],
+    case_insensitive: bool,
+) -> napi::Result<Buffer> {
+    utils::validate_offsets(offsets, sequences.len())?;
+
+    let num_sequences = offsets.len().saturating_sub(1);
+    let mut out = vec![0u8; num_sequences * 16];
+
+    out.par_chunks_exact_mut(16)
+        .enumerate()
+        .for_each(|(i, slot)| {
+            let start = offsets[i] as usize;
+            let end = offsets[i + 1] as usize;
+            let seq = &sequences[start..end];
+            let h = hash_one(seq, case_insensitive);
+            slot.copy_from_slice(&h.to_le_bytes());
+        });
+
+    Ok(out.into())
+}
+
+/// Hash a single sequence slice with XXH3-128, optionally folding case.
+fn hash_one(seq: &[u8], case_insensitive: bool) -> u128 {
+    if case_insensitive {
+        // Fold ASCII letters to lowercase by OR-ing with 0x20.
+        // This maps A-Z (0x41-0x5A) to a-z (0x61-0x7A). It also
+        // maps some non-letter bytes to different values (e.g. '@' →
+        // '`'), but for hashing purposes the only requirement is that
+        // uppercase and lowercase ASCII letters produce the same hash,
+        // which this achieves.
+        //
+        // We use a stack buffer for short sequences to avoid allocation,
+        // falling back to a heap vec for longer ones.
+        const STACK_LIMIT: usize = 4096;
+        if seq.len() <= STACK_LIMIT {
+            let mut buf = [0u8; STACK_LIMIT];
+            let dest = &mut buf[..seq.len()];
+            for (d, &s) in dest.iter_mut().zip(seq) {
+                *d = s | 0x20;
+            }
+            xxhash_rust::xxh3::xxh3_128(dest)
+        } else {
+            let folded: Vec<u8> = seq.iter().map(|&b| b | 0x20).collect();
+            xxhash_rust::xxh3::xxh3_128(&folded)
+        }
+    } else {
+        xxhash_rust::xxh3::xxh3_128(seq)
+    }
+}
+
 mod utils {
 
     /// Validate that `offsets` is a well-formed batch layout for `sequences`.
@@ -1856,6 +1933,178 @@ mod tests {
             let actual = &result.counts[start..start + classify::NUM_CLASSES];
             assert_eq!(actual, &expected, "seq {i}");
         }
+    }
+
+    // ── hash_batch tests ──────────────────────────────────────────────
+
+    /// Helper to extract the i-th 128-bit hash from a `hash_batch` result buffer.
+    fn extract_hash(buf: &[u8], index: usize) -> u128 {
+        let start = index * 16;
+        let bytes: [u8; 16] = buf[start..start + 16]
+            .try_into()
+            .expect("hash buffer should contain 16 bytes per sequence");
+        u128::from_le_bytes(bytes)
+    }
+
+    #[test]
+    fn hash_batch_deterministic() {
+        let (data, offsets) = make_batch(&[b"ATCGATCG", b"GGGGGGGG"]);
+        let result1 = hash_batch(&data, &offsets, false).expect("hash_batch should succeed");
+        let result2 = hash_batch(&data, &offsets, false).expect("hash_batch should succeed");
+        assert_eq!(
+            result1.as_ref(),
+            result2.as_ref(),
+            "hashes should be deterministic"
+        );
+    }
+
+    #[test]
+    fn hash_batch_distinct_sequences_produce_distinct_hashes() {
+        let (data, offsets) = make_batch(&[b"ATCGATCG", b"GGGGGGGG", b"CCCCCCCC"]);
+        let result = hash_batch(&data, &offsets, false).expect("hash_batch should succeed");
+        let h0 = extract_hash(&result, 0);
+        let h1 = extract_hash(&result, 1);
+        let h2 = extract_hash(&result, 2);
+        assert_ne!(
+            h0, h1,
+            "different sequences should produce different hashes"
+        );
+        assert_ne!(
+            h1, h2,
+            "different sequences should produce different hashes"
+        );
+        assert_ne!(
+            h0, h2,
+            "different sequences should produce different hashes"
+        );
+    }
+
+    #[test]
+    fn hash_batch_identical_sequences_produce_identical_hashes() {
+        let (data, offsets) = make_batch(&[b"ATCGATCG", b"ATCGATCG"]);
+        let result = hash_batch(&data, &offsets, false).expect("hash_batch should succeed");
+        let h0 = extract_hash(&result, 0);
+        let h1 = extract_hash(&result, 1);
+        assert_eq!(
+            h0, h1,
+            "identical sequences should produce identical hashes"
+        );
+    }
+
+    #[test]
+    fn hash_batch_case_insensitive_folds_case() {
+        let (data1, offsets1) = make_batch(&[b"ATCGATCG"]);
+        let (data2, offsets2) = make_batch(&[b"atcgatcg"]);
+        let r1 = hash_batch(&data1, &offsets1, true).expect("hash_batch should succeed");
+        let r2 = hash_batch(&data2, &offsets2, true).expect("hash_batch should succeed");
+        assert_eq!(
+            extract_hash(&r1, 0),
+            extract_hash(&r2, 0),
+            "case-insensitive hashes should match regardless of case"
+        );
+    }
+
+    #[test]
+    fn hash_batch_case_sensitive_distinguishes_case() {
+        let (data1, offsets1) = make_batch(&[b"ATCGATCG"]);
+        let (data2, offsets2) = make_batch(&[b"atcgatcg"]);
+        let r1 = hash_batch(&data1, &offsets1, false).expect("hash_batch should succeed");
+        let r2 = hash_batch(&data2, &offsets2, false).expect("hash_batch should succeed");
+        assert_ne!(
+            extract_hash(&r1, 0),
+            extract_hash(&r2, 0),
+            "case-sensitive hashes should differ for different cases"
+        );
+    }
+
+    #[test]
+    fn hash_batch_output_length_correct() {
+        let (data, offsets) = make_batch(&[b"AA", b"CC", b"GG"]);
+        let result = hash_batch(&data, &offsets, false).expect("hash_batch should succeed");
+        assert_eq!(
+            result.len(),
+            3 * 16,
+            "output should be 16 bytes per sequence"
+        );
+    }
+
+    #[test]
+    fn hash_batch_empty_returns_empty() {
+        let result =
+            hash_batch(&[], &[0], false).expect("empty batch with sentinel offset [0] is valid");
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn hash_batch_empty_sequence_hashes_consistently() {
+        let (data, offsets) = make_batch(&[b"", b""]);
+        let result = hash_batch(&data, &offsets, false).expect("hash_batch should succeed");
+        let h0 = extract_hash(&result, 0);
+        let h1 = extract_hash(&result, 1);
+        assert_eq!(h0, h1, "two empty sequences should hash identically");
+    }
+
+    #[test]
+    fn hash_batch_rejects_out_of_bounds_offsets() {
+        let err = hash_batch(b"ATCG", &[0, 100], false)
+            .err()
+            .expect("out-of-bounds offset [0, 100] was not rejected");
+        assert!(err.reason.contains("final offset"), "{}", err.reason);
+    }
+
+    #[test]
+    fn hash_batch_rejects_non_monotonic_offsets() {
+        let err = hash_batch(b"ATCGATCG", &[0, 8, 4], false)
+            .err()
+            .expect("non-monotonic offsets [0, 8, 4] were not rejected");
+        assert!(err.reason.contains("non-monotonic"), "{}", err.reason);
+    }
+
+    #[test]
+    fn hash_batch_single_sequence() {
+        let (data, offsets) = make_batch(&[b"ATCGATCG"]);
+        let result = hash_batch(&data, &offsets, false).expect("hash_batch should succeed");
+        assert_eq!(result.len(), 16, "single sequence should produce 16 bytes");
+        // Verify it matches a second call (determinism for single-element batch)
+        let result2 = hash_batch(&data, &offsets, false).expect("hash_batch should succeed");
+        assert_eq!(result.as_ref(), result2.as_ref());
+    }
+
+    #[test]
+    fn hash_batch_mixed_case_folds_correctly() {
+        let (data1, offsets1) = make_batch(&[b"AtCgAtCg"]);
+        let (data2, offsets2) = make_batch(&[b"aTcGaTcG"]);
+        let (data3, offsets3) = make_batch(&[b"atcgatcg"]);
+        let r1 = hash_batch(&data1, &offsets1, true).expect("hash_batch should succeed");
+        let r2 = hash_batch(&data2, &offsets2, true).expect("hash_batch should succeed");
+        let r3 = hash_batch(&data3, &offsets3, true).expect("hash_batch should succeed");
+        let h1 = extract_hash(&r1, 0);
+        let h2 = extract_hash(&r2, 0);
+        let h3 = extract_hash(&r3, 0);
+        assert_eq!(
+            h1, h2,
+            "mixed-case sequences should hash identically when case-insensitive"
+        );
+        assert_eq!(
+            h2, h3,
+            "mixed-case should match all-lowercase when case-insensitive"
+        );
+    }
+
+    #[test]
+    fn hash_batch_long_sequence_case_insensitive() {
+        // Exceeds the STACK_LIMIT (4096) to exercise the heap fallback path
+        let long_upper: Vec<u8> = b"ATCG".iter().cycle().take(5000).copied().collect();
+        let long_lower: Vec<u8> = long_upper.iter().map(|&b| b | 0x20).collect();
+        let (data1, offsets1) = make_batch(&[&long_upper]);
+        let (data2, offsets2) = make_batch(&[&long_lower]);
+        let r1 = hash_batch(&data1, &offsets1, true).expect("hash_batch should succeed");
+        let r2 = hash_batch(&data2, &offsets2, true).expect("hash_batch should succeed");
+        assert_eq!(
+            extract_hash(&r1, 0),
+            extract_hash(&r2, 0),
+            "case-insensitive hashing should work for sequences exceeding stack buffer"
+        );
     }
 }
 

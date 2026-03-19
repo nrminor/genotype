@@ -3,17 +3,13 @@ export { GenotypeString, CharSet, Bases } from "./genotype-string";
 // Record constructors and immutable update helpers
 export {
   type AlignmentRecordInput,
-  type BamAlignmentInput,
   createAlignmentRecord,
-  createBamAlignment,
   createFastaRecord,
   createFastqRecord,
   createKmerRecord,
-  createSamAlignment,
   type FastaRecordInput,
   type FastqRecordInput,
   type KmerRecordInput,
-  type SamAlignmentInput,
   withQuality,
   withSequence,
 } from "./constructors";
@@ -27,12 +23,10 @@ export {
 // Error types
 export {
   AlphabetValidationError,
-  BAIIndexError,
   BamError,
   BedError,
   BufferError,
   ChromosomeNamingError,
-  CigarValidationError,
   CompatibilityError,
   CompressionError,
   ConcatError,
@@ -58,8 +52,6 @@ export {
 } from "./errors";
 // Alignment format (noodles-backed BAM/SAM parser)
 export { AlignmentParser } from "./formats/alignment";
-// Legacy BAM format and BAI indexing
-export { BAMParser, BAMUtils, BAMWriter, type BAMWriterOptions } from "./formats/bam";
 // BED format
 export { BedFormat, BedParser, BedUtils, BedWriter } from "./formats/bed";
 // DSV/CSV/TSV format
@@ -80,8 +72,7 @@ export {
 export { FastaParser, FastaUtils, FastaWriter } from "./formats/fasta";
 // FASTQ format
 export { FastqParser, FastqUtils, FastqWriter } from "./formats/fastq";
-// SAM format
-export { SAMParser, SAMUtils, SAMWriter } from "./formats/sam";
+
 // File I/O infrastructure
 // Native performance library (napi-rs addon)
 export { getNativeKernel, isNativeAvailable, type NativeKernel } from "./native";
@@ -136,12 +127,7 @@ export type {
   AbstractSequence,
   AbstractSequence as Sequence,
   AlignmentRecord,
-  BAIReaderOptions,
-  BAIStatistics,
-  BAMAlignment,
-  BAMHeader,
   BedInterval,
-  CIGARString,
   CompressedStream,
   CompressionDetection,
   CompressionFormat,
@@ -166,7 +152,6 @@ export type {
   iupac,
   KmerSequence,
   LineProcessingResult,
-  MAPQScore,
   MotifLocation,
   ParseResult,
   ParserOptions,
@@ -175,15 +160,9 @@ export type {
   QualityEncoding,
   RNASequence,
   rna,
-  SAMAlignment,
-  SAMFlag,
-  SAMHeader,
-  SAMTag,
-  SamRecord,
   Strand,
   StreamChunk,
   StreamStats,
-  VirtualOffset,
 } from "./types";
 import { ParseError } from "./errors";
 import { BedParser, FastaParser, FastqParser } from "./formats";

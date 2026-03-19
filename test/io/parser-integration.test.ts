@@ -10,14 +10,7 @@ import { FileError, ParseError } from "../../src/errors";
 import { BedParser } from "../../src/formats/bed";
 import { FastaParser } from "../../src/formats/fasta";
 import { FastqParser } from "../../src/formats/fastq";
-import { SAMParser } from "../../src/formats/sam";
-import type {
-  BedInterval,
-  FastaSequence,
-  FastqSequence,
-  SAMAlignment,
-  SAMHeader,
-} from "../../src/types";
+import type { BedInterval, FastaSequence, FastqSequence } from "../../src/types";
 
 // Test fixtures directory - use absolute path for reliability
 const FIXTURES_DIR = join(process.cwd(), "test", "io", "fixtures");
@@ -280,62 +273,6 @@ describe("Parser File Integration", () => {
     });
   });
 
-  describe("SAM Parser File Integration", () => {
-    test("should parse SAM file correctly", async () => {
-      const parser = new SAMParser();
-      const records: (SAMAlignment | SAMHeader)[] = [];
-
-      for await (const record of parser.parseFile(TEST_FILES.sam)) {
-        records.push(record);
-      }
-
-      expect(records).toHaveLength(4); // 2 headers + 2 alignments
-
-      const headers = records.filter((r): r is SAMHeader => r.format === "sam-header");
-      const alignments = records.filter((r): r is SAMAlignment => r.format === "sam");
-
-      expect(headers).toHaveLength(2);
-      expect(alignments).toHaveLength(2);
-
-      expect(alignments[0]!.qname).toBe("read1");
-      expect(alignments[0]!.rname).toBe("chr1");
-      expect(alignments[0]!.pos).toBe(100);
-    });
-
-    test("should validate SAM fields correctly", async () => {
-      const parser = new SAMParser();
-      const records: (SAMAlignment | SAMHeader)[] = [];
-
-      for await (const record of parser.parseFile(TEST_FILES.sam)) {
-        if (record.format === "sam") {
-          expect(record.flag).toBeGreaterThanOrEqual(0);
-          expect(record.mapq).toBeGreaterThanOrEqual(0);
-          expect(record.mapq).toBeLessThanOrEqual(255);
-          expect(record.pos).toBeGreaterThanOrEqual(0);
-        }
-        records.push(record);
-      }
-    });
-
-    test("should handle large SAM files with warnings", async () => {
-      const _parser = new SAMParser();
-      const warnings: string[] = [];
-
-      const parserWithWarnings = new SAMParser({
-        onWarning: (warning) => warnings.push(warning),
-      });
-
-      // This will trigger the large file warning if file is > 2GB
-      // For now, just ensure the parser works with small files
-      const records: (SAMAlignment | SAMHeader)[] = [];
-      for await (const record of parserWithWarnings.parseFile(TEST_FILES.sam)) {
-        records.push(record);
-      }
-
-      expect(records.length).toBeGreaterThan(0);
-    });
-  });
-
   describe("BED Parser File Integration", () => {
     test("should parse BED file correctly", async () => {
       const parser = new BedParser();
@@ -399,7 +336,7 @@ describe("Parser File Integration", () => {
 
   describe("Cross-Parser Error Handling", () => {
     test("should handle file permission errors consistently", async () => {
-      const parsers = [new FastaParser(), new FastqParser(), new SAMParser(), new BedParser()];
+      const parsers = [new FastaParser(), new FastqParser(), new BedParser()];
 
       for (const parser of parsers) {
         await expect(

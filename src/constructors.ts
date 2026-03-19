@@ -13,16 +13,10 @@ import { GenotypeString } from "./genotype-string";
 import type {
   AbstractSequence,
   AlignmentRecord,
-  BAMAlignment,
-  CIGARString,
   FastaSequence,
   FastqSequence,
   KmerSequence,
-  MAPQScore,
   QualityEncoding,
-  SAMAlignment,
-  SAMFlag,
-  SAMTag,
 } from "./types";
 
 /**
@@ -123,73 +117,6 @@ export function createKmerRecord<K extends number>(input: KmerRecordInput<K>): K
   const sequence = GenotypeString.fromString(input.sequence);
   const { sequence: _, ...rest } = input;
   return { ...rest, sequence, length: sequence.length } as KmerSequence<K>;
-}
-
-/**
- * Input fields for creating a SAM alignment record.
- *
- * The `seq` and `qual` fields accept either a plain string or an
- * existing GenotypeString. The branded types (`SAMFlag`, `MAPQScore`,
- * `CIGARString`) are required — callers must validate and brand these
- * values before passing them to the constructor.
- */
-export interface SamAlignmentInput {
-  readonly qname: string;
-  readonly flag: SAMFlag;
-  readonly rname: string;
-  readonly pos: number;
-  readonly mapq: MAPQScore;
-  readonly cigar: CIGARString;
-  readonly rnext: string;
-  readonly pnext: number;
-  readonly tlen: number;
-  readonly seq: GenotypeString | string;
-  readonly qual: GenotypeString | string;
-  readonly tags?: SAMTag[] | undefined;
-  readonly lineNumber?: number | undefined;
-}
-
-/**
- * Creates a fully typed SAM alignment record from the given fields.
- *
- * The `format` discriminant is set to `"sam"`. Optional fields from
- * the input are carried through as-is.
- */
-export function createSamAlignment(input: SamAlignmentInput): SAMAlignment {
-  const { seq: rawSeq, qual: rawQual, ...rest } = input;
-  return {
-    ...rest,
-    format: "sam",
-    seq: GenotypeString.fromString(rawSeq),
-    qual: GenotypeString.fromString(rawQual),
-  } as SAMAlignment;
-}
-
-/**
- * Input fields for creating a BAM alignment record.
- *
- * Extends the SAM alignment input with BAM-specific binary metadata.
- */
-export interface BamAlignmentInput extends SamAlignmentInput {
-  readonly blockStart?: number | undefined;
-  readonly blockEnd?: number | undefined;
-  readonly binIndex?: number | undefined;
-}
-
-/**
- * Creates a fully typed BAM alignment record from the given fields.
- *
- * The `format` discriminant is set to `"bam"`. Optional fields from
- * the input are carried through as-is.
- */
-export function createBamAlignment(input: BamAlignmentInput): BAMAlignment {
-  const { seq: rawSeq, qual: rawQual, ...rest } = input;
-  return {
-    ...rest,
-    format: "bam",
-    seq: GenotypeString.fromString(rawSeq),
-    qual: GenotypeString.fromString(rawQual),
-  } as BAMAlignment;
 }
 
 /**

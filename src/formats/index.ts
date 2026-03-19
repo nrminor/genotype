@@ -17,8 +17,6 @@
 
 // Alignment format exports (noodles-backed BAM/SAM parser)
 export { AlignmentParser } from "./alignment";
-// Legacy BAM format exports
-export { BAMParser, BAMUtils, BAMWriter } from "./bam";
 // BED format exports
 export {
   BedFormat,
@@ -79,5 +77,3 @@ export {
   validateGtfCoordinates,
   validateGtfStrand,
 } from "./gtf";
-// SAM format exports
-export { SAMParser, SAMUtils, SAMWriter } from "./sam";

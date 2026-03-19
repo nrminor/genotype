@@ -35,9 +35,7 @@ describe("SeqOps alignment integration", () => {
 
   describe("format-agnostic operations", () => {
     test("grep filters alignment records by sequence content", async () => {
-      const results = await seqops(makeAsync(records))
-        .grep("ACGT")
-        .collect();
+      const results = await seqops(makeAsync(records)).grep("ACGT").collect();
 
       expect(results.length).toBeGreaterThan(0);
       for (const r of results) {
@@ -46,9 +44,7 @@ describe("SeqOps alignment integration", () => {
     });
 
     test("filter by minimum length", async () => {
-      const results = await seqops(makeAsync(records))
-        .filter({ minLength: 10 })
-        .collect();
+      const results = await seqops(makeAsync(records)).filter({ minLength: 10 }).collect();
 
       expect(results.length).toBe(7);
       for (const r of results) {
@@ -62,9 +58,7 @@ describe("SeqOps alignment integration", () => {
       const allSeqs = records.map((r) => r.sequence.toString());
       const uniqueSeqs = new Set(allSeqs);
 
-      const results = await seqops(makeAsync(records))
-        .unique({ by: "sequence" })
-        .collect();
+      const results = await seqops(makeAsync(records)).unique({ by: "sequence" }).collect();
 
       expect(results.length).toBe(uniqueSeqs.size);
     });
@@ -103,9 +97,7 @@ describe("SeqOps alignment integration", () => {
       // All our fixture records have high quality (I = Phred 40, H = Phred 39,
       // J = Phred 41). A threshold of 30 should keep all mapped reads.
       // The unmapped read has ! quality (Phred 0) and should be filtered out.
-      const results = await seqops(makeAsync(records))
-        .quality({ minScore: 30 })
-        .collect();
+      const results = await seqops(makeAsync(records)).quality({ minScore: 30 }).collect();
 
       // The unmapped read (read3) has ! quality (Phred 0), should be filtered
       const unmapped = results.find((r) => (r as AlignmentRecord).flag === 4);
@@ -161,9 +153,7 @@ describe("SeqOps alignment integration", () => {
     });
 
     test("alignment records preserve alignment fields through pipeline", async () => {
-      const results = await seqops(makeAsync(records))
-        .filter({ minLength: 10 })
-        .collect();
+      const results = await seqops(makeAsync(records)).filter({ minLength: 10 }).collect();
 
       for (const r of results) {
         const alignment = r as AlignmentRecord;

@@ -21,6 +21,7 @@ import {
 import { openForWriting } from "../io/file-writer";
 import type {
   AbstractSequence,
+  AlignmentRecord,
   FastaSequence,
   FastqSequence,
   KmerSequence,
@@ -58,6 +59,8 @@ import { SubseqExtractor, type SubseqOptions } from "./subseq";
 import { TransformProcessor } from "./transform";
 import { TranslateProcessor } from "./translate";
 import type {
+  AlignmentFilterOptions,
+  AlignmentTransformOptions,
   AmpliconOptions,
   CleanOptions,
   ConcatOptions,
@@ -324,13 +327,19 @@ export class SeqOps<T extends AbstractSequence> {
    * // Type: SeqOps<FastqSequence> ✅
    * ```
    */
+  filter<U extends T & AlignmentRecord>(
+    this: SeqOps<U>,
+    options: FilterOptions & AlignmentFilterOptions
+  ): SeqOps<U>;
   filter(
     this: SeqOps<T & { index: number }>,
     options: FilterOptions | ((seq: T, index: number) => boolean | Promise<boolean>)
   ): SeqOps<T>;
   filter(options: FilterOptions | ((seq: T) => boolean | Promise<boolean>)): SeqOps<T>;
   filter(
-    options: FilterOptions | ((seq: T, index?: number) => boolean | Promise<boolean>)
+    options:
+      | (FilterOptions & Partial<AlignmentFilterOptions>)
+      | ((seq: T, index?: number) => boolean | Promise<boolean>)
   ): SeqOps<T> {
     // Handle predicate function
     if (typeof options === "function") {
@@ -415,7 +424,12 @@ export class SeqOps<T extends AbstractSequence> {
    *   .transform({ toRNA: true })
    * ```
    */
-  transform(options: TransformOptions): SeqOps<T> {
+  transform<U extends T & AlignmentRecord>(
+    this: SeqOps<U>,
+    options: TransformOptions & AlignmentTransformOptions
+  ): SeqOps<U>;
+  transform(options: TransformOptions): SeqOps<T>;
+  transform(options: TransformOptions & Partial<AlignmentTransformOptions>): SeqOps<T> {
     const processor = new TransformProcessor();
     return new SeqOps<T>(processor.process(this.source, options) as AsyncIterable<T>);
   }
@@ -3074,6 +3088,8 @@ export { SubseqExtractor, type SubseqOptions } from "./subseq";
 export { TranslateProcessor } from "./translate";
 // Export new semantic API types
 export type {
+  AlignmentFilterOptions,
+  AlignmentTransformOptions,
   AmpliconOptions,
   CleanOptions,
   ConcatOptions,

@@ -12,8 +12,8 @@ import { withSequence } from "../constructors";
 import { GenotypeError } from "../errors";
 import { GenotypeString } from "../genotype-string";
 import { type NativeKernel, TransformOp, getNativeKernel, packSequences } from "../native";
-import type { AbstractSequence } from "../types";
-import type { Processor, TransformOptions } from "./types";
+import type { AbstractSequence, AlignmentRecord } from "../types";
+import type { AlignmentTransformOptions, Processor, TransformOptions } from "./types";
 
 /** Byte budget per native batch. Sequences accumulate until this threshold. */
 const BATCH_BYTE_BUDGET = 4 * 1024 * 1024;
@@ -40,21 +40,28 @@ export class TransformProcessor implements Processor<TransformOptions> {
    */
   async *process(
     source: AsyncIterable<AbstractSequence>,
-    options: TransformOptions
+    options: TransformOptions & Partial<AlignmentTransformOptions>
   ): AsyncIterable<AbstractSequence> {
     const ops = buildOpList(options);
+    const needsTrimSoftClips = options.trimSoftClips === true;
 
-    // No kernel ops and no custom callback — pass through unchanged.
-    if (ops.length === 0 && options.custom === undefined) {
+    // No kernel ops, no custom callback, no soft-clip trimming — pass through unchanged.
+    if (ops.length === 0 && options.custom === undefined && !needsTrimSoftClips) {
       yield* source;
       return;
     }
 
-    // Custom-only path: no kernel work, just apply the callback per-sequence.
+    // No kernel ops — apply custom callback and/or soft-clip trimming per-sequence.
     if (ops.length === 0) {
       for await (const seq of source) {
-        const transformed = options.custom!(seq.sequence.toString());
-        yield withSequence(seq, transformed);
+        let result = seq;
+        if (options.custom !== undefined) {
+          result = withSequence(result, options.custom(result.sequence.toString()));
+        }
+        if (needsTrimSoftClips) {
+          result = applySoftClipTrim(result);
+        }
+        yield result;
       }
       return;
     }
@@ -76,14 +83,14 @@ export class TransformProcessor implements Processor<TransformOptions> {
       batchBytes += seq.sequence.length;
 
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        yield* flushBatch(batch, nativeKernel, ops, options.custom);
+        yield* flushBatch(batch, nativeKernel, ops, options.custom, needsTrimSoftClips);
         batch = [];
         batchBytes = 0;
       }
     }
 
     if (batch.length > 0) {
-      yield* flushBatch(batch, nativeKernel, ops, options.custom);
+      yield* flushBatch(batch, nativeKernel, ops, options.custom, needsTrimSoftClips);
     }
   }
 }
@@ -133,7 +140,8 @@ function* flushBatch(
   sequences: readonly AbstractSequence[],
   nativeKernel: NativeKernel,
   ops: readonly TransformOp[],
-  custom: ((seq: string) => string) | undefined
+  custom: ((seq: string) => string) | undefined,
+  trimSoftClips: boolean
 ): Iterable<AbstractSequence> {
   const packed = packSequences(sequences);
 
@@ -155,10 +163,66 @@ function* flushBatch(
     const end = offsets[i + 1]!;
     const sequence = GenotypeString.fromBytes(data.subarray(start, end));
 
+    let result: AbstractSequence;
     if (custom !== undefined) {
-      yield withSequence(sequences[i]!, custom(sequence.toString()));
+      result = withSequence(sequences[i]!, custom(sequence.toString()));
     } else {
-      yield withSequence(sequences[i]!, sequence);
+      result = withSequence(sequences[i]!, sequence);
     }
+
+    if (trimSoftClips) {
+      result = applySoftClipTrim(result);
+    }
+
+    yield result;
   }
+}
+
+/**
+ * Parse leading and trailing soft clips from a CIGAR string and trim
+ * the sequence and quality accordingly. Returns the record unchanged
+ * if it doesn't have a CIGAR string or has no soft clips.
+ */
+function applySoftClipTrim(seq: AbstractSequence): AbstractSequence {
+  if (!("cigar" in seq)) return seq;
+
+  const record = seq as AlignmentRecord;
+  const cigar = record.cigar;
+  if (cigar === "*" || cigar === "") return seq;
+
+  // Parse leading soft clips
+  const leadingMatch = cigar.match(/^(\d+)S/);
+  const leadingClip = leadingMatch !== null ? parseInt(leadingMatch[1]!, 10) : 0;
+
+  // Parse trailing soft clips
+  const trailingMatch = cigar.match(/(\d+)S$/);
+  // Avoid double-counting if the entire CIGAR is a single S operation
+  const trailingClip =
+    trailingMatch !== null && trailingMatch.index !== leadingMatch?.index
+      ? parseInt(trailingMatch[1]!, 10)
+      : 0;
+
+  if (leadingClip === 0 && trailingClip === 0) return seq;
+
+  const trimEnd = seq.length - trailingClip;
+  if (leadingClip >= trimEnd) return seq; // Would trim to nothing — leave unchanged
+
+  let result: AbstractSequence = withSequence(seq, seq.sequence.slice(leadingClip, trimEnd));
+
+  // Trim quality too if present
+  if ("quality" in record && record.quality !== undefined) {
+    result = { ...result, quality: record.quality.slice(leadingClip, trimEnd) } as typeof result;
+  }
+
+  // Update the CIGAR string to remove the S operations
+  let newCigar = cigar;
+  if (leadingClip > 0) {
+    newCigar = newCigar.replace(/^\d+S/, "");
+  }
+  if (trailingClip > 0) {
+    newCigar = newCigar.replace(/\d+S$/, "");
+  }
+  if (newCigar === "") newCigar = "*";
+
+  return { ...result, cigar: newCigar } as AbstractSequence;
 }

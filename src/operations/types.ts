@@ -101,6 +101,34 @@ export interface FilterOptions {
 }
 
 /**
+ * Alignment-specific filter criteria for AlignmentRecord streams.
+ *
+ * These options are only available when the stream is typed as
+ * AlignmentRecord, enforced by the SeqOps overload. They filter
+ * on fields that only exist on alignment records (flag, mapping
+ * quality, reference sequence, position).
+ */
+export interface AlignmentFilterOptions {
+  /** Minimum mapping quality (0-255). Reads below this threshold are discarded. */
+  minMapQ?: number;
+
+  /** Maximum mapping quality (0-255). Reads above this threshold are discarded. */
+  maxMapQ?: number;
+
+  /** Exclude reads where (flag & excludeFlags) !== 0. Common values: 0x4 (unmapped), 0x100 (secondary), 0x800 (supplementary). */
+  excludeFlags?: number;
+
+  /** Include only reads where (flag & includeFlags) === includeFlags. */
+  includeFlags?: number;
+
+  /** Keep only reads mapping to this reference sequence name. */
+  referenceSequence?: string;
+
+  /** Keep only reads overlapping a genomic region, e.g. "chr1:1000-2000". Uses 1-based coordinates. */
+  region?: string;
+}
+
+/**
  * Options for transforming sequence content
  *
  * Transformations modify the sequence string itself.
@@ -129,6 +157,17 @@ export interface TransformOptions {
 
   /** Custom transformation function */
   custom?: (seq: string) => string;
+}
+
+/**
+ * Alignment-specific transform options for AlignmentRecord streams.
+ *
+ * These options are only available when the stream is typed as
+ * AlignmentRecord, enforced by the SeqOps overload.
+ */
+export interface AlignmentTransformOptions {
+  /** Remove soft-clipped bases from sequence and quality using the CIGAR string. */
+  trimSoftClips?: boolean;
 }
 
 /**

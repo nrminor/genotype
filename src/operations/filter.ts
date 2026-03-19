@@ -31,7 +31,7 @@ import {
 } from "../native";
 import type { AbstractSequence } from "../types";
 import { gcContent } from "./core/calculations";
-import type { FilterOptions, Processor } from "./types";
+import type { AlignmentFilterOptions, FilterOptions, Processor } from "./types";
 
 /** Byte budget per native batch. Sequences accumulate until this threshold. */
 const BATCH_BYTE_BUDGET = 4 * 1024 * 1024;
@@ -54,6 +54,12 @@ const FilterOptionsSchema = type({
   "excludeIds?": "string[]",
   "hasAmbiguous?": "boolean",
   "custom?": "Function",
+  "minMapQ?": "0 <= number <= 255",
+  "maxMapQ?": "0 <= number <= 255",
+  "excludeFlags?": "0 <= number <= 65535",
+  "includeFlags?": "0 <= number <= 65535",
+  "referenceSequence?": "string",
+  "region?": "string",
 }).narrow((options, ctx) => {
   // Cross-field validation: minLength <= maxLength
   if (
@@ -73,6 +79,29 @@ const FilterOptionsSchema = type({
       expected: `minGC (${options.minGC}) <= maxGC (${options.maxGC})`,
       path: ["minGC", "maxGC"],
     });
+  }
+
+  // Cross-field validation: minMapQ <= maxMapQ
+  if (
+    options.minMapQ !== undefined &&
+    options.maxMapQ !== undefined &&
+    options.minMapQ > options.maxMapQ
+  ) {
+    return ctx.reject({
+      expected: `minMapQ (${options.minMapQ}) <= maxMapQ (${options.maxMapQ})`,
+      path: ["minMapQ", "maxMapQ"],
+    });
+  }
+
+  // Validate region format if provided
+  if (options.region !== undefined) {
+    const regionPattern = /^[^:]+:\d+-\d+$/;
+    if (!regionPattern.test(options.region)) {
+      return ctx.reject({
+        expected: `region in format "chr:start-end" (e.g. "chr1:1000-2000"), got "${options.region}"`,
+        path: ["region"],
+      });
+    }
   }
 
   return true;
@@ -101,7 +130,7 @@ export class FilterProcessor implements Processor<FilterOptions> {
    */
   async *process(
     source: AsyncIterable<AbstractSequence>,
-    options: FilterOptions
+    options: FilterOptions & Partial<AlignmentFilterOptions>
   ): AsyncIterable<AbstractSequence> {
     const validationResult = FilterOptionsSchema(options);
     if (validationResult instanceof type.errors) {
@@ -151,7 +180,7 @@ export class FilterProcessor implements Processor<FilterOptions> {
    * @param options - Filter criteria
    * @returns True if sequence passes all criteria
    */
-  private passesFilter(seq: AbstractSequence, options: FilterOptions): boolean {
+  private passesFilter(seq: AbstractSequence, options: FilterOptions & Partial<AlignmentFilterOptions>): boolean {
     // Length filters - early returns for better readability
     if (options.minLength && seq.length < options.minLength) {
       return false;
@@ -203,15 +232,77 @@ export class FilterProcessor implements Processor<FilterOptions> {
       return false;
     }
 
+    // Alignment-specific filters
+    if (!passesAlignmentFilters(seq, options)) {
+      return false;
+    }
+
     return true;
   }
+}
+
+/**
+ * Apply alignment-specific filters. These check fields that only exist
+ * on AlignmentRecord (flag, mappingQuality, referenceSequence, position).
+ * If the record doesn't have these fields, the filters are skipped.
+ */
+function passesAlignmentFilters(seq: AbstractSequence, options: Partial<AlignmentFilterOptions>): boolean {
+  const hasAlignmentFields = "flag" in seq && "mappingQuality" in seq;
+  if (!hasAlignmentFields) return true;
+
+  const record = seq as AbstractSequence & {
+    flag: number;
+    mappingQuality: number;
+    referenceSequence: string;
+    position: number;
+  };
+
+  if (options.minMapQ !== undefined && record.mappingQuality < options.minMapQ) {
+    return false;
+  }
+  if (options.maxMapQ !== undefined && record.mappingQuality > options.maxMapQ) {
+    return false;
+  }
+  if (options.excludeFlags !== undefined && (record.flag & options.excludeFlags) !== 0) {
+    return false;
+  }
+  if (options.includeFlags !== undefined && (record.flag & options.includeFlags) !== options.includeFlags) {
+    return false;
+  }
+  if (options.referenceSequence !== undefined && record.referenceSequence !== options.referenceSequence) {
+    return false;
+  }
+  if (options.region !== undefined) {
+    const parsed = parseRegion(options.region);
+    if (parsed !== null) {
+      if (record.referenceSequence !== parsed.ref) return false;
+      if (record.position === 0) return false; // unmapped
+      if (record.position > parsed.end) return false;
+      // Without CIGAR-aware span calculation, we assume the read
+      // extends at least seq.length bases from its start position.
+      const readEnd = record.position + seq.length - 1;
+      if (readEnd < parsed.start) return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Parse a genomic region string like "chr1:1000-2000" into its components.
+ * Returns null if the string doesn't match the expected format.
+ */
+function parseRegion(region: string): { ref: string; start: number; end: number } | null {
+  const match = region.match(/^([^:]+):(\d+)-(\d+)$/);
+  if (match === null) return null;
+  return { ref: match[1]!, start: parseInt(match[2]!, 10), end: parseInt(match[3]!, 10) };
 }
 
 /**
  * Apply only the filters that don't need sequence content analysis.
  * These are O(1) or depend on metadata, not on the sequence bytes.
  */
-function passesCheapFilters(seq: AbstractSequence, options: FilterOptions): boolean {
+function passesCheapFilters(seq: AbstractSequence, options: FilterOptions & Partial<AlignmentFilterOptions>): boolean {
   if (options.minLength !== undefined && seq.length < options.minLength) {
     return false;
   }
@@ -229,6 +320,10 @@ function passesCheapFilters(seq: AbstractSequence, options: FilterOptions): bool
     return false;
   }
   if (options.excludeIds?.includes(seq.id)) {
+    return false;
+  }
+  // Alignment-specific filters are cheap too
+  if (!passesAlignmentFilters(seq, options)) {
     return false;
   }
   return true;
@@ -263,7 +358,7 @@ function gcContentFromCounts(counts: number[], base: number): number {
 function* flushFilterBatch(
   batch: AbstractSequence[],
   kernel: NativeKernel,
-  options: FilterOptions
+  options: FilterOptions & Partial<AlignmentFilterOptions>
 ): Iterable<AbstractSequence> {
   const { data, offsets } = packSequences(batch);
   const result = kernel.classifyBatch(data, offsets);

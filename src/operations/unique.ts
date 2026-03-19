@@ -3,8 +3,12 @@
  */
 
 import type { AbstractSequence, QualityEncoding } from "../types";
+import type { NativeKernel } from "../native";
+import { extractHashKey, getNativeKernel, packSequences } from "../native";
 import type { Processor } from "./types";
 import { calculateAverageQuality } from "./core/quality";
+
+const BATCH_BYTE_BUDGET = 4 * 1024 * 1024;
 
 /**
  * Options for sequence deduplication
@@ -110,6 +114,23 @@ export class UniqueProcessor<
   async *process(source: AsyncIterable<T>, options: UniqueOptions = {}): AsyncIterable<T> {
     const { by = "sequence", caseSensitive = true, conflictResolution = "first" } = options;
 
+    if ((by === "sequence" || by === "both") && typeof by !== "function") {
+      const kernel = getNativeKernel();
+      if (kernel !== undefined) {
+        yield* this.processNative(source, kernel, by, caseSensitive, conflictResolution);
+        return;
+      }
+    }
+
+    yield* this.processScalar(source, by, caseSensitive, conflictResolution);
+  }
+
+  private async *processScalar(
+    source: AsyncIterable<T>,
+    by: "sequence" | "id" | "both" | ((seq: AbstractSequence) => string),
+    caseSensitive: boolean,
+    conflictResolution: NonNullable<UniqueOptions["conflictResolution"]>
+  ): AsyncIterable<T> {
     const keyFn = this.getKeyFunction(by, caseSensitive);
     const seen = new Map<string, T>();
 
@@ -117,15 +138,11 @@ export class UniqueProcessor<
       const key = keyFn(seq);
 
       if (!seen.has(key)) {
-        // First occurrence - always track it
         seen.set(key, seq);
-
-        // For "first" strategy, yield immediately
         if (conflictResolution === "first") {
           yield seq;
         }
       } else if (conflictResolution !== "first") {
-        // Duplicate found - apply conflict resolution
         const existing = seen.get(key);
         if (existing !== undefined) {
           const winner = this.resolveConflict(existing, seq, conflictResolution);
@@ -134,10 +151,72 @@ export class UniqueProcessor<
       }
     }
 
-    // For non-"first" strategies, yield after seeing all sequences
     if (conflictResolution !== "first") {
       for (const seq of seen.values()) {
         yield seq;
+      }
+    }
+  }
+
+  private async *processNative(
+    source: AsyncIterable<T>,
+    kernel: NativeKernel,
+    by: "sequence" | "both",
+    caseSensitive: boolean,
+    conflictResolution: NonNullable<UniqueOptions["conflictResolution"]>
+  ): AsyncIterable<T> {
+    const seen = new Map<string, T>();
+    let batch: T[] = [];
+    let batchBytes = 0;
+
+    for await (const seq of source) {
+      batch.push(seq);
+      batchBytes += seq.sequence.length;
+
+      if (batchBytes >= BATCH_BYTE_BUDGET) {
+        yield* this.flushNativeBatch(batch, kernel, by, caseSensitive, conflictResolution, seen);
+        batch = [];
+        batchBytes = 0;
+      }
+    }
+
+    if (batch.length > 0) {
+      yield* this.flushNativeBatch(batch, kernel, by, caseSensitive, conflictResolution, seen);
+    }
+
+    if (conflictResolution !== "first") {
+      for (const seq of seen.values()) {
+        yield seq;
+      }
+    }
+  }
+
+  private *flushNativeBatch(
+    batch: readonly T[],
+    kernel: NativeKernel,
+    by: "sequence" | "both",
+    caseSensitive: boolean,
+    conflictResolution: NonNullable<UniqueOptions["conflictResolution"]>,
+    seen: Map<string, T>
+  ): Iterable<T> {
+    const { data, offsets } = packSequences(batch);
+    const hashBuffer = kernel.hashBatch(data, offsets, !caseSensitive);
+
+    for (let i = 0; i < batch.length; i++) {
+      const seqHash = extractHashKey(hashBuffer, i);
+      const key = by === "both" ? `${batch[i]!.id}:${seqHash}` : seqHash;
+
+      if (!seen.has(key)) {
+        seen.set(key, batch[i]!);
+        if (conflictResolution === "first") {
+          yield batch[i]!;
+        }
+      } else if (conflictResolution !== "first") {
+        const existing = seen.get(key);
+        if (existing !== undefined) {
+          const winner = this.resolveConflict(existing, batch[i]!, conflictResolution);
+          seen.set(key, winner);
+        }
       }
     }
   }

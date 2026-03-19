@@ -5,7 +5,10 @@
 //! on open, and returns batches of parsed records in a struct-of-arrays
 //! layout for efficient FFI transfer.
 
-use std::{fs::File, io::BufReader};
+use std::{
+    fs::File,
+    io::{BufReader, Cursor},
+};
 
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
@@ -71,11 +74,13 @@ pub struct AlignmentBatch {
     pub mapping_qualities: Buffer,
 }
 
-/// Internal enum to handle both BAM and SAM readers behind a single
-/// interface.
+/// Internal enum to handle BAM and SAM readers from both files and
+/// in-memory buffers behind a single interface.
 enum ReaderInner {
-    Bam(bam::io::Reader<bgzf::io::Reader<BufReader<File>>>),
-    Sam(sam::io::Reader<BufReader<File>>),
+    BamFile(bam::io::Reader<bgzf::io::Reader<BufReader<File>>>),
+    BamBytes(bam::io::Reader<bgzf::io::Reader<Cursor<Vec<u8>>>>),
+    SamFile(sam::io::Reader<BufReader<File>>),
+    SamBytes(sam::io::Reader<BufReader<Cursor<Vec<u8>>>>),
 }
 
 #[derive(Clone, Copy)]
@@ -126,6 +131,55 @@ impl AlignmentReader {
         match format {
             Format::Bam => Self::open_bam(&path),
             Format::Sam => Self::open_sam(&path),
+        }
+    }
+
+    /// Open a BAM or SAM dataset from an in-memory buffer.
+    ///
+    /// Format is detected from the first two bytes, same as `open`.
+    /// This is used by the TypeScript `parseString` and `parse`
+    /// methods to avoid writing to a temp file.
+    #[napi(factory)]
+    #[allow(clippy::needless_pass_by_value)] // napi requires Buffer by value
+    pub fn open_bytes(data: Buffer) -> napi::Result<Self> {
+        let bytes: Vec<u8> = data.to_vec();
+
+        let is_bgzf = bytes.len() >= 2 && bytes[0] == 0x1f && bytes[1] == 0x8b;
+
+        if is_bgzf {
+            let cursor = Cursor::new(bytes);
+            let mut reader = bam::io::Reader::new(cursor);
+
+            let header = reader.read_header().map_err(|e| {
+                napi::Error::from_reason(format!("failed to read BAM header from buffer: {e}"))
+            })?;
+
+            let reference_names = resolve_reference_names(&header);
+
+            Ok(Self {
+                inner: ReaderInner::BamBytes(reader),
+                header,
+                format: Format::Bam,
+                reference_names,
+                record_buf: sam::alignment::RecordBuf::default(),
+            })
+        } else {
+            let cursor = Cursor::new(bytes);
+            let mut reader = sam::io::Reader::new(BufReader::new(cursor));
+
+            let header = reader.read_header().map_err(|e| {
+                napi::Error::from_reason(format!("failed to read SAM header from buffer: {e}"))
+            })?;
+
+            let reference_names = resolve_reference_names(&header);
+
+            Ok(Self {
+                inner: ReaderInner::SamBytes(reader),
+                header,
+                format: Format::Sam,
+                reference_names,
+                record_buf: sam::alignment::RecordBuf::default(),
+            })
         }
     }
 
@@ -297,7 +351,7 @@ impl AlignmentReader {
         let reference_names = resolve_reference_names(&header);
 
         Ok(Self {
-            inner: ReaderInner::Bam(reader),
+            inner: ReaderInner::BamFile(reader),
             header,
             format: Format::Bam,
             reference_names,
@@ -318,7 +372,7 @@ impl AlignmentReader {
         let reference_names = resolve_reference_names(&header);
 
         Ok(Self {
-            inner: ReaderInner::Sam(reader),
+            inner: ReaderInner::SamFile(reader),
             header,
             format: Format::Sam,
             reference_names,
@@ -330,10 +384,16 @@ impl AlignmentReader {
     /// of bytes read (0 at EOF).
     fn read_one_record(&mut self) -> napi::Result<usize> {
         match &mut self.inner {
-            ReaderInner::Bam(reader) => reader
+            ReaderInner::BamFile(r) => r
                 .read_record_buf(&self.header, &mut self.record_buf)
                 .map_err(|e| napi::Error::from_reason(format!("BAM read error: {e}"))),
-            ReaderInner::Sam(reader) => reader
+            ReaderInner::BamBytes(r) => r
+                .read_record_buf(&self.header, &mut self.record_buf)
+                .map_err(|e| napi::Error::from_reason(format!("BAM read error: {e}"))),
+            ReaderInner::SamFile(r) => r
+                .read_record_buf(&self.header, &mut self.record_buf)
+                .map_err(|e| napi::Error::from_reason(format!("SAM read error: {e}"))),
+            ReaderInner::SamBytes(r) => r
                 .read_record_buf(&self.header, &mut self.record_buf)
                 .map_err(|e| napi::Error::from_reason(format!("SAM read error: {e}"))),
         }

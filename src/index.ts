@@ -56,7 +56,9 @@ export {
   TimeoutError,
   ValidationError,
 } from "./errors";
-// BAM format and BAI indexing
+// Alignment format (noodles-backed BAM/SAM parser)
+export { AlignmentParser } from "./formats/alignment";
+// Legacy BAM format and BAI indexing
 export { BAMParser, BAMUtils, BAMWriter, type BAMWriterOptions } from "./formats/bam";
 // BED format
 export { BedFormat, BedParser, BedUtils, BedWriter } from "./formats/bed";

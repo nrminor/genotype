@@ -1,4 +1,4 @@
-import type { AbstractSequence, FastqSequence } from "./types";
+import type { AbstractSequence, QualityScoreBearing } from "./types";
 
 /**
  * The native kernel interface. Each function here corresponds to a
@@ -456,16 +456,17 @@ export function packSequences(sequences: readonly AbstractSequence[]): PackedBat
 }
 
 /**
- * Pack the quality strings from an array of FASTQ sequences into the
- * contiguous batch layout that Rust kernel functions expect.
+ * Pack the quality strings from an array of sequences with quality
+ * scores into the contiguous batch layout that Rust kernel functions
+ * expect.
  *
  * Parallel to {@link packSequences} but reads `.quality` instead of
  * `.sequence`. Returns the same `PackedBatch` shape.
  *
- * @param sequences - The FASTQ sequences whose quality strings to pack
+ * @param sequences - Sequences with quality scores to pack
  * @returns The packed batch layout
  */
-export function packQualityStrings(sequences: readonly FastqSequence[]): PackedBatch {
+export function packQualityStrings(sequences: readonly QualityScoreBearing[]): PackedBatch {
   const count = sequences.length;
   const offsets = new Uint32Array(count + 1);
 

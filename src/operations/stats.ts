@@ -35,7 +35,12 @@ import {
   CLASS_GAP,
   CLASS_OTHER,
 } from "../native";
-import type { AbstractSequence, FASTXSequence, FastqSequence, QualityEncoding } from "../types";
+import type {
+  AbstractSequence,
+  FASTXSequence,
+  QualityEncoding,
+  QualityScoreBearing,
+} from "../types";
 import { charToScore } from "./core/quality";
 
 /** Byte budget per native batch. Sequences accumulate until this threshold. */
@@ -500,7 +505,7 @@ export class SequenceStatsCalculator {
 
     this.detectFormat(sequence, accumulator);
 
-    if (this.isFastqSequence(sequence) && options.includeQuality) {
+    if (this.isQualityScoreBearing(sequence) && options.includeQuality) {
       this.processQuality(sequence, accumulator);
     }
   }
@@ -570,7 +575,7 @@ export class SequenceStatsCalculator {
     sequence: AbstractSequence | FASTXSequence,
     accumulator: StatsAccumulator
   ): void {
-    if (this.isFastqSequence(sequence)) {
+    if (this.isQualityScoreBearing(sequence)) {
       accumulator.hasFastq = true;
       if (!accumulator.qualityEncoding) {
         accumulator.qualityEncoding = sequence.qualityEncoding;
@@ -584,7 +589,10 @@ export class SequenceStatsCalculator {
    * Process quality scores for FASTQ sequences
    * @private
    */
-  private processQuality(sequence: FastqSequence, accumulator: StatsAccumulator): void {
+  private processQuality(
+    sequence: AbstractSequence & QualityScoreBearing,
+    accumulator: StatsAccumulator
+  ): void {
     const quality = sequence.quality;
     const encoding = sequence.qualityEncoding;
 
@@ -735,7 +743,9 @@ export class SequenceStatsCalculator {
    * Type guard to check if sequence is FASTQ
    * @private
    */
-  private isFastqSequence(sequence: AbstractSequence | FASTXSequence): sequence is FastqSequence {
+  private isQualityScoreBearing(
+    sequence: AbstractSequence | FASTXSequence
+  ): sequence is (AbstractSequence | FASTXSequence) & QualityScoreBearing {
     return (
       "quality" in sequence &&
       "qualityEncoding" in sequence &&

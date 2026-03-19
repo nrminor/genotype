@@ -174,10 +174,7 @@ export class AlignmentParser extends AbstractParser<AlignmentRecord> {
   }
 }
 
-function *unpackBatch(
-  batch: NativeAlignmentBatch,
-  startIndex: number
-): Iterable<AlignmentRecord> {
+function* unpackBatch(batch: NativeAlignmentBatch, startIndex: number): Iterable<AlignmentRecord> {
   const format = batch.format as "sam" | "bam";
   // napi Buffers are already Node Buffers — use directly without copying.
   const { qnameData, sequenceData, qualityData, cigarData, rnameData } = batch;
@@ -194,9 +191,7 @@ function *unpackBatch(
     const rnameStart = batch.rnameOffsets[i]!;
     const rnameEnd = batch.rnameOffsets[i + 1]!;
 
-    const sequence = GenotypeString.fromBytes(
-      sequenceData.subarray(seqStart, seqEnd)
-    );
+    const sequence = GenotypeString.fromBytes(sequenceData.subarray(seqStart, seqEnd));
 
     yield {
       id: qnameData.subarray(qnameStart, qnameEnd).toString("utf8"),
@@ -204,9 +199,7 @@ function *unpackBatch(
       length: seqEnd - seqStart,
       lineNumber: startIndex + i,
       format,
-      quality: GenotypeString.fromBytes(
-        qualityData.subarray(qualStart, qualEnd)
-      ),
+      quality: GenotypeString.fromBytes(qualityData.subarray(qualStart, qualEnd)),
       qualityEncoding: "phred33" as const,
       flag: batch.flags[i]!,
       referenceSequence: rnameData.subarray(rnameStart, rnameEnd).toString("utf8"),

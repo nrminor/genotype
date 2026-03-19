@@ -19,7 +19,7 @@ import { SequenceError, ValidationError } from "../errors";
 import { GenotypeString } from "../genotype-string";
 import { BedParser } from "../formats/bed";
 import { type GtfFeature, GtfParser } from "../formats/gtf";
-import type { AbstractSequence, BedInterval, FastqSequence } from "../types";
+import type { AbstractSequence, BedInterval, QualityScoreBearing } from "../types";
 import {
   type ParsedCoordinates,
   parseEndPosition,
@@ -623,7 +623,7 @@ export class SubseqExtractor {
     region: ParsedRegion,
     options: SubseqOptions
   ): string | undefined {
-    if (!this.isFastqSequence(original)) {
+    if (!this.isQualityScoreBearing(original)) {
       return undefined;
     }
 
@@ -645,8 +645,13 @@ export class SubseqExtractor {
    * Type guard to check if sequence is FASTQ
    * @private
    */
-  private isFastqSequence(sequence: AbstractSequence): sequence is FastqSequence {
-    return "quality" in sequence && (sequence as FastqSequence).quality !== undefined;
+  private isQualityScoreBearing(
+    sequence: AbstractSequence
+  ): sequence is AbstractSequence & QualityScoreBearing {
+    return (
+      "quality" in sequence &&
+      (sequence as AbstractSequence & QualityScoreBearing).quality !== undefined
+    );
   }
 
   /**
@@ -1004,9 +1009,9 @@ export class SubseqExtractor {
 
     // For quality scores (FASTQ), concatenate them too
     let concatenatedQuality: string | undefined;
-    if (this.isFastqSequence(first)) {
+    if (this.isQualityScoreBearing(first)) {
       const qualities = sequences.map((s) => {
-        if (this.isFastqSequence(s)) {
+        if (this.isQualityScoreBearing(s)) {
           return s.quality;
         }
         return "";

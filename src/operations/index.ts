@@ -25,6 +25,7 @@ import type {
   FastqSequence,
   KmerSequence,
   MotifLocation,
+  QualityScoreBearing,
   ValidGenomicRegion,
 } from "../types";
 // Import processors
@@ -588,7 +589,7 @@ export class SeqOps<T extends AbstractSequence> {
    *   .quality({ bins: 2, boundaries: [25] })
    * ```
    */
-  quality<U extends T & FastqSequence>(this: SeqOps<U>, options: QualityOptions): SeqOps<U> {
+  quality<U extends T & QualityScoreBearing>(this: SeqOps<U>, options: QualityOptions): SeqOps<U> {
     const processor = new QualityProcessor();
     return new SeqOps<U>(processor.process(this.source, options) as AsyncIterable<U>);
   }
@@ -624,7 +625,7 @@ export class SeqOps<T extends AbstractSequence> {
    *   .stats({ detailed: true });
    * ```
    */
-  convert<U extends T & FastqSequence>(this: SeqOps<U>, options: ConvertOptions): SeqOps<U> {
+  convert<U extends T & QualityScoreBearing>(this: SeqOps<U>, options: ConvertOptions): SeqOps<U> {
     const processor = new ConvertProcessor();
     return new SeqOps<U>(processor.process(this.source, options) as AsyncIterable<U>);
   }
@@ -1758,8 +1759,14 @@ export class SeqOps<T extends AbstractSequence> {
       for await (const seq of this.source) {
         let fastqSeq: FastqSequence;
 
-        if (this.isFastqSequence(seq)) {
-          fastqSeq = seq;
+        if (this.isQualityScoreBearing(seq)) {
+          fastqSeq = createFastqRecord({
+            id: seq.id,
+            sequence: seq.sequence,
+            quality: seq.quality,
+            qualityEncoding: seq.qualityEncoding,
+            description: seq.description,
+          });
         } else {
           const qualityString = defaultQuality.repeat(seq.length).substring(0, seq.length);
           fastqSeq = createFastqRecord({
@@ -3010,7 +3017,9 @@ export class SeqOps<T extends AbstractSequence> {
    * Type guard to check if sequence is FASTQ
    * @private
    */
-  private isFastqSequence(seq: AbstractSequence): seq is FastqSequence {
+  private isQualityScoreBearing(
+    seq: AbstractSequence
+  ): seq is AbstractSequence & QualityScoreBearing {
     return "quality" in seq && "qualityEncoding" in seq;
   }
 }

@@ -20,7 +20,7 @@ import {
   getNativeKernel,
   packQualityStrings,
 } from "../native";
-import type { AbstractSequence, FastqSequence, QualityEncoding } from "../types";
+import type { AbstractSequence, QualityEncoding, QualityScoreBearing } from "../types";
 import {
   type BinningStrategy,
   calculateRepresentatives,
@@ -83,10 +83,10 @@ export class QualityProcessor implements Processor<QualityOptions> {
    * @param options - Quality options
    * @yields Sequences after quality filtering/trimming/binning
    */
-  async *process(
-    source: AsyncIterable<FastqSequence>,
+  async *process<T extends AbstractSequence & QualityScoreBearing>(
+    source: AsyncIterable<T>,
     options: QualityOptions
-  ): AsyncIterable<FastqSequence> {
+  ): AsyncIterable<T> {
     const needsTrim = options.trim === true;
     const needsAvgQuality = options.minScore !== undefined || options.maxScore !== undefined;
     const needsBinning = "bins" in options;
@@ -112,21 +112,21 @@ export class QualityProcessor implements Processor<QualityOptions> {
       binParams = binStrategyToAscii(strategy);
     }
 
-    let batch: FastqSequence[] = [];
+    let batch: T[] = [];
     let batchBytes = 0;
 
     for await (const seq of source) {
       batch.push(seq);
       batchBytes += seq.quality.length;
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        yield* flushQualityBatch(batch, kernel, options, encoding, binParams);
+        yield* flushQualityBatch<T>(batch, kernel, options, encoding, binParams);
         batch = [];
         batchBytes = 0;
       }
     }
 
     if (batch.length > 0) {
-      yield* flushQualityBatch(batch, kernel, options, encoding, binParams);
+      yield* flushQualityBatch<T>(batch, kernel, options, encoding, binParams);
     }
   }
 }
@@ -144,16 +144,16 @@ export class QualityProcessor implements Processor<QualityOptions> {
  * Phase 3 (binning): if binning is configured, pack survivors' quality
  * strings and call `qualityBinBatch` to remap quality bytes.
  */
-function* flushQualityBatch(
-  batch: FastqSequence[],
+function* flushQualityBatch<T extends AbstractSequence & QualityScoreBearing>(
+  batch: T[],
   kernel: NativeKernel,
   options: QualityOptions,
   encoding: QualityEncoding,
   binParams: AsciiStrategyParams | undefined
-): Iterable<FastqSequence> {
+): Iterable<T> {
   const { offset } = getEncodingInfo(encoding);
 
-  let candidates: FastqSequence[] = batch;
+  let candidates: T[] = batch;
 
   if (options.trim === true) {
     const { data, offsets } = packQualityStrings(candidates);
@@ -171,7 +171,7 @@ function* flushQualityBatch(
       fromEnd
     );
 
-    const trimmed: FastqSequence[] = [];
+    const trimmed: T[] = [];
     for (let i = 0; i < candidates.length; i++) {
       const start = trimPositions[i * 2]!;
       const end = trimPositions[i * 2 + 1]!;
@@ -185,7 +185,7 @@ function* flushQualityBatch(
           withQuality(
             withSequence(seq, seq.sequence.slice(start, end)),
             seq.quality.slice(start, end)
-          )
+          ) as T
         );
       }
     }
@@ -200,7 +200,7 @@ function* flushQualityBatch(
     const { data, offsets } = packQualityStrings(candidates);
     const averages = kernel.qualityAvgBatch(data, offsets, offset);
 
-    const filtered: FastqSequence[] = [];
+    const filtered: T[] = [];
     for (let i = 0; i < candidates.length; i++) {
       const avg = averages[i]!;
       if (options.minScore !== undefined && avg < options.minScore) continue;
@@ -225,7 +225,7 @@ function* flushQualityBatch(
       const start = result.offsets[i]!;
       const end = result.offsets[i + 1]!;
       const binnedBytes = result.data.subarray(start, end);
-      yield withQuality(candidates[i]!, binnedBytes.toString("latin1"));
+      yield withQuality(candidates[i]!, binnedBytes.toString("latin1")) as T;
     }
   } else {
     yield* candidates;
@@ -432,11 +432,11 @@ export async function* binQuality(
   let strategy: BinningStrategy | null = null;
 
   for await (const seq of source) {
-    const isFastqSeq = (s: AbstractSequence): s is FastqSequence => {
+    const hasQuality = (s: AbstractSequence): s is AbstractSequence & QualityScoreBearing => {
       return "quality" in s && s.quality !== undefined;
     };
 
-    if (!isFastqSeq(seq)) {
+    if (!hasQuality(seq)) {
       yield seq;
       continue;
     }

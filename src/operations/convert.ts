@@ -9,7 +9,13 @@
 import { type } from "arktype";
 import { createFastqRecord, type FastqRecordInput, withQuality } from "../constructors";
 import { ValidationError } from "../errors";
-import type { AbstractSequence, FastaSequence, FastqSequence, QualityEncoding } from "../types";
+import type {
+  AbstractSequence,
+  FastaSequence,
+  FastqSequence,
+  QualityEncoding,
+  QualityScoreBearing,
+} from "../types";
 import { calculateQualityStats } from "./core";
 import type { ValidPhred33Char, ValidPhred64Char, ValidSolexaChar } from "./core/quality";
 import {
@@ -154,7 +160,7 @@ export class ConvertProcessor implements Processor<ConvertOptions> {
    * Convert quality encoding for a single sequence
    */
   private convertSequence(seq: AbstractSequence, options: ConvertOptions): AbstractSequence {
-    if (!this.isFastqSequence(seq)) {
+    if (!this.isQualityScoreBearing(seq)) {
       return seq;
     }
 
@@ -195,7 +201,9 @@ export class ConvertProcessor implements Processor<ConvertOptions> {
   /**
    * Type guard to identify FASTQ sequences
    */
-  private isFastqSequence(seq: AbstractSequence): seq is FastqSequence {
+  private isQualityScoreBearing(
+    seq: AbstractSequence
+  ): seq is AbstractSequence & QualityScoreBearing {
     return "quality" in seq && "qualityEncoding" in seq;
   }
 
@@ -203,7 +211,7 @@ export class ConvertProcessor implements Processor<ConvertOptions> {
    * Detect source encoding with optional warning generation
    */
   private detectSourceEncoding(
-    seq: FastqSequence,
+    seq: AbstractSequence & QualityScoreBearing,
     options: ConvertOptions
   ): EncodingDetectionResult {
     // Priority 1: Explicit option overrides everything
@@ -237,10 +245,10 @@ export class ConvertProcessor implements Processor<ConvertOptions> {
    * Create a properly typed converted sequence
    */
   private createConvertedSequence(
-    original: FastqSequence,
+    original: AbstractSequence & QualityScoreBearing,
     quality: string,
     encoding: QualityEncoding
-  ): FastqSequence {
+  ): AbstractSequence & QualityScoreBearing {
     return { ...withQuality(original, quality), qualityEncoding: encoding };
   }
 }

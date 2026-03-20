@@ -65,6 +65,8 @@
 !/src/operations/core/quality/*.ts
 !/src/compression/
 !/src/compression/*.ts
+!/src/backend/
+!/src/backend/*.ts
 
 # Native Rust code (and the TypeScript wrapper)
 !/src/native.ts

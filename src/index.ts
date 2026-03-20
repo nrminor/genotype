@@ -52,6 +52,13 @@ export {
 } from "./errors";
 // Alignment format (noodles-backed BAM/SAM parser)
 export { AlignmentParser } from "./formats/alignment";
+// Backend abstraction (future browser/wasm-compatible presentation layer)
+export {
+  createNodeNativeBackend,
+  getBackend,
+  isBackendAvailable,
+  isNodeNativeBackendAvailable,
+} from "./backend";
 // BED format
 export { BedFormat, BedParser, BedUtils, BedWriter } from "./formats/bed";
 // DSV/CSV/TSV format

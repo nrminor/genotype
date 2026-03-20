@@ -47,6 +47,7 @@ const ALPHABET_Z: usize = 28;
 const ALPHABET_LEN: usize = 29;
 
 /// Result of computing per-sequence metrics for a batch.
+#[derive(Debug)]
 pub struct SequenceMetricsResult {
     pub lengths: Option<Vec<u32>>,
     pub gc: Option<Vec<f64>>,

@@ -1,4 +1,5 @@
 import { createNodeNativeBackend } from "./node-native";
+import { createWasmBackend } from "./wasm";
 import type { GenotypeBackend, NullBackend } from "./types";
 
 const null_backend: NullBackend = {
@@ -11,9 +12,9 @@ let backend_load_attempted = false;
 /**
  * Get the active genotype backend.
  *
- * Today this resolves to the Node/Bun native backend when the napi
- * addon is available, otherwise to a null backend with no capabilities.
- * Future phases will add wasm and other implementations here.
+ * Tries backends in order of preference: native napi addon first (best
+ * performance), then wasm (browser-compatible), then a null backend
+ * with no capabilities. The result is cached after the first call.
  */
 export async function getBackend(): Promise<GenotypeBackend> {
   if (backend_load_attempted) {
@@ -21,7 +22,22 @@ export async function getBackend(): Promise<GenotypeBackend> {
   }
 
   backend_load_attempted = true;
-  cached_backend = createNodeNativeBackend() ?? null_backend;
+
+  // Try native first — best performance, requires napi addon
+  const native = createNodeNativeBackend();
+  if (native !== undefined) {
+    cached_backend = native;
+    return cached_backend;
+  }
+
+  // Try wasm — browser-compatible, requires wasm-pack build
+  const wasm = await createWasmBackend();
+  if (wasm !== undefined) {
+    cached_backend = wasm;
+    return cached_backend;
+  }
+
+  cached_backend = null_backend;
   return cached_backend;
 }
 

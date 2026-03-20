@@ -275,12 +275,11 @@ async function* flushBatch(
   invert: boolean
 ): AsyncIterable<AbstractSequence> {
   const { data, offsets } = packSequences(sequences);
-  const matches = await backend.grepBatch!(
-    data,
-    offsets,
-    patternBytes,
-    { maxEdits, caseInsensitive, searchBothStrands }
-  );
+  const matches = await backend.grepBatch!(data, offsets, patternBytes, {
+    maxEdits,
+    caseInsensitive,
+    searchBothStrands,
+  });
 
   for (let i = 0; i < sequences.length; i++) {
     const matched = matches[i] === 1;

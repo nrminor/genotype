@@ -31,15 +31,11 @@
  */
 
 import { type } from "arktype";
+import { getBackend } from "../backend";
 import { ValidationError } from "../errors";
 import type { AbstractSequence, PrimerSequence } from "../types";
 import { GenotypeString } from "../genotype-string";
-import {
-  type NativeKernel,
-  type PackedBatch,
-  type PatternSearchResult,
-  getNativeKernel,
-} from "../native";
+import { type PackedBatch, type PatternSearchResult } from "../native";
 import { isPrimerSequence } from "./core/alphabet";
 import { parseEndPosition, parseStartPosition, validateRegionString } from "./core/coordinates";
 import type { PatternMatch } from "./core/pattern-matching";
@@ -183,10 +179,10 @@ export class AmpliconProcessor implements Processor<AmpliconOptions> {
       throw new ValidationError(`Invalid amplicon options: ${validOptions.summary}`);
     }
 
-    const kernel = getNativeKernel();
-    if (kernel === undefined) {
+    const backend = await getBackend();
+    if (backend.findPatternBatch === undefined) {
       throw new ValidationError(
-        "Native kernel is required for amplicon operations but could not be loaded"
+        "Amplicon backend is required for amplicon operations but could not be loaded"
       );
     }
 
@@ -208,7 +204,7 @@ export class AmpliconProcessor implements Processor<AmpliconOptions> {
       if (batchBytes >= BATCH_BYTE_BUDGET) {
         yield* flushAmpliconBatch(
           batch,
-          kernel,
+          backend,
           validOptions,
           searchJobs,
           useCanonical,
@@ -222,7 +218,7 @@ export class AmpliconProcessor implements Processor<AmpliconOptions> {
     if (batch.length > 0) {
       yield* flushAmpliconBatch(
         batch,
-        kernel,
+        backend,
         validOptions,
         searchJobs,
         useCanonical,
@@ -240,27 +236,24 @@ export class AmpliconProcessor implements Processor<AmpliconOptions> {
  * to per-sequence match arrays, then runs per-sequence pairing and
  * extraction.
  */
-function* flushAmpliconBatch(
+async function* flushAmpliconBatch(
   batch: BatchEntry[],
-  kernel: NativeKernel,
+  backend: Awaited<ReturnType<typeof getBackend>>,
   options: AmpliconOptions & { forwardPrimer: PrimerSequence; reversePrimer?: PrimerSequence },
   searchJobs: SearchJob[],
   useCanonical: boolean,
   maxMismatches: number
-): Iterable<AbstractSequence> {
+): AsyncIterable<AbstractSequence> {
   const forwardPacked = packWindowedRegions(batch, "forward", options);
   const reversePacked = packWindowedRegions(batch, "reverse", options);
 
   const jobResults = new Map<SearchJob, PatternSearchResult>();
   for (const job of searchJobs) {
     const packed = job.target === "forward" ? forwardPacked : reversePacked;
-    const result = kernel.findPatternBatch(
-      packed.data,
-      packed.offsets,
-      job.pattern,
-      maxMismatches,
-      false
-    );
+    const result = await backend.findPatternBatch!(packed.data, packed.offsets, job.pattern, {
+      maxEdits: maxMismatches,
+      caseInsensitive: false,
+    });
     jobResults.set(job, result);
   }
 

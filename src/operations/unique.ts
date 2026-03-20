@@ -3,12 +3,18 @@
  */
 
 import type { AbstractSequence, QualityEncoding } from "../types";
-import type { NativeKernel } from "../native";
-import { extractHashKey, getNativeKernel, packSequences } from "../native";
+import { getBackend } from "../backend";
+import { extractHashKey, packSequences } from "../native";
 import type { Processor } from "./types";
 import { calculateAverageQuality } from "./core/quality";
 
 const BATCH_BYTE_BUDGET = 4 * 1024 * 1024;
+
+function toBufferView(bytes: Uint8Array): Buffer {
+  return Buffer.isBuffer(bytes)
+    ? bytes
+    : Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+}
 
 /**
  * Options for sequence deduplication
@@ -115,9 +121,9 @@ export class UniqueProcessor<
     const { by = "sequence", caseSensitive = true, conflictResolution = "first" } = options;
 
     if ((by === "sequence" || by === "both") && typeof by !== "function") {
-      const kernel = getNativeKernel();
-      if (kernel !== undefined) {
-        yield* this.processNative(source, kernel, by, caseSensitive, conflictResolution);
+      const backend = await getBackend();
+      if (backend.hashBatch !== undefined) {
+        yield* this.processNative(source, backend, by, caseSensitive, conflictResolution);
         return;
       }
     }
@@ -160,7 +166,7 @@ export class UniqueProcessor<
 
   private async *processNative(
     source: AsyncIterable<T>,
-    kernel: NativeKernel,
+    backend: Awaited<ReturnType<typeof getBackend>>,
     by: "sequence" | "both",
     caseSensitive: boolean,
     conflictResolution: NonNullable<UniqueOptions["conflictResolution"]>
@@ -174,14 +180,28 @@ export class UniqueProcessor<
       batchBytes += seq.sequence.length;
 
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        yield* this.flushNativeBatch(batch, kernel, by, caseSensitive, conflictResolution, seen);
+        yield* await this.flushNativeBatch(
+          batch,
+          backend,
+          by,
+          caseSensitive,
+          conflictResolution,
+          seen
+        );
         batch = [];
         batchBytes = 0;
       }
     }
 
     if (batch.length > 0) {
-      yield* this.flushNativeBatch(batch, kernel, by, caseSensitive, conflictResolution, seen);
+      yield* await this.flushNativeBatch(
+        batch,
+        backend,
+        by,
+        caseSensitive,
+        conflictResolution,
+        seen
+      );
     }
 
     if (conflictResolution !== "first") {
@@ -191,16 +211,16 @@ export class UniqueProcessor<
     }
   }
 
-  private *flushNativeBatch(
+  private async *flushNativeBatch(
     batch: readonly T[],
-    kernel: NativeKernel,
+    backend: Awaited<ReturnType<typeof getBackend>>,
     by: "sequence" | "both",
     caseSensitive: boolean,
     conflictResolution: NonNullable<UniqueOptions["conflictResolution"]>,
     seen: Map<string, T>
-  ): Iterable<T> {
+  ): AsyncIterable<T> {
     const { data, offsets } = packSequences(batch);
-    const hashBuffer = kernel.hashBatch(data, offsets, !caseSensitive);
+    const hashBuffer = toBufferView(await backend.hashBatch!(data, offsets, !caseSensitive));
 
     for (let i = 0; i < batch.length; i++) {
       const seqHash = extractHashKey(hashBuffer, i);

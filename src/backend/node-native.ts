@@ -214,6 +214,17 @@ export function createNodeNativeBackend(): GenotypeBackend | undefined {
 }
 
 /**
+ * Internal synchronous access to the current Node-native kernel.
+ *
+ * This exists only for rare synchronous helper paths that cannot be
+ * made async without a larger public API change. New production code
+ * should prefer the async backend abstraction.
+ */
+export function getNodeNativeKernelSync() {
+  return getNativeKernel();
+}
+
+/**
  * Whether the node-native backend is available in the current runtime.
  */
 export function isNodeNativeBackendAvailable(): boolean {

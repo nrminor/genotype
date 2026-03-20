@@ -8,6 +8,7 @@
  */
 
 import { type } from "arktype";
+import { getBackend } from "../backend";
 import { withSequence } from "../constructors";
 import { ValidationError } from "../errors";
 import {
@@ -19,9 +20,7 @@ import {
   CLASS_TWO_BASE,
   CLASS_U,
   CLASS_WEAK,
-  type NativeKernel,
   NUM_CLASSES,
-  getNativeKernel,
   packSequences,
   ValidationMode,
 } from "../native";
@@ -116,8 +115,13 @@ export class ValidateProcessor implements Processor<ValidateOptions> {
       throw new ValidationError(`Invalid validate options: ${validationResult.summary}`);
     }
 
-    const kernel = getNativeKernel();
-    if (kernel === undefined) {
+    const backend = await getBackend();
+    if (
+      backend.removeGapsBatch === undefined ||
+      backend.checkValidBatch === undefined ||
+      backend.replaceInvalidBatch === undefined ||
+      backend.classifyBatch === undefined
+    ) {
       throw new ValidationError("Native kernel is required for validation but could not be loaded");
     }
 
@@ -132,14 +136,14 @@ export class ValidateProcessor implements Processor<ValidateOptions> {
       batch.push(seq);
       batchBytes += seq.sequence.length;
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        yield* flushValidateBatch(batch, kernel, action, mode, stripGaps, options.fixChar);
+        yield* await flushValidateBatch(batch, backend, action, mode, stripGaps, options.fixChar);
         batch = [];
         batchBytes = 0;
       }
     }
 
     if (batch.length > 0) {
-      yield* flushValidateBatch(batch, kernel, action, mode, stripGaps, options.fixChar);
+      yield* await flushValidateBatch(batch, backend, action, mode, stripGaps, options.fixChar);
     }
   }
 }
@@ -151,25 +155,25 @@ export class ValidateProcessor implements Processor<ValidateOptions> {
  * gap-stripped bytes become the working data for validation. The
  * gap-stripped sequence is yielded even when the original was valid.
  */
-function* flushValidateBatch(
+async function* flushValidateBatch(
   batch: AbstractSequence[],
-  kernel: NativeKernel,
+  backend: Awaited<ReturnType<typeof getBackend>>,
   action: "reject" | "fix" | "warn",
   mode: ValidationMode,
   stripGaps: boolean,
   fixChar: string | undefined
-): Iterable<AbstractSequence> {
+): AsyncIterable<AbstractSequence> {
   let { data, offsets } = packSequences(batch);
 
   if (stripGaps) {
-    const gapResult = kernel.removeGapsBatch(data, offsets, "");
+    const gapResult = await backend.removeGapsBatch!(data, offsets, "");
     data = gapResult.data;
     offsets = new Uint32Array(gapResult.offsets);
   }
 
   switch (action) {
     case "reject": {
-      const flags = kernel.checkValidBatch(data, offsets, mode);
+      const flags = await backend.checkValidBatch!(data, offsets, mode);
       for (let i = 0; i < batch.length; i++) {
         if (flags[i] !== 1) continue;
         yield sequenceFromBatch(batch[i]!, data, offsets, i, stripGaps);
@@ -178,7 +182,7 @@ function* flushValidateBatch(
     }
 
     case "fix": {
-      const fixResult = kernel.replaceInvalidBatch(data, offsets, mode, fixChar ?? "N");
+      const fixResult = await backend.replaceInvalidBatch!(data, offsets, mode, fixChar ?? "N");
       for (let i = 0; i < batch.length; i++) {
         const start = fixResult.offsets[i]!;
         const end = fixResult.offsets[i + 1]!;
@@ -194,7 +198,7 @@ function* flushValidateBatch(
     }
 
     case "warn": {
-      const result = kernel.classifyBatch(data, offsets);
+      const result = await backend.classifyBatch!(data, offsets);
       for (let i = 0; i < batch.length; i++) {
         const base = i * NUM_CLASSES;
         if (!isValidForMode(result.counts, base, mode)) {

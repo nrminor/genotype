@@ -8,10 +8,11 @@
  */
 
 import { type } from "arktype";
+import { getBackend } from "../backend";
 import { withSequence } from "../constructors";
 import { GenotypeError, ValidationError } from "../errors";
 import { GenotypeString } from "../genotype-string";
-import { type NativeKernel, getNativeKernel, packSequences } from "../native";
+import { packSequences } from "../native";
 import type { AbstractSequence } from "../types";
 import type { CleanOptions, Processor } from "./types";
 
@@ -98,11 +99,10 @@ export class CleanProcessor implements Processor<CleanOptions> {
       return;
     }
 
-    const nativeKernel = getNativeKernel();
-    if (nativeKernel === undefined) {
+    const backend = await getBackend();
+    if (backend.removeGapsBatch === undefined || backend.replaceAmbiguousBatch === undefined) {
       throw new GenotypeError(
-        "Native kernel not available. The genotype-native crate must be built " +
-          "before using CleanProcessor. Run `just build-native-dev` to build it.",
+        "Clean backend not available. Ensure a compatible backend is configured and built.",
         "NATIVE_KERNEL_UNAVAILABLE"
       );
     }
@@ -117,14 +117,14 @@ export class CleanProcessor implements Processor<CleanOptions> {
       batchBytes += trimmed.sequence.length;
 
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        yield* flushBatch(batch, nativeKernel, options);
+        yield* await flushBatch(batch, backend, options);
         batch = [];
         batchBytes = 0;
       }
     }
 
     if (batch.length > 0) {
-      yield* flushBatch(batch, nativeKernel, options);
+      yield* await flushBatch(batch, backend, options);
     }
   }
 }
@@ -161,18 +161,18 @@ function applyTrim(seq: AbstractSequence, options: CleanOptions): AbstractSequen
  * and yield cleaned sequences. Skips empty sequences if removeEmpty
  * is set.
  */
-function* flushBatch(
+async function* flushBatch(
   sequences: readonly AbstractSequence[],
-  nativeKernel: NativeKernel,
+  backend: Awaited<ReturnType<typeof getBackend>>,
   options: CleanOptions
-): Iterable<AbstractSequence> {
+): AsyncIterable<AbstractSequence> {
   const packed = packSequences(sequences);
   let data = packed.data;
   let offsets: Uint32Array | number[] = packed.offsets;
 
   if (options.removeGaps === true) {
     const gapChars = options.gapChars ?? ".-*";
-    const result = nativeKernel.removeGapsBatch(data, asUint32Array(offsets), gapChars);
+    const result = await backend.removeGapsBatch!(data, asUint32Array(offsets), gapChars);
     data = result.data;
     offsets = result.offsets;
   }
@@ -182,7 +182,7 @@ function* flushBatch(
     // replaceAmbiguous is length-preserving, so offsets don't change.
     // We only need the transformed data — keeping the existing offsets
     // avoids replacing a Uint32Array with a number[] of identical values.
-    const result = nativeKernel.replaceAmbiguousBatch(data, asUint32Array(offsets), replaceChar);
+    const result = await backend.replaceAmbiguousBatch!(data, asUint32Array(offsets), replaceChar);
     data = result.data;
   }
 

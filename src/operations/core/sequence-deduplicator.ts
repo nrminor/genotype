@@ -55,11 +55,18 @@
  */
 
 import type { AbstractSequence } from "../../types";
-import type { NativeKernel } from "../../native";
-import { extractHashKey, getNativeKernel, packSequences } from "../../native";
+import { getBackend } from "../../backend";
+import { getNodeNativeKernelSync } from "../../backend/node-native";
+import { extractHashKey, packSequences } from "../../native";
 import { BloomFilter, ScalableBloomFilter } from "./bloom-filter";
 
 const BATCH_BYTE_BUDGET = 4 * 1024 * 1024;
+
+function toBufferView(bytes: Uint8Array): Buffer {
+  return Buffer.isBuffer(bytes)
+    ? bytes
+    : Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+}
 
 /**
  * Strategy for determining sequence uniqueness.
@@ -399,9 +406,9 @@ export class SequenceDeduplicator {
    */
   async *deduplicate(sequences: AsyncIterable<AbstractSequence>): AsyncGenerator<AbstractSequence> {
     if (this.nativeKeyMode !== null) {
-      const kernel = getNativeKernel();
-      if (kernel !== undefined) {
-        yield* this.deduplicateNative(sequences, kernel);
+      const backend = await getBackend();
+      if (backend.hashBatch !== undefined) {
+        yield* this.deduplicateNative(sequences, backend);
         return;
       }
     }
@@ -432,9 +439,9 @@ export class SequenceDeduplicator {
    */
   async process(sequences: AsyncIterable<AbstractSequence>): Promise<void> {
     if (this.nativeKeyMode !== null) {
-      const kernel = getNativeKernel();
-      if (kernel !== undefined) {
-        await this.processNative(sequences, kernel);
+      const backend = await getBackend();
+      if (backend.hashBatch !== undefined) {
+        await this.processNative(sequences, backend);
         return;
       }
     }
@@ -495,7 +502,7 @@ export class SequenceDeduplicator {
    */
   private getEffectiveKey(sequence: AbstractSequence): string {
     if (this.nativeKeyMode !== null) {
-      const kernel = getNativeKernel();
+      const kernel = getNodeNativeKernelSync();
       if (kernel !== undefined) {
         const { data, offsets } = packSequences([sequence]);
         const hashBuffer = kernel.hashBatch(data, offsets, !this.options.caseSensitive);
@@ -661,7 +668,7 @@ export class SequenceDeduplicator {
 
   private async *deduplicateNative(
     sequences: AsyncIterable<AbstractSequence>,
-    kernel: NativeKernel
+    backend: Awaited<ReturnType<typeof getBackend>>
   ): AsyncGenerator<AbstractSequence> {
     let batch: AbstractSequence[] = [];
     let batchBytes = 0;
@@ -671,20 +678,20 @@ export class SequenceDeduplicator {
       batchBytes += seq.sequence.length;
 
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        yield* this.flushNativeBatch(batch, kernel);
+        yield* await this.flushNativeBatch(batch, backend);
         batch = [];
         batchBytes = 0;
       }
     }
 
     if (batch.length > 0) {
-      yield* this.flushNativeBatch(batch, kernel);
+      yield* await this.flushNativeBatch(batch, backend);
     }
   }
 
   private async processNative(
     sequences: AsyncIterable<AbstractSequence>,
-    kernel: NativeKernel
+    backend: Awaited<ReturnType<typeof getBackend>>
   ): Promise<void> {
     let batch: AbstractSequence[] = [];
     let batchBytes = 0;
@@ -694,23 +701,25 @@ export class SequenceDeduplicator {
       batchBytes += seq.sequence.length;
 
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        this.flushNativeBatchNoYield(batch, kernel);
+        await this.flushNativeBatchNoYield(batch, backend);
         batch = [];
         batchBytes = 0;
       }
     }
 
     if (batch.length > 0) {
-      this.flushNativeBatchNoYield(batch, kernel);
+      await this.flushNativeBatchNoYield(batch, backend);
     }
   }
 
-  private *flushNativeBatch(
+  private async *flushNativeBatch(
     batch: readonly AbstractSequence[],
-    kernel: NativeKernel
-  ): Iterable<AbstractSequence> {
+    backend: Awaited<ReturnType<typeof getBackend>>
+  ): AsyncIterable<AbstractSequence> {
     const { data, offsets } = packSequences(batch);
-    const hashBuffer = kernel.hashBatch(data, offsets, !this.options.caseSensitive);
+    const hashBuffer = toBufferView(
+      await backend.hashBatch!(data, offsets, !this.options.caseSensitive)
+    );
 
     for (let i = 0; i < batch.length; i++) {
       const seqHash = extractHashKey(hashBuffer, i);
@@ -722,9 +731,14 @@ export class SequenceDeduplicator {
     }
   }
 
-  private flushNativeBatchNoYield(batch: readonly AbstractSequence[], kernel: NativeKernel): void {
+  private async flushNativeBatchNoYield(
+    batch: readonly AbstractSequence[],
+    backend: Awaited<ReturnType<typeof getBackend>>
+  ): Promise<void> {
     const { data, offsets } = packSequences(batch);
-    const hashBuffer = kernel.hashBatch(data, offsets, !this.options.caseSensitive);
+    const hashBuffer = toBufferView(
+      await backend.hashBatch!(data, offsets, !this.options.caseSensitive)
+    );
 
     for (let i = 0; i < batch.length; i++) {
       const seqHash = extractHashKey(hashBuffer, i);
@@ -859,9 +873,9 @@ export class ExactDeduplicator {
    */
   async *deduplicate(sequences: AsyncIterable<AbstractSequence>): AsyncGenerator<AbstractSequence> {
     if (this.nativeKeyMode !== null) {
-      const kernel = getNativeKernel();
-      if (kernel !== undefined) {
-        yield* this.deduplicateNative(sequences, kernel);
+      const backend = await getBackend();
+      if (backend.hashBatch !== undefined) {
+        yield* this.deduplicateNative(sequences, backend);
         return;
       }
     }
@@ -888,7 +902,7 @@ export class ExactDeduplicator {
 
   private async *deduplicateNative(
     sequences: AsyncIterable<AbstractSequence>,
-    kernel: NativeKernel
+    backend: Awaited<ReturnType<typeof getBackend>>
   ): AsyncGenerator<AbstractSequence> {
     let batch: AbstractSequence[] = [];
     let batchBytes = 0;
@@ -898,23 +912,23 @@ export class ExactDeduplicator {
       batchBytes += seq.sequence.length;
 
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        yield* this.flushNativeBatch(batch, kernel);
+        yield* await this.flushNativeBatch(batch, backend);
         batch = [];
         batchBytes = 0;
       }
     }
 
     if (batch.length > 0) {
-      yield* this.flushNativeBatch(batch, kernel);
+      yield* await this.flushNativeBatch(batch, backend);
     }
   }
 
-  private *flushNativeBatch(
+  private async *flushNativeBatch(
     batch: readonly AbstractSequence[],
-    kernel: NativeKernel
-  ): Iterable<AbstractSequence> {
+    backend: Awaited<ReturnType<typeof getBackend>>
+  ): AsyncIterable<AbstractSequence> {
     const { data, offsets } = packSequences(batch);
-    const hashBuffer = kernel.hashBatch(data, offsets, !this.caseSensitive);
+    const hashBuffer = toBufferView(await backend.hashBatch!(data, offsets, !this.caseSensitive));
 
     for (let i = 0; i < batch.length; i++) {
       this.stats.totalProcessed++;

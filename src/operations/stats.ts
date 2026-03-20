@@ -15,11 +15,10 @@
  */
 
 import { type } from "arktype";
+import { getBackend } from "../backend";
 import { SequenceError, ValidationError } from "../errors";
 import { GenotypeString, CharSet } from "../genotype-string";
 import {
-  type NativeKernel,
-  getNativeKernel,
   packSequences,
   NUM_CLASSES,
   CLASS_A,
@@ -299,7 +298,7 @@ export class SequenceStatsCalculator {
     const useKernel =
       opts.gapChars === this.defaultOptions.gapChars &&
       opts.ambiguousChars === this.defaultOptions.ambiguousChars;
-    const nativeKernel = useKernel ? getNativeKernel() : undefined;
+    const backend = useKernel ? await getBackend() : undefined;
 
     try {
       let batch: AbstractSequence[] = [];
@@ -308,11 +307,11 @@ export class SequenceStatsCalculator {
       for await (const sequence of sequences) {
         this.processSequenceBookkeeping(sequence, accumulator, opts);
 
-        if (nativeKernel !== undefined) {
+        if (backend?.classifyBatch !== undefined) {
           batch.push(sequence);
           batchBytes += sequence.sequence.length;
           if (batchBytes >= BATCH_BYTE_BUDGET) {
-            flushClassifyBatch(batch, nativeKernel, accumulator, opts.includeComposition);
+            await flushClassifyBatch(batch, backend, accumulator, opts.includeComposition);
             batch = [];
             batchBytes = 0;
           }
@@ -321,8 +320,8 @@ export class SequenceStatsCalculator {
         }
       }
 
-      if (nativeKernel !== undefined && batch.length > 0) {
-        flushClassifyBatch(batch, nativeKernel, accumulator, opts.includeComposition);
+      if (backend?.classifyBatch !== undefined && batch.length > 0) {
+        await flushClassifyBatch(batch, backend, accumulator, opts.includeComposition);
       }
 
       return this.finalizeStatistics(accumulator, opts);
@@ -759,14 +758,14 @@ export class SequenceStatsCalculator {
  * Pack a batch of sequences, run the classify kernel, and fold the
  * 12-class counts into the stats accumulator.
  */
-function flushClassifyBatch(
+async function flushClassifyBatch(
   batch: AbstractSequence[],
-  kernel: NativeKernel,
+  backend: Awaited<ReturnType<typeof getBackend>>,
   accumulator: StatsAccumulator,
   includeComposition: boolean
-): void {
+): Promise<void> {
   const { data, offsets } = packSequences(batch);
-  const result = kernel.classifyBatch(data, offsets);
+  const result = await backend.classifyBatch!(data, offsets);
   const counts = result.counts;
 
   for (let i = 0; i < batch.length; i++) {

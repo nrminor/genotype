@@ -9,6 +9,7 @@
  */
 
 import { type } from "arktype";
+import { getBackend } from "../backend";
 import { createFastaRecord, createFastqRecord } from "../constructors";
 import { FileError, ParseError } from "../errors";
 import {
@@ -33,7 +34,6 @@ import { openForWriting } from "../io/file-writer";
 import { readLines } from "../io/stream-utils";
 import {
   SequenceMetricFlag,
-  getNativeKernel,
   packSequences,
   type PackedBatch,
   type SequenceMetricsResult,
@@ -746,10 +746,14 @@ export async function* fx2tab<Columns extends readonly ColumnId[]>(
     yield createRow(effectiveColumns, headerRow, headerRow, headerString, delimiter);
   }
 
-  const flushBatch = function* (
+  const flushBatch = async function* (
     sequences: readonly AbstractSequence[]
-  ): Generator<Fx2TabRow<Columns>, void> {
-    const nativeMetrics = computeNativeMetricBatch(sequences, effectiveColumns, caseSensitive);
+  ): AsyncGenerator<Fx2TabRow<Columns>, void> {
+    const nativeMetrics = await computeNativeMetricBatch(
+      sequences,
+      effectiveColumns,
+      caseSensitive
+    );
 
     for (let rowIndex = 0; rowIndex < sequences.length; rowIndex++) {
       const seq = sequences[rowIndex]!;
@@ -1171,13 +1175,13 @@ function alphabetFromMask(mask: number): string {
   return out;
 }
 
-function computeNativeMetricBatch(
+async function computeNativeMetricBatch(
   sequences: readonly AbstractSequence[],
   columns: readonly ColumnId[],
   caseSensitive: boolean
-): NativeMetricBatch | null {
-  const kernel = getNativeKernel();
-  if (kernel === undefined || typeof kernel.sequenceMetricsBatch !== "function") {
+): Promise<NativeMetricBatch | null> {
+  const backend = await getBackend();
+  if (backend.sequenceMetricsBatch === undefined) {
     return null;
   }
 
@@ -1203,7 +1207,7 @@ function computeNativeMetricBatch(
     return null;
   }
 
-  const result = kernel.sequenceMetricsBatch(
+  const result = await backend.sequenceMetricsBatch(
     sequenceBatch.data,
     sequenceBatch.offsets,
     qualityBatch.batch.data,

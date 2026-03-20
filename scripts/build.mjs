@@ -23,6 +23,7 @@ const buildLib = args.find((arg) => arg === "--lib");
 const buildNative = args.find((arg) => arg === "--native");
 const isDev = args.includes("--dev");
 const nativeDir = join(rootDir, "src", "native");
+const napiManifestPath = join(rootDir, "crates", "napi-adapter", "Cargo.toml");
 
 if (!buildLib && !buildNative) {
   console.error("Error: Please specify --lib, --native, or both");
@@ -50,12 +51,11 @@ if (missingRequired.length > 0) {
 if (buildNative) {
   console.log(`Building native addon via napi-rs (${isDev ? "debug" : "release"})...`);
 
-  const manifestPath = join(nativeDir, "Cargo.toml");
   const napiArgs = [
     "build",
     "--platform",
     "--manifest-path",
-    manifestPath,
+    napiManifestPath,
     "--output-dir",
     nativeDir,
     ...(isDev ? [] : ["--release"]),

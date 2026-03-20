@@ -11,6 +11,9 @@ crate-type = ["cdylib"]
 genotype-engine = { path = "../engine" }
 napi = { version = "3", features = ["napi8"] }
 napi-derive = "3"
+noodles-bam = "0.87"
+noodles-bgzf = "0.46"
+noodles-sam = "0.83"
 
 [build-dependencies]
 napi-build = "2"

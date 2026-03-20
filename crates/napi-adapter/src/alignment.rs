@@ -39,7 +39,6 @@ pub struct AlignmentBatch {
     /// Source format for all records in this batch ("bam" or "sam").
     pub format: String,
 
-    // ── Variable-length fields ──────────────────────────────────
     /// Concatenated read name bytes (UTF-8).
     pub qname_data: Buffer,
     /// N+1 offsets into `qname_data`.
@@ -65,7 +64,6 @@ pub struct AlignmentBatch {
     /// N+1 offsets into `rname_data`.
     pub rname_offsets: Vec<u32>,
 
-    // ── Fixed-width fields ──────────────────────────────────────
     /// SAM flags (one u16 per record).
     pub flags: Vec<u16>,
     /// 1-based positions (one i32 per record; 0 if unmapped).
@@ -356,8 +354,6 @@ impl AlignmentReader {
             })
             .collect()
     }
-
-    // ── Private helpers ─────────────────────────────────────────
 
     fn open_bam_from_file(file: File, path: &str) -> napi::Result<Self> {
         let mut reader = bam::io::Reader::new(BufReader::new(file));

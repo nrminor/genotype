@@ -2,9 +2,12 @@
 //!
 //! Each `#[napi]` function converts between napi types and the engine's
 //! plain Rust types, then delegates to the corresponding engine batch
-//! function. No compute logic lives here.
+//! function. No compute logic lives here except for the alignment reader,
+//! which remains napi-coupled pending a future extraction into the engine.
 
 #![allow(clippy::must_use_candidate, clippy::missing_errors_doc)]
+
+mod alignment;
 
 use genotype_engine as engine;
 use napi::bindgen_prelude::*;

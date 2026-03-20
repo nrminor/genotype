@@ -1,6 +1,5 @@
 [workspace]
-members = ["src/native", "crates/engine", "crates/napi-adapter"]
-default-members = ["src/native"]
+members = ["crates/engine", "crates/napi-adapter"]
 resolver = "2"
 
 [workspace.dependencies]

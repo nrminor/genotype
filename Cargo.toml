@@ -18,7 +18,7 @@ correctness = { level = "warn", priority = -1 }
 unwrap_used = "deny"
 
 [profile.release]
-lto = true        # Link-time optimization
+lto = true # Link-time optimization
 codegen-units = 1 # Single codegen unit for max optimization  
-panic = "abort"   # Smaller binary size, no unwinding
-strip = true      # Remove debug symbols
+panic = "abort" # Smaller binary size, no unwinding
+strip = true # Remove debug symbols

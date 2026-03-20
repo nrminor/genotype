@@ -312,7 +312,7 @@ export class TranslateProcessor {
           const translated = perFrame.get(frame)!;
           const start = translated.offsets[seqIndex]!;
           const end = translated.offsets[seqIndex + 1]!;
-          const protein = translated.data.subarray(start, end).toString("latin1");
+          const protein = new TextDecoder("latin1").decode(translated.data.subarray(start, end));
 
           if (
             options.minOrfLength === undefined ||

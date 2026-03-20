@@ -10,7 +10,7 @@
 /** The result of a batch transform operation. */
 export interface TransformResult {
   /** Transformed sequence bytes, contiguous in a single buffer. */
-  data: Buffer;
+  data: Uint8Array;
   /** N+1 offset array where offsets[i] is the byte position where sequence i starts. */
   offsets: number[];
 }

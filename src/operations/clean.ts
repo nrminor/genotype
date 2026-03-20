@@ -167,7 +167,7 @@ async function* flushBatch(
   options: CleanOptions
 ): AsyncIterable<AbstractSequence> {
   const packed = packSequences(sequences);
-  let data = packed.data;
+  let data: Uint8Array = packed.data;
   let offsets: Uint32Array | number[] = packed.offsets;
 
   if (options.removeGaps === true) {

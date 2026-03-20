@@ -163,7 +163,7 @@ async function* flushValidateBatch(
   stripGaps: boolean,
   fixChar: string | undefined
 ): AsyncIterable<AbstractSequence> {
-  let { data, offsets } = packSequences(batch);
+  let { data, offsets }: { data: Uint8Array; offsets: Uint32Array } = packSequences(batch);
 
   if (stripGaps) {
     const gapResult = await backend.removeGapsBatch!(data, offsets, "");
@@ -191,7 +191,7 @@ async function* flushValidateBatch(
         if (!stripGaps && bytesMatchSequence(original, fixedBytes)) {
           yield original;
         } else {
-          yield withSequence(original, Buffer.from(fixedBytes).toString());
+          yield withSequence(original, new TextDecoder("latin1").decode(fixedBytes));
         }
       }
       break;
@@ -319,7 +319,7 @@ function formatValidationDiagnostic(
  */
 function sequenceFromBatch(
   original: AbstractSequence,
-  data: Buffer,
+  data: Uint8Array,
   offsets: Uint32Array,
   index: number,
   wasModified: boolean

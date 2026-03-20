@@ -226,7 +226,7 @@ async function* flushQualityBatch<T extends AbstractSequence & QualityScoreBeari
       const start = result.offsets[i]!;
       const end = result.offsets[i + 1]!;
       const binnedBytes = result.data.subarray(start, end);
-      yield withQuality(candidates[i]!, binnedBytes.toString("latin1")) as T;
+      yield withQuality(candidates[i]!, new TextDecoder("latin1").decode(binnedBytes)) as T;
     }
   } else {
     yield* candidates;

@@ -49,7 +49,7 @@ function unpackResult(result: TransformResult): string[] {
   for (let i = 0; i + 1 < result.offsets.length; i++) {
     const start = result.offsets[i]!;
     const end = result.offsets[i + 1]!;
-    sequences.push(result.data.subarray(start, end).toString("ascii"));
+    sequences.push(new TextDecoder("ascii").decode(result.data.subarray(start, end)));
   }
   return sequences;
 }

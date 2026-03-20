@@ -151,7 +151,7 @@ async function* flushBatch(
   // is a separate function, not a TransformOp variant), so offsets
   // are stable across the entire chain. Reuse the original Uint32Array.
   const { offsets } = packed;
-  let data = packed.data;
+  let data: Uint8Array = packed.data;
 
   for (const op of ops) {
     const result = await backend.transformBatch!(data, offsets, op);

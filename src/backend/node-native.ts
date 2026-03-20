@@ -285,6 +285,9 @@ function wrapAlignmentReader(reader: NativeAlignmentReader): AlignmentReaderHand
     async referenceSequences(): Promise<ReferenceSequenceInfo[]> {
       return reader.referenceSequences();
     },
+    close() {
+      // No-op: napi-rs ties the reader's lifetime to the JS garbage collector.
+    },
   };
 }
 

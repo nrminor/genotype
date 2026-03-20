@@ -309,10 +309,16 @@ export async function createWasmBackend(): Promise<GenotypeBackend | undefined> 
           return reader.header_text();
         },
         async referenceSequences() {
-          return reader.reference_sequences().map((r: { name: string; length: number }) => ({
-            name: r.name,
-            length: r.length,
-          }));
+          const wasmInfos = reader.reference_sequences();
+          const result = wasmInfos.map((r: { name: string; length: number; free(): void }) => {
+            const info = { name: r.name, length: r.length };
+            r.free();
+            return info;
+          });
+          return result;
+        },
+        close() {
+          reader.free();
         },
       };
     },

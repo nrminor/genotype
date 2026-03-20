@@ -69,6 +69,7 @@ export interface AlignmentReaderHandle {
   readBatch(maxRecords: number): Promise<AlignmentBatch | null>;
   headerText(): Promise<string>;
   referenceSequences(): Promise<ReferenceSequenceInfo[]>;
+  close(): void;
 }
 
 /**

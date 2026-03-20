@@ -28,7 +28,7 @@ pub struct ReferenceSequenceInfo {
 /// A batch of parsed alignment records in struct-of-arrays layout.
 pub struct AlignmentBatch {
     pub count: u32,
-    pub format: String,
+    pub format: &'static str,
 
     pub qname_data: Vec<u8>,
     pub qname_offsets: Vec<u32>,
@@ -98,14 +98,14 @@ impl AlignmentReader {
     /// opened or the header cannot be parsed.
     pub fn open_from_path(path: &str) -> Result<Self, EngineError> {
         let mut file = File::open(path)
-            .map_err(|e| EngineError::InvalidArgument(format!("failed to open '{path}': {e}")))?;
+            .map_err(|e| EngineError::Io(format!("failed to open '{path}': {e}")))?;
 
         let mut magic = [0u8; 2];
         let n = file.read(&mut magic).map_err(|e| {
-            EngineError::InvalidArgument(format!("failed to read magic bytes from '{path}': {e}"))
+            EngineError::Io(format!("failed to read magic bytes from '{path}': {e}"))
         })?;
         file.seek(std::io::SeekFrom::Start(0)).map_err(|e| {
-            EngineError::InvalidArgument(format!("failed to seek in '{path}': {e}"))
+            EngineError::Io(format!("failed to seek in '{path}': {e}"))
         })?;
 
         let is_bgzf = n >= 2 && magic[0] == 0x1f && magic[1] == 0x8b;
@@ -135,7 +135,7 @@ impl AlignmentReader {
             let mut reader = bam::io::Reader::new(cursor);
 
             let header = reader.read_header().map_err(|e| {
-                EngineError::InvalidArgument(format!("failed to read BAM header from buffer: {e}"))
+                EngineError::Io(format!("failed to read BAM header from buffer: {e}"))
             })?;
 
             let reference_names = resolve_reference_names(&header);
@@ -152,7 +152,7 @@ impl AlignmentReader {
             let mut reader = sam::io::Reader::new(BufReader::new(cursor));
 
             let header = reader.read_header().map_err(|e| {
-                EngineError::InvalidArgument(format!("failed to read SAM header from buffer: {e}"))
+                EngineError::Io(format!("failed to read SAM header from buffer: {e}"))
             })?;
 
             let reference_names = resolve_reference_names(&header);
@@ -260,7 +260,7 @@ impl AlignmentReader {
 
         Ok(Some(AlignmentBatch {
             count,
-            format: self.format.as_str().to_owned(),
+            format: self.format.as_str(),
             qname_data: qname_bytes,
             qname_offsets,
             sequence_data: seq_bytes,
@@ -317,7 +317,7 @@ impl AlignmentReader {
         let mut reader = bam::io::Reader::new(BufReader::new(file));
 
         let header = reader.read_header().map_err(|e| {
-            EngineError::InvalidArgument(format!("failed to read BAM header from '{path}': {e}"))
+            EngineError::Io(format!("failed to read BAM header from '{path}': {e}"))
         })?;
 
         let reference_names = resolve_reference_names(&header);
@@ -335,7 +335,7 @@ impl AlignmentReader {
         let mut reader = sam::io::Reader::new(BufReader::new(file));
 
         let header = reader.read_header().map_err(|e| {
-            EngineError::InvalidArgument(format!("failed to read SAM header from '{path}': {e}"))
+            EngineError::Io(format!("failed to read SAM header from '{path}': {e}"))
         })?;
 
         let reference_names = resolve_reference_names(&header);
@@ -353,16 +353,16 @@ impl AlignmentReader {
         match &mut self.inner {
             ReaderInner::BamFile(r) => r
                 .read_record_buf(&self.header, &mut self.record_buf)
-                .map_err(|e| EngineError::InvalidArgument(format!("BAM read error: {e}"))),
+                .map_err(|e| EngineError::Io(format!("BAM read error: {e}"))),
             ReaderInner::BamBytes(r) => r
                 .read_record_buf(&self.header, &mut self.record_buf)
-                .map_err(|e| EngineError::InvalidArgument(format!("BAM read error: {e}"))),
+                .map_err(|e| EngineError::Io(format!("BAM read error: {e}"))),
             ReaderInner::SamFile(r) => r
                 .read_record_buf(&self.header, &mut self.record_buf)
-                .map_err(|e| EngineError::InvalidArgument(format!("SAM read error: {e}"))),
+                .map_err(|e| EngineError::Io(format!("SAM read error: {e}"))),
             ReaderInner::SamBytes(r) => r
                 .read_record_buf(&self.header, &mut self.record_buf)
-                .map_err(|e| EngineError::InvalidArgument(format!("SAM read error: {e}"))),
+                .map_err(|e| EngineError::Io(format!("SAM read error: {e}"))),
         }
     }
 }

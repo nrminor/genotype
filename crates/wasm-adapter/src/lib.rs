@@ -335,7 +335,7 @@ impl From<engine::alignment::AlignmentBatch> for WasmAlignmentBatch {
     fn from(b: engine::alignment::AlignmentBatch) -> Self {
         Self {
             count: b.count,
-            format: b.format,
+            format: b.format.to_owned(),
             qname_data: b.qname_data,
             qname_offsets: b.qname_offsets,
             sequence_data: b.sequence_data,

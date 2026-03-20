@@ -113,15 +113,19 @@ export class AlignmentParser extends AbstractParser<AlignmentRecord> {
   }
 
   private async *readAll(reader: AlignmentReaderHandle): AsyncIterable<AlignmentRecord> {
-    let recordIndex = 0;
-    let batch = await reader.readBatch(DEFAULT_BATCH_SIZE);
-    while (batch !== null) {
-      this.checkAborted();
-      for (const record of unpackBatch(batch, recordIndex)) {
-        yield record;
-        recordIndex++;
+    try {
+      let recordIndex = 0;
+      let batch = await reader.readBatch(DEFAULT_BATCH_SIZE);
+      while (batch !== null) {
+        this.checkAborted();
+        for (const record of unpackBatch(batch, recordIndex)) {
+          yield record;
+          recordIndex++;
+        }
+        batch = await reader.readBatch(DEFAULT_BATCH_SIZE);
       }
-      batch = await reader.readBatch(DEFAULT_BATCH_SIZE);
+    } finally {
+      reader.close();
     }
   }
 }

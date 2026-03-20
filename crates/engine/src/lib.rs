@@ -27,14 +27,18 @@ use rayon::prelude::*;
 pub enum EngineError {
     /// The offset array is malformed (non-monotonic or out of bounds).
     InvalidOffsets(String),
-    /// A lookup table or parameter has the wrong length.
+    /// A lookup table or parameter has the wrong length or value.
     InvalidArgument(String),
+    /// A file or stream I/O operation failed.
+    Io(String),
 }
 
 impl std::fmt::Display for EngineError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::InvalidOffsets(msg) | Self::InvalidArgument(msg) => f.write_str(msg),
+            Self::InvalidOffsets(msg) | Self::InvalidArgument(msg) | Self::Io(msg) => {
+                f.write_str(msg)
+            }
         }
     }
 }

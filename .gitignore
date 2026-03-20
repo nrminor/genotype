@@ -68,13 +68,19 @@
 !/src/backend/
 !/src/backend/*.ts
 
-# Native Rust code (and the TypeScript wrapper)
-!/src/native.ts
+# Native Rust code (napi adapter and build artifacts)
 !/src/native/
 !/src/native/Cargo.toml
 !/src/native/build.rs
 !/src/native/src/
 !/src/native/src/*.rs
+
+# === RUST ENGINE & ADAPTER CRATES ===
+!/crates/
+!/crates/engine/
+!/crates/engine/Cargo.toml
+!/crates/engine/src/
+!/crates/engine/src/*.rs
 
 # === EXAMPLES & DOCUMENTATION ===
 # Usage examples

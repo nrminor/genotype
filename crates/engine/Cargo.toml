@@ -1,0 +1,21 @@
+[package]
+name = "genotype-engine"
+version = "0.1.0"
+edition = "2021"
+description = "Presentation-agnostic compute kernels for genotype bioinformatics library"
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+rayon = "1.11"
+sassy = { version = "0.2.0", default-features = false }
+smallvec = "1.15"
+xxhash-rust = { version = "0.8", features = ["xxh3"] }
+noodles-bam = "0.87"
+noodles-bgzf = "0.46"
+noodles-core = "0.19"
+noodles-sam = "0.83"
+
+[lints]
+workspace = true

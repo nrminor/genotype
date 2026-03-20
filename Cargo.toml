@@ -1,5 +1,5 @@
 [workspace]
-members = ["src/native"]
+members = ["src/native", "crates/engine"]
 default-members = ["src/native"]
 resolver = "2"
 

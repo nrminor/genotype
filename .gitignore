@@ -84,6 +84,10 @@
 !/crates/napi-adapter/build.rs
 !/crates/napi-adapter/src/
 !/crates/napi-adapter/src/*.rs
+!/crates/wasm-adapter/
+!/crates/wasm-adapter/Cargo.toml
+!/crates/wasm-adapter/src/
+!/crates/wasm-adapter/src/*.rs
 
 # === EXAMPLES & DOCUMENTATION ===
 # Usage examples

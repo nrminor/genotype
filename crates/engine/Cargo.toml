@@ -9,7 +9,7 @@ crate-type = ["rlib"]
 
 [dependencies]
 rayon = "1.11"
-sassy = { version = "0.2.0", default-features = false }
+sassy = { version = "0.2.1", default-features = false }
 smallvec = "1.15"
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
 

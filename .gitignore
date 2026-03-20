@@ -81,6 +81,11 @@
 !/crates/engine/Cargo.toml
 !/crates/engine/src/
 !/crates/engine/src/*.rs
+!/crates/napi-adapter/
+!/crates/napi-adapter/Cargo.toml
+!/crates/napi-adapter/build.rs
+!/crates/napi-adapter/src/
+!/crates/napi-adapter/src/*.rs
 
 # === EXAMPLES & DOCUMENTATION ===
 # Usage examples

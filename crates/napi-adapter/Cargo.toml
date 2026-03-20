@@ -1,0 +1,19 @@
+[package]
+name = "genotype-napi"
+version = "0.1.0"
+edition = "2021"
+description = "Node.js/Bun napi-rs adapter for genotype compute engine"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+genotype-engine = { path = "../engine" }
+napi = { version = "3", features = ["napi8"] }
+napi-derive = "3"
+
+[build-dependencies]
+napi-build = "2"
+
+[lints]
+workspace = true

@@ -16,7 +16,7 @@
 import { type } from "arktype";
 import { getBackend } from "../backend";
 import { GrepError, ValidationError } from "../errors";
-import { packSequences } from "../native";
+import { packSequences } from "../backend/batch";
 import type { AbstractSequence } from "../types";
 import { hasPatternWithMismatches } from "./core/pattern-matching";
 import { escapeRegex } from "./core/string-utils";

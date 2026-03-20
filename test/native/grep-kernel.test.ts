@@ -1,6 +1,6 @@
 import { describe, expect } from "bun:test";
 import { createFastaRecord } from "../../src/constructors";
-import { packSequences } from "../../src/native";
+import { packSequences } from "../../src/backend/batch";
 import { hasPatternWithMismatches } from "../../src/operations/core/pattern-matching";
 import type { AbstractSequence } from "../../src/types";
 import { describeNative, requireNativeKernel, testNative } from "./harness";

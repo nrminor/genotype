@@ -4,7 +4,7 @@
 
 import type { AbstractSequence, QualityEncoding } from "../types";
 import { getBackend } from "../backend";
-import { extractHashKey, packSequences } from "../native";
+import { extractHashKey, packSequences } from "../backend/batch";
 import type { Processor } from "./types";
 import { calculateAverageQuality } from "./core/quality";
 

@@ -32,12 +32,8 @@ import {
 import { createStream, exists, getSize } from "../io/file-reader";
 import { openForWriting } from "../io/file-writer";
 import { readLines } from "../io/stream-utils";
-import {
-  SequenceMetricFlag,
-  packSequences,
-  type PackedBatch,
-  type SequenceMetricsResult,
-} from "../native";
+import { packSequences, type PackedBatch } from "../backend/batch";
+import { SequenceMetricFlag, type SequenceMetricsResult } from "../backend/kernel-types";
 import type { AbstractSequence, FastaSequence, FastqSequence } from "../types";
 import {
   atContent,

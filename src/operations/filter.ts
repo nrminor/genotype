@@ -14,8 +14,8 @@
 import { type } from "arktype";
 import { getBackend } from "../backend";
 import { ValidationError } from "../errors";
+import { packSequences } from "../backend/batch";
 import {
-  packSequences,
   NUM_CLASSES,
   CLASS_A,
   CLASS_T,
@@ -27,7 +27,7 @@ import {
   CLASS_WEAK,
   CLASS_TWO_BASE,
   CLASS_BDHV,
-} from "../native";
+} from "../backend/kernel-types";
 import type { AbstractSequence } from "../types";
 import { gcContent } from "./core/calculations";
 import type { AlignmentFilterOptions, FilterOptions, Processor } from "./types";

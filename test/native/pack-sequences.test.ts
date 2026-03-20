@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createFastaRecord } from "../../src/constructors";
-import { packSequences } from "../../src/native";
+import { packSequences } from "../../src/backend/batch";
 
 describe("packSequences", () => {
   test("packs sequences into contiguous buffer with correct offsets", () => {

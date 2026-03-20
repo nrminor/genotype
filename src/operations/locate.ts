@@ -10,7 +10,8 @@
 import { type } from "arktype";
 import { getBackend } from "../backend";
 import { ValidationError } from "../errors";
-import { type PatternSearchResult, packSequences } from "../native";
+import { packSequences } from "../backend/batch";
+import type { PatternSearchResult } from "../backend/kernel-types";
 import type { AbstractSequence, MotifLocation } from "../types";
 import { fuzzyMatch } from "./core/pattern-matching";
 import { reverseComplement } from "./core/sequence-manipulation";

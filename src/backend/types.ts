@@ -7,7 +7,7 @@ import type {
   TransformResult,
   TranslateBatchOptions,
   ValidationMode,
-} from "../native";
+} from "./kernel-types";
 
 /**
  * Batch options for grep-style approximate matching.

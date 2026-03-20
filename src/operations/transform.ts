@@ -12,7 +12,8 @@ import { withSequence } from "../constructors";
 import { getBackend } from "../backend";
 import { GenotypeError } from "../errors";
 import { GenotypeString } from "../genotype-string";
-import { TransformOp, packSequences } from "../native";
+import { packSequences } from "../backend/batch";
+import { TransformOp } from "../backend/kernel-types";
 import type { AbstractSequence, AlignmentRecord } from "../types";
 import type { AlignmentTransformOptions, Processor, TransformOptions } from "./types";
 

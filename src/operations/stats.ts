@@ -18,8 +18,8 @@ import { type } from "arktype";
 import { getBackend } from "../backend";
 import { SequenceError, ValidationError } from "../errors";
 import { GenotypeString, CharSet } from "../genotype-string";
+import { packSequences } from "../backend/batch";
 import {
-  packSequences,
   NUM_CLASSES,
   CLASS_A,
   CLASS_T,
@@ -33,7 +33,7 @@ import {
   CLASS_BDHV,
   CLASS_GAP,
   CLASS_OTHER,
-} from "../native";
+} from "../backend/kernel-types";
 import type {
   AbstractSequence,
   FASTXSequence,

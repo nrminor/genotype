@@ -1,7 +1,7 @@
 import { describe, expect } from "bun:test";
 import { createFastaRecord } from "../../src/constructors";
-import { packSequences, TransformOp } from "../../src/native";
-import type { TransformResult } from "../../src/native";
+import { packSequences } from "../../src/backend/batch";
+import { TransformOp, type TransformResult } from "../../src/backend/kernel-types";
 import {
   complement,
   reverse,

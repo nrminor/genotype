@@ -12,7 +12,7 @@ import { getBackend } from "../backend";
 import { withSequence } from "../constructors";
 import { GenotypeError, ValidationError } from "../errors";
 import { GenotypeString } from "../genotype-string";
-import { packSequences } from "../native";
+import { packSequences } from "../backend/batch";
 import type { AbstractSequence } from "../types";
 import type { CleanOptions, Processor } from "./types";
 

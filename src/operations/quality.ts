@@ -15,7 +15,8 @@
 import { withQuality, withSequence } from "../constructors";
 import { getBackend } from "../backend";
 import { ValidationError } from "../errors";
-import { type TransformResult, packQualityStrings } from "../native";
+import { packQualityStrings } from "../backend/batch";
+import type { TransformResult } from "../backend/kernel-types";
 import type { AbstractSequence, QualityEncoding, QualityScoreBearing } from "../types";
 import {
   type BinningStrategy,

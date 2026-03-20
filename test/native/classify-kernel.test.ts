@@ -1,7 +1,7 @@
 import { describe, expect } from "bun:test";
 import { createFastaRecord } from "../../src/constructors";
+import { packSequences } from "../../src/backend/batch";
 import {
-  packSequences,
   ValidationMode,
   NUM_CLASSES,
   CLASS_A,
@@ -16,8 +16,8 @@ import {
   CLASS_BDHV,
   CLASS_GAP,
   CLASS_OTHER,
-} from "../../src/native";
-import type { ClassifyResult } from "../../src/native";
+  type ClassifyResult,
+} from "../../src/backend/kernel-types";
 import { gcContent, atContent } from "../../src/operations/core/calculations";
 import { SequenceValidator } from "../../src/operations/core/sequence-validation";
 import type { AbstractSequence } from "../../src/types";

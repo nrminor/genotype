@@ -11,7 +11,8 @@ import { type } from "arktype";
 import { getBackend } from "../backend";
 import { createFastaRecord } from "../constructors";
 import { SequenceError, ValidationError } from "../errors";
-import { packSequences, type TransformResult } from "../native";
+import { packSequences } from "../backend/batch";
+import type { TransformResult } from "../backend/kernel-types";
 import type { AbstractSequence } from "../types";
 import {
   GeneticCode,

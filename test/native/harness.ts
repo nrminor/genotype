@@ -1,5 +1,9 @@
 import { describe, test } from "bun:test";
-import { type NativeKernel, getNativeKernel, isNativeAvailable } from "../../src/native";
+import {
+  type NativeKernel,
+  getNativeKernel,
+  isNativeAvailable,
+} from "../../src/backend/node-native";
 
 export const nativeAvailable = isNativeAvailable();
 

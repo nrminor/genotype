@@ -1,10 +1,141 @@
-import { getNativeKernel } from "../native";
+import type {
+  ClassifyResult,
+  PatternSearchResult,
+  SequenceMetricsResult,
+  TransformOp,
+  TransformResult,
+  TranslateBatchOptions,
+  ValidationMode,
+} from "./kernel-types";
 import type {
   AlignmentBatch,
   AlignmentReaderHandle,
   GenotypeBackend,
   ReferenceSequenceInfo,
 } from "./types";
+
+/**
+ * The native kernel interface. Each function here corresponds to a
+ * `#[napi]` export from the Rust crate in `src/native/`.
+ */
+export interface NativeKernel {
+  grepBatch(
+    sequences: Buffer,
+    offsets: Uint32Array,
+    pattern: Buffer,
+    maxEdits: number,
+    caseInsensitive: boolean,
+    searchBothStrands: boolean
+  ): Buffer;
+
+  findPatternBatch(
+    sequences: Buffer,
+    offsets: Uint32Array,
+    pattern: Buffer,
+    maxEdits: number,
+    caseInsensitive: boolean
+  ): PatternSearchResult;
+
+  transformBatch(sequences: Buffer, offsets: Uint32Array, op: TransformOp): TransformResult;
+
+  removeGapsBatch(sequences: Buffer, offsets: Uint32Array, gapChars: string): TransformResult;
+
+  replaceAmbiguousBatch(
+    sequences: Buffer,
+    offsets: Uint32Array,
+    replacement: string
+  ): TransformResult;
+
+  replaceInvalidBatch(
+    sequences: Buffer,
+    offsets: Uint32Array,
+    mode: ValidationMode,
+    replacement: string
+  ): TransformResult;
+
+  classifyBatch(sequences: Buffer, offsets: Uint32Array): ClassifyResult;
+
+  checkValidBatch(sequences: Buffer, offsets: Uint32Array, mode: ValidationMode): Buffer;
+
+  qualityAvgBatch(quality: Buffer, offsets: Uint32Array, asciiOffset: number): number[];
+
+  qualityTrimBatch(
+    quality: Buffer,
+    offsets: Uint32Array,
+    asciiOffset: number,
+    threshold: number,
+    windowSize: number,
+    trimStart: boolean,
+    trimEnd: boolean
+  ): number[];
+
+  qualityBinBatch(
+    quality: Buffer,
+    offsets: Uint32Array,
+    boundaries: Buffer,
+    representatives: Buffer
+  ): TransformResult;
+
+  sequenceMetricsBatch(
+    sequences: Buffer,
+    seqOffsets: Uint32Array,
+    quality: Buffer,
+    qualOffsets: Uint32Array,
+    metricFlags: number,
+    asciiOffset: number
+  ): SequenceMetricsResult;
+
+  translateBatch(
+    sequences: Buffer,
+    offsets: Uint32Array,
+    translationLut: Buffer,
+    startMask: Buffer,
+    alternativeStartMask: Buffer,
+    options: TranslateBatchOptions
+  ): TransformResult;
+
+  hashBatch(sequences: Buffer, offsets: Uint32Array, caseInsensitive: boolean): Buffer;
+}
+
+let kernel: NativeKernel | undefined;
+let kernelLoadAttempted = false;
+
+function loadKernel(): NativeKernel | undefined {
+  if (kernelLoadAttempted) return kernel;
+  kernelLoadAttempted = true;
+
+  try {
+    // Use napi-rs's generated loader, which handles all platform/arch/libc
+    // combinations (linux-x64-gnu, linux-x64-musl, darwin-arm64, etc.)
+    // rather than constructing the .node filename ourselves.
+    kernel = require("../native/index.js") as NativeKernel;
+  } catch {
+    // Native kernel not available — this is expected when the Rust
+    // crate hasn't been built. All native-accelerated code paths
+    // have TypeScript fallbacks.
+  }
+
+  return kernel;
+}
+
+/**
+ * Whether the native kernel is available on this platform.
+ *
+ * Returns `true` if the napi-rs native module was built and can be
+ * loaded, `false` otherwise.
+ */
+export function isNativeAvailable(): boolean {
+  return loadKernel() !== undefined;
+}
+
+/**
+ * Get the native kernel, or `undefined` if it's not available.
+ *
+ * The kernel is loaded lazily on first access.
+ */
+export function getNativeKernel(): NativeKernel | undefined {
+  return loadKernel();
+}
 
 interface NativeAlignmentReader {
   readBatch(maxRecords: number): AlignmentBatch | null;

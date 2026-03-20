@@ -11,6 +11,7 @@ import { type } from "arktype";
 import { getBackend } from "../backend";
 import { withSequence } from "../constructors";
 import { ValidationError } from "../errors";
+import { packSequences } from "../backend/batch";
 import {
   CLASS_BDHV,
   CLASS_N,
@@ -21,9 +22,8 @@ import {
   CLASS_U,
   CLASS_WEAK,
   NUM_CLASSES,
-  packSequences,
   ValidationMode,
-} from "../native";
+} from "../backend/kernel-types";
 import type { AbstractSequence } from "../types";
 import type { Processor, ValidateOptions } from "./types";
 

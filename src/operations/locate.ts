@@ -8,13 +8,9 @@
  */
 
 import { type } from "arktype";
+import { getBackend } from "../backend";
 import { ValidationError } from "../errors";
-import {
-  type NativeKernel,
-  type PatternSearchResult,
-  getNativeKernel,
-  packSequences,
-} from "../native";
+import { type PatternSearchResult, packSequences } from "../native";
 import type { AbstractSequence, MotifLocation } from "../types";
 import { fuzzyMatch } from "./core/pattern-matching";
 import { reverseComplement } from "./core/sequence-manipulation";
@@ -23,7 +19,7 @@ import type { LocateOptions } from "./types";
 const BATCH_BYTE_BUDGET = 4 * 1024 * 1024;
 
 interface LocateSearchJob {
-  readonly pattern: Buffer;
+  readonly pattern: Uint8Array;
   readonly searchPattern: string;
   readonly strand: "+" | "-";
 }
@@ -106,10 +102,10 @@ export class LocateProcessor {
       return;
     }
 
-    const nativeKernel = getNativeKernel();
-    if (nativeKernel !== undefined && options.allowOverlaps !== true) {
+    const backend = await getBackend();
+    if (backend.findPatternBatch !== undefined && options.allowOverlaps !== true) {
       const stringOptions = options as LocateOptions & { pattern: string };
-      yield* this.locateNative(source, nativeKernel, stringOptions);
+      yield* this.locateNative(source, backend, stringOptions);
       return;
     }
 
@@ -151,7 +147,7 @@ export class LocateProcessor {
 
   private async *locateNative(
     source: AsyncIterable<AbstractSequence>,
-    kernel: NativeKernel,
+    backend: Awaited<ReturnType<typeof getBackend>>,
     options: LocateOptions & { pattern: string }
   ): AsyncIterable<MotifLocation> {
     const minLength = options.minLength ?? options.pattern.length;
@@ -169,14 +165,14 @@ export class LocateProcessor {
       batchBytes += seq.sequence.length;
 
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        totalYielded += yield* this.flushNativeBatch(batch, jobs, kernel, options, totalYielded);
+        totalYielded += yield* this.flushNativeBatch(batch, jobs, backend, options, totalYielded);
         batch = [];
         batchBytes = 0;
       }
     }
 
     if (batch.length > 0) {
-      yield* this.flushNativeBatch(batch, jobs, kernel, options, totalYielded);
+      yield* this.flushNativeBatch(batch, jobs, backend, options, totalYielded);
     }
   }
 
@@ -185,7 +181,7 @@ export class LocateProcessor {
   ): readonly LocateSearchJob[] {
     const jobs: LocateSearchJob[] = [
       {
-        pattern: Buffer.from(options.pattern, "latin1"),
+        pattern: new Uint8Array(Buffer.from(options.pattern, "latin1")),
         searchPattern: options.pattern,
         strand: "+",
       },
@@ -194,7 +190,7 @@ export class LocateProcessor {
     if (options.searchBothStrands === true) {
       const reversePattern = reverseComplement(options.pattern);
       jobs.push({
-        pattern: Buffer.from(reversePattern, "latin1"),
+        pattern: new Uint8Array(Buffer.from(reversePattern, "latin1")),
         searchPattern: reversePattern,
         strand: "-",
       });
@@ -203,13 +199,13 @@ export class LocateProcessor {
     return jobs;
   }
 
-  private *flushNativeBatch(
+  private async *flushNativeBatch(
     batch: readonly AbstractSequence[],
     jobs: readonly LocateSearchJob[],
-    kernel: NativeKernel,
+    backend: Awaited<ReturnType<typeof getBackend>>,
     options: LocateOptions & { pattern: string },
     totalYieldedSoFar: number
-  ): Generator<MotifLocation, number> {
+  ): AsyncGenerator<MotifLocation, number> {
     const { data, offsets } = packSequences(batch);
     const caseInsensitive = options.ignoreCase === true;
     const maxEdits = options.allowMismatches ?? 0;
@@ -219,7 +215,10 @@ export class LocateProcessor {
     for (const job of jobs) {
       results.set(
         job,
-        kernel.findPatternBatch(data, offsets, job.pattern, maxEdits, caseInsensitive)
+        await backend.findPatternBatch!(data, offsets, job.pattern, {
+          maxEdits,
+          caseInsensitive,
+        })
       );
     }
 

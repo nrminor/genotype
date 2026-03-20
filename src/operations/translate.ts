@@ -8,9 +8,10 @@
  */
 
 import { type } from "arktype";
+import { getBackend } from "../backend";
 import { createFastaRecord } from "../constructors";
 import { SequenceError, ValidationError } from "../errors";
-import { getNativeKernel, packSequences, type TransformResult } from "../native";
+import { packSequences, type TransformResult } from "../native";
 import type { AbstractSequence } from "../types";
 import {
   GeneticCode,
@@ -245,9 +246,9 @@ export class TranslateProcessor {
     }
 
     if (options.orfsOnly !== true) {
-      const kernel = getNativeKernel();
-      if (kernel !== undefined && typeof kernel.translateBatch === "function") {
-        yield* this.translateNative(source, kernel, options);
+      const backend = await getBackend();
+      if (backend.translateBatch !== undefined) {
+        yield* this.translateNative(source, backend, options);
         return;
       }
     }
@@ -259,7 +260,7 @@ export class TranslateProcessor {
 
   private async *translateNative(
     source: AsyncIterable<AbstractSequence>,
-    kernel: NonNullable<ReturnType<typeof getNativeKernel>>,
+    backend: Awaited<ReturnType<typeof getBackend>>,
     options: TranslateOptions
   ): AsyncIterable<AbstractSequence> {
     const frames = this.determineFrames(options);
@@ -272,10 +273,10 @@ export class TranslateProcessor {
     let batchBytes = 0;
     const BATCH_BYTE_BUDGET = 4 * 1024 * 1024;
 
-    const flush = function* (
+    const flush = async function* (
       processor: TranslateProcessor,
       sequences: readonly AbstractSequence[]
-    ): Generator<AbstractSequence> {
+    ): AsyncGenerator<AbstractSequence> {
       const packed = packSequences(sequences);
       const perFrame = new Map<number, TransformResult>();
 
@@ -284,7 +285,7 @@ export class TranslateProcessor {
         const reverse = frame < 0;
         perFrame.set(
           frame,
-          kernel.translateBatch(
+          await backend.translateBatch!(
             packed.data,
             packed.offsets,
             tables.translationLut,

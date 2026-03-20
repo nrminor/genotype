@@ -14,8 +14,9 @@
  */
 
 import { type } from "arktype";
+import { getBackend } from "../backend";
 import { GrepError, ValidationError } from "../errors";
-import { type NativeKernel, getNativeKernel, packSequences } from "../native";
+import { packSequences } from "../native";
 import type { AbstractSequence } from "../types";
 import { hasPatternWithMismatches } from "./core/pattern-matching";
 import { escapeRegex } from "./core/string-utils";
@@ -95,9 +96,9 @@ export class GrepProcessor implements Processor<GrepOptions> {
       options.target === "sequence" &&
       options.wholeWord !== true
     ) {
-      const nativeKernel = getNativeKernel();
-      if (nativeKernel !== undefined) {
-        yield* this.processNative(source, nativeKernel, options.pattern, options);
+      const backend = await getBackend();
+      if (backend.grepBatch !== undefined) {
+        yield* this.processNative(source, backend, options.pattern, options);
         return;
       }
     }
@@ -214,11 +215,11 @@ export class GrepProcessor implements Processor<GrepOptions> {
    */
   private async *processNative(
     source: AsyncIterable<AbstractSequence>,
-    nativeKernel: NativeKernel,
+    backend: Awaited<ReturnType<typeof getBackend>>,
     pattern: string,
     options: GrepOptions
   ): AsyncIterable<AbstractSequence> {
-    const patternBytes = Buffer.from(pattern);
+    const patternBytes = new Uint8Array(Buffer.from(pattern));
     const maxEdits = options.allowMismatches ?? 0;
     const caseInsensitive = options.ignoreCase === true;
     const searchBothStrands = options.searchBothStrands === true;
@@ -232,9 +233,9 @@ export class GrepProcessor implements Processor<GrepOptions> {
       batchBytes += seq.sequence.length;
 
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        yield* flushBatch(
+        yield* await flushBatch(
           batch,
-          nativeKernel,
+          backend,
           patternBytes,
           maxEdits,
           caseInsensitive,
@@ -247,9 +248,9 @@ export class GrepProcessor implements Processor<GrepOptions> {
     }
 
     if (batch.length > 0) {
-      yield* flushBatch(
+      yield* await flushBatch(
         batch,
-        nativeKernel,
+        backend,
         patternBytes,
         maxEdits,
         caseInsensitive,
@@ -264,23 +265,21 @@ export class GrepProcessor implements Processor<GrepOptions> {
  * Pack a batch of sequences, call the native grep kernel, and yield
  * sequences that match (or don't match, if inverted).
  */
-function* flushBatch(
+async function* flushBatch(
   sequences: readonly AbstractSequence[],
-  nativeKernel: NativeKernel,
-  patternBytes: Buffer,
+  backend: Awaited<ReturnType<typeof getBackend>>,
+  patternBytes: Uint8Array,
   maxEdits: number,
   caseInsensitive: boolean,
   searchBothStrands: boolean,
   invert: boolean
-): Iterable<AbstractSequence> {
+): AsyncIterable<AbstractSequence> {
   const { data, offsets } = packSequences(sequences);
-  const matches = nativeKernel.grepBatch(
+  const matches = await backend.grepBatch!(
     data,
     offsets,
     patternBytes,
-    maxEdits,
-    caseInsensitive,
-    searchBothStrands
+    { maxEdits, caseInsensitive, searchBothStrands }
   );
 
   for (let i = 0; i < sequences.length; i++) {

@@ -81,8 +81,10 @@ export { FastaParser, FastaUtils, FastaWriter } from "./formats/fasta";
 export { FastqParser, FastqUtils, FastqWriter } from "./formats/fastq";
 
 // File I/O infrastructure
-// Native performance library (napi-rs addon)
-export { getNativeKernel, isNativeAvailable, type NativeKernel } from "./native";
+// Note: `src/native.ts` remains available as an internal/legacy Node-native
+// implementation detail and for native-kernel tests, but it is no longer
+// re-exported from the package root. New code should depend on the backend
+// abstraction exported above.
 // SeqOps - Unix pipeline-style sequence operations
 export {
   type CleanOptions,

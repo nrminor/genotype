@@ -13,13 +13,9 @@
  */
 
 import { withQuality, withSequence } from "../constructors";
+import { getBackend } from "../backend";
 import { ValidationError } from "../errors";
-import {
-  type NativeKernel,
-  type TransformResult,
-  getNativeKernel,
-  packQualityStrings,
-} from "../native";
+import { type TransformResult, packQualityStrings } from "../native";
 import type { AbstractSequence, QualityEncoding, QualityScoreBearing } from "../types";
 import {
   type BinningStrategy,
@@ -97,10 +93,14 @@ export class QualityProcessor implements Processor<QualityOptions> {
       return;
     }
 
-    const kernel = getNativeKernel();
-    if (kernel === undefined) {
+    const backend = await getBackend();
+    if (
+      backend.qualityTrimBatch === undefined ||
+      backend.qualityAvgBatch === undefined ||
+      backend.qualityBinBatch === undefined
+    ) {
       throw new ValidationError(
-        "Native kernel is required for quality operations but could not be loaded"
+        "Quality backend is required for quality operations but could not be loaded"
       );
     }
 
@@ -119,14 +119,14 @@ export class QualityProcessor implements Processor<QualityOptions> {
       batch.push(seq);
       batchBytes += seq.quality.length;
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        yield* flushQualityBatch<T>(batch, kernel, options, encoding, binParams);
+        yield* await flushQualityBatch<T>(batch, backend, options, encoding, binParams);
         batch = [];
         batchBytes = 0;
       }
     }
 
     if (batch.length > 0) {
-      yield* flushQualityBatch<T>(batch, kernel, options, encoding, binParams);
+      yield* await flushQualityBatch<T>(batch, backend, options, encoding, binParams);
     }
   }
 }
@@ -144,13 +144,13 @@ export class QualityProcessor implements Processor<QualityOptions> {
  * Phase 3 (binning): if binning is configured, pack survivors' quality
  * strings and call `qualityBinBatch` to remap quality bytes.
  */
-function* flushQualityBatch<T extends AbstractSequence & QualityScoreBearing>(
+async function* flushQualityBatch<T extends AbstractSequence & QualityScoreBearing>(
   batch: T[],
-  kernel: NativeKernel,
+  backend: Awaited<ReturnType<typeof getBackend>>,
   options: QualityOptions,
   encoding: QualityEncoding,
   binParams: AsciiStrategyParams | undefined
-): Iterable<T> {
+): AsyncIterable<T> {
   const { offset } = getEncodingInfo(encoding);
 
   let candidates: T[] = batch;
@@ -161,7 +161,7 @@ function* flushQualityBatch<T extends AbstractSequence & QualityScoreBearing>(
     const windowSize = options.trimWindow ?? 4;
     const fromStart = options.trimFromStart ?? true;
     const fromEnd = options.trimFromEnd ?? true;
-    const trimPositions = kernel.qualityTrimBatch(
+    const trimPositions = await backend.qualityTrimBatch!(
       data,
       offsets,
       offset,
@@ -198,7 +198,7 @@ function* flushQualityBatch<T extends AbstractSequence & QualityScoreBearing>(
 
   if (needsAvgQuality) {
     const { data, offsets } = packQualityStrings(candidates);
-    const averages = kernel.qualityAvgBatch(data, offsets, offset);
+    const averages = await backend.qualityAvgBatch!(data, offsets, offset);
 
     const filtered: T[] = [];
     for (let i = 0; i < candidates.length; i++) {
@@ -214,7 +214,7 @@ function* flushQualityBatch<T extends AbstractSequence & QualityScoreBearing>(
 
   if (binParams !== undefined) {
     const { data, offsets } = packQualityStrings(candidates);
-    const result: TransformResult = kernel.qualityBinBatch(
+    const result: TransformResult = await backend.qualityBinBatch!(
       data,
       offsets,
       binParams.boundaries,

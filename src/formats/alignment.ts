@@ -73,7 +73,9 @@ export class AlignmentParser extends AbstractParser<AlignmentRecord> {
       );
     }
 
-    const reader = await backend.createAlignmentReaderFromBytes(new Uint8Array(Buffer.from(data, "utf8")));
+    const reader = await backend.createAlignmentReaderFromBytes(
+      new Uint8Array(Buffer.from(data, "utf8"))
+    );
     yield* this.readAll(reader);
   }
 

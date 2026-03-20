@@ -9,9 +9,10 @@
  */
 
 import { withSequence } from "../constructors";
+import { getBackend } from "../backend";
 import { GenotypeError } from "../errors";
 import { GenotypeString } from "../genotype-string";
-import { type NativeKernel, TransformOp, getNativeKernel, packSequences } from "../native";
+import { TransformOp, packSequences } from "../native";
 import type { AbstractSequence, AlignmentRecord } from "../types";
 import type { AlignmentTransformOptions, Processor, TransformOptions } from "./types";
 
@@ -66,11 +67,10 @@ export class TransformProcessor implements Processor<TransformOptions> {
       return;
     }
 
-    const nativeKernel = getNativeKernel();
-    if (nativeKernel === undefined) {
+    const backend = await getBackend();
+    if (backend.transformBatch === undefined) {
       throw new GenotypeError(
-        "Native kernel not available. The genotype-native crate must be built " +
-          "before using TransformProcessor. Run `just build-native-dev` to build it.",
+        "Transform backend not available. Ensure a compatible backend is configured and built.",
         "NATIVE_KERNEL_UNAVAILABLE"
       );
     }
@@ -83,14 +83,14 @@ export class TransformProcessor implements Processor<TransformOptions> {
       batchBytes += seq.sequence.length;
 
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        yield* flushBatch(batch, nativeKernel, ops, options.custom, needsTrimSoftClips);
+        yield* await flushBatch(batch, backend, ops, options.custom, needsTrimSoftClips);
         batch = [];
         batchBytes = 0;
       }
     }
 
     if (batch.length > 0) {
-      yield* flushBatch(batch, nativeKernel, ops, options.custom, needsTrimSoftClips);
+      yield* await flushBatch(batch, backend, ops, options.custom, needsTrimSoftClips);
     }
   }
 }
@@ -136,13 +136,13 @@ function buildOpList(options: TransformOptions): TransformOp[] {
  * the final result, and yield transformed sequences. If a custom
  * callback is present, it runs per-sequence after all kernel ops.
  */
-function* flushBatch(
+async function* flushBatch(
   sequences: readonly AbstractSequence[],
-  nativeKernel: NativeKernel,
+  backend: Awaited<ReturnType<typeof getBackend>>,
   ops: readonly TransformOp[],
   custom: ((seq: string) => string) | undefined,
   trimSoftClips: boolean
-): Iterable<AbstractSequence> {
+): AsyncIterable<AbstractSequence> {
   const packed = packSequences(sequences);
 
   // Chain kernel calls. Each op's output feeds the next op's input.
@@ -153,7 +153,7 @@ function* flushBatch(
   let data = packed.data;
 
   for (const op of ops) {
-    const result = nativeKernel.transformBatch(data, offsets, op);
+    const result = await backend.transformBatch!(data, offsets, op);
     data = result.data;
   }
 

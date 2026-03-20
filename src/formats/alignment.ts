@@ -13,62 +13,12 @@
  */
 
 import { GenotypeString } from "../genotype-string";
+import { getBackend, type AlignmentBatch, type AlignmentReaderHandle } from "../backend";
 import type { AlignmentRecord, ParserOptions } from "../types";
 import { AbstractParser } from "./abstract-parser";
 
-interface NativeAlignmentBatch {
-  count: number;
-  format: string;
-  qnameData: Buffer;
-  qnameOffsets: number[];
-  sequenceData: Buffer;
-  sequenceOffsets: number[];
-  qualityData: Buffer;
-  qualityOffsets: number[];
-  cigarData: Buffer;
-  cigarOffsets: number[];
-  rnameData: Buffer;
-  rnameOffsets: number[];
-  flags: number[];
-  positions: number[];
-  mappingQualities: Buffer;
-}
-
-interface NativeReferenceSequenceInfo {
-  name: string;
-  length: number;
-}
-
-interface NativeAlignmentReader {
-  readBatch(maxRecords: number): NativeAlignmentBatch | null;
-  headerText(): string;
-  referenceSequences(): NativeReferenceSequenceInfo[];
-}
-
-interface NativeModule {
-  AlignmentReader: {
-    open(path: string): NativeAlignmentReader;
-    openBytes(data: Buffer): NativeAlignmentReader;
-  };
-}
-
-let cachedNativeModule: NativeModule | undefined;
-let nativeLoadAttempted = false;
-
-function loadNativeModule(): NativeModule | undefined {
-  if (nativeLoadAttempted) return cachedNativeModule;
-  nativeLoadAttempted = true;
-
-  try {
-    cachedNativeModule = require("../native/index.js") as NativeModule;
-  } catch {
-    // Native addon not available — BAM/SAM parsing will not be supported.
-  }
-
-  return cachedNativeModule;
-}
-
 const DEFAULT_BATCH_SIZE = 4096;
+const utf8_decoder = new TextDecoder();
 
 /**
  * Parser for BAM and SAM alignment files.
@@ -102,37 +52,37 @@ export class AlignmentParser extends AbstractParser<AlignmentRecord> {
   }
 
   async *parseFile(filePath: string): AsyncIterable<AlignmentRecord> {
-    const native = loadNativeModule();
-    if (native === undefined) {
+    const backend = await getBackend();
+    if (backend.createAlignmentReaderFromPath === undefined) {
       throw new Error(
-        "BAM/SAM parsing requires the native addon. " +
-          "Ensure the Rust crate has been built (just build-native-dev)."
+        "BAM/SAM parsing backend unavailable. " +
+          "Ensure a compatible backend is configured and built."
       );
     }
 
-    const reader = native.AlignmentReader.open(filePath);
+    const reader = await backend.createAlignmentReaderFromPath(filePath);
     yield* this.readAll(reader);
   }
 
   async *parseString(data: string): AsyncIterable<AlignmentRecord> {
-    const native = loadNativeModule();
-    if (native === undefined) {
+    const backend = await getBackend();
+    if (backend.createAlignmentReaderFromBytes === undefined) {
       throw new Error(
-        "BAM/SAM parsing requires the native addon. " +
-          "Ensure the Rust crate has been built (just build-native-dev)."
+        "BAM/SAM parsing backend unavailable. " +
+          "Ensure a compatible backend is configured and built."
       );
     }
 
-    const reader = native.AlignmentReader.openBytes(Buffer.from(data, "utf8"));
+    const reader = await backend.createAlignmentReaderFromBytes(new Uint8Array(Buffer.from(data, "utf8")));
     yield* this.readAll(reader);
   }
 
   async *parse(stream: ReadableStream<Uint8Array>): AsyncIterable<AlignmentRecord> {
-    const native = loadNativeModule();
-    if (native === undefined) {
+    const backend = await getBackend();
+    if (backend.createAlignmentReaderFromBytes === undefined) {
       throw new Error(
-        "BAM/SAM parsing requires the native addon. " +
-          "Ensure the Rust crate has been built (just build-native-dev)."
+        "BAM/SAM parsing backend unavailable. " +
+          "Ensure a compatible backend is configured and built."
       );
     }
 
@@ -156,25 +106,25 @@ export class AlignmentParser extends AbstractParser<AlignmentRecord> {
       offset += chunk.length;
     }
 
-    const reader = native.AlignmentReader.openBytes(combined);
+    const reader = await backend.createAlignmentReaderFromBytes(combined);
     yield* this.readAll(reader);
   }
 
-  private *readAll(reader: NativeAlignmentReader): Iterable<AlignmentRecord> {
+  private async *readAll(reader: AlignmentReaderHandle): AsyncIterable<AlignmentRecord> {
     let recordIndex = 0;
-    let batch = reader.readBatch(DEFAULT_BATCH_SIZE);
+    let batch = await reader.readBatch(DEFAULT_BATCH_SIZE);
     while (batch !== null) {
       this.checkAborted();
       for (const record of unpackBatch(batch, recordIndex)) {
         yield record;
         recordIndex++;
       }
-      batch = reader.readBatch(DEFAULT_BATCH_SIZE);
+      batch = await reader.readBatch(DEFAULT_BATCH_SIZE);
     }
   }
 }
 
-function* unpackBatch(batch: NativeAlignmentBatch, startIndex: number): Iterable<AlignmentRecord> {
+function* unpackBatch(batch: AlignmentBatch, startIndex: number): Iterable<AlignmentRecord> {
   const format = batch.format as "sam" | "bam";
   // napi Buffers are already Node Buffers — use directly without copying.
   const { qnameData, sequenceData, qualityData, cigarData, rnameData } = batch;
@@ -194,7 +144,7 @@ function* unpackBatch(batch: NativeAlignmentBatch, startIndex: number): Iterable
     const sequence = GenotypeString.fromBytes(sequenceData.subarray(seqStart, seqEnd));
 
     yield {
-      id: qnameData.subarray(qnameStart, qnameEnd).toString("utf8"),
+      id: utf8_decoder.decode(qnameData.subarray(qnameStart, qnameEnd)),
       sequence,
       length: seqEnd - seqStart,
       lineNumber: startIndex + i,
@@ -202,10 +152,10 @@ function* unpackBatch(batch: NativeAlignmentBatch, startIndex: number): Iterable
       quality: GenotypeString.fromBytes(qualityData.subarray(qualStart, qualEnd)),
       qualityEncoding: "phred33" as const,
       flag: batch.flags[i]!,
-      referenceSequence: rnameData.subarray(rnameStart, rnameEnd).toString("utf8"),
+      referenceSequence: utf8_decoder.decode(rnameData.subarray(rnameStart, rnameEnd)),
       position: batch.positions[i]!,
       mappingQuality: batch.mappingQualities[i]!,
-      cigar: cigarData.subarray(cigarStart, cigarEnd).toString("utf8"),
+      cigar: utf8_decoder.decode(cigarData.subarray(cigarStart, cigarEnd)),
     };
   }
 }

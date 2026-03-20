@@ -44,17 +44,17 @@ export interface AlignmentBatch {
   count: number;
   format: string;
   qnameData: Uint8Array;
-  qnameOffsets: number[];
+  qnameOffsets: Uint32Array;
   sequenceData: Uint8Array;
-  sequenceOffsets: number[];
+  sequenceOffsets: Uint32Array;
   qualityData: Uint8Array;
-  qualityOffsets: number[];
+  qualityOffsets: Uint32Array;
   cigarData: Uint8Array;
-  cigarOffsets: number[];
+  cigarOffsets: Uint32Array;
   rnameData: Uint8Array;
-  rnameOffsets: number[];
-  flags: number[];
-  positions: number[];
+  rnameOffsets: Uint32Array;
+  flags: Uint16Array;
+  positions: Int32Array;
   mappingQualities: Uint8Array;
 }
 
@@ -133,7 +133,7 @@ export interface GenotypeBackend {
     quality: Uint8Array,
     offsets: Uint32Array,
     asciiOffset: number
-  ): Promise<number[]>;
+  ): Promise<Float64Array>;
 
   qualityTrimBatch?(
     quality: Uint8Array,
@@ -143,7 +143,7 @@ export interface GenotypeBackend {
     windowSize: number,
     trimStart: boolean,
     trimEnd: boolean
-  ): Promise<number[]>;
+  ): Promise<Uint32Array>;
 
   qualityBinBatch?(
     quality: Uint8Array,

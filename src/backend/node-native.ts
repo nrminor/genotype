@@ -137,8 +137,26 @@ export function getNativeKernel(): NativeKernel | undefined {
   return loadKernel();
 }
 
+interface NativeAlignmentBatch {
+  count: number;
+  format: string;
+  qnameData: Buffer;
+  qnameOffsets: number[];
+  sequenceData: Buffer;
+  sequenceOffsets: number[];
+  qualityData: Buffer;
+  qualityOffsets: number[];
+  cigarData: Buffer;
+  cigarOffsets: number[];
+  rnameData: Buffer;
+  rnameOffsets: number[];
+  flags: number[];
+  positions: number[];
+  mappingQualities: Buffer;
+}
+
 interface NativeAlignmentReader {
-  readBatch(maxRecords: number): AlignmentBatch | null;
+  readBatch(maxRecords: number): NativeAlignmentBatch | null;
   headerText(): string;
   referenceSequences(): ReferenceSequenceInfo[];
 }
@@ -175,7 +193,25 @@ function toBufferView(bytes: Uint8Array): Buffer {
 function wrapAlignmentReader(reader: NativeAlignmentReader): AlignmentReaderHandle {
   return {
     async readBatch(maxRecords: number): Promise<AlignmentBatch | null> {
-      return reader.readBatch(maxRecords);
+      const batch = reader.readBatch(maxRecords);
+      if (batch === null) return null;
+      return {
+        count: batch.count,
+        format: batch.format,
+        qnameData: batch.qnameData,
+        qnameOffsets: Uint32Array.from(batch.qnameOffsets),
+        sequenceData: batch.sequenceData,
+        sequenceOffsets: Uint32Array.from(batch.sequenceOffsets),
+        qualityData: batch.qualityData,
+        qualityOffsets: Uint32Array.from(batch.qualityOffsets),
+        cigarData: batch.cigarData,
+        cigarOffsets: Uint32Array.from(batch.cigarOffsets),
+        rnameData: batch.rnameData,
+        rnameOffsets: Uint32Array.from(batch.rnameOffsets),
+        flags: Uint16Array.from(batch.flags),
+        positions: Int32Array.from(batch.positions),
+        mappingQualities: batch.mappingQualities,
+      };
     },
     async headerText(): Promise<string> {
       return reader.headerText();
@@ -255,7 +291,7 @@ export function createNodeNativeBackend(): GenotypeBackend | undefined {
 
     async qualityAvgBatch(quality, offsets, asciiOffset) {
       if (kernel === undefined) throw new Error("Native kernel unavailable");
-      return kernel.qualityAvgBatch(toBufferView(quality), offsets, asciiOffset);
+      return Float64Array.from(kernel.qualityAvgBatch(toBufferView(quality), offsets, asciiOffset));
     },
 
     async qualityTrimBatch(
@@ -268,14 +304,16 @@ export function createNodeNativeBackend(): GenotypeBackend | undefined {
       trimEnd
     ) {
       if (kernel === undefined) throw new Error("Native kernel unavailable");
-      return kernel.qualityTrimBatch(
-        toBufferView(quality),
-        offsets,
-        asciiOffset,
-        threshold,
-        windowSize,
-        trimStart,
-        trimEnd
+      return Uint32Array.from(
+        kernel.qualityTrimBatch(
+          toBufferView(quality),
+          offsets,
+          asciiOffset,
+          threshold,
+          windowSize,
+          trimStart,
+          trimEnd
+        )
       );
     },
 

@@ -11,6 +11,7 @@
 #![feature(portable_simd)]
 #![allow(clippy::must_use_candidate)]
 
+pub mod alignment;
 pub mod classify;
 pub mod grep;
 pub mod hash;

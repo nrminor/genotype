@@ -21,12 +21,14 @@ const packageJson = JSON.parse(readFileSync(join(rootDir, "package.json"), "utf8
 const args = process.argv.slice(2);
 const buildLib = args.find((arg) => arg === "--lib");
 const buildNative = args.find((arg) => arg === "--native");
+const buildWasm = args.find((arg) => arg === "--wasm");
 const isDev = args.includes("--dev");
 const nativeDir = join(rootDir, "src", "native");
 const napiManifestPath = join(rootDir, "crates", "napi-adapter", "Cargo.toml");
+const wasmAdapterDir = join(rootDir, "crates", "wasm-adapter");
 
-if (!buildLib && !buildNative) {
-  console.error("Error: Please specify --lib, --native, or both");
+if (!buildLib && !buildNative && !buildWasm) {
+  console.error("Error: Please specify --lib, --native, --wasm, or a combination");
   process.exit(1);
 }
 
@@ -82,6 +84,35 @@ if (buildNative) {
   }
 
   console.log(`Built native addon: ${nodeFiles.join(", ")}`);
+}
+
+if (buildWasm) {
+  console.log(`Building wasm adapter via wasm-pack (${isDev ? "debug" : "release"})...`);
+
+  const wasmPackArgs = ["build", wasmAdapterDir, "--target", "web", ...(isDev ? ["--dev"] : [])];
+  const wasmBuild = spawnSync("wasm-pack", wasmPackArgs, {
+    cwd: rootDir,
+    stdio: "inherit",
+  });
+
+  if (wasmBuild.error) {
+    console.error("Error: wasm-pack build failed to start — is wasm-pack installed?");
+    process.exit(1);
+  }
+
+  if (wasmBuild.status !== 0) {
+    console.error("Error: wasm-pack build failed");
+    process.exit(1);
+  }
+
+  const pkgDir = join(wasmAdapterDir, "pkg");
+  const wasmFiles = readdirSync(pkgDir).filter((f) => f.endsWith(".wasm"));
+  if (wasmFiles.length === 0) {
+    console.error(`Error: No .wasm file found in ${pkgDir} after build`);
+    process.exit(1);
+  }
+
+  console.log(`Built wasm adapter: ${wasmFiles.join(", ")}`);
 }
 
 if (buildLib) {

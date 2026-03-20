@@ -311,3 +311,87 @@ fn parse_validation_mode(mode: &str) -> Result<engine::ValidationMode, JsError> 
         _ => Err(JsError::new(&format!("unknown validation mode: {mode}"))),
     }
 }
+
+#[wasm_bindgen(getter_with_clone)]
+pub struct WasmAlignmentBatch {
+    pub count: u32,
+    pub format: String,
+    pub qname_data: Vec<u8>,
+    pub qname_offsets: Vec<u32>,
+    pub sequence_data: Vec<u8>,
+    pub sequence_offsets: Vec<u32>,
+    pub quality_data: Vec<u8>,
+    pub quality_offsets: Vec<u32>,
+    pub cigar_data: Vec<u8>,
+    pub cigar_offsets: Vec<u32>,
+    pub rname_data: Vec<u8>,
+    pub rname_offsets: Vec<u32>,
+    pub flags: Vec<u16>,
+    pub positions: Vec<i32>,
+    pub mapping_qualities: Vec<u8>,
+}
+
+impl From<engine::alignment::AlignmentBatch> for WasmAlignmentBatch {
+    fn from(b: engine::alignment::AlignmentBatch) -> Self {
+        Self {
+            count: b.count,
+            format: b.format,
+            qname_data: b.qname_data,
+            qname_offsets: b.qname_offsets,
+            sequence_data: b.sequence_data,
+            sequence_offsets: b.sequence_offsets,
+            quality_data: b.quality_data,
+            quality_offsets: b.quality_offsets,
+            cigar_data: b.cigar_data,
+            cigar_offsets: b.cigar_offsets,
+            rname_data: b.rname_data,
+            rname_offsets: b.rname_offsets,
+            flags: b.flags,
+            positions: b.positions,
+            mapping_qualities: b.mapping_qualities,
+        }
+    }
+}
+
+#[wasm_bindgen(getter_with_clone)]
+pub struct WasmReferenceSequenceInfo {
+    pub name: String,
+    pub length: u32,
+}
+
+#[wasm_bindgen]
+pub struct WasmAlignmentReader {
+    inner: engine::alignment::AlignmentReader,
+}
+
+#[wasm_bindgen]
+impl WasmAlignmentReader {
+    #[wasm_bindgen(constructor)]
+    pub fn new(data: &[u8]) -> Result<WasmAlignmentReader, JsError> {
+        let inner = engine::alignment::AlignmentReader::open_from_bytes(data.to_vec())
+            .map_err(engine_err)?;
+        Ok(Self { inner })
+    }
+
+    pub fn read_batch(&mut self, max_records: u32) -> Result<Option<WasmAlignmentBatch>, JsError> {
+        self.inner
+            .read_batch(max_records)
+            .map(|opt| opt.map(Into::into))
+            .map_err(engine_err)
+    }
+
+    pub fn header_text(&self) -> Result<String, JsError> {
+        self.inner.header_text().map_err(engine_err)
+    }
+
+    pub fn reference_sequences(&self) -> Vec<WasmReferenceSequenceInfo> {
+        self.inner
+            .reference_sequences()
+            .into_iter()
+            .map(|r| WasmReferenceSequenceInfo {
+                name: r.name,
+                length: r.length,
+            })
+            .collect()
+    }
+}

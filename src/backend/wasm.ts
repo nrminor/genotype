@@ -20,7 +20,12 @@ import type {
   TransformOp,
   ValidationMode,
 } from "./kernel-types";
-import type { GenotypeBackend, GrepBatchOptions, FindPatternBatchOptions } from "./types";
+import type {
+  AlignmentReaderHandle,
+  GenotypeBackend,
+  GrepBatchOptions,
+  FindPatternBatchOptions,
+} from "./types";
 
 type WasmModule = typeof import("../../crates/wasm-adapter/pkg/genotype_wasm.js");
 
@@ -43,7 +48,9 @@ async function loadWasm(): Promise<WasmModule | undefined> {
   return wasmModule;
 }
 
-function toNumberArray(typed: Uint32Array | Float64Array | Int32Array): number[] {
+function toNumberArray(
+  typed: Uint8Array | Uint16Array | Uint32Array | Int32Array | Float64Array
+): number[] {
   return Array.from(typed);
 }
 
@@ -150,10 +157,7 @@ export async function createWasmBackend(): Promise<GenotypeBackend | undefined> 
       return result;
     },
 
-    async classifyBatch(
-      sequences: Uint8Array,
-      offsets: Uint32Array
-    ): Promise<ClassifyResult> {
+    async classifyBatch(sequences: Uint8Array, offsets: Uint32Array): Promise<ClassifyResult> {
       const r = wasm.classify_batch(sequences, offsets);
       const result: ClassifyResult = { counts: toNumberArray(r.counts) };
       r.free();
@@ -172,8 +176,8 @@ export async function createWasmBackend(): Promise<GenotypeBackend | undefined> 
       quality: Uint8Array,
       offsets: Uint32Array,
       asciiOffset: number
-    ): Promise<number[]> {
-      return toNumberArray(wasm.quality_avg_batch(quality, offsets, asciiOffset));
+    ): Promise<Float64Array> {
+      return wasm.quality_avg_batch(quality, offsets, asciiOffset);
     },
 
     async qualityTrimBatch(
@@ -184,9 +188,15 @@ export async function createWasmBackend(): Promise<GenotypeBackend | undefined> 
       windowSize: number,
       trimStart: boolean,
       trimEnd: boolean
-    ): Promise<number[]> {
-      return toNumberArray(
-        wasm.quality_trim_batch(quality, offsets, asciiOffset, threshold, windowSize, trimStart, trimEnd)
+    ): Promise<Uint32Array> {
+      return wasm.quality_trim_batch(
+        quality,
+        offsets,
+        asciiOffset,
+        threshold,
+        windowSize,
+        trimStart,
+        trimEnd
       );
     },
 
@@ -214,7 +224,12 @@ export async function createWasmBackend(): Promise<GenotypeBackend | undefined> 
       asciiOffset: number
     ): Promise<SequenceMetricsResult> {
       const r = wasm.sequence_metrics_batch(
-        sequences, seqOffsets, quality, qualOffsets, metricFlags, asciiOffset
+        sequences,
+        seqOffsets,
+        quality,
+        qualOffsets,
+        metricFlags,
+        asciiOffset
       );
       const result: SequenceMetricsResult = {};
       if (r.lengths) result.lengths = toNumberArray(r.lengths);
@@ -268,6 +283,44 @@ export async function createWasmBackend(): Promise<GenotypeBackend | undefined> 
       caseInsensitive: boolean
     ): Promise<Uint8Array> {
       return wasm.hash_batch(sequences, offsets, caseInsensitive);
+    },
+
+    async createAlignmentReaderFromBytes(bytes: Uint8Array): Promise<AlignmentReaderHandle> {
+      const reader = new wasm.WasmAlignmentReader(bytes);
+      return {
+        async readBatch(maxRecords: number) {
+          const batch = reader.read_batch(maxRecords);
+          if (batch === undefined) return null;
+          const result = {
+            count: batch.count,
+            format: batch.format,
+            qnameData: batch.qname_data,
+            qnameOffsets: batch.qname_offsets,
+            sequenceData: batch.sequence_data,
+            sequenceOffsets: batch.sequence_offsets,
+            qualityData: batch.quality_data,
+            qualityOffsets: batch.quality_offsets,
+            cigarData: batch.cigar_data,
+            cigarOffsets: batch.cigar_offsets,
+            rnameData: batch.rname_data,
+            rnameOffsets: batch.rname_offsets,
+            flags: batch.flags,
+            positions: batch.positions,
+            mappingQualities: batch.mapping_qualities,
+          };
+          batch.free();
+          return result;
+        },
+        async headerText() {
+          return reader.header_text();
+        },
+        async referenceSequences() {
+          return reader.reference_sequences().map((r: { name: string; length: number }) => ({
+            name: r.name,
+            length: r.length,
+          }));
+        },
+      };
     },
   };
 }

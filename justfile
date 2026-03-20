@@ -61,6 +61,20 @@ build-native-dev:
 
 alias bnd := build-native-dev
 
+# Build wasm adapter via wasm-pack (release)
+[group('build')]
+build-wasm:
+    bun run build:wasm
+
+alias bw := build-wasm
+
+# Build wasm adapter via wasm-pack (debug, faster compile)
+[group('build')]
+build-wasm-dev:
+    bun run build:wasm:dev
+
+alias bwd := build-wasm-dev
+
 # Watch mode for development
 [group('build')]
 watch:

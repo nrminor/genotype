@@ -42,6 +42,8 @@
     "build:lib": "bun scripts/build.mjs --lib",
     "build:native": "bun scripts/build.mjs --native",
     "build:native:dev": "bun scripts/build.mjs --native --dev",
+    "build:wasm": "bun scripts/build.mjs --wasm",
+    "build:wasm:dev": "bun scripts/build.mjs --wasm --dev",
     "check": "bun run typecheck && bun run lint && bun run lint:rust && bun run test && bun run build",
     "clean": "rm -rf dist && cargo clean",
     "clean:rust": "cargo clean",

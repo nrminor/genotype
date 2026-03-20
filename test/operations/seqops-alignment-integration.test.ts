@@ -181,9 +181,7 @@ describe("SeqOps alignment integration", () => {
 
   describe("alignment-specific filter options", () => {
     test("filter by minimum mapping quality", async () => {
-      const results = await seqops(makeAsync(records))
-        .filter({ minMapQ: 50 })
-        .collect();
+      const results = await seqops(makeAsync(records)).filter({ minMapQ: 50 }).collect();
 
       // mapQ 60: read1 pair (2), mapQ 50: read2 pair (2), mapQ 30: read4 pair (2), mapQ 0: read3 (1)
       // minMapQ 50 keeps mapQ >= 50: read1 pair + read2 pair = 4
@@ -194,9 +192,7 @@ describe("SeqOps alignment integration", () => {
     });
 
     test("filter by maximum mapping quality", async () => {
-      const results = await seqops(makeAsync(records))
-        .filter({ maxMapQ: 50 })
-        .collect();
+      const results = await seqops(makeAsync(records)).filter({ maxMapQ: 50 }).collect();
 
       // mapQ <= 50: read2 pair (2) + read4 pair (2) + read3 (1) = 5
       expect(results).toHaveLength(5);
@@ -206,9 +202,7 @@ describe("SeqOps alignment integration", () => {
     });
 
     test("filter by excludeFlags removes unmapped reads", async () => {
-      const results = await seqops(makeAsync(records))
-        .filter({ excludeFlags: 0x4 })
-        .collect();
+      const results = await seqops(makeAsync(records)).filter({ excludeFlags: 0x4 }).collect();
 
       // 7 total - 1 unmapped = 6
       expect(results).toHaveLength(6);
@@ -218,9 +212,7 @@ describe("SeqOps alignment integration", () => {
     });
 
     test("filter by includeFlags keeps only first-in-pair reads", async () => {
-      const results = await seqops(makeAsync(records))
-        .filter({ includeFlags: 0x40 })
-        .collect();
+      const results = await seqops(makeAsync(records)).filter({ includeFlags: 0x40 }).collect();
 
       // First-in-pair (0x40): read1 fwd (99), read2 fwd (99), read4 rev (83) = 3
       expect(results).toHaveLength(3);
@@ -242,9 +234,7 @@ describe("SeqOps alignment integration", () => {
     });
 
     test("filter by genomic region", async () => {
-      const results = await seqops(makeAsync(records))
-        .filter({ region: "chr1:150-350" })
-        .collect();
+      const results = await seqops(makeAsync(records)).filter({ region: "chr1:150-350" }).collect();
 
       // chr1 reads with positions overlapping 150-350:
       // read1 fwd: pos=100, len=10, end=109 — does NOT overlap 150-350

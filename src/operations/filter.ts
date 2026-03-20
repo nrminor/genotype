@@ -180,7 +180,10 @@ export class FilterProcessor implements Processor<FilterOptions> {
    * @param options - Filter criteria
    * @returns True if sequence passes all criteria
    */
-  private passesFilter(seq: AbstractSequence, options: FilterOptions & Partial<AlignmentFilterOptions>): boolean {
+  private passesFilter(
+    seq: AbstractSequence,
+    options: FilterOptions & Partial<AlignmentFilterOptions>
+  ): boolean {
     // Length filters - early returns for better readability
     if (options.minLength && seq.length < options.minLength) {
       return false;
@@ -246,7 +249,10 @@ export class FilterProcessor implements Processor<FilterOptions> {
  * on AlignmentRecord (flag, mappingQuality, referenceSequence, position).
  * If the record doesn't have these fields, the filters are skipped.
  */
-function passesAlignmentFilters(seq: AbstractSequence, options: Partial<AlignmentFilterOptions>): boolean {
+function passesAlignmentFilters(
+  seq: AbstractSequence,
+  options: Partial<AlignmentFilterOptions>
+): boolean {
   const hasAlignmentFields = "flag" in seq && "mappingQuality" in seq;
   if (!hasAlignmentFields) return true;
 
@@ -266,10 +272,16 @@ function passesAlignmentFilters(seq: AbstractSequence, options: Partial<Alignmen
   if (options.excludeFlags !== undefined && (record.flag & options.excludeFlags) !== 0) {
     return false;
   }
-  if (options.includeFlags !== undefined && (record.flag & options.includeFlags) !== options.includeFlags) {
+  if (
+    options.includeFlags !== undefined &&
+    (record.flag & options.includeFlags) !== options.includeFlags
+  ) {
     return false;
   }
-  if (options.referenceSequence !== undefined && record.referenceSequence !== options.referenceSequence) {
+  if (
+    options.referenceSequence !== undefined &&
+    record.referenceSequence !== options.referenceSequence
+  ) {
     return false;
   }
   if (options.region !== undefined) {
@@ -302,7 +314,10 @@ function parseRegion(region: string): { ref: string; start: number; end: number 
  * Apply only the filters that don't need sequence content analysis.
  * These are O(1) or depend on metadata, not on the sequence bytes.
  */
-function passesCheapFilters(seq: AbstractSequence, options: FilterOptions & Partial<AlignmentFilterOptions>): boolean {
+function passesCheapFilters(
+  seq: AbstractSequence,
+  options: FilterOptions & Partial<AlignmentFilterOptions>
+): boolean {
   if (options.minLength !== undefined && seq.length < options.minLength) {
     return false;
   }

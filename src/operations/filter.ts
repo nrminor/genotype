@@ -347,7 +347,7 @@ function passesCheapFilters(
  * Compute GC content percentage from 12-class counts using fractional
  * weighting, matching the semantics of `gcContent()` in calculations.ts.
  */
-function gcContentFromCounts(counts: number[], base: number): number {
+function gcContentFromCounts(counts: Uint32Array, base: number): number {
   const g = counts[base + CLASS_G]!;
   const c = counts[base + CLASS_C]!;
   const s = counts[base + CLASS_STRONG]!;

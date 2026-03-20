@@ -48,12 +48,6 @@ async function loadWasm(): Promise<WasmModule | undefined> {
   return wasmModule;
 }
 
-function toNumberArray(
-  typed: Uint8Array | Uint16Array | Uint32Array | Int32Array | Float64Array
-): number[] {
-  return Array.from(typed);
-}
-
 export async function createWasmBackend(): Promise<GenotypeBackend | undefined> {
   const wasm = await loadWasm();
   if (wasm === undefined) return undefined;
@@ -91,10 +85,10 @@ export async function createWasmBackend(): Promise<GenotypeBackend | undefined> 
         options.caseInsensitive
       );
       const result: PatternSearchResult = {
-        starts: toNumberArray(r.starts),
-        ends: toNumberArray(r.ends),
-        costs: toNumberArray(r.costs),
-        matchOffsets: toNumberArray(r.match_offsets),
+        starts: r.starts,
+        ends: r.ends,
+        costs: r.costs,
+        matchOffsets: r.match_offsets,
       };
       r.free();
       return result;
@@ -108,7 +102,7 @@ export async function createWasmBackend(): Promise<GenotypeBackend | undefined> 
       const r = wasm.transform_batch(sequences, offsets, op as string);
       const result: TransformResult = {
         data: r.data,
-        offsets: toNumberArray(r.offsets),
+        offsets: r.offsets,
       };
       r.free();
       return result;
@@ -122,7 +116,7 @@ export async function createWasmBackend(): Promise<GenotypeBackend | undefined> 
       const r = wasm.remove_gaps_batch(sequences, offsets, gapChars);
       const result: TransformResult = {
         data: r.data,
-        offsets: toNumberArray(r.offsets),
+        offsets: r.offsets,
       };
       r.free();
       return result;
@@ -136,7 +130,7 @@ export async function createWasmBackend(): Promise<GenotypeBackend | undefined> 
       const r = wasm.replace_ambiguous_batch(sequences, offsets, replacement);
       const result: TransformResult = {
         data: r.data,
-        offsets: toNumberArray(r.offsets),
+        offsets: r.offsets,
       };
       r.free();
       return result;
@@ -151,7 +145,7 @@ export async function createWasmBackend(): Promise<GenotypeBackend | undefined> 
       const r = wasm.replace_invalid_batch(sequences, offsets, mode as string, replacement);
       const result: TransformResult = {
         data: r.data,
-        offsets: toNumberArray(r.offsets),
+        offsets: r.offsets,
       };
       r.free();
       return result;
@@ -159,7 +153,7 @@ export async function createWasmBackend(): Promise<GenotypeBackend | undefined> 
 
     async classifyBatch(sequences: Uint8Array, offsets: Uint32Array): Promise<ClassifyResult> {
       const r = wasm.classify_batch(sequences, offsets);
-      const result: ClassifyResult = { counts: toNumberArray(r.counts) };
+      const result: ClassifyResult = { counts: r.counts };
       r.free();
       return result;
     },
@@ -209,7 +203,7 @@ export async function createWasmBackend(): Promise<GenotypeBackend | undefined> 
       const r = wasm.quality_bin_batch(quality, offsets, boundaries, representatives);
       const result: TransformResult = {
         data: r.data,
-        offsets: toNumberArray(r.offsets),
+        offsets: r.offsets,
       };
       r.free();
       return result;
@@ -232,16 +226,16 @@ export async function createWasmBackend(): Promise<GenotypeBackend | undefined> 
         asciiOffset
       );
       const result: SequenceMetricsResult = {};
-      if (r.lengths) result.lengths = toNumberArray(r.lengths);
-      if (r.gc) result.gc = toNumberArray(r.gc);
-      if (r.at) result.at = toNumberArray(r.at);
-      if (r.gc_skew) result.gcSkew = toNumberArray(r.gc_skew);
-      if (r.at_skew) result.atSkew = toNumberArray(r.at_skew);
-      if (r.entropy) result.entropy = toNumberArray(r.entropy);
-      if (r.alphabet_mask) result.alphabetMask = toNumberArray(r.alphabet_mask);
-      if (r.avg_qual) result.avgQual = toNumberArray(r.avg_qual);
-      if (r.min_qual) result.minQual = toNumberArray(r.min_qual);
-      if (r.max_qual) result.maxQual = toNumberArray(r.max_qual);
+      if (r.lengths) result.lengths = r.lengths;
+      if (r.gc) result.gc = r.gc;
+      if (r.at) result.at = r.at;
+      if (r.gc_skew) result.gcSkew = r.gc_skew;
+      if (r.at_skew) result.atSkew = r.at_skew;
+      if (r.entropy) result.entropy = r.entropy;
+      if (r.alphabet_mask) result.alphabetMask = r.alphabet_mask;
+      if (r.avg_qual) result.avgQual = r.avg_qual;
+      if (r.min_qual) result.minQual = r.min_qual;
+      if (r.max_qual) result.maxQual = r.max_qual;
       r.free();
       return result;
     },
@@ -271,7 +265,7 @@ export async function createWasmBackend(): Promise<GenotypeBackend | undefined> 
       );
       const result: TransformResult = {
         data: r.data,
-        offsets: toNumberArray(r.offsets),
+        offsets: r.offsets,
       };
       r.free();
       return result;

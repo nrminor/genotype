@@ -1,7 +1,7 @@
 import { describe, expect } from "bun:test";
 import { createFastaRecord } from "../../src/constructors";
 import { packSequences } from "../../src/backend/batch";
-import { TransformOp, type TransformResult } from "../../src/backend/kernel-types";
+import { TransformOp } from "../../src/backend/kernel-types";
 import {
   complement,
   reverse,
@@ -23,28 +23,25 @@ function packStrings(seqStrings: string[]) {
   return packSequences(seqs);
 }
 
-function transformBatchFromStrings(seqStrings: string[], op: TransformOp): TransformResult {
+function transformBatchFromStrings(seqStrings: string[], op: TransformOp) {
   const kernel = requireNativeKernel();
   const { data, offsets } = packStrings(seqStrings);
   return kernel.transformBatch(data, offsets, op);
 }
 
-function removeGapsBatchFromStrings(seqStrings: string[], gapChars: string = ""): TransformResult {
+function removeGapsBatchFromStrings(seqStrings: string[], gapChars: string = "") {
   const kernel = requireNativeKernel();
   const { data, offsets } = packStrings(seqStrings);
   return kernel.removeGapsBatch(data, offsets, gapChars);
 }
 
-function replaceAmbiguousBatchFromStrings(
-  seqStrings: string[],
-  replacement: string = ""
-): TransformResult {
+function replaceAmbiguousBatchFromStrings(seqStrings: string[], replacement: string = "") {
   const kernel = requireNativeKernel();
   const { data, offsets } = packStrings(seqStrings);
   return kernel.replaceAmbiguousBatch(data, offsets, replacement);
 }
 
-function unpackResult(result: TransformResult): string[] {
+function unpackResult(result: { data: Uint8Array; offsets: number[] }): string[] {
   const sequences: string[] = [];
   for (let i = 0; i + 1 < result.offsets.length; i++) {
     const start = result.offsets[i]!;

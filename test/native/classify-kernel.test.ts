@@ -16,7 +16,6 @@ import {
   CLASS_BDHV,
   CLASS_GAP,
   CLASS_OTHER,
-  type ClassifyResult,
 } from "../../src/backend/kernel-types";
 import { gcContent, atContent } from "../../src/operations/core/calculations";
 import { SequenceValidator } from "../../src/operations/core/sequence-validation";
@@ -27,7 +26,7 @@ function makeSequences(...seqStrings: string[]): AbstractSequence[] {
   return seqStrings.map((s, i) => createFastaRecord({ id: `seq${i}`, sequence: s }));
 }
 
-function classifyBatchFromStrings(seqStrings: string[]): ClassifyResult {
+function classifyBatchFromStrings(seqStrings: string[]) {
   const kernel = requireNativeKernel();
   const seqs = makeSequences(...seqStrings);
   const { data, offsets } = packSequences(seqs);
@@ -42,7 +41,7 @@ function checkValidBatchFromStrings(seqStrings: string[], mode: ValidationMode):
 }
 
 /** Extract the 12-element counts slice for a single sequence from a ClassifyResult. */
-function countsForSeq(result: ClassifyResult, seqIndex: number): number[] {
+function countsForSeq(result: { counts: number[] }, seqIndex: number): number[] {
   return result.counts.slice(seqIndex * NUM_CLASSES, seqIndex * NUM_CLASSES + NUM_CLASSES);
 }
 

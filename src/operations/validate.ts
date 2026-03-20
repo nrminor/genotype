@@ -218,7 +218,7 @@ async function* flushValidateBatch(
  * works from the 12-class histogram that `classifyBatch` already
  * computed, avoiding a second kernel call in the warn path.
  */
-function isValidForMode(counts: number[], base: number, mode: ValidationMode): boolean {
+function isValidForMode(counts: Uint32Array, base: number, mode: ValidationMode): boolean {
   if (counts[base + CLASS_OTHER]! > 0) return false;
 
   if (mode === ValidationMode.NormalDna) return true;
@@ -252,7 +252,7 @@ function isValidForMode(counts: number[], base: number, mode: ValidationMode): b
  */
 function formatValidationDiagnostic(
   seqId: string,
-  counts: number[],
+  counts: Uint32Array,
   base: number,
   mode: ValidationMode,
   seqLength: number

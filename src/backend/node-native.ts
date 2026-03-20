@@ -18,6 +18,40 @@ import type {
  * The native kernel interface. Each function here corresponds to a
  * `#[napi]` export from the Rust crate in `src/native/`.
  */
+/**
+ * Raw return types from napi-rs. Vec<u32> marshals to number[] (not
+ * Uint32Array), so these differ from the typed-array kernel-types
+ * interfaces. The backend wrapper converts at the boundary.
+ */
+interface NapiTransformResult {
+  data: Buffer;
+  offsets: number[];
+}
+
+interface NapiClassifyResult {
+  counts: number[];
+}
+
+interface NapiPatternSearchResult {
+  starts: number[];
+  ends: number[];
+  costs: number[];
+  matchOffsets: number[];
+}
+
+interface NapiSequenceMetricsResult {
+  lengths?: number[];
+  gc?: number[];
+  at?: number[];
+  gcSkew?: number[];
+  atSkew?: number[];
+  entropy?: number[];
+  alphabetMask?: number[];
+  avgQual?: number[];
+  minQual?: number[];
+  maxQual?: number[];
+}
+
 export interface NativeKernel {
   grepBatch(
     sequences: Buffer,
@@ -34,26 +68,26 @@ export interface NativeKernel {
     pattern: Buffer,
     maxEdits: number,
     caseInsensitive: boolean
-  ): PatternSearchResult;
+  ): NapiPatternSearchResult;
 
-  transformBatch(sequences: Buffer, offsets: Uint32Array, op: TransformOp): TransformResult;
+  transformBatch(sequences: Buffer, offsets: Uint32Array, op: TransformOp): NapiTransformResult;
 
-  removeGapsBatch(sequences: Buffer, offsets: Uint32Array, gapChars: string): TransformResult;
+  removeGapsBatch(sequences: Buffer, offsets: Uint32Array, gapChars: string): NapiTransformResult;
 
   replaceAmbiguousBatch(
     sequences: Buffer,
     offsets: Uint32Array,
     replacement: string
-  ): TransformResult;
+  ): NapiTransformResult;
 
   replaceInvalidBatch(
     sequences: Buffer,
     offsets: Uint32Array,
     mode: ValidationMode,
     replacement: string
-  ): TransformResult;
+  ): NapiTransformResult;
 
-  classifyBatch(sequences: Buffer, offsets: Uint32Array): ClassifyResult;
+  classifyBatch(sequences: Buffer, offsets: Uint32Array): NapiClassifyResult;
 
   checkValidBatch(sequences: Buffer, offsets: Uint32Array, mode: ValidationMode): Buffer;
 
@@ -74,7 +108,7 @@ export interface NativeKernel {
     offsets: Uint32Array,
     boundaries: Buffer,
     representatives: Buffer
-  ): TransformResult;
+  ): NapiTransformResult;
 
   sequenceMetricsBatch(
     sequences: Buffer,
@@ -83,7 +117,7 @@ export interface NativeKernel {
     qualOffsets: Uint32Array,
     metricFlags: number,
     asciiOffset: number
-  ): SequenceMetricsResult;
+  ): NapiSequenceMetricsResult;
 
   translateBatch(
     sequences: Buffer,
@@ -92,7 +126,7 @@ export interface NativeKernel {
     startMask: Buffer,
     alternativeStartMask: Buffer,
     options: TranslateBatchOptions
-  ): TransformResult;
+  ): NapiTransformResult;
 
   hashBatch(sequences: Buffer, offsets: Uint32Array, caseInsensitive: boolean): Buffer;
 }
@@ -184,6 +218,38 @@ function loadAlignmentModule(): NativeAlignmentModule | undefined {
   return cachedAlignmentModule;
 }
 
+function wrapTransformResult(r: NapiTransformResult): TransformResult {
+  return { data: r.data, offsets: Uint32Array.from(r.offsets) };
+}
+
+function wrapClassifyResult(r: NapiClassifyResult): ClassifyResult {
+  return { counts: Uint32Array.from(r.counts) };
+}
+
+function wrapPatternSearchResult(r: NapiPatternSearchResult): PatternSearchResult {
+  return {
+    starts: Uint32Array.from(r.starts),
+    ends: Uint32Array.from(r.ends),
+    costs: Uint32Array.from(r.costs),
+    matchOffsets: Uint32Array.from(r.matchOffsets),
+  };
+}
+
+function wrapSequenceMetricsResult(r: NapiSequenceMetricsResult): SequenceMetricsResult {
+  const result: SequenceMetricsResult = {};
+  if (r.lengths) result.lengths = Uint32Array.from(r.lengths);
+  if (r.gc) result.gc = Float64Array.from(r.gc);
+  if (r.at) result.at = Float64Array.from(r.at);
+  if (r.gcSkew) result.gcSkew = Float64Array.from(r.gcSkew);
+  if (r.atSkew) result.atSkew = Float64Array.from(r.atSkew);
+  if (r.entropy) result.entropy = Float64Array.from(r.entropy);
+  if (r.alphabetMask) result.alphabetMask = Uint32Array.from(r.alphabetMask);
+  if (r.avgQual) result.avgQual = Float64Array.from(r.avgQual);
+  if (r.minQual) result.minQual = Int32Array.from(r.minQual);
+  if (r.maxQual) result.maxQual = Int32Array.from(r.maxQual);
+  return result;
+}
+
 function toBufferView(bytes: Uint8Array): Buffer {
   return Buffer.isBuffer(bytes)
     ? bytes
@@ -250,38 +316,46 @@ export function createNodeNativeBackend(): GenotypeBackend | undefined {
 
     async findPatternBatch(sequences, offsets, pattern, options) {
       if (kernel === undefined) throw new Error("Native kernel unavailable");
-      return kernel.findPatternBatch(
-        toBufferView(sequences),
-        offsets,
-        toBufferView(pattern),
-        options.maxEdits,
-        options.caseInsensitive
+      return wrapPatternSearchResult(
+        kernel.findPatternBatch(
+          toBufferView(sequences),
+          offsets,
+          toBufferView(pattern),
+          options.maxEdits,
+          options.caseInsensitive
+        )
       );
     },
 
     async transformBatch(sequences, offsets, op) {
       if (kernel === undefined) throw new Error("Native kernel unavailable");
-      return kernel.transformBatch(toBufferView(sequences), offsets, op);
+      return wrapTransformResult(kernel.transformBatch(toBufferView(sequences), offsets, op));
     },
 
     async removeGapsBatch(sequences, offsets, gapChars) {
       if (kernel === undefined) throw new Error("Native kernel unavailable");
-      return kernel.removeGapsBatch(toBufferView(sequences), offsets, gapChars);
+      return wrapTransformResult(
+        kernel.removeGapsBatch(toBufferView(sequences), offsets, gapChars)
+      );
     },
 
     async replaceAmbiguousBatch(sequences, offsets, replacement) {
       if (kernel === undefined) throw new Error("Native kernel unavailable");
-      return kernel.replaceAmbiguousBatch(toBufferView(sequences), offsets, replacement);
+      return wrapTransformResult(
+        kernel.replaceAmbiguousBatch(toBufferView(sequences), offsets, replacement)
+      );
     },
 
     async replaceInvalidBatch(sequences, offsets, mode, replacement) {
       if (kernel === undefined) throw new Error("Native kernel unavailable");
-      return kernel.replaceInvalidBatch(toBufferView(sequences), offsets, mode, replacement);
+      return wrapTransformResult(
+        kernel.replaceInvalidBatch(toBufferView(sequences), offsets, mode, replacement)
+      );
     },
 
     async classifyBatch(sequences, offsets) {
       if (kernel === undefined) throw new Error("Native kernel unavailable");
-      return kernel.classifyBatch(toBufferView(sequences), offsets);
+      return wrapClassifyResult(kernel.classifyBatch(toBufferView(sequences), offsets));
     },
 
     async checkValidBatch(sequences, offsets, mode) {
@@ -319,11 +393,13 @@ export function createNodeNativeBackend(): GenotypeBackend | undefined {
 
     async qualityBinBatch(quality, offsets, boundaries, representatives) {
       if (kernel === undefined) throw new Error("Native kernel unavailable");
-      return kernel.qualityBinBatch(
-        toBufferView(quality),
-        offsets,
-        toBufferView(boundaries),
-        toBufferView(representatives)
+      return wrapTransformResult(
+        kernel.qualityBinBatch(
+          toBufferView(quality),
+          offsets,
+          toBufferView(boundaries),
+          toBufferView(representatives)
+        )
       );
     },
 
@@ -336,13 +412,15 @@ export function createNodeNativeBackend(): GenotypeBackend | undefined {
       asciiOffset
     ) {
       if (kernel === undefined) throw new Error("Native kernel unavailable");
-      return kernel.sequenceMetricsBatch(
-        toBufferView(sequences),
-        seqOffsets,
-        toBufferView(quality),
-        qualOffsets,
-        metricFlags,
-        asciiOffset
+      return wrapSequenceMetricsResult(
+        kernel.sequenceMetricsBatch(
+          toBufferView(sequences),
+          seqOffsets,
+          toBufferView(quality),
+          qualOffsets,
+          metricFlags,
+          asciiOffset
+        )
       );
     },
 
@@ -355,13 +433,15 @@ export function createNodeNativeBackend(): GenotypeBackend | undefined {
       options
     ) {
       if (kernel === undefined) throw new Error("Native kernel unavailable");
-      return kernel.translateBatch(
-        toBufferView(sequences),
-        offsets,
-        toBufferView(translationLut),
-        toBufferView(startMask),
-        toBufferView(alternativeStartMask),
-        options
+      return wrapTransformResult(
+        kernel.translateBatch(
+          toBufferView(sequences),
+          offsets,
+          toBufferView(translationLut),
+          toBufferView(startMask),
+          toBufferView(alternativeStartMask),
+          options
+        )
       );
     },
 

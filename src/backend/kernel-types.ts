@@ -12,7 +12,7 @@ export interface TransformResult {
   /** Transformed sequence bytes, contiguous in a single buffer. */
   data: Uint8Array;
   /** N+1 offset array where offsets[i] is the byte position where sequence i starts. */
-  offsets: number[];
+  offsets: Uint32Array;
 }
 
 /**
@@ -25,7 +25,7 @@ export interface TransformResult {
  * All comparisons are case-insensitive except gaps, which are literal.
  */
 export interface ClassifyResult {
-  counts: number[];
+  counts: Uint32Array;
 }
 
 /**
@@ -38,26 +38,26 @@ export interface ClassifyResult {
  */
 export interface PatternSearchResult {
   /** Match start positions (0-based, inclusive). */
-  starts: number[];
+  starts: Uint32Array;
   /** Match end positions (0-based, exclusive). */
-  ends: number[];
+  ends: Uint32Array;
   /** Edit distance costs for each match. */
-  costs: number[];
+  costs: Uint32Array;
   /** CSR offset array of length numSequences + 1. */
-  matchOffsets: number[];
+  matchOffsets: Uint32Array;
 }
 
 export interface SequenceMetricsResult {
-  lengths?: number[];
-  gc?: number[];
-  at?: number[];
-  gcSkew?: number[];
-  atSkew?: number[];
-  entropy?: number[];
-  alphabetMask?: number[];
-  avgQual?: number[];
-  minQual?: number[];
-  maxQual?: number[];
+  lengths?: Uint32Array;
+  gc?: Float64Array;
+  at?: Float64Array;
+  gcSkew?: Float64Array;
+  atSkew?: Float64Array;
+  entropy?: Float64Array;
+  alphabetMask?: Uint32Array;
+  avgQual?: Float64Array;
+  minQual?: Int32Array;
+  maxQual?: Int32Array;
 }
 
 export interface TranslateBatchOptions {

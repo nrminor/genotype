@@ -15,8 +15,10 @@ import { type } from "arktype";
 import { CompressionDetector } from "../../compression/detector";
 import { wrapStream as wrapGzipStream } from "../../compression/gzip";
 import { wrapStream as wrapZstdStream } from "../../compression/zstd";
+import { Effect, Stream } from "effect";
 import { CompressionError, DSVParseError, FileError, ValidationError } from "../../errors";
-import { createStreamPromise } from "../../io/file-reader";
+import { createStream, mapPlatformError } from "../../io/file-reader";
+import { backendRuntime } from "../../backend/service";
 import type { CompressionFormat } from "../../types";
 import { AbstractParser } from "../abstract-parser";
 
@@ -197,30 +199,39 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
    * Automatically handles compression based on file extension
    */
   async *parseFile(path: string): AsyncIterable<DSVRecord> {
-    try {
-      const detectionStream = await createStreamPromise(path);
-      const detection = await CompressionDetector.fromStream(detectionStream);
+    const parseFn = this.parse.bind(this);
+    const decompressStreamFn = this.decompressStream.bind(this);
 
-      const stream = await createStreamPromise(path);
+    const stream = Stream.unwrap(
+      Effect.gen(function* () {
+        const detectionStream = yield* createStream(path, {});
+        const detection = yield* Effect.promise(() =>
+          CompressionDetector.fromStream(detectionStream)
+        );
 
-      // Decompress if needed
-      if (detection.format !== "none") {
-        const decompressedStream = this.decompressStream(stream, detection.format);
-        yield* this.parse(decompressedStream);
-      } else {
-        yield* this.parse(stream);
-      }
-    } catch (error) {
-      if (error instanceof FileError) {
-        throw error;
-      }
-      throw new FileError(
-        `Failed to parse DSV file: ${error instanceof Error ? error.message : String(error)}`,
-        path,
-        "read",
-        error
-      );
-    }
+        const fileStream = yield* createStream(path, {});
+        const processStream =
+          detection.format !== "none"
+            ? decompressStreamFn(fileStream, detection.format)
+            : fileStream;
+
+        return Stream.fromAsyncIterable(
+          parseFn(processStream),
+          (e) =>
+            new FileError(
+              `Failed to parse DSV file: ${e instanceof Error ? e.message : String(e)}`,
+              path,
+              "read",
+              e
+            )
+        );
+      }).pipe(
+        mapPlatformError(path, "read"),
+        Effect.mapError((e) => new FileError(e.message, path, "read", e.cause))
+      )
+    );
+
+    yield* await backendRuntime.runPromise(Stream.toAsyncIterableEffect(stream));
   }
 
   /**
@@ -481,39 +492,41 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
    * Parse DSV data from a string
    */
   async *parseString(data: string): AsyncIterable<DSVRecord> {
-    // Use state object for resumable parsing
-    const state = this.createInitialState();
+    const iterable = this.parseStringIterable(data);
+    const stream = Stream.fromAsyncIterable(
+      iterable,
+      (e) => new DSVParseError(e instanceof Error ? e.message : String(e))
+    );
 
-    // Unified parsing logic that handles both multi-line fields and error recovery
+    yield* await backendRuntime.runPromise(Stream.toAsyncIterableEffect(stream));
+  }
+
+  private async *parseStringIterable(data: string): AsyncIterable<DSVRecord> {
+    const state = this.createInitialState();
     const lines = data.split(/\r?\n/);
 
-    // Clean null bytes from all lines and remove BOM from first line
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       if (line) {
-        lines[i] = line.replace(/\0/g, ""); // Remove null bytes
+        lines[i] = line.replace(/\0/g, "");
       }
     }
 
-    // Remove BOM from first line if present
     if (lines[0]) {
       lines[0] = removeBOM(lines[0]);
     }
 
-    // Auto-detect delimiter if needed
     if ((this.options.autoDetect || this.options.autoDetectDelimiter) && !this.delimiter) {
       const sampleLines = lines.slice(0, Math.min(10, lines.length));
       const detected = detectDelimiter(sampleLines);
       if (detected) {
         this.delimiter = detected;
       } else {
-        // Fall back to comma when detection fails
         console.warn("Could not auto-detect delimiter, defaulting to comma (,)");
         this.delimiter = ",";
       }
     }
 
-    // Auto-detect headers if needed
     if (
       (this.options.autoDetect || this.options.autoDetectHeaders) &&
       this.options.header === undefined
@@ -523,7 +536,6 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
       this.options.header = hasHeaders;
     }
 
-    // Delegate to processLines for the actual parsing
     yield* this.processLines(lines, state);
   }
 
@@ -539,9 +551,20 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
   /**
    * Parse stream input with true streaming (no full buffering)
    */
-  async *parse(stream: ReadableStream<Uint8Array>): AsyncIterable<DSVRecord> {
-    // Use BufferedStreamReader to detect compression
-    const bufferedReader = new BufferedStreamReader(stream);
+  async *parse(inputStream: ReadableStream<Uint8Array>): AsyncIterable<DSVRecord> {
+    const iterable = this.parseStreamIterable(inputStream);
+    const stream = Stream.fromAsyncIterable(
+      iterable,
+      (e) => new DSVParseError(e instanceof Error ? e.message : String(e))
+    );
+
+    yield* await backendRuntime.runPromise(Stream.toAsyncIterableEffect(stream));
+  }
+
+  private async *parseStreamIterable(
+    inputStream: ReadableStream<Uint8Array>
+  ): AsyncIterable<DSVRecord> {
+    const bufferedReader = new BufferedStreamReader(inputStream);
     const magicBytes = await bufferedReader.peek(4);
 
     const detection = CompressionDetector.fromMagicBytes(magicBytes);
@@ -551,7 +574,6 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
       processStream = this.decompressStream(processStream, detection.format);
     }
 
-    // Continue with normal parsing
     const reader = processStream.getReader();
     const decoder = new TextDecoder();
     const state = this.createInitialState();
@@ -565,44 +587,33 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
 
         if (done) break;
 
-        // Decode chunk
         const chunk = decoder.decode(value, { stream: true });
 
-        // Handle delimiter auto-detection if needed
         if (
           !delimiterDetected &&
           (this.options.autoDetect || this.options.autoDetectDelimiter) &&
           !this.delimiter
         ) {
-          // Stop accumulating if we've hit the limit - fall back to defaults
           if (initialLines.length >= MAX_DETECTION_LINES) {
             console.warn(
               `Reached ${MAX_DETECTION_LINES} line limit for delimiter detection, using defaults`
             );
             this.delimiter = ",";
             delimiterDetected = true;
-            // Process accumulated lines and continue
             yield* this.processLines(initialLines, state);
             initialLines.length = 0;
           } else {
-            // Accumulate lines for delimiter detection (with limit)
             bufferRef.value += chunk;
             const lines = bufferRef.value.split(/\r?\n/);
-
-            // Keep last incomplete line in buffer
             bufferRef.value = lines.pop() || "";
-
-            // Only accumulate up to the limit
             const linesToAdd = lines.slice(0, MAX_DETECTION_LINES - initialLines.length);
             initialLines.push(...linesToAdd);
           }
 
-          // Clean null bytes and BOM from initial lines
           for (let i = 0; i < initialLines.length; i++) {
             const line = initialLines[i];
             if (line) {
               let cleanedLine = line.replace(/\0/g, "");
-              // Remove BOM from the very first line
               if (i === 0) {
                 cleanedLine = removeBOM(cleanedLine);
               }
@@ -610,13 +621,11 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
             }
           }
 
-          // Try to detect delimiter if we have enough lines
           if (initialLines.length >= 5) {
             const detected = detectDelimiter(initialLines.slice(0, 5));
             if (detected) {
               this.delimiter = detected;
             } else {
-              // Fall back to comma when detection fails
               console.warn(
                 "Could not auto-detect delimiter from streaming data, defaulting to comma (,)"
               );
@@ -624,7 +633,6 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
             }
             delimiterDetected = true;
 
-            // Auto-detect headers if needed
             if (
               (this.options.autoDetect || this.options.autoDetectHeaders) &&
               this.options.header === undefined
@@ -633,30 +641,25 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
               this.options.header = hasHeaders;
             }
 
-            // Process the accumulated initial lines
             yield* this.processLines(initialLines, state);
-            initialLines.length = 0; // Clear array
+            initialLines.length = 0;
           }
         } else {
-          // Normal processing after delimiter is known
           yield* this.processChunk(chunk, state, bufferRef);
         }
       }
 
-      // Process any remaining initial lines if delimiter detection didn't complete
       if (initialLines.length > 0) {
         if (!this.delimiter) {
           const detected = detectDelimiter(initialLines);
           if (detected) {
             this.delimiter = detected;
           } else {
-            // Fall back to comma when detection fails
             console.warn("Could not auto-detect delimiter, defaulting to comma (,)");
             this.delimiter = ",";
           }
         }
 
-        // Auto-detect headers if needed
         if (
           (this.options.autoDetect || this.options.autoDetectHeaders) &&
           this.options.header === undefined
@@ -668,9 +671,7 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
         yield* this.processLines(initialLines, state);
       }
 
-      // Process any remaining data in buffer
       if (bufferRef.value) {
-        // Process the last line if there's anything left
         yield* this.processLines([bufferRef.value], state);
       }
     } finally {

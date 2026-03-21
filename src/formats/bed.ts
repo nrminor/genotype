@@ -642,8 +642,7 @@ class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
       (e) => new BedError(`BED parse error: ${e instanceof Error ? e.message : String(e)}`)
     );
 
-    const services = await backendRuntime.services();
-    yield* Stream.toAsyncIterableWith(stream, services);
+    yield* await backendRuntime.runPromise(Stream.toAsyncIterableEffect(stream));
   }
 
   /**
@@ -678,8 +677,7 @@ class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
       )
     );
 
-    const services = await backendRuntime.services();
-    yield* Stream.toAsyncIterableWith(stream, services);
+    yield* await backendRuntime.runPromise(Stream.toAsyncIterableEffect(stream));
   }
 
   /**
@@ -698,8 +696,7 @@ class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
       (e) => new BedError(`BED stream parse error: ${e instanceof Error ? e.message : String(e)}`)
     );
 
-    const services = await backendRuntime.services();
-    yield* Stream.toAsyncIterableWith(stream, services);
+    yield* await backendRuntime.runPromise(Stream.toAsyncIterableEffect(stream));
   }
 
   /**

@@ -164,8 +164,7 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
         new ParseError(`FASTA parse error: ${e instanceof Error ? e.message : String(e)}`, "FASTA")
     );
 
-    const services = await backendRuntime.services();
-    yield* Stream.toAsyncIterableWith(stream, services);
+    yield* await backendRuntime.runPromise(Stream.toAsyncIterableEffect(stream));
   }
 
   /**
@@ -212,8 +211,7 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
       )
     );
 
-    const services = await backendRuntime.services();
-    yield* Stream.toAsyncIterableWith(stream, services);
+    yield* await backendRuntime.runPromise(Stream.toAsyncIterableEffect(stream));
   }
 
   /**
@@ -243,8 +241,7 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
         new ParseError(`FASTA parse error: ${e instanceof Error ? e.message : String(e)}`, "FASTA")
     );
 
-    const services = await backendRuntime.services();
-    yield* Stream.toAsyncIterableWith(stream, services);
+    yield* await backendRuntime.runPromise(Stream.toAsyncIterableEffect(stream));
   }
 
   /**

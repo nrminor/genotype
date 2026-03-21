@@ -121,14 +121,16 @@ export class AlignmentParser extends AbstractParser<AlignmentRecord> {
   }
 
   async *parseFile(filePath: string): AsyncIterable<AlignmentRecord> {
-    const services = await backendRuntime.services();
-    yield* Stream.toAsyncIterableWith(alignmentRecords(acquireReaderFromPath(filePath)), services);
+    yield* await backendRuntime.runPromise(
+      Stream.toAsyncIterableEffect(alignmentRecords(acquireReaderFromPath(filePath)))
+    );
   }
 
   async *parseString(data: string): AsyncIterable<AlignmentRecord> {
     const bytes = new Uint8Array(Buffer.from(data, "utf8"));
-    const services = await backendRuntime.services();
-    yield* Stream.toAsyncIterableWith(alignmentRecords(acquireReaderFromBytes(bytes)), services);
+    yield* await backendRuntime.runPromise(
+      Stream.toAsyncIterableEffect(alignmentRecords(acquireReaderFromBytes(bytes)))
+    );
   }
 
   async *parse(stream: ReadableStream<Uint8Array>): AsyncIterable<AlignmentRecord> {
@@ -152,8 +154,9 @@ export class AlignmentParser extends AbstractParser<AlignmentRecord> {
       offset += chunk.length;
     }
 
-    const services = await backendRuntime.services();
-    yield* Stream.toAsyncIterableWith(alignmentRecords(acquireReaderFromBytes(combined)), services);
+    yield* await backendRuntime.runPromise(
+      Stream.toAsyncIterableEffect(alignmentRecords(acquireReaderFromBytes(combined)))
+    );
   }
 }
 

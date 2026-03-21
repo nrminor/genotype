@@ -378,8 +378,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
         new ParseError(`FASTQ parse error: ${e instanceof Error ? e.message : String(e)}`, "FASTQ")
     );
 
-    const services = await backendRuntime.services();
-    yield* Stream.toAsyncIterableWith(stream, services);
+    yield* await backendRuntime.runPromise(Stream.toAsyncIterableEffect(stream));
   }
 
   private async *parseStringIterable(data: string): AsyncIterable<FastqSequence> {
@@ -606,8 +605,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
       )
     );
 
-    const services = await backendRuntime.services();
-    yield* Stream.toAsyncIterableWith(stream, services);
+    yield* await backendRuntime.runPromise(Stream.toAsyncIterableEffect(stream));
   }
 
   /**
@@ -626,8 +624,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
         new ParseError(`FASTQ parse error: ${e instanceof Error ? e.message : String(e)}`, "FASTQ")
     );
 
-    const services = await backendRuntime.services();
-    yield* Stream.toAsyncIterableWith(stream, services);
+    yield* await backendRuntime.runPromise(Stream.toAsyncIterableEffect(stream));
   }
 
   /**

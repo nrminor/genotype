@@ -7,18 +7,12 @@
 [![Docs Site](https://img.shields.io/badge/docs-TypeDoc-blue.svg)](https://nrminor.github.io/genotype/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5+-blue.svg)](https://www.typescriptlang.org/)
 [![Bun v1.2.21](https://img.shields.io/badge/Bun-000?logo=bun&logoColor=fff)](#)
-[![Rust v1.89.0](https://img.shields.io/badge/Rust-%23000000.svg?e&logo=rust&logoColor=white)](#)
-[![Checked with Biome](https://img.shields.io/badge/Checked_with-Biome-60a5fa?style=flat&logo=biome)](https://biomejs.dev)
-[![Formatted with Biome](https://img.shields.io/badge/Formatted_with-Biome-60a5fa?style=flat&logo=biome)](https://biomejs.dev/)
+[![Rust Nightly](https://img.shields.io/badge/Rust-%23000000.svg?e&logo=rust&logoColor=white)](#)
+[![WebAssembly](https://img.shields.io/badge/WebAssembly-654FF0?logo=webassembly&logoColor=fff)](#)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 > [!CAUTION]
-> GenoType is coming together but is not ready for the bigtime yet. In
-> particular, its BAM parser and compression handling are under-tested and may
-> come with correctness issues. However, FASTQ and FASTA parsing along with the
-> sequence operations `SeqOps` API is comparatively more stable and working in
-> internal tests. That said, _breaking changes should be expected_--this is
-> pre-alpha software.
+> GenoType is coming together but is not ready for the bigtime yet. Recently, it's gone through a rapid period of growth, with new features including _much_ more SIMD, Rust-backed BAM parsing, a ground-up restructuring of I/O and backend integration with Effect v4, and browser support via WebAssembly. While the central sequence operations (`SeqOps`) API is comparatively stable, _breaking changes should be expected_ as the rule, not the exception--this is pre-alpha software.
 
 ## GenoType's Goal
 
@@ -59,20 +53,14 @@ the browser, or anywhere in between.
 
 ### Runtime-Agnostic Architecture
 
-GenoType uses [Effect](https://effect.website/) and specifically
-[Effect Platform](https://effect.website/docs/platform/introduction/) as its
-internal standard library for all file I/O and platform-specific operations.
-This architectural choice makes GenoType runtime-agnostic, running seamlessly on
-Node.js, Bun, and Deno without any runtime-specific code paths. Effect Platform
-provides a unified abstraction layer that handles platform differences
-internally, eliminating the need for manual runtime detection and conditional
-logic throughout the codebase. This approach also positions GenoType for
-potential browser compatibility in the future, as Effect Platform can target
-browser APIs through the same unified interface.
+GenoType uses [Effect](https://effect.website/) as its internal standard library for
+file I/O, management of our native/WASM engine kernels, runtime control like interruption,
+and platform-specific operations. This architectural choice makes GenoType
+runtime-agnostic, running equivalently in Node.js, Bun, Deno, and the browser.
 
 ### Portable Scripting
 
-GenoType was designed with scripting in mind. As of 2025, the story for
+GenoType was designed with scripting in mind. As of 2026, the story for
 scripting in JavaScript and TypeScript is exceptionally good, a fact that is
 underappreciated in data science and bioinformatics. Runtimes like
 [Bun](https://bun.com/) and [Deno](https://deno.com/) can run standalone

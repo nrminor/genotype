@@ -96,6 +96,13 @@ clean-rust:
 
 alias cr := clean-rust
 
+# Clean wasm build artifacts
+[group('build')]
+clean-wasm:
+    rm -rf crates/wasm-adapter/pkg
+
+alias cw := clean-wasm
+
 # ===== Testing =====
 
 BUN_CI_VERSION := "1.3.10"

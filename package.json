@@ -30,6 +30,10 @@
   "sideEffects": false,
   "main": "dist/index.js",
   "module": "src/index.ts",
+  "browser": {
+    "./src/backend/node-native.ts": false,
+    "./dist/backend/node-native.js": false
+  },
   "types": "src/index.ts",
   "exports": {
     ".": {
@@ -38,14 +42,14 @@
     }
   },
   "scripts": {
-    "build": "bun run build:native && bun run build:lib",
+    "build": "bun run build:native && bun run build:wasm && bun run build:lib",
     "build:lib": "bun scripts/build.mjs --lib",
     "build:native": "bun scripts/build.mjs --native",
     "build:native:dev": "bun scripts/build.mjs --native --dev",
     "build:wasm": "bun scripts/build.mjs --wasm",
     "build:wasm:dev": "bun scripts/build.mjs --wasm --dev",
     "check": "bun run typecheck && bun run lint && bun run lint:rust && bun run test && bun run build",
-    "clean": "rm -rf dist && cargo clean",
+    "clean": "rm -rf dist && rm -rf crates/wasm-adapter/pkg && cargo clean",
     "clean:rust": "cargo clean",
     "dev": "tsc --watch",
     "docs": "typedoc",

@@ -23,11 +23,15 @@ export async function getBackend(): Promise<GenotypeBackend> {
 
   backend_load_attempted = true;
 
-  // Try native first — best performance, requires napi addon
-  const native = createNodeNativeBackend();
-  if (native !== undefined) {
-    cached_backend = native;
-    return cached_backend;
+  // Try native first — best performance, requires napi addon.
+  // createNodeNativeBackend may be undefined in browser bundles where
+  // the bundler has remapped node-native.ts to false via the browser field.
+  if (typeof createNodeNativeBackend === "function") {
+    const native = createNodeNativeBackend();
+    if (native !== undefined) {
+      cached_backend = native;
+      return cached_backend;
+    }
   }
 
   // Try wasm — browser-compatible, requires wasm-pack build

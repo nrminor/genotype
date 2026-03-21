@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, unlinkSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { FileIOError, readByteRange, readToString } from "../../src/io/file-reader";
+import { FileIOError, readByteRangePromise, readToStringPromise } from "../../src/io/file-reader";
 import { writeString } from "../../src/io/file-writer";
 
 describe("Effect DI Error Handling", () => {
@@ -37,7 +37,7 @@ describe("Effect DI Error Handling", () => {
       const nonExistent = join(tmpdir(), `does-not-exist-${Date.now()}.txt`);
 
       try {
-        await readToString(nonExistent);
+        await readToStringPromise(nonExistent);
         expect.unreachable("Should have thrown");
       } catch (error) {
         expect(error).toBeInstanceOf(FileIOError);
@@ -49,7 +49,7 @@ describe("Effect DI Error Handling", () => {
       const nonExistent = join(tmpdir(), `missing-${Date.now()}.txt`);
 
       try {
-        await readByteRange(nonExistent, 0, 100);
+        await readByteRangePromise(nonExistent, 0, 100);
         expect.unreachable("Should have thrown");
       } catch (error) {
         expect(error).toBeInstanceOf(FileIOError);
@@ -63,7 +63,7 @@ describe("Effect DI Error Handling", () => {
       await writeString(testFile, smallContent);
 
       try {
-        await readToString(testFile, { maxFileSize: 1 }); // 1 byte limit
+        await readToStringPromise(testFile, { maxFileSize: 1 }); // 1 byte limit
         expect.unreachable("Should have thrown");
       } catch (error) {
         expect(error).toBeInstanceOf(FileIOError);
@@ -77,7 +77,7 @@ describe("Effect DI Error Handling", () => {
       await writeString(testFile, "content");
 
       try {
-        await readByteRange(testFile, -1, 5);
+        await readByteRangePromise(testFile, -1, 5);
         expect.unreachable("Should have thrown");
       } catch (error) {
         expect(error).toBeInstanceOf(FileIOError);
@@ -89,7 +89,7 @@ describe("Effect DI Error Handling", () => {
       await writeString(testFile, "content");
 
       try {
-        await readByteRange(testFile, 0, -5);
+        await readByteRangePromise(testFile, 0, -5);
         expect.unreachable("Should have thrown");
       } catch (error) {
         expect(error).toBeInstanceOf(FileIOError);
@@ -101,7 +101,7 @@ describe("Effect DI Error Handling", () => {
       await writeString(testFile, "content");
 
       try {
-        await readByteRange(testFile, 10, 5);
+        await readByteRangePromise(testFile, 10, 5);
         expect.unreachable("Should have thrown");
       } catch (error) {
         expect(error).toBeInstanceOf(FileIOError);
@@ -115,7 +115,7 @@ describe("Effect DI Error Handling", () => {
 
       try {
         // File is exactly 5 bytes, request valid range 0-5
-        const result = await readByteRange(testFile, 0, 5);
+        const result = await readByteRangePromise(testFile, 0, 5);
         const text = new TextDecoder().decode(result);
         expect(text).toBe(content);
       } catch (_error) {
@@ -137,7 +137,7 @@ describe("Effect DI Error Handling", () => {
         });
 
         // Read back with valid gzip format
-        const result = await readToString(gzipFile, {
+        const result = await readToStringPromise(gzipFile, {
           compressionFormat: "gzip",
         });
         expect(result).toBe(content);
@@ -150,7 +150,7 @@ describe("Effect DI Error Handling", () => {
   describe("Path Validation Errors", () => {
     test("should reject empty path", async () => {
       try {
-        await readToString("");
+        await readToStringPromise("");
         expect.unreachable("Should have thrown");
       } catch (error) {
         expect(error).toBeInstanceOf(FileIOError);
@@ -159,7 +159,7 @@ describe("Effect DI Error Handling", () => {
 
     test("should handle directory as file", async () => {
       try {
-        await readToString(tmpdir()); // tmpdir() returns a directory
+        await readToStringPromise(tmpdir()); // tmpdir() returns a directory
         // May throw or return empty depending on OS
       } catch (error) {
         // Expected - directories aren't readable as files
@@ -190,9 +190,9 @@ describe("Effect DI Error Handling", () => {
 
       // Read the same file concurrently
       const results = await Promise.all([
-        readToString(testFile),
-        readToString(testFile),
-        readToString(testFile),
+        readToStringPromise(testFile),
+        readToStringPromise(testFile),
+        readToStringPromise(testFile),
       ]);
 
       results.forEach((result) => {
@@ -213,9 +213,9 @@ describe("Effect DI Error Handling", () => {
         ]);
 
         const [r1, r2, r3] = await Promise.all([
-          readToString(file1),
-          readToString(file2),
-          readToString(file3),
+          readToStringPromise(file1),
+          readToStringPromise(file2),
+          readToStringPromise(file3),
         ]);
 
         expect(r1).toBe("content1");
@@ -232,7 +232,7 @@ describe("Effect DI Error Handling", () => {
   describe("Edge Cases", () => {
     test("should handle empty file", async () => {
       writeFileSync(testFile, "");
-      const result = await readToString(testFile);
+      const result = await readToStringPromise(testFile);
       expect(result).toBe("");
     });
 
@@ -243,7 +243,7 @@ describe("Effect DI Error Handling", () => {
 
       try {
         await writeString(largeFile, largeContent);
-        const result = await readToString(largeFile);
+        const result = await readToStringPromise(largeFile);
         expect(result.length).toBe(largeContent.length);
       } finally {
         if (existsSync(largeFile)) unlinkSync(largeFile);
@@ -253,14 +253,14 @@ describe("Effect DI Error Handling", () => {
     test("should handle UTF-8 special characters", async () => {
       const utf8Content = "Hello 世界 🌍 Привет العالم";
       await writeString(testFile, utf8Content);
-      const result = await readToString(testFile);
+      const result = await readToStringPromise(testFile);
       expect(result).toBe(utf8Content);
     });
 
     test("should handle files with various line endings", async () => {
       const mixedLineEndings = "line1\nline2\r\nline3\rline4";
       await writeString(testFile, mixedLineEndings);
-      const result = await readToString(testFile);
+      const result = await readToStringPromise(testFile);
       expect(result).toBe(mixedLineEndings);
     });
   });
@@ -281,7 +281,7 @@ describe("Effect DI Error Handling", () => {
         await fs.writeFile(corruptFile, fakeGzipData);
 
         // Try to read - should fail with decompression error
-        await readToString(corruptFile);
+        await readToStringPromise(corruptFile);
         expect.unreachable("Should have thrown decompression error");
       } catch (error) {
         // Expected - corrupted gzip data

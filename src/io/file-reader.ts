@@ -3,7 +3,11 @@
  *
  * Provides a unified interface for file I/O operations across different
  * JavaScript runtimes using Effect Platform for runtime abstraction.
- * All Effect complexity is hidden behind Promise-based public APIs.
+ *
+ * The primary exports are Effect-returning functions (createStream, exists,
+ * getSize, etc.) that compose into Effect pipelines without spawning
+ * additional runtimes. Promise-suffixed wrappers (createStreamPromise, etc.)
+ * are provided for non-Effect callers.
  */
 
 import { type } from "arktype";
@@ -23,15 +27,14 @@ export class FileIOError extends Schema.TaggedErrorClass<FileIOError>()("FileIOE
 
 const DEFAULT_OPTIONS = {
   bufferSize: 65536,
-  encoding: "utf8",
+  encoding: "utf8" as const,
   maxFileSize: 104_857_600,
   timeout: 30000,
   concurrent: false,
-  signal: new AbortController().signal,
   autoDecompress: true,
-  compressionFormat: "none",
+  compressionFormat: "none" as const,
   decompressionOptions: {},
-} satisfies Required<FileReaderOptions>;
+} satisfies FileReaderOptions;
 
 const validatePath = (path: string) =>
   Effect.try({
@@ -50,7 +53,7 @@ const validatePath = (path: string) =>
   });
 
 const mergeAndValidateOptions = (options: FileReaderOptions) => {
-  const merged = { ...DEFAULT_OPTIONS, ...options } satisfies Required<FileReaderOptions>;
+  const merged = { ...DEFAULT_OPTIONS, ...options };
   const result = FileReaderOptionsSchema(merged);
   if (result instanceof type.errors) {
     return Effect.fail(
@@ -75,7 +78,7 @@ const mapPlatformError = (filePath: string, operation: "read" | "stat") =>
       })
   );
 
-const existsEffect = Effect.fn("FileReader.exists")(function* (path: string) {
+const exists = Effect.fn("FileReader.exists")(function* (path: string) {
   const validatedPath = yield* validatePath(path);
   const fs = yield* FileSystem.FileSystem;
   const pathExists = yield* fs.exists(validatedPath);
@@ -84,14 +87,14 @@ const existsEffect = Effect.fn("FileReader.exists")(function* (path: string) {
   return info.type === "File";
 });
 
-const getSizeEffect = Effect.fn("FileReader.getSize")(function* (path: string) {
+const getSize = Effect.fn("FileReader.getSize")(function* (path: string) {
   const validatedPath = yield* validatePath(path);
   const fs = yield* FileSystem.FileSystem;
   const info = yield* fs.stat(validatedPath);
   return Number(info.size);
 });
 
-const getMetadataEffect = Effect.fn("FileReader.getMetadata")(function* (path: string) {
+const getMetadata = Effect.fn("FileReader.getMetadata")(function* (path: string) {
   const validatedPath = yield* validatePath(path);
   const fs = yield* FileSystem.FileSystem;
   const info = yield* fs.stat(validatedPath);
@@ -105,7 +108,7 @@ const getMetadataEffect = Effect.fn("FileReader.getMetadata")(function* (path: s
   } satisfies FileMetadata;
 });
 
-const readToStringEffect = Effect.fn("FileReader.readToString")(function* (
+const readToString = Effect.fn("FileReader.readToString")(function* (
   path: string,
   options: FileReaderOptions
 ) {
@@ -140,7 +143,7 @@ const readToStringEffect = Effect.fn("FileReader.readToString")(function* (
   return new TextDecoder().decode(decompressedBytes);
 });
 
-const readByteRangeEffect = Effect.fn("FileReader.readByteRange")(function* (
+const readByteRange = Effect.fn("FileReader.readByteRange")(function* (
   path: string,
   start: number,
   end: number
@@ -185,7 +188,7 @@ const readByteRangeEffect = Effect.fn("FileReader.readByteRange")(function* (
   return data.slice(start, end);
 });
 
-const createStreamEffect = Effect.fn("FileReader.createStream")(function* (
+const createStream = Effect.fn("FileReader.createStream")(function* (
   path: string,
   options: FileReaderOptions
 ) {
@@ -196,7 +199,7 @@ const createStreamEffect = Effect.fn("FileReader.createStream")(function* (
   const pathExists = yield* fs.exists(validatedPath);
   if (!pathExists) {
     return yield* new FileIOError({
-      message: "File does not exist",
+      message: `File not found: ${validatedPath}`,
       filePath: validatedPath,
       operation: "read",
     });
@@ -224,7 +227,6 @@ const createStreamEffect = Effect.fn("FileReader.createStream")(function* (
       stream = decompressor.wrapStream(stream, {
         ...mergedOptions.decompressionOptions,
         bufferSize: mergedOptions.bufferSize,
-        signal: mergedOptions.signal,
       });
     }
   }
@@ -232,50 +234,72 @@ const createStreamEffect = Effect.fn("FileReader.createStream")(function* (
   return stream;
 });
 
+// ---------------------------------------------------------------------------
+// Effect API (primary) — compose into pipelines without spawning runtimes
+// ---------------------------------------------------------------------------
+
+export { exists, getSize, getMetadata, readToString, readByteRange, createStream };
+export { mapPlatformError, validatePath };
+
+// ---------------------------------------------------------------------------
+// Promise API — for non-Effect callers. The unsuffixed aliases preserve
+// backwards compatibility with existing consumers; the suffixed variants
+// make the async nature explicit at the call site.
+// ---------------------------------------------------------------------------
+
 /** Check if a file exists and is accessible. */
-export const exists = (path: string): Promise<boolean> =>
+const existsPromise = (path: string): Promise<boolean> =>
   Effect.runPromise(
-    existsEffect(path).pipe(mapPlatformError(path, "stat"), Effect.provide(PlatformLayer))
+    exists(path).pipe(mapPlatformError(path, "stat"), Effect.provide(PlatformLayer))
   );
 
 /** Get file size in bytes. */
-export const getSize = (path: string): Promise<number> =>
+const getSizePromise = (path: string): Promise<number> =>
   Effect.runPromise(
-    getSizeEffect(path).pipe(mapPlatformError(path, "stat"), Effect.provide(PlatformLayer))
+    getSize(path).pipe(mapPlatformError(path, "stat"), Effect.provide(PlatformLayer))
   );
 
 /** Get comprehensive file metadata. */
-export const getMetadata = (path: string): Promise<FileMetadata> =>
+const getMetadataPromise = (path: string): Promise<FileMetadata> =>
   Effect.runPromise(
-    getMetadataEffect(path).pipe(mapPlatformError(path, "stat"), Effect.provide(PlatformLayer))
+    getMetadata(path).pipe(mapPlatformError(path, "stat"), Effect.provide(PlatformLayer))
   );
 
 /**
  * Read entire file to string. Automatically decompresses gzip/zstd
  * files based on extension.
  */
-export const readToString = (path: string, options: FileReaderOptions = {}): Promise<string> =>
+const readToStringPromise = (path: string, options: FileReaderOptions = {}): Promise<string> =>
   Effect.runPromise(
-    readToStringEffect(path, options).pipe(mapPlatformError(path, "read"), Effect.provide(IOLayer))
+    readToString(path, options).pipe(mapPlatformError(path, "read"), Effect.provide(IOLayer))
   );
 
 /** Read a specific byte range from a file. */
-export const readByteRange = (path: string, start: number, end: number): Promise<Uint8Array> =>
+const readByteRangePromise = (path: string, start: number, end: number): Promise<Uint8Array> =>
   Effect.runPromise(
-    readByteRangeEffect(path, start, end).pipe(
+    readByteRange(path, start, end).pipe(
       mapPlatformError(path, "read"),
       Effect.provide(IOLayer)
     )
   );
 
 /** Create a streaming reader for a file with optional auto-decompression. */
-export const createStream = (
+const createStreamPromise = (
   path: string,
   options: FileReaderOptions = {}
 ): Promise<ReadableStream<Uint8Array>> =>
   Effect.runPromise(
-    createStreamEffect(path, options).pipe(
+    createStream(path, options).pipe(
       mapPlatformError(path, "read"),
       Effect.provide(PlatformLayer)
     )
   );
+
+export {
+  existsPromise,
+  getSizePromise,
+  getMetadataPromise,
+  readToStringPromise,
+  readByteRangePromise,
+  createStreamPromise,
+};

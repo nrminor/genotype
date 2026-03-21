@@ -36,7 +36,7 @@
 import { type } from "arktype";
 import { createFastqRecord } from "../../constructors";
 import { ParseError, QualityError, SequenceError, ValidationError } from "../../errors";
-import { createStream, exists, getMetadata, getSize, readByteRange } from "../../io/file-reader";
+import { createStreamPromise, existsPromise, getMetadataPromise, getSizePromise, readByteRangePromise } from "../../io/file-reader";
 import { readLines } from "../../io/stream-utils";
 import { detectEncoding, qualityToScores } from "../../operations/core/quality";
 import type { FastqSequence, FileReaderOptions, QualityEncoding } from "../../types";
@@ -533,11 +533,11 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
         // Auto-detect by sampling the file
         // Read first ~10KB for format detection (enough for ~50 FASTQ records)
         const sampleSize = 10240;
-        const fileSize = await getSize(validatedPath);
+        const fileSize = await getSizePromise(validatedPath);
         const bytesToRead = Math.min(sampleSize, fileSize);
 
         // Read sample from beginning of file
-        const sampleBuffer = await readByteRange(validatedPath, 0, bytesToRead);
+        const sampleBuffer = await readByteRangePromise(validatedPath, 0, bytesToRead);
         const sampleText = new TextDecoder().decode(sampleBuffer);
 
         // Detect format from sample
@@ -567,7 +567,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
       );
 
       // Create fresh stream for actual parsing
-      const stream = await createStream(validatedPath, options);
+      const stream = await createStreamPromise(validatedPath, options);
       const lines = readLines(stream, options?.encoding || "utf8");
 
       // Use the appropriate parser
@@ -926,7 +926,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
     }
 
     // Check if file exists and is readable
-    if (!(await exists(filePath))) {
+    if (!(await existsPromise(filePath))) {
       throw new ParseError(
         `FASTQ file not found or not accessible: ${filePath}`,
         "FASTQ",
@@ -937,7 +937,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
 
     // Get file metadata for additional validation
     try {
-      const metadata = await getMetadata(filePath);
+      const metadata = await getMetadataPromise(filePath);
 
       if (!metadata.readable) {
         throw new ParseError(

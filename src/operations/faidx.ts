@@ -11,7 +11,7 @@ import { Effect, FileSystem } from "effect";
 import { CompressionDetector } from "../compression/detector";
 import { createFastaRecord } from "../constructors";
 import { ParseError, ValidationError } from "../errors";
-import { exists, readByteRange, readToString } from "../io/file-reader";
+import { existsPromise, readByteRangePromise, readToStringPromise } from "../io/file-reader";
 import { PlatformLayer } from "../io/layers";
 import type { FastaSequence, ParseResult } from "../types";
 import { reverseComplement } from "./core/sequence-manipulation";
@@ -358,11 +358,11 @@ export class FaiBuilder {
   async build(options?: { fullHeader?: boolean }): Promise<void> {
     const fullHeader = options?.fullHeader ?? false;
 
-    if (!(await exists(this.fastaPath))) {
+    if (!(await existsPromise(this.fastaPath))) {
       throw new ParseError(`FASTA file not found: ${this.fastaPath}`, "fasta");
     }
 
-    const text = await readToString(this.fastaPath);
+    const text = await readToStringPromise(this.fastaPath);
     const lines = text.split("\n");
 
     let byteOffset = 0;
@@ -464,11 +464,11 @@ export class FaiBuilder {
    * @param faiPath - Path to .fai file
    */
   async load(faiPath: string): Promise<void> {
-    if (!(await exists(faiPath))) {
+    if (!(await existsPromise(faiPath))) {
       throw new ParseError(`Index file not found: ${faiPath}`, "fai");
     }
 
-    const content = await readToString(faiPath);
+    const content = await readToStringPromise(faiPath);
     const lines = content.trim().split("\n");
 
     this.records.clear();
@@ -593,7 +593,7 @@ export class Faidx {
 
     const faiPath = this.getFaiPath();
 
-    if ((await exists(faiPath)) && !this.options.updateIndex) {
+    if ((await existsPromise(faiPath)) && !this.options.updateIndex) {
       await this.builder.load(faiPath);
     } else {
       const buildOptions = this.options.fullHeader ? { fullHeader: true } : undefined;
@@ -840,7 +840,7 @@ export class Faidx {
   ): Promise<string> {
     const { startByte, endByte } = calculateByteRange(start, end, record);
 
-    const rawBytes = await readByteRange(this.fastaPath, startByte, endByte);
+    const rawBytes = await readByteRangePromise(this.fastaPath, startByte, endByte);
     const text = new TextDecoder().decode(rawBytes);
     const sequence = text.replace(/\r?\n/g, "");
 

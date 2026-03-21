@@ -16,7 +16,7 @@ import { CompressionDetector } from "../../compression/detector";
 import { wrapStream as wrapGzipStream } from "../../compression/gzip";
 import { wrapStream as wrapZstdStream } from "../../compression/zstd";
 import { CompressionError, DSVParseError, FileError, ValidationError } from "../../errors";
-import { createStream } from "../../io/file-reader";
+import { createStreamPromise } from "../../io/file-reader";
 import type { CompressionFormat } from "../../types";
 import { AbstractParser } from "../abstract-parser";
 
@@ -198,10 +198,10 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
    */
   async *parseFile(path: string): AsyncIterable<DSVRecord> {
     try {
-      const detectionStream = await createStream(path);
+      const detectionStream = await createStreamPromise(path);
       const detection = await CompressionDetector.fromStream(detectionStream);
 
-      const stream = await createStream(path);
+      const stream = await createStreamPromise(path);
 
       // Decompress if needed
       if (detection.format !== "none") {

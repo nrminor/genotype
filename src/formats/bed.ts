@@ -14,7 +14,7 @@
 
 import { type } from "arktype";
 import { BedError, ValidationError } from "../errors";
-import { createStream } from "../io/file-reader";
+import { createStreamPromise } from "../io/file-reader";
 import { readLines } from "../io/stream-utils";
 import {
   parseEndPosition,
@@ -650,7 +650,7 @@ class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
     }
 
     try {
-      const stream = await createStream(filePath, {
+      const stream = await createStreamPromise(filePath, {
         encoding: (options?.encoding as "utf8") || "utf8",
         maxFileSize: 10_000_000_000, // 10GB max to match FileReader default
       });

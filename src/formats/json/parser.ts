@@ -7,7 +7,7 @@
 
 import { type } from "arktype";
 import { ParseError } from "../../errors";
-import { readToString } from "../../io/file-reader";
+import { readToStringPromise } from "../../io/file-reader";
 import { convertRecordToSequence } from "../../operations/fx2tab";
 import type { AbstractSequence } from "../../types";
 import { deserializeJSON, deserializeJSONWrapped, jsonlToRows } from "./morphs";
@@ -82,7 +82,7 @@ export class JSONParser {
    * @performance Loads entire file into memory. Use JSONLParser for streaming.
    */
   async *parseFile(path: string, options?: JSONParseOptions): AsyncIterable<AbstractSequence> {
-    const content = await readToString(path);
+    const content = await readToStringPromise(path);
     yield* this.parseString(content, options);
   }
 
@@ -266,7 +266,7 @@ export class JSONLParser {
    */
   async *parseFile(path: string, options?: JSONParseOptions): AsyncIterable<AbstractSequence> {
     async function* readLines() {
-      const text = await readToString(path);
+      const text = await readToStringPromise(path);
       const lines = text.split("\n");
       for (const line of lines) {
         yield line;

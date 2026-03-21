@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, unlinkSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { readByteRange, readToString } from "../../src/io/file-reader";
+import { readByteRangePromise, readToStringPromise } from "../../src/io/file-reader";
 import { writeBytes, writeString } from "../../src/io/file-writer";
 
 describe("Effect DI Integration - Compression Layers", () => {
@@ -41,7 +41,7 @@ describe("Effect DI Integration - Compression Layers", () => {
       expect(existsSync(filePath)).toBe(true);
 
       // Read back - should decompress correctly
-      const result = await readToString(filePath);
+      const result = await readToStringPromise(filePath);
       expect(result).toBe(content);
     });
 
@@ -56,7 +56,7 @@ describe("Effect DI Integration - Compression Layers", () => {
 
       try {
         await writeString(filePath, testData);
-        const read = await readToString(filePath);
+        const read = await readToStringPromise(filePath);
         expect(read).toBe(testData);
       } finally {
         if (existsSync(filePath)) {
@@ -73,7 +73,7 @@ describe("Effect DI Integration - Compression Layers", () => {
 
       try {
         await writeString(uncompressedFile, content);
-        const result = await readToString(uncompressedFile);
+        const result = await readToStringPromise(uncompressedFile);
         expect(result).toBe(content);
       } finally {
         if (existsSync(uncompressedFile)) {
@@ -92,7 +92,7 @@ describe("Effect DI Integration - Compression Layers", () => {
         expect(existsSync(gzipFile)).toBe(true);
 
         // Read with automatic gzip decompression
-        const result = await readToString(gzipFile);
+        const result = await readToStringPromise(gzipFile);
         expect(result).toBe(content);
       } finally {
         if (existsSync(gzipFile)) {
@@ -110,7 +110,7 @@ describe("Effect DI Integration - Compression Layers", () => {
         await writeString(gzipFilePath, content, { autoCompress: false });
 
         // Read with autoCompress disabled - should read raw data
-        const result = await readToString(gzipFilePath, { autoDecompress: false });
+        const result = await readToStringPromise(gzipFilePath, { autoDecompress: false });
         expect(result).toBe(content); // Should be plain text, not decompressed
       } finally {
         if (existsSync(gzipFilePath)) {
@@ -129,7 +129,7 @@ describe("Effect DI Integration - Compression Layers", () => {
         await writeString(plainFile, content);
 
         // Read specific byte range
-        const bytes = await readByteRange(plainFile, 4, 9); // "quick"
+        const bytes = await readByteRangePromise(plainFile, 4, 9); // "quick"
         const result = new TextDecoder().decode(bytes);
         expect(result).toBe("quick");
       } finally {
@@ -146,7 +146,7 @@ describe("Effect DI Integration - Compression Layers", () => {
       try {
         await writeString(plainFile, content);
 
-        const bytes = await readByteRange(plainFile, 0, 5);
+        const bytes = await readByteRangePromise(plainFile, 0, 5);
         const result = new TextDecoder().decode(bytes);
         expect(result).toBe("01234");
       } finally {
@@ -163,7 +163,7 @@ describe("Effect DI Integration - Compression Layers", () => {
       try {
         await writeString(plainFile, content);
 
-        const bytes = await readByteRange(plainFile, 5, 10);
+        const bytes = await readByteRangePromise(plainFile, 5, 10);
         const result = new TextDecoder().decode(bytes);
         expect(result).toBe("56789");
       } finally {
@@ -184,7 +184,7 @@ describe("Effect DI Integration - Compression Layers", () => {
         await writeString(autoDetectFile, content);
 
         // Read back - should auto-detect and decompress
-        const result = await readToString(autoDetectFile);
+        const result = await readToStringPromise(autoDetectFile);
         expect(result).toBe(content);
       } finally {
         if (existsSync(autoDetectFile)) {
@@ -205,7 +205,7 @@ describe("Effect DI Integration - Compression Layers", () => {
         });
 
         // Explicitly specify decompression format
-        const result = await readToString(explicitFile, {
+        const result = await readToStringPromise(explicitFile, {
           compressionFormat: "gzip",
         });
         expect(result).toBe(content);
@@ -227,7 +227,7 @@ describe("Effect DI Integration - Compression Layers", () => {
         await writeBytes(binaryFile, binaryContent);
 
         // Read back
-        const result = await readToString(binaryFile);
+        const result = await readToStringPromise(binaryFile);
         const decoded = new TextEncoder().encode(result);
         // Should match original binary content when decoded
         expect(decoded.length).toBeGreaterThan(0);
@@ -280,7 +280,7 @@ describe("Effect DI Integration - Compression Layers", () => {
       try {
         // Standard usage with default layers
         await writeString(testPath, content);
-        const result = await readToString(testPath);
+        const result = await readToStringPromise(testPath);
         expect(result).toBe(content);
       } finally {
         if (existsSync(testPath)) {

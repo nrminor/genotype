@@ -8,7 +8,7 @@
 
 import { type } from "arktype";
 import { ParseError, ValidationError } from "../../errors";
-import { createStream } from "../../io/file-reader";
+import { createStreamPromise } from "../../io/file-reader";
 import { readLines } from "../../io/stream-utils";
 import type { Strand } from "../../types";
 import { AbstractParser } from "../abstract-parser";
@@ -582,7 +582,7 @@ class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
     }
 
     try {
-      const stream = await createStream(filePath, {
+      const stream = await createStreamPromise(filePath, {
         encoding: (options?.encoding as "utf8") || "utf8",
         maxFileSize: 10_000_000_000, // 10GB max for large annotation files
       });

@@ -7,11 +7,11 @@ import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 import {
   FileIOError,
-  createStream,
-  exists,
-  getMetadata,
-  getSize,
-  readToString,
+  createStreamPromise,
+  existsPromise,
+  getMetadataPromise,
+  getSizePromise,
+  readToStringPromise,
 } from "../../src/io/file-reader";
 import { detectRuntime } from "../../src/io/runtime";
 import { processBuffer, readLines } from "../../src/io/stream-utils";
@@ -65,39 +65,39 @@ describe("Runtime Detection", () => {
 describe("FileReader", () => {
   describe("File Existence Checking", () => {
     test("should detect existing files", async () => {
-      expect(await exists(TEST_FILES.small)).toBe(true);
-      expect(await exists(TEST_FILES.empty)).toBe(true);
+      expect(await existsPromise(TEST_FILES.small)).toBe(true);
+      expect(await existsPromise(TEST_FILES.empty)).toBe(true);
     });
 
     test("should detect non-existing files", async () => {
-      expect(await exists(TEST_FILES.nonexistent)).toBe(false);
+      expect(await existsPromise(TEST_FILES.nonexistent)).toBe(false);
     });
 
     test("should handle invalid paths", async () => {
-      await expect(exists("")).rejects.toThrow(FileIOError);
-      await expect(exists("\0invalid")).rejects.toThrow(FileIOError);
+      await expect(existsPromise("")).rejects.toThrow(FileIOError);
+      await expect(existsPromise("\0invalid")).rejects.toThrow(FileIOError);
     });
 
     test("should distinguish files from directories", async () => {
-      expect(await exists(TEST_FILES.directory)).toBe(false);
+      expect(await existsPromise(TEST_FILES.directory)).toBe(false);
     });
   });
 
   describe("File Size Detection", () => {
     test("should get correct file sizes", async () => {
-      expect(await getSize(TEST_FILES.small)).toBe(13);
-      expect(await getSize(TEST_FILES.empty)).toBe(0);
-      expect(await getSize(TEST_FILES.large)).toBe(100000);
+      expect(await getSizePromise(TEST_FILES.small)).toBe(13);
+      expect(await getSizePromise(TEST_FILES.empty)).toBe(0);
+      expect(await getSizePromise(TEST_FILES.large)).toBe(100000);
     });
 
     test("should throw for non-existing files", async () => {
-      await expect(getSize(TEST_FILES.nonexistent)).rejects.toThrow(FileIOError);
+      await expect(getSizePromise(TEST_FILES.nonexistent)).rejects.toThrow(FileIOError);
     });
   });
 
   describe("File Metadata", () => {
     test("should get comprehensive metadata", async () => {
-      const metadata = await getMetadata(TEST_FILES.small);
+      const metadata = await getMetadataPromise(TEST_FILES.small);
 
       expect(metadata.path as string).toBe(TEST_FILES.small);
       expect(metadata.size).toBe(13);
@@ -107,7 +107,7 @@ describe("FileReader", () => {
     });
 
     test("should handle UTF-8 files correctly", async () => {
-      const metadata = await getMetadata(TEST_FILES.utf8);
+      const metadata = await getMetadataPromise(TEST_FILES.utf8);
       expect(metadata.readable).toBe(true);
       expect(metadata.size).toBeGreaterThan(0);
     });
@@ -115,7 +115,7 @@ describe("FileReader", () => {
 
   describe("Stream Creation", () => {
     test("should create readable stream for valid files", async () => {
-      const stream = await createStream(TEST_FILES.small);
+      const stream = await createStreamPromise(TEST_FILES.small);
       expect(stream).toBeInstanceOf(ReadableStream);
 
       const reader = stream.getReader();
@@ -126,7 +126,7 @@ describe("FileReader", () => {
     });
 
     test("should handle empty files", async () => {
-      const stream = await createStream(TEST_FILES.empty);
+      const stream = await createStreamPromise(TEST_FILES.empty);
       const reader = stream.getReader();
       const { done } = await reader.read();
       expect(done).toBe(true);
@@ -134,7 +134,7 @@ describe("FileReader", () => {
     });
 
     test("should respect buffer size options", async () => {
-      const stream = await createStream(TEST_FILES.medium, {
+      const stream = await createStreamPromise(TEST_FILES.medium, {
         bufferSize: 2048, // Use realistic buffer size for genomic files
       });
 
@@ -142,11 +142,11 @@ describe("FileReader", () => {
     });
 
     test("should throw for non-existing files", async () => {
-      await expect(createStream(TEST_FILES.nonexistent)).rejects.toThrow(FileIOError);
+      await expect(createStreamPromise(TEST_FILES.nonexistent)).rejects.toThrow(FileIOError);
     });
 
     test("should handle large files efficiently", async () => {
-      const stream = await createStream(TEST_FILES.large, {
+      const stream = await createStreamPromise(TEST_FILES.large, {
         bufferSize: 1024,
       });
 
@@ -169,30 +169,30 @@ describe("FileReader", () => {
 
   describe("String Reading", () => {
     test("should read small files to string", async () => {
-      const content = await readToString(TEST_FILES.small);
+      const content = await readToStringPromise(TEST_FILES.small);
       expect(content).toBe("Hello, World!");
     });
 
     test("should handle empty files", async () => {
-      const content = await readToString(TEST_FILES.empty);
+      const content = await readToStringPromise(TEST_FILES.empty);
       expect(content).toBe("");
     });
 
     test("should handle UTF-8 content", async () => {
-      const content = await readToString(TEST_FILES.utf8);
+      const content = await readToStringPromise(TEST_FILES.utf8);
       expect(content).toBe("Hello, 世界! 🌍");
     });
 
     test("should respect file size limits", async () => {
       await expect(
-        readToString(TEST_FILES.large, {
+        readToStringPromise(TEST_FILES.large, {
           maxFileSize: 1000,
         })
       ).rejects.toThrow(FileIOError);
     });
 
     test("should handle different encodings", async () => {
-      const content = await readToString(TEST_FILES.binary, {
+      const content = await readToStringPromise(TEST_FILES.binary, {
         encoding: "binary",
       });
       expect(content.length).toBeGreaterThan(0);
@@ -202,7 +202,7 @@ describe("FileReader", () => {
   describe("Error Handling", () => {
     test("should provide detailed error context", async () => {
       try {
-        await getSize(TEST_FILES.nonexistent);
+        await getSizePromise(TEST_FILES.nonexistent);
         expect.unreachable("Should have thrown");
       } catch (error) {
         expect(error).toBeInstanceOf(FileIOError);
@@ -215,7 +215,7 @@ describe("FileReader", () => {
       // This test is runtime-dependent and may not work in all environments
       // It's included for completeness but may be skipped in some test runs
       try {
-        await readToString(TEST_FILES.large, {
+        await readToStringPromise(TEST_FILES.large, {
           timeout: 1, // Very short timeout
         });
       } catch (error) {
@@ -230,7 +230,7 @@ describe("FileReader", () => {
 describe("stream utilities", () => {
   describe("Line Reading", () => {
     test("should read lines from stream", async () => {
-      const stream = await createStream(join(FIXTURES_DIR, "lines.txt"));
+      const stream = await createStreamPromise(join(FIXTURES_DIR, "lines.txt"));
       const lines: string[] = [];
 
       for await (const line of readLines(stream)) {
@@ -241,7 +241,7 @@ describe("stream utilities", () => {
     });
 
     test("should work with individual function imports", async () => {
-      const stream = await createStream(join(FIXTURES_DIR, "lines.txt"));
+      const stream = await createStreamPromise(join(FIXTURES_DIR, "lines.txt"));
       const lines: string[] = [];
 
       // Test individual function import
@@ -253,7 +253,7 @@ describe("stream utilities", () => {
     });
 
     test("should handle mixed line endings", async () => {
-      const stream = await createStream(join(FIXTURES_DIR, "mixed-endings.txt"));
+      const stream = await createStreamPromise(join(FIXTURES_DIR, "mixed-endings.txt"));
       const lines: string[] = [];
 
       for await (const line of readLines(stream)) {
@@ -267,7 +267,7 @@ describe("stream utilities", () => {
     });
 
     test("should handle empty lines correctly", async () => {
-      const stream = await createStream(join(FIXTURES_DIR, "mixed-endings.txt"));
+      const stream = await createStreamPromise(join(FIXTURES_DIR, "mixed-endings.txt"));
       const lines: string[] = [];
 
       for await (const line of readLines(stream)) {
@@ -278,7 +278,7 @@ describe("stream utilities", () => {
     });
 
     test("should handle very long lines", async () => {
-      const stream = await createStream(join(FIXTURES_DIR, "long-lines.txt"));
+      const stream = await createStreamPromise(join(FIXTURES_DIR, "long-lines.txt"));
       const lines: string[] = [];
 
       for await (const line of readLines(stream)) {
@@ -336,8 +336,8 @@ describe("stream utilities", () => {
 describe("Integration Tests", () => {
   test("should work with different runtimes", async () => {
     const runtime = detectRuntime();
-    const stream = await createStream(TEST_FILES.small);
-    const content = await readToString(TEST_FILES.small);
+    const stream = await createStreamPromise(TEST_FILES.small);
+    const content = await readToStringPromise(TEST_FILES.small);
 
     expect(stream).toBeInstanceOf(ReadableStream);
     expect(content).toBe("Hello, World!");
@@ -345,7 +345,7 @@ describe("Integration Tests", () => {
   });
 
   test("should handle concurrent file operations", async () => {
-    const promises = Array.from({ length: 5 }, (_) => readToString(TEST_FILES.small));
+    const promises = Array.from({ length: 5 }, (_) => readToStringPromise(TEST_FILES.small));
 
     const results = await Promise.all(promises);
     results.forEach((content) => {
@@ -354,7 +354,7 @@ describe("Integration Tests", () => {
   });
 
   test("should handle large files", async () => {
-    const stream = await createStream(TEST_FILES.large);
+    const stream = await createStreamPromise(TEST_FILES.large);
 
     let chunks = 0;
     const reader = stream.getReader();

@@ -5,7 +5,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, rmSync } from "fs";
 import { join } from "path";
-import { readToString } from "../../src/io/file-reader";
+import { readToStringPromise } from "../../src/io/file-reader";
 import { writeBytes, writeString } from "../../src/io/file-writer";
 
 // Test fixtures directory
@@ -50,7 +50,7 @@ describe("Compression on Write", () => {
       const content = "ATCGATCGATCG\n".repeat(1000);
 
       await writeString(TEST_FILES.compressed, content);
-      const read = await readToString(TEST_FILES.compressed);
+      const read = await readToStringPromise(TEST_FILES.compressed);
 
       expect(read).toBe(content);
     });
@@ -85,7 +85,7 @@ describe("Compression on Write", () => {
       await writeBytes(TEST_FILES.compressed, data);
 
       // Read back and verify
-      const content = await readToString(TEST_FILES.compressed);
+      const content = await readToStringPromise(TEST_FILES.compressed);
       expect(content).toBe("ATCG");
     });
   });
@@ -122,7 +122,7 @@ describe("Compression on Write", () => {
       expect(bytes[1]).toBe(0x8b);
 
       // Verify roundtrip
-      const read = await readToString(TEST_FILES.fasta);
+      const read = await readToStringPromise(TEST_FILES.fasta);
       expect(read).toBe(fasta);
     });
 
@@ -137,7 +137,7 @@ describe("Compression on Write", () => {
       expect(bytes[1]).toBe(0x8b);
 
       // Verify roundtrip
-      const read = await readToString(TEST_FILES.fastq);
+      const read = await readToStringPromise(TEST_FILES.fastq);
       expect(read).toBe(fastq);
     });
   });

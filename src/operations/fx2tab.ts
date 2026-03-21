@@ -30,7 +30,7 @@ import {
   serializeJSONWithMetadata,
   serializeJSONWithMetadataPretty,
 } from "../formats/json";
-import { createStream, exists, getSize } from "../io/file-reader";
+import { createStreamPromise, existsPromise, getSizePromise } from "../io/file-reader";
 import { openForWriting } from "../io/file-writer";
 import { readLines } from "../io/stream-utils";
 import { packSequences, type PackedBatch } from "../backend/batch";
@@ -910,12 +910,12 @@ export async function* tab2fx(
 
   try {
     // Check if file exists and is empty
-    const fileExists = await exists(path);
+    const fileExists = await existsPromise(path);
     if (!fileExists) {
       throw new ParseError(`File not found: ${path}`, "tab2fx");
     }
 
-    const fileSize = await getSize(path);
+    const fileSize = await getSizePromise(path);
     if (fileSize === 0) {
       // Empty file - return early with no sequences
       return;
@@ -926,7 +926,7 @@ export async function* tab2fx(
       // Read first few lines for detection
       const sampleLines: string[] = [];
       let lineCount = 0;
-      const stream = await createStream(path);
+      const stream = await createStreamPromise(path);
       for await (const line of readLines(stream)) {
         sampleLines.push(line);
         if (++lineCount >= DELIMITER_DETECTION_SAMPLE_LINES) break;

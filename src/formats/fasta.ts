@@ -11,8 +11,10 @@
  */
 
 import { type } from "arktype";
+import { Effect, Stream } from "effect";
 import { FileError, ParseError, SequenceError, ValidationError } from "../errors";
-import { createStream, exists, getMetadata } from "../io/file-reader";
+import { createStream, existsPromise, getMetadataPromise, mapPlatformError } from "../io/file-reader";
+import { backendRuntime } from "../backend/service";
 import { readLines } from "../io/stream-utils";
 import { createFastaRecord } from "../constructors";
 import type { FastaSequence, ParserOptions } from "../types";
@@ -150,7 +152,18 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
    */
   async *parseString(data: string): AsyncIterable<FastaSequence> {
     const lines = data.split(/\r?\n/);
-    yield* this.parseLines(lines);
+    const lineIterable = this.parseLines(lines);
+    const stream = Stream.fromAsyncIterable(
+      lineIterable,
+      (e) =>
+        new ParseError(
+          `FASTA parse error: ${e instanceof Error ? e.message : String(e)}`,
+          "FASTA"
+        )
+    );
+
+    const services = await backendRuntime.services();
+    yield* Stream.toAsyncIterableWith(stream, services);
   }
 
   /**
@@ -173,35 +186,32 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
     filePath: string,
     options?: import("../types").FileReaderOptions
   ): AsyncIterable<FastaSequence> {
-    // Validate meaningful constraints (preserve biological validation)
     if (filePath.length === 0) {
       throw new ValidationError("filePath must not be empty");
     }
 
-    try {
-      // Validate file path and create stream
-      const validatedPath = await this.validateFilePath(filePath);
-      const stream = await createStream(validatedPath, options);
+    const parseLines = this.parseLinesFromAsyncIterable.bind(this);
+    const stream = Stream.unwrap(
+      Effect.gen(function* () {
+        const fileStream = yield* createStream(filePath, options ?? {});
+        const lines = readLines(fileStream, options?.encoding || "utf8");
 
-      // Convert binary stream to lines and parse
-      const lines = readLines(stream, options?.encoding || "utf8");
-      yield* this.parseLinesFromAsyncIterable(lines);
-    } catch (error) {
-      // Re-throw file errors unchanged to preserve error type
-      if (error instanceof FileError) {
-        throw error;
-      }
-      // Re-throw with enhanced context for parsing errors
-      if (error instanceof Error) {
-        throw new ParseError(
-          `Failed to parse FASTA file '${filePath}': ${error.message}`,
-          "FASTA",
-          undefined,
-          error.stack
+        return Stream.fromAsyncIterable(
+          parseLines(lines),
+          (e) =>
+            new ParseError(
+              `Failed to parse FASTA file '${filePath}': ${e instanceof Error ? e.message : String(e)}`,
+              "FASTA"
+            )
         );
-      }
-      throw error;
-    }
+      }).pipe(
+        mapPlatformError(filePath, "read"),
+        Effect.mapError((e) => new FileError(e.message, filePath, "read", e.cause))
+      )
+    );
+
+    const services = await backendRuntime.services();
+    yield* Stream.toAsyncIterableWith(stream, services);
   }
 
   /**
@@ -218,44 +228,24 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
    * }
    * ```
    */
-  async *parse(stream: ReadableStream<Uint8Array>): AsyncIterable<FastaSequence> {
-    // Tiger Style: Assert function arguments
-    if (!(stream instanceof ReadableStream)) {
+  async *parse(inputStream: ReadableStream<Uint8Array>): AsyncIterable<FastaSequence> {
+    if (!(inputStream instanceof ReadableStream)) {
       throw new ValidationError("stream must be a ReadableStream");
     }
-    const reader = stream.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    let lineNumber = 0;
 
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
+    const lines = readLines(inputStream, "utf8");
+    const lineIterable = this.parseLinesFromAsyncIterable(lines);
+    const stream = Stream.fromAsyncIterable(
+      lineIterable,
+      (e) =>
+        new ParseError(
+          `FASTA parse error: ${e instanceof Error ? e.message : String(e)}`,
+          "FASTA"
+        )
+    );
 
-        if (done) {
-          // Process any remaining data in buffer
-          if (buffer.trim()) {
-            const lines = buffer.split(/\r?\n/);
-            yield* this.parseLines(lines, lineNumber);
-          }
-          break;
-        }
-
-        buffer += decoder.decode(value, { stream: true });
-
-        // Process complete lines
-        const lines = buffer.split(/\r?\n/);
-        const lastLine = lines.pop();
-        buffer = lastLine ?? ""; // Keep incomplete line in buffer
-
-        if (lines.length > 0) {
-          yield* this.parseLines(lines, lineNumber);
-          lineNumber += lines.length;
-        }
-      }
-    } finally {
-      reader.releaseLock();
-    }
+    const services = await backendRuntime.services();
+    yield* Stream.toAsyncIterableWith(stream, services);
   }
 
   /**
@@ -534,7 +524,7 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
 
     // Additional FASTA-specific checks if needed
     try {
-      const metadata = await getMetadata(validatedPath);
+      const metadata = await getMetadataPromise(validatedPath);
 
       // Warn about very large files
       if (metadata.size > 1_073_741_824) {
@@ -1090,7 +1080,7 @@ async function validateFastaFilePath(filePath: string): Promise<string> {
 
   // Check file existence
   try {
-    const fileExists = await exists(filePath);
+    const fileExists = await existsPromise(filePath);
 
     if (!fileExists) {
       throw new FileError(

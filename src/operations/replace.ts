@@ -17,7 +17,7 @@ import { basename, extname } from "node:path";
 import { type } from "arktype";
 import { ValidationError } from "../errors";
 import { withSequence } from "../constructors";
-import { readToString } from "../io/file-reader";
+import { readToStringPromise } from "../io/file-reader";
 import type { AbstractSequence } from "../types";
 import { escapeRegex } from "./core/string-utils";
 import type { ReplaceOptions } from "./types";
@@ -267,7 +267,7 @@ async function loadKeyValueMap(options: ReplaceOptions): Promise<Map<string, str
 async function loadKeyValueFile(filePath: string): Promise<Map<string, string>> {
   try {
     // Use runtime-agnostic file reader (handles Node.js, Bun, etc.)
-    const content = await readToString(filePath);
+    const content = await readToStringPromise(filePath);
     const kvMap = new Map<string, string>();
 
     const lines = content.split("\n");
@@ -330,7 +330,7 @@ async function loadKeyValueFile(filePath: string): Promise<Map<string, string>> 
  */
 async function loadFilterPatterns(filePath: string): Promise<string[]> {
   try {
-    const content = await readToString(filePath);
+    const content = await readToStringPromise(filePath);
     const patterns: string[] = [];
 
     const lines = content.split("\n");

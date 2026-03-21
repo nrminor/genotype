@@ -5,7 +5,7 @@
  * Includes external sorting, memory monitoring, and disk-based processing strategies
  */
 
-import { createStream } from "../../io/file-reader";
+import { createStreamPromise } from "../../io/file-reader";
 import { deleteFile, writeString } from "../../io/file-writer";
 import { readLines } from "../../io/stream-utils";
 
@@ -179,7 +179,7 @@ export class ExternalSorter<T> {
    * Create async iterator for reading sorted chunk file
    */
   private async createFileIterator(fileName: string): Promise<AsyncIterator<T>> {
-    const stream = await createStream(fileName);
+    const stream = await createStreamPromise(fileName);
     const linesIterable = readLines(stream);
     const iterator = linesIterable[Symbol.asyncIterator]();
     const deserialize = this.deserialize;
@@ -310,7 +310,7 @@ export class DiskCache<T> {
     if (fileName === undefined || fileName === null || fileName === "") return undefined;
 
     try {
-      const stream = await createStream(fileName);
+      const stream = await createStreamPromise(fileName);
       let data = "";
       for await (const line of readLines(stream)) {
         data += line;

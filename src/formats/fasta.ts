@@ -118,8 +118,8 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
   }
 
   /**
-   * Create a new FASTA parser with specified options and interrupt support
-   * @param options FASTA parser configuration options including AbortSignal
+   * Create a new FASTA parser with specified options
+   * @param options FASTA parser configuration options
    */
   constructor(options: FastaParserOptions = {}) {
     // Step 1: ArkType validation with FASTA domain expertise

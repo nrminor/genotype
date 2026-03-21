@@ -449,8 +449,6 @@ export interface ParserOptions {
   maxLineLength?: number;
   /** Whether to preserve original line numbers */
   trackLineNumbers?: boolean;
-  /** AbortController signal for cancelling parsing operations */
-  signal?: AbortSignal;
   /** Custom error handler */
   onError?: (error: string, lineNumber?: number) => void;
   /** Custom warning handler */
@@ -495,8 +493,6 @@ export interface DecompressorOptions {
   readonly bufferSize?: number;
   /** Safety limit for decompressed output size */
   readonly maxOutputSize?: number;
-  /** AbortController signal for cancelling decompression */
-  readonly signal?: AbortSignal;
   /** Whether to validate decompressed data integrity */
   readonly validateIntegrity?: boolean;
 }
@@ -907,8 +903,6 @@ export interface FileReaderOptions {
   readonly timeout?: number;
   /** Allow concurrent reads from same file (default: false) */
   readonly concurrent?: boolean;
-  /** AbortController signal for cancelling operations */
-  readonly signal?: AbortSignal;
   /** Whether to automatically detect and decompress compressed files (default: true) */
   readonly autoDecompress?: boolean;
   /** Override compression format detection (default: auto-detect) */
@@ -1074,7 +1068,6 @@ export const FileReaderOptionsSchema = type({
   "maxFileSize?": "number>=0",
   "timeout?": "number>=0",
   "concurrent?": "boolean",
-  "signal?": "unknown", // AbortSignal
   "autoDecompress?": "boolean",
   "compressionFormat?": '"gzip"|"zstd"|"none"',
   "decompressionOptions?": "unknown", // DecompressorOptions
@@ -1270,7 +1263,6 @@ export const CompressionDetectionSchema = type({
 export const DecompressorOptionsSchema = type({
   "bufferSize?": "number>=1024", // Minimum 1KB buffer
   "maxOutputSize?": "number>=0",
-  "signal?": "unknown", // AbortSignal
   "validateIntegrity?": "boolean",
 }).pipe((options) => {
   // Validate buffer size bounds

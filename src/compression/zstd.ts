@@ -20,7 +20,7 @@ import { DecompressorOptionsSchema } from "../types";
 const ZSTD_MAGIC = new Uint8Array([0x28, 0xb5, 0x2f, 0xfd]);
 
 /**
- * Default options for Zstd operations (signal is intentionally omitted)
+ * Default options for Zstd operations
  */
 const DEFAULT_OPTIONS = {
   bufferSize: 131072, // 128KB - Zstd works well with larger buffers
@@ -85,7 +85,6 @@ function validateZstdMagic(data: Uint8Array): void {
 interface MergedOptions {
   readonly bufferSize: number;
   readonly maxOutputSize: number;
-  readonly signal: AbortSignal | undefined;
   readonly validateIntegrity: boolean;
 }
 
@@ -97,7 +96,6 @@ function mergeOptions(options: DecompressorOptions = {}): MergedOptions {
     bufferSize: options.bufferSize ?? DEFAULT_OPTIONS.bufferSize,
     maxOutputSize: options.maxOutputSize ?? DEFAULT_OPTIONS.maxOutputSize,
     validateIntegrity: options.validateIntegrity ?? DEFAULT_OPTIONS.validateIntegrity,
-    signal: options.signal,
   };
 
   // Validate with ArkType schema
@@ -197,11 +195,6 @@ export async function decompress(
     );
   }
 
-  // Check abort signal
-  if (mergedOptions.signal?.aborted) {
-    throw new CompressionError("Decompression aborted", "zstd", "decompress");
-  }
-
   try {
     const zstd = await getZstd();
     return zstd.decompress(compressed);
@@ -246,11 +239,6 @@ export function createStream(
 
   return new TransformStream<Uint8Array, Uint8Array>({
     transform(chunk, _controller): void {
-      // Check abort signal
-      if (mergedOptions.signal?.aborted) {
-        throw new CompressionError("Decompression aborted", "zstd", "stream");
-      }
-
       // Accumulate chunks (Zstd WASM doesn't support true streaming yet)
       chunks.push(chunk);
       totalLength += chunk.length;
@@ -285,7 +273,6 @@ export function createStream(
           bufferSize: mergedOptions.bufferSize,
           maxOutputSize: mergedOptions.maxOutputSize,
           validateIntegrity: mergedOptions.validateIntegrity,
-          ...(mergedOptions.signal !== undefined && { signal: mergedOptions.signal }),
         };
         const decompressed = await decompress(compressed, decompressOptions);
         controller.enqueue(decompressed);

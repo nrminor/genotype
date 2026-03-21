@@ -248,45 +248,61 @@ export { mapPlatformError, validatePath };
 // ---------------------------------------------------------------------------
 
 /** Check if a file exists and is accessible. */
-const existsPromise = (path: string): Promise<boolean> =>
+const existsPromise = (path: string, runOptions?: Effect.RunOptions): Promise<boolean> =>
   Effect.runPromise(
-    exists(path).pipe(mapPlatformError(path, "stat"), Effect.provide(PlatformLayer))
+    exists(path).pipe(mapPlatformError(path, "stat"), Effect.provide(PlatformLayer)),
+    runOptions
   );
 
 /** Get file size in bytes. */
-const getSizePromise = (path: string): Promise<number> =>
+const getSizePromise = (path: string, runOptions?: Effect.RunOptions): Promise<number> =>
   Effect.runPromise(
-    getSize(path).pipe(mapPlatformError(path, "stat"), Effect.provide(PlatformLayer))
+    getSize(path).pipe(mapPlatformError(path, "stat"), Effect.provide(PlatformLayer)),
+    runOptions
   );
 
 /** Get comprehensive file metadata. */
-const getMetadataPromise = (path: string): Promise<FileMetadata> =>
+const getMetadataPromise = (path: string, runOptions?: Effect.RunOptions): Promise<FileMetadata> =>
   Effect.runPromise(
-    getMetadata(path).pipe(mapPlatformError(path, "stat"), Effect.provide(PlatformLayer))
+    getMetadata(path).pipe(mapPlatformError(path, "stat"), Effect.provide(PlatformLayer)),
+    runOptions
   );
 
 /**
  * Read entire file to string. Automatically decompresses gzip/zstd
- * files based on extension.
+ * files based on extension. Pass { signal } in runOptions for cancellation.
  */
-const readToStringPromise = (path: string, options: FileReaderOptions = {}): Promise<string> =>
+const readToStringPromise = (
+  path: string,
+  options: FileReaderOptions = {},
+  runOptions?: Effect.RunOptions
+): Promise<string> =>
   Effect.runPromise(
-    readToString(path, options).pipe(mapPlatformError(path, "read"), Effect.provide(IOLayer))
+    readToString(path, options).pipe(mapPlatformError(path, "read"), Effect.provide(IOLayer)),
+    runOptions
   );
 
 /** Read a specific byte range from a file. */
-const readByteRangePromise = (path: string, start: number, end: number): Promise<Uint8Array> =>
+const readByteRangePromise = (
+  path: string,
+  start: number,
+  end: number,
+  runOptions?: Effect.RunOptions
+): Promise<Uint8Array> =>
   Effect.runPromise(
-    readByteRange(path, start, end).pipe(mapPlatformError(path, "read"), Effect.provide(IOLayer))
+    readByteRange(path, start, end).pipe(mapPlatformError(path, "read"), Effect.provide(IOLayer)),
+    runOptions
   );
 
 /** Create a streaming reader for a file with optional auto-decompression. */
 const createStreamPromise = (
   path: string,
-  options: FileReaderOptions = {}
+  options: FileReaderOptions = {},
+  runOptions?: Effect.RunOptions
 ): Promise<ReadableStream<Uint8Array>> =>
   Effect.runPromise(
-    createStream(path, options).pipe(mapPlatformError(path, "read"), Effect.provide(PlatformLayer))
+    createStream(path, options).pipe(mapPlatformError(path, "read"), Effect.provide(PlatformLayer)),
+    runOptions
   );
 
 export {

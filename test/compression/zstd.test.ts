@@ -116,19 +116,6 @@ describe("Zstd Compression", () => {
       await expect(decompress(compressed, options)).rejects.toThrow(/exceeds maximum/);
     });
 
-    test("should handle abort signal", async () => {
-      const compressed = await compress(MOCK_FASTA_DATA);
-      const controller = new AbortController();
-      controller.abort();
-
-      await expect(decompress(compressed, { signal: controller.signal })).rejects.toThrow(
-        CompressionError
-      );
-      await expect(decompress(compressed, { signal: controller.signal })).rejects.toThrow(
-        /aborted/i
-      );
-    });
-
     test("should skip magic validation when disabled", async () => {
       // This should still fail because the data is invalid, but not on magic bytes
       const invalidData = new Uint8Array([0x00, 0x00, 0x00, 0x00, 0x00]);

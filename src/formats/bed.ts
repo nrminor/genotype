@@ -55,7 +55,6 @@ const BedParserOptionsSchema = type({
     });
   }
 
-  // Note: AbortSignal validation handled by TypeScript interface, not ArkType
   return true;
 });
 

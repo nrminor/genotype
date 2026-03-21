@@ -351,7 +351,7 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
 
             // Create and yield record
             const record = this.createRecord(processedFields, state.rowStartLine);
-            if (record && this.options.signal?.aborted !== true) {
+            if (record) {
               yield record;
             }
           }

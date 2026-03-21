@@ -1,40 +1,33 @@
 /**
- * Abstract base parser with shared interrupt handling only
+ * Abstract base parser for genomic format parsers.
  *
- * Provides consistent AbortSignal support across all format parsers (FASTA, FASTQ,
- * BED, SAM, BAM, GTF) without imposing parsing implementation details.
- * Each format maintains its own parsing logic while gaining interrupt capabilities.
+ * Provides shared option merging and error/warning handler defaults
+ * across all format parsers (FASTA, FASTQ, BED, SAM, BAM, GTF).
+ * Each format maintains its own parsing logic.
  *
-
+ * Interruption is handled by Effect's fiber model — parsers that use
+ * Effect Stream internally get automatic interruption at every yield
+ * point without manual polling.
  */
 
 import { ParseError } from "../errors";
 import type { ParserOptions } from "../types";
 
 /**
- * Abstract parser base class with shared interrupt handling only
- *
- * Provides consistent AbortSignal support across all genomic format parsers
- * without imposing parsing implementation details. Each format keeps its own
- * parsing logic while gaining interrupt capabilities.
+ * Abstract parser base class with shared option defaults.
  *
  * @template T - The genomic data type this parser produces (BedInterval, FastaSequence, etc.)
  */
 export abstract class AbstractParser<T, TOptions extends ParserOptions = ParserOptions> {
   protected readonly options: Required<TOptions>;
-  private readonly interruptHandler: InterruptHandler;
 
   constructor(options: TOptions = {} as TOptions) {
-    // Get format-specific defaults from subclass
     const formatDefaults = this.getDefaultOptions();
 
-    // Explicitly construct each base field with ?? chaining to provide defaults
-    // This allows TypeScript to know that callbacks are always defined
     this.options = {
       skipValidation: options.skipValidation ?? formatDefaults.skipValidation ?? false,
       maxLineLength: options.maxLineLength ?? formatDefaults.maxLineLength ?? 1_000_000,
       trackLineNumbers: options.trackLineNumbers ?? formatDefaults.trackLineNumbers ?? true,
-      signal: options.signal ?? formatDefaults.signal,
       onError:
         options.onError ??
         formatDefaults.onError ??
@@ -47,91 +40,16 @@ export abstract class AbstractParser<T, TOptions extends ParserOptions = ParserO
         ((warning: string, lineNumber?: number): void => {
           console.warn(`${this.getFormatName()} Warning (line ${lineNumber}): ${warning}`);
         }),
-      // Spread remaining format-specific options
       ...formatDefaults,
       ...options,
     } as Required<TOptions>;
-    this.interruptHandler = new InterruptHandler(this.options.signal);
   }
 
-  /**
-   * Get format-specific default options
-   * Each parser must implement this to provide their defaults
-   */
   protected abstract getDefaultOptions(): Partial<TOptions>;
 
-  /**
-   * Check if parsing operation should be aborted
-   * Call this in parsing loops to enable Ctrl+C interruption
-   */
-  protected checkAborted(): void {
-    this.interruptHandler.checkAborted();
-  }
-
-  /**
-   * Check abortion with biological/genomics context
-   * Provides format-specific cancellation messages
-   */
-  protected throwIfAborted(context: string): void {
-    this.interruptHandler.throwIfAborted(`${this.getFormatName()} ${context}`);
-  }
-
-  /**
-   * Parse genomic data from string with interrupt support
-   * @param data - Raw format data string
-   * @returns Async iterable of parsed genomic features
-   */
   abstract parseString(data: string): AsyncIterable<T>;
-
-  /**
-   * Parse genomic data from file with interrupt support
-   * @param filePath - Path to genomic data file
-   * @param options - File reading options (format-specific)
-   * @returns Async iterable of parsed genomic features
-   */
   abstract parseFile(filePath: string, options?: any): AsyncIterable<T>;
-
-  /**
-   * Parse genomic data from stream with interrupt support
-   * @param stream - Binary data stream
-   * @returns Async iterable of parsed genomic features
-   */
   abstract parse(stream: ReadableStream<Uint8Array>): AsyncIterable<T>;
 
-  /**
-   * Get format name for error messages and logging
-   * @returns Format identifier (e.g., "BED", "FASTA", "FASTQ")
-   */
   protected abstract getFormatName(): string;
-
-  // Each format implements its own parsing logic - no shared implementation imposed
-}
-
-/**
- * Interrupt handler utility for AbortSignal integration
- * Utility class for AbortSignal integration across format parsers
- */
-class InterruptHandler {
-  constructor(private readonly signal?: AbortSignal) {}
-
-  /**
-   * Check if operation has been aborted
-   * @throws {ParseError} If operation was aborted
-   */
-  checkAborted(): void {
-    if (this.signal?.aborted) {
-      throw new ParseError("Operation was aborted", "ABORTED");
-    }
-  }
-
-  /**
-   * Throw with context if aborted
-   * @param context - Descriptive context for where abortion was checked
-   * @throws {ParseError} If operation was aborted
-   */
-  throwIfAborted(context: string): void {
-    if (this.signal?.aborted) {
-      throw new ParseError(`Operation aborted during ${context}`, "ABORTED");
-    }
-  }
 }

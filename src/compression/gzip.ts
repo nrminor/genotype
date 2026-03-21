@@ -74,10 +74,6 @@ export async function decompress(
   validateInput(compressed, "decompress");
   validateGzipMagic(compressed);
 
-  if (options.signal?.aborted) {
-    throw new CompressionError("Operation was aborted", "gzip", "decompress");
-  }
-
   const maxSize = options.maxOutputSize ?? MAX_OUTPUT_SIZE;
 
   try {
@@ -164,9 +160,6 @@ export function createStream(
     },
 
     transform(chunk) {
-      if (options.signal?.aborted) {
-        throw new CompressionError("Operation was aborted", "gzip", "stream");
-      }
       if (!decompressor) {
         throw new CompressionError("Stream not initialized", "gzip", "stream");
       }

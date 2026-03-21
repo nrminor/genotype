@@ -61,23 +61,6 @@ describe("GzipDecompressor", () => {
 
       await expect(GzipDecompressor.decompress(validGzipData, invalidOptions)).rejects.toThrow();
     });
-
-    test("should handle abort signal", async () => {
-      const controller = new AbortController();
-      const gzipData = new Uint8Array([0x1f, 0x8b, 0x08]);
-
-      // Abort immediately
-      controller.abort();
-
-      const options = { signal: controller.signal };
-
-      // Should handle aborted signal gracefully
-      try {
-        await GzipDecompressor.decompress(gzipData, options);
-      } catch (error) {
-        expect(error).toBeInstanceOf(CompressionError);
-      }
-    });
   });
 
   describe("createStream", () => {
@@ -105,42 +88,6 @@ describe("GzipDecompressor", () => {
       // Runtime just uses defaults for invalid values
       const stream = GzipDecompressor.createStream({ maxOutputSize: 1024 });
       expect(stream).toBeInstanceOf(TransformStream);
-    });
-
-    test("should handle abort signal in stream", async () => {
-      const controller = new AbortController();
-
-      // Create valid gzip test data
-      const testContent = ">test\nATCG\n";
-      const validGzipData = gzipSync(new TextEncoder().encode(testContent));
-
-      // Create input stream
-      const inputStream = new ReadableStream({
-        start(streamController) {
-          streamController.enqueue(validGzipData);
-          streamController.close();
-        },
-      });
-
-      // Create decompression stream with abort signal
-      const decompressedStream = GzipDecompressor.wrapStream(inputStream, {
-        signal: controller.signal,
-      });
-
-      // Abort the operation
-      controller.abort();
-
-      // Should handle aborted signal gracefully
-      const reader = decompressedStream.getReader();
-      await expect(
-        (async () => {
-          // eslint-disable-next-line no-constant-condition
-          while (true) {
-            const { done } = await reader.read();
-            if (done) break;
-          }
-        })()
-      ).rejects.toThrow(CompressionError);
     });
   });
 

@@ -38,9 +38,10 @@ pub enum EngineError {
 impl std::fmt::Display for EngineError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::InvalidOffsets(msg) | Self::InvalidArgument(msg) | Self::Io(msg) => {
-                f.write_str(msg)
+            Self::InvalidOffsets(msg) | Self::InvalidArgument(msg) => {
+                write!(f, "[validation] {msg}")
             }
+            Self::Io(msg) => write!(f, "[io] {msg}"),
         }
     }
 }

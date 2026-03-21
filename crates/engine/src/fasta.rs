@@ -150,8 +150,11 @@ impl FastaReader {
             self.read_sequence(&mut seq_buf)?;
 
             // Parse definition line: ">name description"
-            // The definition buffer contains the line after '>', e.g. "seq1 some description"
-            let def_trimmed = def_buf.trim_end();
+            // read_definition returns the full line including the '>' prefix.
+            let def_trimmed = def_buf
+                .trim_end()
+                .strip_prefix('>')
+                .unwrap_or(def_buf.trim_end());
             let (name, desc) = match def_trimmed.find(char::is_whitespace) {
                 Some(pos) => (&def_trimmed[..pos], &def_trimmed[pos..].trim_start()),
                 None => (def_trimmed, &""),

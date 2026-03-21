@@ -1724,29 +1724,28 @@ export class SeqOps<T extends AbstractSequence> {
    *   .writeFasta('output.fasta');
    * ```
    */
-  async writeFasta(path: string, options: { wrapWidth?: number } = {}): Promise<void> {
-    const lineEnding = process.platform === "win32" ? "\r\n" : "\n";
+  async writeFasta(
+    path: string,
+    options: { wrapWidth?: number; compress?: boolean } = {}
+  ): Promise<void> {
     const writer = new FastaWriter({
-      ...(options.wrapWidth !== undefined && { lineWidth: options.wrapWidth }),
-      lineEnding,
+      lineWidth: options.wrapWidth ?? 80,
+      compress: options.compress ?? false,
     });
 
-    await openForWriting(path, async (handle) => {
-      for await (const seq of this.source) {
-        const fastaSeq: FastaSequence = {
-          format: "fasta",
+    const sequences = (async function* (source: AsyncIterable<AbstractSequence>) {
+      for await (const seq of source) {
+        yield {
+          format: "fasta" as const,
           id: seq.id,
           sequence: seq.sequence,
           length: seq.length,
-          ...(seq.description !== undefined && {
-            description: seq.description,
-          }),
-        };
-        const formatted = writer.formatSequence(fastaSeq);
-        // Add line ending after each sequence to separate them
-        await handle.writeString(formatted + lineEnding);
+          ...(seq.description !== undefined && { description: seq.description }),
+        } satisfies FastaSequence;
       }
-    });
+    })(this.source);
+
+    await writer.writeFile(path, sequences);
   }
 
   /**

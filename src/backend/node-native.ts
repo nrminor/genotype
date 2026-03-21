@@ -14,7 +14,13 @@
  */
 
 import { Effect, Layer, Schema } from "effect";
-import { BackendService, BackendUnavailableError } from "./common";
+import {
+  BackendService,
+  BackendIOError,
+  BackendUnavailableError,
+  BackendValidationError,
+  type BackendError,
+} from "./common";
 import type {
   ClassifyResult,
   PatternSearchResult,
@@ -24,7 +30,17 @@ import type {
   TranslateBatchOptions,
   ValidationMode,
 } from "./kernel-types";
-import type { AlignmentBatch, AlignmentReaderHandle, ReferenceSequenceInfo } from "./types";
+import type {
+  AlignmentBatch,
+  AlignmentReaderHandle,
+  FastaBatch,
+  FastaReaderHandle,
+  FastaWriterHandle,
+  FastqBatch,
+  FastqReaderHandle,
+  FastqWriterHandle,
+  ReferenceSequenceInfo,
+} from "./types";
 
 // ---------------------------------------------------------------------------
 
@@ -32,6 +48,17 @@ export class NativeAddonNotFoundError extends Schema.TaggedErrorClass<NativeAddo
   "NativeAddonNotFoundError",
   { message: Schema.String }
 ) {}
+
+function classifyEngineError(method: string, e: unknown): BackendError {
+  const msg = e instanceof Error ? e.message : String(e);
+  if (msg.startsWith("[io] ")) {
+    return new BackendIOError({ method, message: msg.slice(5) });
+  }
+  if (msg.startsWith("[validation] ")) {
+    return new BackendValidationError({ method, message: msg.slice(13) });
+  }
+  return new BackendUnavailableError({ method, message: msg });
+}
 
 // ---------------------------------------------------------------------------
 
@@ -161,6 +188,92 @@ interface NativeAlignmentModule {
   };
 }
 
+interface NativeFastqBatch {
+  count: number;
+  nameData: Buffer;
+  nameOffsets: number[];
+  descriptionData: Buffer;
+  descriptionOffsets: number[];
+  sequenceData: Buffer;
+  sequenceOffsets: number[];
+  qualityData: Buffer;
+  qualityOffsets: number[];
+}
+
+interface NativeFastqReader {
+  readBatch(maxRecords: number): NativeFastqBatch | null;
+}
+
+interface NativeFastqModule {
+  FastqReader: {
+    open(path: string): NativeFastqReader;
+    openBytes(data: Buffer): NativeFastqReader;
+  };
+}
+
+interface NativeFastaBatch {
+  count: number;
+  nameData: Buffer;
+  nameOffsets: number[];
+  descriptionData: Buffer;
+  descriptionOffsets: number[];
+  sequenceData: Buffer;
+  sequenceOffsets: number[];
+}
+
+interface NativeFastaReader {
+  readBatch(maxRecords: number): NativeFastaBatch | null;
+}
+
+interface NativeFastaModule {
+  FastaReader: {
+    open(path: string): NativeFastaReader;
+    openBytes(data: Buffer): NativeFastaReader;
+  };
+}
+
+interface NativeFastqWriterModule {
+  FastqWriter: {
+    open(path: string, compress: boolean): NativeFastqWriter;
+    openBytes(compress: boolean): NativeFastqWriter;
+  };
+}
+
+interface NativeFastqWriter {
+  writeBatch(
+    nameData: Uint8Array,
+    nameOffsets: Uint32Array,
+    descriptionData: Uint8Array,
+    descriptionOffsets: Uint32Array,
+    sequenceData: Uint8Array,
+    sequenceOffsets: Uint32Array,
+    qualityData: Uint8Array,
+    qualityOffsets: Uint32Array,
+    count: number
+  ): void;
+  finish(): Buffer | null;
+}
+
+interface NativeFastaWriterModule {
+  FastaWriter: {
+    open(path: string, compress: boolean, lineWidth: number): NativeFastaWriter;
+    openBytes(compress: boolean, lineWidth: number): NativeFastaWriter;
+  };
+}
+
+interface NativeFastaWriter {
+  writeBatch(
+    nameData: Uint8Array,
+    nameOffsets: Uint32Array,
+    descriptionData: Uint8Array,
+    descriptionOffsets: Uint32Array,
+    sequenceData: Uint8Array,
+    sequenceOffsets: Uint32Array,
+    count: number
+  ): void;
+  finish(): Buffer | null;
+}
+
 // ---------------------------------------------------------------------------
 
 function toBufferView(bytes: Uint8Array): Buffer {
@@ -238,7 +351,94 @@ function wrapAlignmentReader(reader: NativeAlignmentReader): AlignmentReaderHand
 
 // ---------------------------------------------------------------------------
 
-function buildFromKernel(k: NativeKernel, alignment: NativeAlignmentModule | undefined) {
+function wrapFastqReader(reader: NativeFastqReader): FastqReaderHandle {
+  return {
+    async readBatch(maxRecords: number): Promise<FastqBatch | null> {
+      const batch = reader.readBatch(maxRecords);
+      if (batch === null) return null;
+      return {
+        count: batch.count,
+        nameData: batch.nameData,
+        nameOffsets: Uint32Array.from(batch.nameOffsets),
+        descriptionData: batch.descriptionData,
+        descriptionOffsets: Uint32Array.from(batch.descriptionOffsets),
+        sequenceData: batch.sequenceData,
+        sequenceOffsets: Uint32Array.from(batch.sequenceOffsets),
+        qualityData: batch.qualityData,
+        qualityOffsets: Uint32Array.from(batch.qualityOffsets),
+      };
+    },
+    close() {},
+  };
+}
+
+function wrapFastaReader(reader: NativeFastaReader): FastaReaderHandle {
+  return {
+    async readBatch(maxRecords: number): Promise<FastaBatch | null> {
+      const batch = reader.readBatch(maxRecords);
+      if (batch === null) return null;
+      return {
+        count: batch.count,
+        nameData: batch.nameData,
+        nameOffsets: Uint32Array.from(batch.nameOffsets),
+        descriptionData: batch.descriptionData,
+        descriptionOffsets: Uint32Array.from(batch.descriptionOffsets),
+        sequenceData: batch.sequenceData,
+        sequenceOffsets: Uint32Array.from(batch.sequenceOffsets),
+      };
+    },
+    close() {},
+  };
+}
+
+function wrapFastqWriter(writer: NativeFastqWriter): FastqWriterHandle {
+  return {
+    async writeBatch(batch: FastqBatch): Promise<void> {
+      writer.writeBatch(
+        batch.nameData,
+        batch.nameOffsets,
+        batch.descriptionData,
+        batch.descriptionOffsets,
+        batch.sequenceData,
+        batch.sequenceOffsets,
+        batch.qualityData,
+        batch.qualityOffsets,
+        batch.count
+      );
+    },
+    async finish(): Promise<Uint8Array | null> {
+      return writer.finish();
+    },
+  };
+}
+
+function wrapFastaWriter(writer: NativeFastaWriter): FastaWriterHandle {
+  return {
+    async writeBatch(batch: FastaBatch): Promise<void> {
+      writer.writeBatch(
+        batch.nameData,
+        batch.nameOffsets,
+        batch.descriptionData,
+        batch.descriptionOffsets,
+        batch.sequenceData,
+        batch.sequenceOffsets,
+        batch.count
+      );
+    },
+    async finish(): Promise<Uint8Array | null> {
+      return writer.finish();
+    },
+  };
+}
+
+function buildFromKernel(
+  k: NativeKernel,
+  alignment: NativeAlignmentModule | undefined,
+  fastqMod: NativeFastqModule | undefined,
+  fastaMod: NativeFastaModule | undefined,
+  fastqWriterMod: NativeFastqWriterModule | undefined,
+  fastaWriterMod: NativeFastaWriterModule | undefined
+) {
   const unavailable = (method: string) =>
     Effect.fail(
       new BackendUnavailableError({
@@ -260,11 +460,7 @@ function buildFromKernel(k: NativeKernel, alignment: NativeAlignmentModule | und
             options.caseInsensitive,
             options.searchBothStrands
           ),
-        catch: (e) =>
-          new BackendUnavailableError({
-            method: "grepBatch",
-            message: e instanceof Error ? e.message : String(e),
-          }),
+        catch: (e) => classifyEngineError("grepBatch", e),
       }),
     findPatternBatch: (sequences, offsets, pattern, options) =>
       Effect.try({
@@ -278,30 +474,18 @@ function buildFromKernel(k: NativeKernel, alignment: NativeAlignmentModule | und
               options.caseInsensitive
             )
           ),
-        catch: (e) =>
-          new BackendUnavailableError({
-            method: "findPatternBatch",
-            message: e instanceof Error ? e.message : String(e),
-          }),
+        catch: (e) => classifyEngineError("findPatternBatch", e),
       }),
     transformBatch: (sequences, offsets, op) =>
       Effect.try({
         try: () => wrapTransformResult(k.transformBatch(toBufferView(sequences), offsets, op)),
-        catch: (e) =>
-          new BackendUnavailableError({
-            method: "transformBatch",
-            message: e instanceof Error ? e.message : String(e),
-          }),
+        catch: (e) => classifyEngineError("transformBatch", e),
       }),
     removeGapsBatch: (sequences, offsets, gapChars) =>
       Effect.try({
         try: () =>
           wrapTransformResult(k.removeGapsBatch(toBufferView(sequences), offsets, gapChars)),
-        catch: (e) =>
-          new BackendUnavailableError({
-            method: "removeGapsBatch",
-            message: e instanceof Error ? e.message : String(e),
-          }),
+        catch: (e) => classifyEngineError("removeGapsBatch", e),
       }),
     replaceAmbiguousBatch: (sequences, offsets, replacement) =>
       Effect.try({
@@ -309,11 +493,7 @@ function buildFromKernel(k: NativeKernel, alignment: NativeAlignmentModule | und
           wrapTransformResult(
             k.replaceAmbiguousBatch(toBufferView(sequences), offsets, replacement)
           ),
-        catch: (e) =>
-          new BackendUnavailableError({
-            method: "replaceAmbiguousBatch",
-            message: e instanceof Error ? e.message : String(e),
-          }),
+        catch: (e) => classifyEngineError("replaceAmbiguousBatch", e),
       }),
     replaceInvalidBatch: (sequences, offsets, mode, replacement) =>
       Effect.try({
@@ -321,39 +501,23 @@ function buildFromKernel(k: NativeKernel, alignment: NativeAlignmentModule | und
           wrapTransformResult(
             k.replaceInvalidBatch(toBufferView(sequences), offsets, mode, replacement)
           ),
-        catch: (e) =>
-          new BackendUnavailableError({
-            method: "replaceInvalidBatch",
-            message: e instanceof Error ? e.message : String(e),
-          }),
+        catch: (e) => classifyEngineError("replaceInvalidBatch", e),
       }),
     classifyBatch: (sequences, offsets) =>
       Effect.try({
         try: () => wrapClassifyResult(k.classifyBatch(toBufferView(sequences), offsets)),
-        catch: (e) =>
-          new BackendUnavailableError({
-            method: "classifyBatch",
-            message: e instanceof Error ? e.message : String(e),
-          }),
+        catch: (e) => classifyEngineError("classifyBatch", e),
       }),
     checkValidBatch: (sequences, offsets, mode) =>
       Effect.try({
         try: () => k.checkValidBatch(toBufferView(sequences), offsets, mode),
-        catch: (e) =>
-          new BackendUnavailableError({
-            method: "checkValidBatch",
-            message: e instanceof Error ? e.message : String(e),
-          }),
+        catch: (e) => classifyEngineError("checkValidBatch", e),
       }),
     qualityAvgBatch: (quality, offsets, asciiOffset) =>
       Effect.try({
         try: () =>
           Float64Array.from(k.qualityAvgBatch(toBufferView(quality), offsets, asciiOffset)),
-        catch: (e) =>
-          new BackendUnavailableError({
-            method: "qualityAvgBatch",
-            message: e instanceof Error ? e.message : String(e),
-          }),
+        catch: (e) => classifyEngineError("qualityAvgBatch", e),
       }),
     qualityTrimBatch: (quality, offsets, asciiOffset, threshold, windowSize, trimStart, trimEnd) =>
       Effect.try({
@@ -369,11 +533,7 @@ function buildFromKernel(k: NativeKernel, alignment: NativeAlignmentModule | und
               trimEnd
             )
           ),
-        catch: (e) =>
-          new BackendUnavailableError({
-            method: "qualityTrimBatch",
-            message: e instanceof Error ? e.message : String(e),
-          }),
+        catch: (e) => classifyEngineError("qualityTrimBatch", e),
       }),
     qualityBinBatch: (quality, offsets, boundaries, representatives) =>
       Effect.try({
@@ -386,11 +546,7 @@ function buildFromKernel(k: NativeKernel, alignment: NativeAlignmentModule | und
               toBufferView(representatives)
             )
           ),
-        catch: (e) =>
-          new BackendUnavailableError({
-            method: "qualityBinBatch",
-            message: e instanceof Error ? e.message : String(e),
-          }),
+        catch: (e) => classifyEngineError("qualityBinBatch", e),
       }),
     sequenceMetricsBatch: (sequences, seqOffsets, quality, qualOffsets, metricFlags, asciiOffset) =>
       Effect.try({
@@ -405,11 +561,7 @@ function buildFromKernel(k: NativeKernel, alignment: NativeAlignmentModule | und
               asciiOffset
             )
           ),
-        catch: (e) =>
-          new BackendUnavailableError({
-            method: "sequenceMetricsBatch",
-            message: e instanceof Error ? e.message : String(e),
-          }),
+        catch: (e) => classifyEngineError("sequenceMetricsBatch", e),
       }),
     translateBatch: (
       sequences,
@@ -431,31 +583,19 @@ function buildFromKernel(k: NativeKernel, alignment: NativeAlignmentModule | und
               options
             )
           ),
-        catch: (e) =>
-          new BackendUnavailableError({
-            method: "translateBatch",
-            message: e instanceof Error ? e.message : String(e),
-          }),
+        catch: (e) => classifyEngineError("translateBatch", e),
       }),
     hashBatch: (sequences, offsets, caseInsensitive) =>
       Effect.try({
         try: () => k.hashBatch(toBufferView(sequences), offsets, caseInsensitive),
-        catch: (e) =>
-          new BackendUnavailableError({
-            method: "hashBatch",
-            message: e instanceof Error ? e.message : String(e),
-          }),
+        catch: (e) => classifyEngineError("hashBatch", e),
       }),
     createAlignmentReaderFromPath: (path) =>
       alignment === undefined
         ? unavailable("createAlignmentReaderFromPath")
         : Effect.try({
             try: () => wrapAlignmentReader(alignment.AlignmentReader.open(path)),
-            catch: (e) =>
-              new BackendUnavailableError({
-                method: "createAlignmentReaderFromPath",
-                message: e instanceof Error ? e.message : String(e),
-              }),
+            catch: (e) => classifyEngineError("createAlignmentReaderFromPath", e),
           }),
     createAlignmentReaderFromBytes: (bytes) =>
       alignment === undefined
@@ -463,11 +603,55 @@ function buildFromKernel(k: NativeKernel, alignment: NativeAlignmentModule | und
         : Effect.try({
             try: () =>
               wrapAlignmentReader(alignment.AlignmentReader.openBytes(toBufferView(bytes))),
-            catch: (e) =>
-              new BackendUnavailableError({
-                method: "createAlignmentReaderFromBytes",
-                message: e instanceof Error ? e.message : String(e),
-              }),
+            catch: (e) => classifyEngineError("createAlignmentReaderFromBytes", e),
+          }),
+    createFastqReaderFromPath: (path) =>
+      fastqMod === undefined
+        ? unavailable("createFastqReaderFromPath")
+        : Effect.try({
+            try: () => wrapFastqReader(fastqMod.FastqReader.open(path)),
+            catch: (e) => classifyEngineError("createFastqReaderFromPath", e),
+          }),
+    createFastqReaderFromBytes: (bytes) =>
+      fastqMod === undefined
+        ? unavailable("createFastqReaderFromBytes")
+        : Effect.try({
+            try: () => wrapFastqReader(fastqMod.FastqReader.openBytes(toBufferView(bytes))),
+            catch: (e) => classifyEngineError("createFastqReaderFromBytes", e),
+          }),
+    createFastaReaderFromPath: (path) =>
+      fastaMod === undefined
+        ? unavailable("createFastaReaderFromPath")
+        : Effect.try({
+            try: () => wrapFastaReader(fastaMod.FastaReader.open(path)),
+            catch: (e) => classifyEngineError("createFastaReaderFromPath", e),
+          }),
+    createFastaReaderFromBytes: (bytes) =>
+      fastaMod === undefined
+        ? unavailable("createFastaReaderFromBytes")
+        : Effect.try({
+            try: () => wrapFastaReader(fastaMod.FastaReader.openBytes(toBufferView(bytes))),
+            catch: (e) => classifyEngineError("createFastaReaderFromBytes", e),
+          }),
+    createFastqWriter: (path, compress) =>
+      fastqWriterMod === undefined
+        ? unavailable("createFastqWriter")
+        : Effect.try({
+            try: () =>
+              path !== null
+                ? wrapFastqWriter(fastqWriterMod.FastqWriter.open(path, compress))
+                : wrapFastqWriter(fastqWriterMod.FastqWriter.openBytes(compress)),
+            catch: (e) => classifyEngineError("createFastqWriter", e),
+          }),
+    createFastaWriter: (path, compress, lineWidth) =>
+      fastaWriterMod === undefined
+        ? unavailable("createFastaWriter")
+        : Effect.try({
+            try: () =>
+              path !== null
+                ? wrapFastaWriter(fastaWriterMod.FastaWriter.open(path, compress, lineWidth))
+                : wrapFastaWriter(fastaWriterMod.FastaWriter.openBytes(compress, lineWidth)),
+            catch: (e) => classifyEngineError("createFastaWriter", e),
           }),
   });
 }
@@ -478,10 +662,19 @@ export const nativeLayer: Layer.Layer<BackendService, NativeAddonNotFoundError> 
   BackendService,
   Effect.try({
     try: () => {
-      const mod = require("../native/index.js") as NativeKernel & NativeAlignmentModule;
+      const mod = require("../native/index.js") as NativeKernel &
+        NativeAlignmentModule &
+        NativeFastqModule &
+        NativeFastaModule &
+        NativeFastqWriterModule &
+        NativeFastaWriterModule;
       const kernel = mod as NativeKernel;
       const alignment = "AlignmentReader" in mod ? (mod as NativeAlignmentModule) : undefined;
-      return buildFromKernel(kernel, alignment);
+      const fastqMod = "FastqReader" in mod ? (mod as NativeFastqModule) : undefined;
+      const fastaMod = "FastaReader" in mod ? (mod as NativeFastaModule) : undefined;
+      const fastqWriterMod = "FastqWriter" in mod ? (mod as NativeFastqWriterModule) : undefined;
+      const fastaWriterMod = "FastaWriter" in mod ? (mod as NativeFastaWriterModule) : undefined;
+      return buildFromKernel(kernel, alignment, fastqMod, fastaMod, fastqWriterMod, fastaWriterMod);
     },
     catch: (cause) =>
       new NativeAddonNotFoundError({

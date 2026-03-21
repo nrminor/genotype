@@ -20,7 +20,15 @@ import type {
   SequenceMetricsResult,
   TransformResult,
 } from "./kernel-types";
-import type { AlignmentReaderHandle } from "./types";
+import type {
+  AlignmentReaderHandle,
+  FastaBatch,
+  FastaReaderHandle,
+  FastaWriterHandle,
+  FastqBatch,
+  FastqReaderHandle,
+  FastqWriterHandle,
+} from "./types";
 
 export class WasmInitializationError extends Schema.TaggedErrorClass<WasmInitializationError>()(
   "WasmInitializationError",
@@ -323,6 +331,142 @@ function buildFromModule(wasm: WasmModule) {
         catch: (e) =>
           new BackendUnavailableError({
             method: "createAlignmentReaderFromBytes",
+            message: e instanceof Error ? e.message : String(e),
+          }),
+      }),
+    createFastqReaderFromPath: (_path) =>
+      Effect.fail(
+        new BackendUnavailableError({
+          method: "createFastqReaderFromPath",
+          message: "wasm backend does not support file-based FASTQ reading",
+        })
+      ),
+    createFastqReaderFromBytes: (bytes) =>
+      Effect.try({
+        try: (): FastqReaderHandle => {
+          const reader = new wasm.WasmFastqReader(bytes);
+          return {
+            async readBatch(maxRecords: number) {
+              const batch = reader.read_batch(maxRecords);
+              if (batch === undefined) return null;
+              const result = {
+                count: batch.count,
+                nameData: batch.name_data,
+                nameOffsets: batch.name_offsets,
+                descriptionData: batch.description_data,
+                descriptionOffsets: batch.description_offsets,
+                sequenceData: batch.sequence_data,
+                sequenceOffsets: batch.sequence_offsets,
+                qualityData: batch.quality_data,
+                qualityOffsets: batch.quality_offsets,
+              };
+              batch.free();
+              return result;
+            },
+            close() {
+              reader.free();
+            },
+          };
+        },
+        catch: (e) =>
+          new BackendUnavailableError({
+            method: "createFastqReaderFromBytes",
+            message: e instanceof Error ? e.message : String(e),
+          }),
+      }),
+    createFastaReaderFromPath: (_path) =>
+      Effect.fail(
+        new BackendUnavailableError({
+          method: "createFastaReaderFromPath",
+          message: "wasm backend does not support file-based FASTA reading",
+        })
+      ),
+    createFastaReaderFromBytes: (bytes) =>
+      Effect.try({
+        try: (): FastaReaderHandle => {
+          const reader = new wasm.WasmFastaReader(bytes);
+          return {
+            async readBatch(maxRecords: number) {
+              const batch = reader.read_batch(maxRecords);
+              if (batch === undefined) return null;
+              const result = {
+                count: batch.count,
+                nameData: batch.name_data,
+                nameOffsets: batch.name_offsets,
+                descriptionData: batch.description_data,
+                descriptionOffsets: batch.description_offsets,
+                sequenceData: batch.sequence_data,
+                sequenceOffsets: batch.sequence_offsets,
+              };
+              batch.free();
+              return result;
+            },
+            close() {
+              reader.free();
+            },
+          };
+        },
+        catch: (e) =>
+          new BackendUnavailableError({
+            method: "createFastaReaderFromBytes",
+            message: e instanceof Error ? e.message : String(e),
+          }),
+      }),
+    createFastqWriter: (_path, compress) =>
+      Effect.try({
+        try: (): FastqWriterHandle => {
+          const writer = new wasm.WasmFastqWriter(compress);
+          return {
+            async writeBatch(batch: FastqBatch) {
+              writer.write_batch(
+                batch.nameData,
+                batch.nameOffsets,
+                batch.descriptionData,
+                batch.descriptionOffsets,
+                batch.sequenceData,
+                batch.sequenceOffsets,
+                batch.qualityData,
+                batch.qualityOffsets,
+                batch.count
+              );
+            },
+            async finish() {
+              const result = writer.finish();
+              return result ?? null;
+            },
+          };
+        },
+        catch: (e) =>
+          new BackendUnavailableError({
+            method: "createFastqWriter",
+            message: e instanceof Error ? e.message : String(e),
+          }),
+      }),
+    createFastaWriter: (_path, compress, lineWidth) =>
+      Effect.try({
+        try: (): FastaWriterHandle => {
+          const writer = new wasm.WasmFastaWriter(compress, lineWidth);
+          return {
+            async writeBatch(batch: FastaBatch) {
+              writer.write_batch(
+                batch.nameData,
+                batch.nameOffsets,
+                batch.descriptionData,
+                batch.descriptionOffsets,
+                batch.sequenceData,
+                batch.sequenceOffsets,
+                batch.count
+              );
+            },
+            async finish() {
+              const result = writer.finish();
+              return result ?? null;
+            },
+          };
+        },
+        catch: (e) =>
+          new BackendUnavailableError({
+            method: "createFastaWriter",
             message: e instanceof Error ? e.message : String(e),
           }),
       }),

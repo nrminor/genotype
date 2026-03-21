@@ -73,6 +73,70 @@ export interface AlignmentReaderHandle {
 }
 
 /**
+ * A batch of parsed FASTQ records in struct-of-arrays layout.
+ * Mirrors the Rust-side FastqBatch.
+ */
+export interface FastqBatch {
+  count: number;
+  nameData: Uint8Array;
+  nameOffsets: Uint32Array;
+  descriptionData: Uint8Array;
+  descriptionOffsets: Uint32Array;
+  sequenceData: Uint8Array;
+  sequenceOffsets: Uint32Array;
+  qualityData: Uint8Array;
+  qualityOffsets: Uint32Array;
+}
+
+/**
+ * Stateful handle for reading FASTQ records in batches.
+ */
+export interface FastqReaderHandle {
+  readBatch(maxRecords: number): Promise<FastqBatch | null>;
+  close(): void;
+}
+
+/**
+ * A batch of parsed FASTA records in struct-of-arrays layout.
+ * Mirrors the Rust-side FastaBatch.
+ */
+export interface FastaBatch {
+  count: number;
+  nameData: Uint8Array;
+  nameOffsets: Uint32Array;
+  descriptionData: Uint8Array;
+  descriptionOffsets: Uint32Array;
+  sequenceData: Uint8Array;
+  sequenceOffsets: Uint32Array;
+}
+
+/**
+ * Stateful handle for reading FASTA records in batches.
+ */
+export interface FastaReaderHandle {
+  readBatch(maxRecords: number): Promise<FastaBatch | null>;
+  close(): void;
+}
+
+/**
+ * Stateful handle for writing FASTQ records in batches.
+ * Accepts the same batch layout that FastqReaderHandle produces.
+ */
+export interface FastqWriterHandle {
+  writeBatch(batch: FastqBatch): Promise<void>;
+  finish(): Promise<Uint8Array | null>;
+}
+
+/**
+ * Stateful handle for writing FASTA records in batches.
+ * Accepts the same batch layout that FastaReaderHandle produces.
+ */
+export interface FastaWriterHandle {
+  writeBatch(batch: FastaBatch): Promise<void>;
+  finish(): Promise<Uint8Array | null>;
+}
+
+/**
  * Backend abstraction for genotype compute/parsing capabilities.
  *
  * Consumers depend on this interface rather than directly on napi or

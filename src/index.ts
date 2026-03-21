@@ -73,7 +73,7 @@ export {
 // FASTA format
 export { FastaParser, FastaUtils, FastaWriter } from "./formats/fasta";
 // FASTQ format
-export { FastqParser, FastqUtils, FastqWriter } from "./formats/fastq";
+export { FastqParser, FastqWriter } from "./formats/fastq";
 
 // SeqOps - Unix pipeline-style sequence operations
 export {

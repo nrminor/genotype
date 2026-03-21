@@ -74,7 +74,7 @@
  */
 
 import { PairSyncError } from "../../errors";
-import type { FastqSequence, FileReaderOptions } from "../../types";
+import type { FastqSequence } from "../../types";
 import { FastqParser } from "./parser";
 import type { PairedFastqParserOptions, PairedFastqRead } from "./types";
 
@@ -245,13 +245,9 @@ export class PairedFastqParser {
    * }
    * ```
    */
-  async *parseFiles(
-    r1Path: string,
-    r2Path: string,
-    fileOptions?: FileReaderOptions
-  ): AsyncIterable<PairedFastqRead> {
-    const r1Stream = this.r1Parser.parseFile(r1Path, fileOptions);
-    const r2Stream = this.r2Parser.parseFile(r2Path, fileOptions);
+  async *parseFiles(r1Path: string, r2Path: string): AsyncIterable<PairedFastqRead> {
+    const r1Stream = this.r1Parser.parseFile(r1Path);
+    const r2Stream = this.r2Parser.parseFile(r2Path);
 
     const r1Iterator = r1Stream[Symbol.asyncIterator]();
     const r2Iterator = r2Stream[Symbol.asyncIterator]();

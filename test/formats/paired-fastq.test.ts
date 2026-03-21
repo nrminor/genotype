@@ -179,68 +179,6 @@ describe("PairedFastqParser", () => {
     });
   });
 
-  describe("getMetrics()", () => {
-    test("returns metrics object with r1 and r2 properties", () => {
-      const parser = new PairedFastqParser();
-      const metrics = parser.getMetrics();
-
-      expect(metrics).toHaveProperty("r1");
-      expect(metrics).toHaveProperty("r2");
-    });
-
-    test("r1 metrics have expected structure", () => {
-      const parser = new PairedFastqParser();
-      const metrics = parser.getMetrics();
-
-      expect(metrics.r1).toHaveProperty("fastPathCount");
-      expect(metrics.r1).toHaveProperty("stateMachineCount");
-      expect(metrics.r1).toHaveProperty("autoDetectCount");
-      expect(metrics.r1).toHaveProperty("totalSequences");
-      expect(metrics.r1).toHaveProperty("lastStrategy");
-      expect(metrics.r1).toHaveProperty("lastDetectedFormat");
-      expect(metrics.r1).toHaveProperty("lastConfidence");
-    });
-
-    test("r2 metrics have expected structure", () => {
-      const parser = new PairedFastqParser();
-      const metrics = parser.getMetrics();
-
-      expect(metrics.r2).toHaveProperty("fastPathCount");
-      expect(metrics.r2).toHaveProperty("stateMachineCount");
-      expect(metrics.r2).toHaveProperty("autoDetectCount");
-      expect(metrics.r2).toHaveProperty("totalSequences");
-      expect(metrics.r2).toHaveProperty("lastStrategy");
-      expect(metrics.r2).toHaveProperty("lastDetectedFormat");
-      expect(metrics.r2).toHaveProperty("lastConfidence");
-    });
-
-    test("initial metrics have zero counts", () => {
-      const parser = new PairedFastqParser();
-      const metrics = parser.getMetrics();
-
-      expect(metrics.r1.fastPathCount).toBe(0);
-      expect(metrics.r1.stateMachineCount).toBe(0);
-      expect(metrics.r1.autoDetectCount).toBe(0);
-      expect(metrics.r1.totalSequences).toBe(0);
-
-      expect(metrics.r2.fastPathCount).toBe(0);
-      expect(metrics.r2.stateMachineCount).toBe(0);
-      expect(metrics.r2.autoDetectCount).toBe(0);
-      expect(metrics.r2.totalSequences).toBe(0);
-    });
-
-    test("metrics are independent between r1 and r2", () => {
-      const parser = new PairedFastqParser();
-      const metrics1 = parser.getMetrics();
-      const metrics2 = parser.getMetrics();
-
-      // Should return new copies, not same reference
-      expect(metrics1).toEqual(metrics2);
-      expect(metrics1.r1).not.toBe(metrics2.r1);
-      expect(metrics1.r2).not.toBe(metrics2.r2);
-    });
-  });
-
   describe("parseStrings() - Basic Structure", () => {
     test("method exists and can be called", async () => {
       const parser = new PairedFastqParser();
@@ -822,8 +760,7 @@ describe("PairedFastqParser", () => {
 
       for await (const pair of parser.parseFiles(
         "test/fixtures/paired-r1.fastq",
-        "test/fixtures/paired-r2.fastq",
-        { encoding: "utf8" }
+        "test/fixtures/paired-r2.fastq"
       )) {
         pairs.push(pair);
       }
@@ -1050,23 +987,19 @@ describe("PairedFastqParser", () => {
       expect(pairs[0]!.pairId).toBe("instrument");
     });
 
-    test("multi-line FASTQ sequences handled correctly in pairs", async () => {
+    test("multi-line FASTQ sequences are rejected (only 4-line format supported)", async () => {
+      // Multi-line (Sanger-wrapped) FASTQ is not supported by the noodles
+      // backend. Legacy wrapped files should be normalized before processing.
       const parser = new PairedFastqParser();
 
       const r1 = "@read1/1\nATCG\nATCG\nATCG\n+\nIIII\nIIII\nIIII";
       const r2 = "@read1/2\nCGAT\nCGAT\nCGAT\n+\nIIII\nIIII\nIIII";
 
-      const pairs: PairedFastqRead[] = [];
-      for await (const pair of parser.parseStrings(r1, r2)) {
-        pairs.push(pair);
-      }
-
-      expect(pairs).toHaveLength(1);
-      expect(pairs[0]!.r1.sequence).toEqualSequence("ATCGATCGATCG");
-      expect(pairs[0]!.r2.sequence).toEqualSequence("CGATCGATCGAT");
-      expect(pairs[0]!.r1.quality).toEqualSequence("IIIIIIIIIIII");
-      expect(pairs[0]!.r2.quality).toEqualSequence("IIIIIIIIIIII");
-      expect(pairs[0]!.totalLength).toBe(24);
+      await expect(async () => {
+        for await (const _pair of parser.parseStrings(r1, r2)) {
+          // Should not parse multi-line as single records
+        }
+      }).toThrow();
     });
 
     test("quality encoding options inherited from FastqParser", async () => {

@@ -51,8 +51,8 @@ export interface FastqParserContext {
  * Extends base ParserOptions for sequencing data with quality scores
  */
 export interface FastqParserOptions extends ParserOptions {
-  /** Custom quality encoding for FASTQ format */
-  qualityEncoding?: QualityEncoding;
+  /** Quality encoding. Set to "auto" to detect from the first batch. Defaults to "auto". */
+  qualityEncoding?: QualityEncoding | "auto";
   /** Whether to parse quality scores immediately */
   parseQualityScores?: boolean;
   /** Validation level: none (fastest), quick (default), or full (comprehensive) */

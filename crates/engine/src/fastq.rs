@@ -15,6 +15,7 @@ use noodles_fastq as fastq;
 use crate::EngineError;
 
 /// A batch of parsed FASTQ records in struct-of-arrays layout.
+#[derive(Debug)]
 pub struct FastqBatch {
     pub count: u32,
 
@@ -143,9 +144,19 @@ impl FastqReader {
             }
 
             let record = &self.record_buf;
+            let seq = record.sequence();
+            let qual = record.quality_scores();
 
-            // Parse the definition line: name is everything before the first
-            // space, description is everything after.
+            if seq.len() != qual.len() {
+                let name = String::from_utf8_lossy(record.definition().name());
+                return Err(EngineError::InvalidArgument(format!(
+                    "FASTQ record '{}': sequence length ({}) != quality length ({})",
+                    name,
+                    seq.len(),
+                    qual.len()
+                )));
+            }
+
             let def = record.definition();
 
             name_bytes.extend_from_slice(def.name());
@@ -154,10 +165,10 @@ impl FastqReader {
             desc_bytes.extend_from_slice(def.description());
             desc_offsets.push(desc_bytes.len() as u32);
 
-            seq_bytes.extend_from_slice(record.sequence());
+            seq_bytes.extend_from_slice(seq);
             seq_offsets.push(seq_bytes.len() as u32);
 
-            qual_bytes.extend_from_slice(record.quality_scores());
+            qual_bytes.extend_from_slice(qual);
             qual_offsets.push(qual_bytes.len() as u32);
 
             count += 1;
@@ -324,5 +335,52 @@ impl FastqWriter {
             WriterInner::PlainBytes(w) => w,
             WriterInner::GzipBytes(w) => w,
         }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn complete_records_parse_without_error() {
+        let input = b"@read1\nATCG\n+\nIIII\n@read2\nGCTA\n+\nJJJJ\n";
+        let mut reader = FastqReader::open_from_bytes(input.to_vec()).unwrap();
+        let batch = reader.read_batch(100).unwrap().unwrap();
+        assert_eq!(batch.count, 2);
+        assert!(reader.read_batch(100).unwrap().is_none());
+    }
+
+    #[test]
+    fn truncated_record_with_missing_quality_is_caught() {
+        // Noodles parses the truncated record with empty quality.
+        // Our validation catches the sequence/quality length mismatch.
+        let input = b"@read1\nATCG\n+\nIIII\n@truncated\nATCG\n+\n";
+        let mut reader = FastqReader::open_from_bytes(input.to_vec()).unwrap();
+        let result = reader.read_batch(100);
+        assert!(
+            result.is_err(),
+            "should error on truncated record with mismatched lengths"
+        );
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("sequence length"),
+            "error should mention length mismatch: {err}"
+        );
+    }
+
+    #[test]
+    fn sequence_quality_length_mismatch_is_caught() {
+        let input = b"@mismatch\nATCGATCG\n+\nIII\n";
+        let mut reader = FastqReader::open_from_bytes(input.to_vec()).unwrap();
+        let result = reader.read_batch(100);
+        assert!(result.is_err(), "should error on length mismatch");
+    }
+
+    #[test]
+    fn empty_input_returns_none() {
+        let mut reader = FastqReader::open_from_bytes(Vec::new()).unwrap();
+        assert!(reader.read_batch(100).unwrap().is_none());
     }
 }

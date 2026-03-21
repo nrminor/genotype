@@ -18,7 +18,13 @@ import { nativeLayer } from "./node-native";
 import { wasmLayer } from "./wasm";
 import { RuntimeEnvLayer } from "../io/layers";
 
-export { BackendService, BackendUnavailableError } from "./common";
+export {
+  BackendService,
+  BackendUnavailableError,
+  BackendIOError,
+  BackendValidationError,
+  type BackendError,
+} from "./common";
 
 const backendLayer: Layer.Layer<BackendService> = nativeLayer.pipe(
   Layer.catchTag("NativeAddonNotFoundError", () =>
@@ -176,3 +182,19 @@ export const createAlignmentReaderFromPath = (path: string) =>
 /** Open an alignment reader from in-memory bytes. */
 export const createAlignmentReaderFromBytes = (bytes: Uint8Array) =>
   backendRuntime.runPromise(BackendService.use((b) => b.createAlignmentReaderFromBytes(bytes)));
+
+/** Open a FASTQ reader from a file path. */
+export const createFastqReaderFromPath = (path: string) =>
+  backendRuntime.runPromise(BackendService.use((b) => b.createFastqReaderFromPath(path)));
+
+/** Open a FASTQ reader from in-memory bytes. */
+export const createFastqReaderFromBytes = (bytes: Uint8Array) =>
+  backendRuntime.runPromise(BackendService.use((b) => b.createFastqReaderFromBytes(bytes)));
+
+/** Open a FASTA reader from a file path. */
+export const createFastaReaderFromPath = (path: string) =>
+  backendRuntime.runPromise(BackendService.use((b) => b.createFastaReaderFromPath(path)));
+
+/** Open a FASTA reader from in-memory bytes. */
+export const createFastaReaderFromBytes = (bytes: Uint8Array) =>
+  backendRuntime.runPromise(BackendService.use((b) => b.createFastaReaderFromBytes(bytes)));

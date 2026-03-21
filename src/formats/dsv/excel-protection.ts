@@ -62,7 +62,10 @@ export class ExcelProtector {
    * Protect a single field
    */
   protect(field: string): string {
-    return protectFromExcel(field);
+    if (this.needsProtection(field)) {
+      return `"${field}"`;
+    }
+    return field;
   }
 
   /**

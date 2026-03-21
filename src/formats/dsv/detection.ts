@@ -35,7 +35,12 @@ export function detectDelimiter(
       // Skip empty lines and comments
       if (!line.trim() || line.startsWith("#")) continue;
 
-      const count = line.split(delimiter).length - 1;
+      let count: number;
+      try {
+        count = parseCSVRow(line, delimiter).length - 1;
+      } catch {
+        count = line.split(delimiter).length - 1;
+      }
       if (count > 0) {
         counts.push(count);
         if (lastCount === -1) {

@@ -91,12 +91,12 @@ export function hashSHA1(input: string, caseSensitive = false): string {
  * ```
  */
 export function hashString(str: string): number {
-  let hash = 5381;
+  let h = 5381;
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash + char) | 0; // (hash * 33) + char
+    h = ((h << 5) - h + char) | 0; // (h * 33) + char
   }
-  return Math.abs(hash);
+  return Math.abs(h);
 }
 
 /**

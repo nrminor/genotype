@@ -46,7 +46,7 @@ describe("SplitProcessor", () => {
     return results;
   }
 
-  async function* source(sequences: AbstractSequence[]): AsyncIterable<AbstractSequence> {
+  async function* createSource(sequences: AbstractSequence[]): AsyncIterable<AbstractSequence> {
     for (const seq of sequences) {
       yield seq;
     }
@@ -71,7 +71,7 @@ describe("SplitProcessor", () => {
       ];
 
       const results = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           mode: "by-size",
           sequencesPerFile: 2,
           outputDir: tempDir,
@@ -111,7 +111,7 @@ describe("SplitProcessor", () => {
       ];
 
       const results = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           mode: "by-size",
           sequencesPerFile: 2,
           outputDir: tempDir,
@@ -138,7 +138,7 @@ describe("SplitProcessor", () => {
       const sequences = [createSequence("seq1", "ATCG"), createSequence("seq2", "GCTA")];
 
       const results = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           mode: "by-size",
           sequencesPerFile: 1,
           outputDir: tempDir,
@@ -155,7 +155,7 @@ describe("SplitProcessor", () => {
 
       await expect(
         collect(
-          processor.process(source(sequences), {
+          processor.process(createSource(sequences), {
             mode: "by-size",
             sequencesPerFile: 0,
             outputDir: tempDir,
@@ -165,7 +165,7 @@ describe("SplitProcessor", () => {
 
       await expect(
         collect(
-          processor.process(source(sequences), {
+          processor.process(createSource(sequences), {
             mode: "by-size",
             sequencesPerFile: -5,
             outputDir: tempDir,
@@ -180,7 +180,7 @@ describe("SplitProcessor", () => {
       );
 
       const results = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           mode: "by-size",
           outputDir: tempDir,
         })
@@ -202,7 +202,7 @@ describe("SplitProcessor", () => {
       const sequences = Array.from({ length: 10 }, (_, i) => createSequence(`seq${i + 1}`, "ATCG"));
 
       const results = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           mode: "by-parts",
           numParts: 3,
           outputDir: tempDir,
@@ -226,7 +226,7 @@ describe("SplitProcessor", () => {
       const sequences = Array.from({ length: 7 }, (_, i) => createSequence(`seq${i + 1}`, "ATCG"));
 
       const results = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           mode: "by-parts",
           numParts: 3,
           outputDir: tempDir,
@@ -250,7 +250,7 @@ describe("SplitProcessor", () => {
       const sequences = [createSequence("seq1", "ATCG"), createSequence("seq2", "GCTA")];
 
       const results = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           mode: "by-parts",
           numParts: 5,
           outputDir: tempDir,
@@ -269,7 +269,7 @@ describe("SplitProcessor", () => {
 
       await expect(
         collect(
-          processor.process(source(sequences), {
+          processor.process(createSource(sequences), {
             mode: "by-parts",
             numParts: 0,
             outputDir: tempDir,
@@ -279,7 +279,7 @@ describe("SplitProcessor", () => {
 
       await expect(
         collect(
-          processor.process(source(sequences), {
+          processor.process(createSource(sequences), {
             mode: "by-parts",
             numParts: -2,
             outputDir: tempDir,
@@ -297,7 +297,7 @@ describe("SplitProcessor", () => {
       ];
 
       const results = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           mode: "by-parts",
           outputDir: tempDir,
         })
@@ -325,7 +325,7 @@ describe("SplitProcessor", () => {
       ];
 
       const results = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           mode: "by-id",
           idRegex: "(chr[12])",
           outputDir: tempDir,
@@ -347,7 +347,7 @@ describe("SplitProcessor", () => {
       const sequences = [createSequence("chr1_seq", "ATCG"), createSequence("random_seq", "GCTA")];
 
       const results = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           mode: "by-id",
           idRegex: "chr([0-9]+)",
           outputDir: tempDir,
@@ -371,7 +371,7 @@ describe("SplitProcessor", () => {
       ];
 
       const results = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           mode: "by-id",
           idRegex: "chr[12]",
           outputDir: tempDir,
@@ -392,7 +392,7 @@ describe("SplitProcessor", () => {
 
       await expect(
         collect(
-          processor.process(source(sequences), {
+          processor.process(createSource(sequences), {
             mode: "by-id",
             outputDir: tempDir,
           })
@@ -401,7 +401,7 @@ describe("SplitProcessor", () => {
 
       await expect(
         collect(
-          processor.process(source(sequences), {
+          processor.process(createSource(sequences), {
             mode: "by-id",
             idRegex: "",
             outputDir: tempDir,
@@ -415,7 +415,7 @@ describe("SplitProcessor", () => {
 
       await expect(
         collect(
-          processor.process(source(sequences), {
+          processor.process(createSource(sequences), {
             mode: "by-id",
             idRegex: "[invalid",
             outputDir: tempDir,
@@ -435,7 +435,7 @@ describe("SplitProcessor", () => {
       ];
 
       const results = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           mode: "by-region",
           region: "chr1:1000-3000",
           outputDir: tempDir,
@@ -456,7 +456,7 @@ describe("SplitProcessor", () => {
 
       await expect(
         collect(
-          processor.process(source(sequences), {
+          processor.process(createSource(sequences), {
             mode: "by-region",
             outputDir: tempDir,
           })
@@ -465,7 +465,7 @@ describe("SplitProcessor", () => {
 
       await expect(
         collect(
-          processor.process(source(sequences), {
+          processor.process(createSource(sequences), {
             mode: "by-region",
             region: "invalid_format",
             outputDir: tempDir,
@@ -479,7 +479,7 @@ describe("SplitProcessor", () => {
 
       await expect(
         collect(
-          processor.process(source(sequences), {
+          processor.process(createSource(sequences), {
             mode: "by-region",
             region: "chr1:2000-1000", // start > end
             outputDir: tempDir,
@@ -489,7 +489,7 @@ describe("SplitProcessor", () => {
 
       await expect(
         collect(
-          processor.process(source(sequences), {
+          processor.process(createSource(sequences), {
             mode: "by-region",
             region: "chr1:1000-1000", // start = end
             outputDir: tempDir,
@@ -504,7 +504,7 @@ describe("SplitProcessor", () => {
       const sequences: AbstractSequence[] = [];
 
       const results = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           mode: "by-size",
           sequencesPerFile: 10,
           outputDir: tempDir,
@@ -518,7 +518,7 @@ describe("SplitProcessor", () => {
       const sequences = [createSequence("only_seq", "ATCGATCG")];
 
       const results = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           mode: "by-parts",
           numParts: 3,
           outputDir: tempDir,
@@ -539,7 +539,7 @@ describe("SplitProcessor", () => {
       ];
 
       const results = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           mode: "by-size",
           sequencesPerFile: 1,
           outputDir: tempDir,
@@ -559,7 +559,7 @@ describe("SplitProcessor", () => {
       ];
 
       const results = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           mode: "by-size",
           sequencesPerFile: 10,
           outputDir: tempDir,
@@ -583,7 +583,7 @@ describe("SplitProcessor", () => {
       ];
 
       const results = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           mode: "by-size",
           sequencesPerFile: 2,
           outputDir: tempDir,
@@ -604,7 +604,7 @@ describe("SplitProcessor", () => {
       const sequences = [createSequence("seq1", "ATCG")];
 
       const results = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           mode: "by-size",
           sequencesPerFile: 1,
           outputDir: customDir,
@@ -620,7 +620,7 @@ describe("SplitProcessor", () => {
       const sequences = [createSequence("seq1", "ATCG")];
 
       const results = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           mode: "by-size",
           sequencesPerFile: 1,
           outputDir: tempDir,
@@ -639,7 +639,7 @@ describe("SplitProcessor", () => {
       const sequences = [createSequence("seq1", "ATCG")];
 
       const results = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           mode: "by-size",
           sequencesPerFile: 1,
           outputDir: tempDir,
@@ -667,7 +667,7 @@ describe("SplitProcessor", () => {
       ];
 
       const results = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           mode: "by-size",
           sequencesPerFile: 1,
           outputDir: tempDir,
@@ -706,7 +706,7 @@ describe("SplitProcessor", () => {
 
       await expect(
         collect(
-          processor.process(source(sequences), {
+          processor.process(createSource(sequences), {
             mode: "by-size",
             sequencesPerFile: 1,
             outputDir: tempDir,
@@ -717,7 +717,7 @@ describe("SplitProcessor", () => {
 
       await expect(
         collect(
-          processor.process(source(sequences), {
+          processor.process(createSource(sequences), {
             mode: "by-size",
             sequencesPerFile: 1,
             outputDir: tempDir,
@@ -734,7 +734,7 @@ describe("SplitProcessor", () => {
 
       await expect(
         collect(
-          processor.process(source(sequences), {
+          processor.process(createSource(sequences), {
             mode: "invalid-mode" as "by-size",
             outputDir: tempDir,
           })
@@ -747,7 +747,7 @@ describe("SplitProcessor", () => {
 
       await expect(
         collect(
-          processor.process(source(sequences), {
+          processor.process(createSource(sequences), {
             mode: undefined as unknown as "by-size",
             outputDir: tempDir,
           })
@@ -760,7 +760,7 @@ describe("SplitProcessor", () => {
 
       try {
         await collect(
-          processor.process(source(sequences), {
+          processor.process(createSource(sequences), {
             mode: "by-id",
             idRegex: "[invalid",
             outputDir: tempDir,
@@ -797,7 +797,7 @@ describe("SeqOps split integration", () => {
     return createFastaRecord({ id, sequence });
   }
 
-  async function* source(sequences: AbstractSequence[]): AsyncIterable<AbstractSequence> {
+  async function* createSource(sequences: AbstractSequence[]): AsyncIterable<AbstractSequence> {
     for (const seq of sequences) {
       yield seq;
     }
@@ -820,7 +820,7 @@ describe("SeqOps split integration", () => {
     ];
 
     // Test consumptive interface (terminal operation)
-    const splitSummary = await seqops(source(sequences)).filter({ minLength: 6 }).split({
+    const splitSummary = await seqops(createSource(sequences)).filter({ minLength: 6 }).split({
       mode: "by-size",
       sequencesPerFile: 1,
       outputDir: tempDir,
@@ -840,7 +840,7 @@ describe("SeqOps split integration", () => {
     ];
 
     const splitResults = await collect(
-      seqops(source(sequences)).transform({ upperCase: true }).splitToStream({
+      seqops(createSource(sequences)).transform({ upperCase: true }).splitToStream({
         mode: "by-parts",
         numParts: 2,
         outputDir: tempDir,
@@ -859,7 +859,7 @@ describe("SeqOps split integration", () => {
     );
 
     let processedCount = 0;
-    const splitIterable = seqops(source(sequences)).splitToStream({
+    const splitIterable = seqops(createSource(sequences)).splitToStream({
       mode: "by-size",
       sequencesPerFile: 10,
       outputDir: tempDir,
@@ -885,7 +885,7 @@ describe("SeqOps split integration", () => {
 
     await expect(
       collect(
-        seqops(source(sequences)).splitToStream({
+        seqops(createSource(sequences)).splitToStream({
           mode: "by-id",
           idRegex: "[invalid",
           outputDir: tempDir,
@@ -915,7 +915,7 @@ describe("Real-world bioinformatics scenarios", () => {
     return createFastaRecord({ id, sequence, description });
   }
 
-  async function* source(sequences: AbstractSequence[]): AsyncIterable<AbstractSequence> {
+  async function* createSource(sequences: AbstractSequence[]): AsyncIterable<AbstractSequence> {
     for (const seq of sequences) {
       yield seq;
     }
@@ -941,7 +941,7 @@ describe("Real-world bioinformatics scenarios", () => {
     ];
 
     const results = await collect(
-      processor.process(source(sequences), {
+      processor.process(createSource(sequences), {
         mode: "by-id",
         idRegex: "(chr[0-9XY]+)",
         outputDir: tempDir,
@@ -974,7 +974,7 @@ describe("Real-world bioinformatics scenarios", () => {
     ];
 
     const results = await collect(
-      processor.process(source(sequences), {
+      processor.process(createSource(sequences), {
         mode: "by-id",
         idRegex: "_q([0-9]+)",
         outputDir: tempDir,
@@ -1008,7 +1008,7 @@ describe("Real-world bioinformatics scenarios", () => {
     );
 
     const results = await collect(
-      processor.process(source(sequences), {
+      processor.process(createSource(sequences), {
         mode: "by-size",
         sequencesPerFile: 100,
         outputDir: tempDir,
@@ -1043,7 +1043,7 @@ describe("Real-world bioinformatics scenarios", () => {
     ];
 
     const results = await collect(
-      processor.process(source(sequences), {
+      processor.process(createSource(sequences), {
         mode: "by-id",
         idRegex: "(read[0-9]+)",
         outputDir: tempDir,
@@ -1071,7 +1071,7 @@ describe("Real-world bioinformatics scenarios", () => {
     ];
 
     const results = await collect(
-      processor.process(source(sequences), {
+      processor.process(createSource(sequences), {
         mode: "by-region",
         region: "chr1:1500-3500",
         outputDir: tempDir,

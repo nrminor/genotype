@@ -29,7 +29,7 @@ describe("QualityProcessor", () => {
   }
 
   // Helper to create async source
-  async function* source(sequences: FastqSequence[]): AsyncIterable<FastqSequence> {
+  async function* createSource(sequences: FastqSequence[]): AsyncIterable<FastqSequence> {
     for (const seq of sequences) {
       yield seq;
     }
@@ -40,7 +40,7 @@ describe("QualityProcessor", () => {
       const sequences = [createFastqSequence("seq1", "ATCGATCG", "!#%'ACEG")];
 
       const processed = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           bins: 3,
           preset: "illumina",
         })
@@ -57,7 +57,7 @@ describe("QualityProcessor", () => {
       const sequences = [createFastqSequence("seq1", "ATCG", "IIII")];
 
       const processed = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           bins: 2,
           boundaries: [20],
         })
@@ -71,7 +71,7 @@ describe("QualityProcessor", () => {
       const sequences = [createFastqSequence("seq1", "ATCG", "!!!!&&&III")];
 
       const processed = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           bins: 2,
           preset: "pacbio",
         })
@@ -85,7 +85,7 @@ describe("QualityProcessor", () => {
       const sequences = [createFastqSequence("seq1", "ATCG", "!!!!&&&III")];
 
       const processed = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           bins: 3,
           preset: "nanopore",
         })
@@ -104,7 +104,7 @@ describe("QualityProcessor", () => {
       ];
 
       const processed = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           minScore: 20, // Filter first
           bins: 2, // Then bin
           preset: "illumina",
@@ -120,7 +120,7 @@ describe("QualityProcessor", () => {
       const sequences = [createFastqSequence("seq1", "ATCGATCGATCG", "!!!IIIIIII!!!")];
 
       const processed = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           trim: true,
           trimThreshold: 20,
           minScore: 25,
@@ -139,7 +139,7 @@ describe("QualityProcessor", () => {
       const sequences = [createFastqSequence("seq1", "ATCG", "!#%'")];
 
       const processed = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           bins: 2,
           preset: "illumina",
         })
@@ -155,7 +155,7 @@ describe("QualityProcessor", () => {
     test("compile-time error: bins without preset or boundaries", () => {
       // This test documents that TypeScript prevents invalid combinations at compile-time
       // The following would be a compile error:
-      //   processor.process(source(sequences), { bins: 3 });
+      //   processor.process(createSource(sequences), { bins: 3 });
       //   ^^^ Error: Property 'preset' is missing in type '{ bins: 3; }'
 
       // TypeScript now enforces that bins requires either preset OR boundaries
@@ -167,7 +167,7 @@ describe("QualityProcessor", () => {
 
       await expect(async () => {
         await collect(
-          processor.process(source(sequences), {
+          processor.process(createSource(sequences), {
             bins: 3,
             // @ts-expect-error Testing invalid preset
             preset: "invalid",
@@ -181,7 +181,7 @@ describe("QualityProcessor", () => {
 
       try {
         await collect(
-          processor.process(source(sequences), {
+          processor.process(createSource(sequences), {
             bins: 3,
             // @ts-expect-error Testing error handling
             preset: "nonexistent",
@@ -198,7 +198,7 @@ describe("QualityProcessor", () => {
     test("compile-time error: invalid boundaries length", () => {
       // This test documents that TypeScript prevents wrong boundary lengths at compile-time
       // The following would be a compile error:
-      //   processor.process(source(sequences), { bins: 3, boundaries: [20] });
+      //   processor.process(createSource(sequences), { bins: 3, boundaries: [20] });
       //   ^^^ Error: Type '[number]' is not assignable to type '[number, number]'
 
       // TypeScript now enforces boundary array length matches bins - 1
@@ -211,7 +211,7 @@ describe("QualityProcessor", () => {
       const sequences = [createFastqSequence("important_id", "ATCG", "IIII")];
 
       const processed = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           bins: 2,
           preset: "illumina",
         })
@@ -224,7 +224,7 @@ describe("QualityProcessor", () => {
       const sequences = [createFastqSequence("seq1", "ATCGATCG", "IIIIIIII")];
 
       const processed = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           bins: 3,
           preset: "illumina",
         })
@@ -237,7 +237,7 @@ describe("QualityProcessor", () => {
       const sequences = [createFastqSequence("seq1", "ATCGATCG", "!#%'ACEG")];
 
       const processed = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           bins: 3,
           preset: "illumina",
         })

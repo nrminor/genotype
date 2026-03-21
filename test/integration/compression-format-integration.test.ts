@@ -271,7 +271,7 @@ describe("Migration Validation - Safety Checks", () => {
 
   test("migration doesn't affect other compression formats", async () => {
     // Verify that fflate migration doesn't break Zstd or detection
-    const gzipData = createCompressedTestFile(">test\nATCG\n");
+    const gzipData = createCompressedTestFileHelper(">test\nATCG\n");
 
     // Detection should still work
     const detection = CompressionDetector.fromMagicBytes(gzipData);
@@ -287,7 +287,7 @@ describe("Real-World Genomic File Integration", () => {
   test("handles realistic genomic file sizes and patterns", async () => {
     // Test with chromosome-scale data
     const chromosomeFragment = ">chr22_fragment\n" + "ATCGATCGATCGATCG".repeat(50000) + "\n";
-    const compressedChromosome = createCompressedTestFile(chromosomeFragment);
+    const compressedChromosome = createCompressedTestFileHelper(chromosomeFragment);
 
     // Should handle large genomic files efficiently
     const startTime = performance.now();
@@ -315,7 +315,7 @@ describe("Real-World Genomic File Integration", () => {
     };
 
     for (const [_format, content] of Object.entries(testFiles)) {
-      const compressed = createCompressedTestFile(content);
+      const compressed = createCompressedTestFileHelper(content);
 
       // Test with both implementations where possible
       let currentResult: Uint8Array | null = null;
@@ -340,7 +340,7 @@ describe("Real-World Genomic File Integration", () => {
 });
 
 // Helper functions
-function createCompressedTestFile(content: string): Uint8Array {
+function createCompressedTestFileHelper(content: string): Uint8Array {
   const encoder = new TextEncoder();
   const uncompressed = encoder.encode(content);
   const zlib = require("zlib");

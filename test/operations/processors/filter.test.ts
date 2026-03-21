@@ -28,7 +28,7 @@ describe("FilterProcessor", () => {
   }
 
   // Helper to create async source
-  async function* source(sequences: AbstractSequence[]): AsyncIterable<AbstractSequence> {
+  async function* createSource(sequences: AbstractSequence[]): AsyncIterable<AbstractSequence> {
     for (const seq of sequences) {
       yield seq;
     }
@@ -42,7 +42,7 @@ describe("FilterProcessor", () => {
         createSequence("seq3", "AT"),
       ];
 
-      const result = await collect(processor.process(source(sequences), { minLength: 5 }));
+      const result = await collect(processor.process(createSource(sequences), { minLength: 5 }));
 
       expect(result).toHaveLength(1);
       expect(result[0]!.id).toBe("seq2");
@@ -55,7 +55,7 @@ describe("FilterProcessor", () => {
         createSequence("seq3", "AT"),
       ];
 
-      const result = await collect(processor.process(source(sequences), { maxLength: 5 }));
+      const result = await collect(processor.process(createSource(sequences), { maxLength: 5 }));
 
       expect(result).toHaveLength(2);
       expect(result.map((s) => s.id)).toEqual(["seq1", "seq3"]);
@@ -70,7 +70,7 @@ describe("FilterProcessor", () => {
       ];
 
       const result = await collect(
-        processor.process(source(sequences), { minLength: 4, maxLength: 8 })
+        processor.process(createSource(sequences), { minLength: 4, maxLength: 8 })
       );
 
       expect(result).toHaveLength(2);
@@ -86,7 +86,7 @@ describe("FilterProcessor", () => {
         createSequence("seq3", "ATGC"), // 50% GC
       ];
 
-      const result = await collect(processor.process(source(sequences), { minGC: 50 }));
+      const result = await collect(processor.process(createSource(sequences), { minGC: 50 }));
 
       expect(result).toHaveLength(2);
       expect(result.map((s) => s.id)).toEqual(["seq2", "seq3"]);
@@ -99,7 +99,7 @@ describe("FilterProcessor", () => {
         createSequence("seq3", "ATGC"), // 50% GC
       ];
 
-      const result = await collect(processor.process(source(sequences), { maxGC: 50 }));
+      const result = await collect(processor.process(createSource(sequences), { maxGC: 50 }));
 
       expect(result).toHaveLength(2);
       expect(result.map((s) => s.id)).toEqual(["seq1", "seq3"]);
@@ -114,7 +114,7 @@ describe("FilterProcessor", () => {
         createSequence("scaffold_1", "ATCG"),
       ];
 
-      const result = await collect(processor.process(source(sequences), { pattern: /^chr/ }));
+      const result = await collect(processor.process(createSource(sequences), { pattern: /^chr/ }));
 
       expect(result).toHaveLength(2);
       expect(result.map((s) => s.id)).toEqual(["chr1_gene1", "chr2_gene2"]);
@@ -127,7 +127,9 @@ describe("FilterProcessor", () => {
         createSequence("seq3", "GCGCGCGC"),
       ];
 
-      const result = await collect(processor.process(source(sequences), { pattern: /A{4,}/ }));
+      const result = await collect(
+        processor.process(createSource(sequences), { pattern: /A{4,}/ })
+      );
 
       expect(result).toHaveLength(1);
       expect(result[0]!.id).toBe("seq2");
@@ -143,7 +145,7 @@ describe("FilterProcessor", () => {
       ];
 
       const result = await collect(
-        processor.process(source(sequences), { ids: ["keep1", "keep2"] })
+        processor.process(createSource(sequences), { ids: ["keep1", "keep2"] })
       );
 
       expect(result).toHaveLength(2);
@@ -158,7 +160,7 @@ describe("FilterProcessor", () => {
       ];
 
       const result = await collect(
-        processor.process(source(sequences), { excludeIds: ["remove"] })
+        processor.process(createSource(sequences), { excludeIds: ["remove"] })
       );
 
       expect(result).toHaveLength(2);
@@ -174,7 +176,9 @@ describe("FilterProcessor", () => {
         createSequence("seq3", "RYWS"),
       ];
 
-      const result = await collect(processor.process(source(sequences), { hasAmbiguous: false }));
+      const result = await collect(
+        processor.process(createSource(sequences), { hasAmbiguous: false })
+      );
 
       expect(result).toHaveLength(1);
       expect(result[0]!.id).toBe("seq1");
@@ -187,7 +191,9 @@ describe("FilterProcessor", () => {
         createSequence("seq3", "RYWS"),
       ];
 
-      const result = await collect(processor.process(source(sequences), { hasAmbiguous: true }));
+      const result = await collect(
+        processor.process(createSource(sequences), { hasAmbiguous: true })
+      );
 
       expect(result).toHaveLength(2);
       expect(result.map((s) => s.id)).toEqual(["seq2", "seq3"]);
@@ -203,7 +209,7 @@ describe("FilterProcessor", () => {
       ];
 
       const result = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           custom: (seq) => seq.length % 2 === 0,
         })
       );
@@ -223,7 +229,7 @@ describe("FilterProcessor", () => {
       ];
 
       const result = await collect(
-        processor.process(source(sequences), {
+        processor.process(createSource(sequences), {
           minLength: 5,
           maxGC: 60,
           pattern: /^chr/,

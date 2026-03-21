@@ -266,7 +266,7 @@ describe("UniqueProcessor", () => {
       const processor = new UniqueProcessor();
       const result: AbstractSequence[] = [];
       for await (const seq of processor.process(makeAsync(sequences), {
-        by: (seq) => seq.id.split("_")[0] ?? seq.id, // Group by sample prefix
+        by: (record) => record.id.split("_")[0] ?? record.id, // Group by sample prefix
       })) {
         result.push(seq);
       }

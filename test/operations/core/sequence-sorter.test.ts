@@ -65,8 +65,8 @@ describe("SequenceSorter", () => {
       const sorter = new SequenceSorter();
       const sorted: AbstractSequence[] = [];
 
-      for await (const seq of sorter.sort(createAsyncSequences())) {
-        sorted.push(seq);
+      for await (const record of sorter.sort(createAsyncSequences())) {
+        sorted.push(record);
       }
 
       expect(sorted[0]!.id).toBe("seq2"); // Longest
@@ -82,8 +82,8 @@ describe("SequenceSorter", () => {
       const sorter = new SequenceSorter({ sortBy: "length-asc" });
       const sorted: AbstractSequence[] = [];
 
-      for await (const seq of sorter.sort(createAsyncSequences())) {
-        sorted.push(seq);
+      for await (const record of sorter.sort(createAsyncSequences())) {
+        sorted.push(record);
       }
 
       expect(sorted[0]!.id).toBe("seq3"); // Shortest
@@ -94,8 +94,8 @@ describe("SequenceSorter", () => {
       const sorter = new SequenceSorter({ sortBy: "gc" });
       const sorted: AbstractSequence[] = [];
 
-      for await (const seq of sorter.sort(createAsyncSequences())) {
-        sorted.push(seq);
+      for await (const record of sorter.sort(createAsyncSequences())) {
+        sorted.push(record);
       }
 
       expect(sorted[0]!.id).toBe("seq2"); // 100% GC
@@ -106,8 +106,8 @@ describe("SequenceSorter", () => {
       const sorter = new SequenceSorter({ sortBy: "id" });
       const sorted: AbstractSequence[] = [];
 
-      for await (const seq of sorter.sort(createAsyncSequences())) {
-        sorted.push(seq);
+      for await (const record of sorter.sort(createAsyncSequences())) {
+        sorted.push(record);
       }
 
       expect(sorted.map((s) => s.id)).toEqual(["seq1", "seq2", "seq3", "seq4", "seq5"]);
@@ -117,8 +117,8 @@ describe("SequenceSorter", () => {
       const sorter = new SequenceSorter({ sortBy: "id-desc" });
       const sorted: AbstractSequence[] = [];
 
-      for await (const seq of sorter.sort(createAsyncSequences())) {
-        sorted.push(seq);
+      for await (const record of sorter.sort(createAsyncSequences())) {
+        sorted.push(record);
       }
 
       expect(sorted.map((s) => s.id)).toEqual(["seq5", "seq4", "seq3", "seq2", "seq1"]);
@@ -133,8 +133,8 @@ describe("SequenceSorter", () => {
       });
 
       const sorted: FastqSequence[] = [];
-      for await (const seq of sorter.sort(createAsyncFastq())) {
-        sorted.push(seq as FastqSequence);
+      for await (const record of sorter.sort(createAsyncFastq())) {
+        sorted.push(record as FastqSequence);
       }
 
       // 'I' (ASCII 73) > 'A' (ASCII 65) > '#' (ASCII 35)
@@ -152,8 +152,8 @@ describe("SequenceSorter", () => {
       const sorter = new SequenceSorter({ sortBy: "quality" });
       const sorted: AbstractSequence[] = [];
 
-      for await (const seq of sorter.sort(mixedSequences())) {
-        sorted.push(seq);
+      for await (const record of sorter.sort(mixedSequences())) {
+        sorted.push(record);
       }
 
       expect(sorted).toHaveLength(3);
@@ -172,8 +172,8 @@ describe("SequenceSorter", () => {
       const sorter = new SequenceSorter({ sortBy: customSort });
       const sorted: AbstractSequence[] = [];
 
-      for await (const seq of sorter.sort(createAsyncSequences())) {
-        sorted.push(seq);
+      for await (const record of sorter.sort(createAsyncSequences())) {
+        sorted.push(record);
       }
 
       expect(sorted[0]!.id).toBe("seq3"); // AAAA comes first alphabetically
@@ -188,8 +188,8 @@ describe("SequenceSorter", () => {
       });
 
       const sorted: AbstractSequence[] = [];
-      for await (const seq of sorter.sort(createAsyncSequences())) {
-        sorted.push(seq);
+      for await (const record of sorter.sort(createAsyncSequences())) {
+        sorted.push(record);
       }
 
       // seq5 has same sequence as seq1 but different ID, so both are kept
@@ -212,8 +212,8 @@ describe("SequenceSorter", () => {
       const sorter = new SequenceSorter({ unique: true });
       const sorted: AbstractSequence[] = [];
 
-      for await (const seq of sorter.sort(testStream())) {
-        sorted.push(seq);
+      for await (const record of sorter.sort(testStream())) {
+        sorted.push(record);
       }
 
       // All three should be kept as they have unique ID:sequence combinations
@@ -328,8 +328,8 @@ describe("SequenceSorter", () => {
       const sorted: AbstractSequence[] = [];
 
       // The internal serialization should preserve all fields
-      for await (const seq of sorter.sort(createAsyncSequences())) {
-        sorted.push(seq);
+      for await (const record of sorter.sort(createAsyncSequences())) {
+        sorted.push(record);
       }
 
       // Check that descriptions are preserved
@@ -341,8 +341,8 @@ describe("SequenceSorter", () => {
       const sorter = new SequenceSorter({ sortBy: "quality" });
       const sorted: FastqSequence[] = [];
 
-      for await (const seq of sorter.sort(createAsyncFastq())) {
-        sorted.push(seq as FastqSequence);
+      for await (const record of sorter.sort(createAsyncFastq())) {
+        sorted.push(record as FastqSequence);
       }
 
       // Check that quality scores are preserved

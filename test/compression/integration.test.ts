@@ -246,9 +246,9 @@ describe("Compression Integration", () => {
         { file: "annotations.gff3", format: "none" as const },
       ];
 
-      for (const test of genomicExtensions) {
-        const detected = CompressionDetector.fromExtension(test.file);
-        expect(detected).toBe(test.format);
+      for (const entry of genomicExtensions) {
+        const detected = CompressionDetector.fromExtension(entry.file);
+        expect(detected).toBe(entry.format);
       }
     });
 

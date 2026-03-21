@@ -46,7 +46,7 @@ describe("ConcatProcessor", () => {
   }
 
   // Helper to create async source
-  async function* source(sequences: AbstractSequence[]): AsyncIterable<AbstractSequence> {
+  async function* createSource(sequences: AbstractSequence[]): AsyncIterable<AbstractSequence> {
     for (const seq of sequences) {
       yield seq;
     }
@@ -110,7 +110,7 @@ describe("ConcatProcessor", () => {
       const baseSequences = [createSequence("base_seq", "AAAAAAAAAAAAAAAA")];
 
       const result = await collect(
-        processor.process(source(baseSequences), {
+        processor.process(createSource(baseSequences), {
           sources: [file1, file2],
         })
       );
@@ -131,7 +131,7 @@ describe("ConcatProcessor", () => {
       const file2 = await createTempFasta(file2Sequences);
 
       const result = await collect(
-        processor.process(source([]), {
+        processor.process(createSource([]), {
           sources: [file1, file2],
           preserveOrder: true,
         })
@@ -153,8 +153,8 @@ describe("ConcatProcessor", () => {
       const file1 = await createTempFasta(fileSequences);
 
       const result = await collect(
-        processor.process(source([]), {
-          sources: [file1, source(iterableSequences)],
+        processor.process(createSource([]), {
+          sources: [file1, createSource(iterableSequences)],
         })
       );
 
@@ -178,7 +178,7 @@ describe("ConcatProcessor", () => {
 
       await expect(async () => {
         await collect(
-          processor.process(source(baseSequences), {
+          processor.process(createSource(baseSequences), {
             sources: [file1, file2],
             idConflictResolution: "error",
           })
@@ -195,7 +195,7 @@ describe("ConcatProcessor", () => {
       const file2 = await createTempFasta(file2Sequences);
 
       const result = await collect(
-        processor.process(source(baseSequences), {
+        processor.process(createSource(baseSequences), {
           sources: [file1, file2],
           idConflictResolution: "suffix",
           renameSuffix: "_src",
@@ -218,7 +218,7 @@ describe("ConcatProcessor", () => {
       const file1 = await createTempFasta(file1Sequences);
 
       const result = await collect(
-        processor.process(source(baseSequences), {
+        processor.process(createSource(baseSequences), {
           sources: [file1],
           idConflictResolution: "ignore",
         })
@@ -240,7 +240,7 @@ describe("ConcatProcessor", () => {
       const file1 = await createTempFasta(file1Sequences);
 
       const result = await collect(
-        processor.process(source(baseSequences), {
+        processor.process(createSource(baseSequences), {
           sources: [file1],
           idConflictResolution: "rename",
         })
@@ -262,7 +262,7 @@ describe("ConcatProcessor", () => {
       const file1 = await createTempFasta(file1Sequences);
 
       const result = await collect(
-        processor.process(source(baseSequences), {
+        processor.process(createSource(baseSequences), {
           sources: [file1],
           idConflictResolution: "suffix",
           renameSuffix: "_src",
@@ -285,7 +285,7 @@ describe("ConcatProcessor", () => {
       const file2 = await createTempFasta(file2Sequences);
 
       const result = await collect(
-        processor.process(source([]), {
+        processor.process(createSource([]), {
           sources: [file1, file2],
           validateFormats: true,
         })
@@ -302,7 +302,7 @@ describe("ConcatProcessor", () => {
       const file2 = await createTempFastq(file2Sequences);
 
       const result = await collect(
-        processor.process(source([]), {
+        processor.process(createSource([]), {
           sources: [file1, file2],
           validateFormats: true,
         })
@@ -320,7 +320,7 @@ describe("ConcatProcessor", () => {
 
       await expect(async () => {
         await collect(
-          processor.process(source([]), {
+          processor.process(createSource([]), {
             sources: [fastaFile, fastqFile],
             validateFormats: true,
           })
@@ -337,7 +337,7 @@ describe("ConcatProcessor", () => {
 
       // Should not throw when validation disabled
       const result = await collect(
-        processor.process(source([]), {
+        processor.process(createSource([]), {
           sources: [fastaFile, fastqFile],
           validateFormats: false,
         })
@@ -360,7 +360,7 @@ describe("ConcatProcessor", () => {
       let finalCount = 0;
       const maxMemoryUsage = process.memoryUsage().heapUsed;
 
-      for await (const _seq of processor.process(source([]), {
+      for await (const _seq of processor.process(createSource([]), {
         sources: [largeFile],
         validateFormats: false, // Skip format validation to avoid file size limits
         onProgress: (processed) => {
@@ -391,7 +391,7 @@ describe("ConcatProcessor", () => {
 
       const startTime = Date.now();
       const result = await collect(
-        processor.process(source([]), {
+        processor.process(createSource([]), {
           sources: [hugeFile],
           validateFormats: false, // Skip validation to avoid file size issues
         })
@@ -415,7 +415,7 @@ describe("ConcatProcessor", () => {
       const progressReports: number[] = [];
       let _finalTotal = 0;
       const result = await collect(
-        processor.process(source([]), {
+        processor.process(createSource([]), {
           sources: [file],
           validateFormats: false, // Skip validation to avoid file size issues
           onProgress: (processed, total, _sourceLabel) => {
@@ -443,7 +443,7 @@ describe("ConcatProcessor", () => {
 
       await expect(async () => {
         await collect(
-          processor.process(source([]), {
+          processor.process(createSource([]), {
             sources: [nonExistentFile],
           })
         );
@@ -453,7 +453,7 @@ describe("ConcatProcessor", () => {
     test("throws error for empty sources array", async () => {
       await expect(async () => {
         await collect(
-          processor.process(source([]), {
+          processor.process(createSource([]), {
             sources: [],
           })
         );
@@ -467,7 +467,7 @@ describe("ConcatProcessor", () => {
 
       await expect(async () => {
         await collect(
-          processor.process(source([]), {
+          processor.process(createSource([]), {
             sources: [malformedFile],
             validateFormats: true,
           })
@@ -486,7 +486,7 @@ describe("ConcatProcessor", () => {
 
         await expect(async () => {
           await collect(
-            processor.process(source([]), {
+            processor.process(createSource([]), {
               sources: [restrictedFile],
             })
           );
@@ -506,7 +506,7 @@ describe("ConcatProcessor", () => {
 
       try {
         await collect(
-          processor.process(source([]), {
+          processor.process(createSource([]), {
             sources: [nonExistentFile],
             sourceLabels: ["test_source"],
           })
@@ -531,8 +531,8 @@ describe("ConcatProcessor", () => {
       ];
 
       const result = await collect(
-        processor.process(source([]), {
-          sources: [source(sequences)],
+        processor.process(createSource([]), {
+          sources: [createSource(sequences)],
           skipEmpty: false,
           validateFormats: false,
         })
@@ -551,8 +551,8 @@ describe("ConcatProcessor", () => {
       ];
 
       const result = await collect(
-        processor.process(source([]), {
-          sources: [source(sequences)],
+        processor.process(createSource([]), {
+          sources: [createSource(sequences)],
           skipEmpty: true,
           validateFormats: false,
         })
@@ -567,7 +567,7 @@ describe("ConcatProcessor", () => {
       const file = await createTempFasta(singleSequence);
 
       const result = await collect(
-        processor.process(source([]), {
+        processor.process(createSource([]), {
           sources: [file],
         })
       );
@@ -581,8 +581,8 @@ describe("ConcatProcessor", () => {
       const emptySequences: AbstractSequence[] = [];
 
       const result = await collect(
-        processor.process(source([]), {
-          sources: [source(emptySequences)],
+        processor.process(createSource([]), {
+          sources: [createSource(emptySequences)],
           validateFormats: false,
         })
       );
@@ -598,7 +598,7 @@ describe("ConcatProcessor", () => {
 
       try {
         await collect(
-          processor.process(source(baseSequences), {
+          processor.process(createSource(baseSequences), {
             sources: [file1],
             sourceLabels: ["custom_source"],
             idConflictResolution: "error",
@@ -627,7 +627,7 @@ describe("ConcatProcessor", () => {
       const chr2File = await createTempFasta(chr2Sequences);
 
       const result = await collect(
-        processor.process(source([]), {
+        processor.process(createSource([]), {
           sources: [chr1File, chr2File],
           sourceLabels: ["chr1", "chr2"],
           validateFormats: false, // Skip validation to avoid file size issues
@@ -654,7 +654,7 @@ describe("ConcatProcessor", () => {
       const run2File = await createTempFastq(run2Sequences);
 
       const result = await collect(
-        processor.process(source([]), {
+        processor.process(createSource([]), {
           sources: [run1File, run2File],
           sourceLabels: ["run1", "run2"],
           idConflictResolution: "suffix",
@@ -678,7 +678,7 @@ describe("ConcatProcessor", () => {
       const vectorFile = await createTempFasta(vectorSeqs);
 
       const result = await collect(
-        processor.process(source([]), {
+        processor.process(createSource([]), {
           sources: [refFile, geneFile, vectorFile],
           sourceLabels: ["reference", "genes", "vectors"],
           validateFormats: false, // Skip validation to avoid file size issues
@@ -701,7 +701,7 @@ describe("ConcatProcessor", () => {
       const flyFile = await createTempFasta(flySeqs);
 
       const result = await collect(
-        processor.process(source([]), {
+        processor.process(createSource([]), {
           sources: [humanFile, mouseFile, flyFile],
           idConflictResolution: "suffix",
           renameSuffix: "_species",
@@ -725,7 +725,7 @@ describe("ConcatProcessor", () => {
       const file1 = await createTempFasta(file1Sequences);
       const file2 = await createTempFasta(file2Sequences);
 
-      const iterableSource = source(baseSequences);
+      const iterableSource = createSource(baseSequences);
 
       const result = await seqops(iterableSource)
         .concat([file1, file2], {
@@ -749,7 +749,7 @@ describe("ConcatProcessor", () => {
 
       const file = await createTempFasta(fileSequences);
 
-      const result = await seqops(source(baseSequences))
+      const result = await seqops(createSource(baseSequences))
         .concat([file], {
           validateFormats: false,
         })
@@ -768,7 +768,7 @@ describe("ConcatProcessor", () => {
 
       const file = await createTempFasta(fileSequences);
 
-      const result = await seqops(source(baseSequences))
+      const result = await seqops(createSource(baseSequences))
         .concat([file], {
           validateFormats: false,
         })

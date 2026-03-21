@@ -346,7 +346,7 @@ export class InterleaveProcessor<T extends AbstractSequence> {
    * @param iter - AsyncIterator to drain
    * @returns AsyncIterable of remaining values
    */
-  private async *drainIterator<T>(iter: AsyncIterator<T>): AsyncIterable<T> {
+  private async *drainIterator(iter: AsyncIterator<T>): AsyncIterable<T> {
     let result = await iter.next();
     while (!result.done) {
       yield result.value;

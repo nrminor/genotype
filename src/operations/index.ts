@@ -1679,8 +1679,8 @@ export class SeqOps<T extends AbstractSequence> {
    * // → { chr: 'chr1'; start: 1000; end: 2000; length: 1000 }
    * ```
    */
-  async splitByRegion<T extends string>(
-    region: T extends ValidGenomicRegion<T> ? T : never,
+  async splitByRegion<R extends string>(
+    region: R extends ValidGenomicRegion<R> ? R : never,
     outputDir = "./split"
   ): Promise<SplitSummary> {
     return this.split({ mode: "by-region", region, outputDir });

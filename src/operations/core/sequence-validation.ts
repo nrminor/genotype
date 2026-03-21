@@ -211,7 +211,7 @@ export class SequenceValidator {
    * Create a new SequenceValidator instance
    *
    * @param mode - Validation strictness level (default: NORMAL)
-   * @param type - Sequence type for validation (default: DNA)
+   * @param seqType - Sequence type for validation (default: DNA)
    * @throws {ValidationError} When mode or type parameters are invalid
    *
    * @example
@@ -232,7 +232,7 @@ export class SequenceValidator {
    * );
    * ```
    */
-  constructor(mode: ValidationMode = "normal", type: SequenceType = "dna") {
+  constructor(mode: ValidationMode = "normal", seqType: SequenceType = "dna") {
     // Validate inputs
     const validModes = Object.values(ValidationMode) as readonly string[];
     const validTypes = Object.values(SequenceType) as readonly string[];
@@ -244,16 +244,16 @@ export class SequenceValidator {
         `Valid modes: ${validModes.join(", ")}`
       );
     }
-    if (!validTypes.includes(type)) {
+    if (!validTypes.includes(seqType)) {
       throw new ValidationError(
-        `Invalid sequence type: ${type}`,
+        `Invalid sequence type: ${seqType}`,
         undefined,
         `Valid types: ${validTypes.join(", ")}`
       );
     }
 
     this.mode = mode;
-    this.type = type;
+    this.type = seqType;
 
     // Pre-compute validation pattern
     this.validationPattern = this.computeValidationPattern();
@@ -438,7 +438,7 @@ export class SequenceValidator {
    * Create a new validator with different settings
    *
    * @param mode - New validation mode (uses current if not specified)
-   * @param type - New sequence type (uses current if not specified)
+   * @param seqType - New sequence type (uses current if not specified)
    * @returns New SequenceValidator instance with specified settings
    *
    * @example
@@ -448,8 +448,8 @@ export class SequenceValidator {
    * const strictRNA = normalDNA.withSettings(ValidationMode.STRICT, SequenceType.RNA);
    * ```
    */
-  withSettings(mode?: ValidationMode, type?: SequenceType): SequenceValidator {
-    return new SequenceValidator(mode ?? this.mode, type ?? this.type);
+  withSettings(mode?: ValidationMode, seqType?: SequenceType): SequenceValidator {
+    return new SequenceValidator(mode ?? this.mode, seqType ?? this.type);
   }
 
   /**

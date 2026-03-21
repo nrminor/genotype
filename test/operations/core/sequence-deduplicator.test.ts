@@ -32,8 +32,8 @@ describe("SequenceDeduplicator", () => {
   ];
 
   async function* createAsyncSequences(): AsyncGenerator<AbstractSequence> {
-    for (const seq of sequences) {
-      yield seq;
+    for (const record of sequences) {
+      yield record;
     }
   }
 
@@ -42,8 +42,8 @@ describe("SequenceDeduplicator", () => {
       const dedup = new SequenceDeduplicator();
       const unique: AbstractSequence[] = [];
 
-      for await (const seq of dedup.deduplicate(createAsyncSequences())) {
-        unique.push(seq);
+      for await (const record of dedup.deduplicate(createAsyncSequences())) {
+        unique.push(record);
       }
 
       // seq1:ATCGATCG appears at index 0 and 2 (duplicate)
@@ -60,8 +60,8 @@ describe("SequenceDeduplicator", () => {
       const dedup = new SequenceDeduplicator({ strategy: "sequence" });
       const unique: AbstractSequence[] = [];
 
-      for await (const seq of dedup.deduplicate(createAsyncSequences())) {
-        unique.push(seq);
+      for await (const record of dedup.deduplicate(createAsyncSequences())) {
+        unique.push(record);
       }
 
       // ATCGATCG appears 3 times (seq1 x2, seq3)
@@ -77,8 +77,8 @@ describe("SequenceDeduplicator", () => {
       const dedup = new SequenceDeduplicator({ strategy: "id" });
       const unique: AbstractSequence[] = [];
 
-      for await (const seq of dedup.deduplicate(createAsyncSequences())) {
-        unique.push(seq);
+      for await (const record of dedup.deduplicate(createAsyncSequences())) {
+        unique.push(record);
       }
 
       // seq1 appears 3 times
@@ -93,8 +93,8 @@ describe("SequenceDeduplicator", () => {
       const dedup = new SequenceDeduplicator({ strategy: "exact" });
       const unique: AbstractSequence[] = [];
 
-      for await (const seq of dedup.deduplicate(createAsyncSequences())) {
-        unique.push(seq);
+      for await (const record of dedup.deduplicate(createAsyncSequences())) {
+        unique.push(record);
       }
 
       // Only exact matches (all fields) are considered duplicates
@@ -151,7 +151,7 @@ describe("SequenceDeduplicator", () => {
   describe("Custom Deduplication Strategy", () => {
     test("custom key function", async () => {
       // Deduplicate by first 4 bases only
-      const customKey = (seq: AbstractSequence) => seq.sequence.slice(0, 4).toString();
+      const customKey = (record: AbstractSequence) => record.sequence.slice(0, 4).toString();
 
       const dedup = new SequenceDeduplicator({ strategy: customKey });
       const unique: AbstractSequence[] = [];
@@ -251,8 +251,8 @@ describe("SequenceDeduplicator", () => {
       }
 
       const unique: AbstractSequence[] = [];
-      for await (const seq of dedup.deduplicate(manySequences())) {
-        unique.push(seq);
+      for await (const record of dedup.deduplicate(manySequences())) {
+        unique.push(record);
       }
 
       expect(unique).toHaveLength(100);
@@ -347,8 +347,8 @@ describe("SequenceDeduplicator", () => {
       const dedup = new ExactDeduplicator("sequence");
       const unique: AbstractSequence[] = [];
 
-      for await (const seq of dedup.deduplicate(createAsyncSequences())) {
-        unique.push(seq);
+      for await (const record of dedup.deduplicate(createAsyncSequences())) {
+        unique.push(record);
       }
 
       // No false positives with exact deduplication
@@ -443,8 +443,8 @@ describe("SequenceDeduplicator", () => {
         // Yield nothing
       }
 
-      for await (const seq of dedup.deduplicate(empty())) {
-        unique.push(seq);
+      for await (const record of dedup.deduplicate(empty())) {
+        unique.push(record);
       }
 
       expect(unique).toHaveLength(0);

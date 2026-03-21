@@ -509,7 +509,7 @@ describe("SampleProcessor", () => {
       const result: AbstractSequence[] = [];
       for await (const seq of seqops(sequences)
         .sample(20)
-        .filter((seq) => seq.length >= 20)) {
+        .filter((s) => s.length >= 20)) {
         result.push(seq);
       }
 

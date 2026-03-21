@@ -395,3 +395,207 @@ impl WasmAlignmentReader {
             .collect()
     }
 }
+
+#[wasm_bindgen(getter_with_clone)]
+pub struct WasmFastqBatch {
+    pub count: u32,
+    pub name_data: Vec<u8>,
+    pub name_offsets: Vec<u32>,
+    pub description_data: Vec<u8>,
+    pub description_offsets: Vec<u32>,
+    pub sequence_data: Vec<u8>,
+    pub sequence_offsets: Vec<u32>,
+    pub quality_data: Vec<u8>,
+    pub quality_offsets: Vec<u32>,
+}
+
+impl From<engine::fastq::FastqBatch> for WasmFastqBatch {
+    fn from(b: engine::fastq::FastqBatch) -> Self {
+        Self {
+            count: b.count,
+            name_data: b.name_data,
+            name_offsets: b.name_offsets,
+            description_data: b.description_data,
+            description_offsets: b.description_offsets,
+            sequence_data: b.sequence_data,
+            sequence_offsets: b.sequence_offsets,
+            quality_data: b.quality_data,
+            quality_offsets: b.quality_offsets,
+        }
+    }
+}
+
+#[wasm_bindgen]
+pub struct WasmFastqReader {
+    inner: engine::fastq::FastqReader,
+}
+
+#[wasm_bindgen]
+impl WasmFastqReader {
+    #[wasm_bindgen(constructor)]
+    pub fn new(data: &[u8]) -> Result<WasmFastqReader, JsError> {
+        let inner =
+            engine::fastq::FastqReader::open_from_bytes(data.to_vec()).map_err(engine_err)?;
+        Ok(Self { inner })
+    }
+
+    pub fn read_batch(&mut self, max_records: u32) -> Result<Option<WasmFastqBatch>, JsError> {
+        self.inner
+            .read_batch(max_records)
+            .map(|opt| opt.map(Into::into))
+            .map_err(engine_err)
+    }
+}
+
+#[wasm_bindgen(getter_with_clone)]
+pub struct WasmFastaBatch {
+    pub count: u32,
+    pub name_data: Vec<u8>,
+    pub name_offsets: Vec<u32>,
+    pub description_data: Vec<u8>,
+    pub description_offsets: Vec<u32>,
+    pub sequence_data: Vec<u8>,
+    pub sequence_offsets: Vec<u32>,
+}
+
+impl From<engine::fasta::FastaBatch> for WasmFastaBatch {
+    fn from(b: engine::fasta::FastaBatch) -> Self {
+        Self {
+            count: b.count,
+            name_data: b.name_data,
+            name_offsets: b.name_offsets,
+            description_data: b.description_data,
+            description_offsets: b.description_offsets,
+            sequence_data: b.sequence_data,
+            sequence_offsets: b.sequence_offsets,
+        }
+    }
+}
+
+#[wasm_bindgen]
+pub struct WasmFastaReader {
+    inner: engine::fasta::FastaReader,
+}
+
+#[wasm_bindgen]
+impl WasmFastaReader {
+    #[wasm_bindgen(constructor)]
+    pub fn new(data: &[u8]) -> Result<WasmFastaReader, JsError> {
+        let inner =
+            engine::fasta::FastaReader::open_from_bytes(data.to_vec()).map_err(engine_err)?;
+        Ok(Self { inner })
+    }
+
+    pub fn read_batch(&mut self, max_records: u32) -> Result<Option<WasmFastaBatch>, JsError> {
+        self.inner
+            .read_batch(max_records)
+            .map(|opt| opt.map(Into::into))
+            .map_err(engine_err)
+    }
+}
+
+#[wasm_bindgen]
+pub struct WasmFastqWriter {
+    inner: Option<engine::fastq::FastqWriter>,
+}
+
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+impl WasmFastqWriter {
+    #[wasm_bindgen(constructor)]
+    pub fn new(compress: bool) -> WasmFastqWriter {
+        Self {
+            inner: Some(engine::fastq::FastqWriter::open_to_bytes(compress)),
+        }
+    }
+
+    pub fn write_batch(
+        &mut self,
+        name_data: &[u8],
+        name_offsets: Vec<u32>,
+        description_data: &[u8],
+        description_offsets: Vec<u32>,
+        sequence_data: &[u8],
+        sequence_offsets: Vec<u32>,
+        quality_data: &[u8],
+        quality_offsets: Vec<u32>,
+        count: u32,
+    ) -> Result<(), JsError> {
+        let w = self
+            .inner
+            .as_mut()
+            .ok_or_else(|| JsError::new("writer already finished"))?;
+        let batch = engine::fastq::FastqBatch {
+            count,
+            name_data: name_data.to_vec(),
+            name_offsets,
+            description_data: description_data.to_vec(),
+            description_offsets,
+            sequence_data: sequence_data.to_vec(),
+            sequence_offsets,
+            quality_data: quality_data.to_vec(),
+            quality_offsets,
+        };
+        w.write_batch(&batch).map_err(engine_err)
+    }
+
+    pub fn finish(&mut self) -> Result<Option<Vec<u8>>, JsError> {
+        let w = self
+            .inner
+            .take()
+            .ok_or_else(|| JsError::new("writer already finished"))?;
+        w.finish().map_err(engine_err)
+    }
+}
+
+#[wasm_bindgen]
+pub struct WasmFastaWriter {
+    inner: Option<engine::fasta::FastaWriter>,
+}
+
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+impl WasmFastaWriter {
+    #[wasm_bindgen(constructor)]
+    pub fn new(compress: bool, line_width: u32) -> WasmFastaWriter {
+        Self {
+            inner: Some(engine::fasta::FastaWriter::open_to_bytes(
+                compress, line_width,
+            )),
+        }
+    }
+
+    pub fn write_batch(
+        &mut self,
+        name_data: &[u8],
+        name_offsets: Vec<u32>,
+        description_data: &[u8],
+        description_offsets: Vec<u32>,
+        sequence_data: &[u8],
+        sequence_offsets: Vec<u32>,
+        count: u32,
+    ) -> Result<(), JsError> {
+        let w = self
+            .inner
+            .as_mut()
+            .ok_or_else(|| JsError::new("writer already finished"))?;
+        let batch = engine::fasta::FastaBatch {
+            count,
+            name_data: name_data.to_vec(),
+            name_offsets,
+            description_data: description_data.to_vec(),
+            description_offsets,
+            sequence_data: sequence_data.to_vec(),
+            sequence_offsets,
+        };
+        w.write_batch(&batch).map_err(engine_err)
+    }
+
+    pub fn finish(&mut self) -> Result<Option<Vec<u8>>, JsError> {
+        let w = self
+            .inner
+            .take()
+            .ok_or_else(|| JsError::new("writer already finished"))?;
+        w.finish().map_err(engine_err)
+    }
+}

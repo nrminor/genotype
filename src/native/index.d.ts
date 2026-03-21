@@ -8,6 +8,32 @@ export declare class AlignmentReader {
   referenceSequences(): Array<ReferenceSequenceInfo>
 }
 
+export declare class FastaReader {
+  static open(path: string): FastaReader
+  static openBytes(data: Buffer): FastaReader
+  readBatch(maxRecords: number): FastaBatch | null
+}
+
+export declare class FastaWriter {
+  static open(path: string, compress: boolean, lineWidth: number): FastaWriter
+  static openBytes(compress: boolean, lineWidth: number): FastaWriter
+  writeBatch(nameData: Uint8Array, nameOffsets: Uint32Array, descriptionData: Uint8Array, descriptionOffsets: Uint32Array, sequenceData: Uint8Array, sequenceOffsets: Uint32Array, count: number): void
+  finish(): Buffer | null
+}
+
+export declare class FastqReader {
+  static open(path: string): FastqReader
+  static openBytes(data: Buffer): FastqReader
+  readBatch(maxRecords: number): FastqBatch | null
+}
+
+export declare class FastqWriter {
+  static open(path: string, compress: boolean): FastqWriter
+  static openBytes(compress: boolean): FastqWriter
+  writeBatch(nameData: Uint8Array, nameOffsets: Uint32Array, descriptionData: Uint8Array, descriptionOffsets: Uint32Array, sequenceData: Uint8Array, sequenceOffsets: Uint32Array, qualityData: Uint8Array, qualityOffsets: Uint32Array, count: number): void
+  finish(): Buffer | null
+}
+
 export interface AlignmentBatch {
   count: number
   format: string
@@ -32,6 +58,28 @@ export declare function classifyBatch(sequences: Uint8Array, offsets: Uint32Arra
 
 export interface ClassifyResult {
   counts: Array<number>
+}
+
+export interface FastaBatch {
+  count: number
+  nameData: Buffer
+  nameOffsets: Array<number>
+  descriptionData: Buffer
+  descriptionOffsets: Array<number>
+  sequenceData: Buffer
+  sequenceOffsets: Array<number>
+}
+
+export interface FastqBatch {
+  count: number
+  nameData: Buffer
+  nameOffsets: Array<number>
+  descriptionData: Buffer
+  descriptionOffsets: Array<number>
+  sequenceData: Buffer
+  sequenceOffsets: Array<number>
+  qualityData: Buffer
+  qualityOffsets: Array<number>
 }
 
 export declare function findPatternBatch(sequences: Uint8Array, offsets: Uint32Array, pattern: Uint8Array, maxEdits: number, caseInsensitive: boolean): PatternSearchResult

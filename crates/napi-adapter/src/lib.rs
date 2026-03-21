@@ -8,6 +8,8 @@
 #![allow(clippy::must_use_candidate, clippy::missing_errors_doc)]
 
 mod alignment;
+mod fasta;
+mod fastq;
 
 use genotype_engine as engine;
 use napi::bindgen_prelude::*;

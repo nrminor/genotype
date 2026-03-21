@@ -12,8 +12,11 @@ rayon = "1.11"
 sassy = { version = "0.2.1", default-features = false }
 smallvec = "1.15"
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
+flate2 = "1.1"
 noodles-bam = "0.87"
 noodles-bgzf = "0.46"
+noodles-fasta = "0.60"
+noodles-fastq = "0.22"
 noodles-sam = "0.83"
 
 [features]

@@ -13,6 +13,8 @@
 
 pub mod alignment;
 pub mod classify;
+pub mod fasta;
+pub mod fastq;
 pub mod grep;
 pub mod hash;
 pub mod metrics;

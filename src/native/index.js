@@ -577,6 +577,10 @@ if (!nativeBinding) {
 
 module.exports = nativeBinding
 module.exports.AlignmentReader = nativeBinding.AlignmentReader
+module.exports.FastaReader = nativeBinding.FastaReader
+module.exports.FastaWriter = nativeBinding.FastaWriter
+module.exports.FastqReader = nativeBinding.FastqReader
+module.exports.FastqWriter = nativeBinding.FastqWriter
 module.exports.checkValidBatch = nativeBinding.checkValidBatch
 module.exports.classifyBatch = nativeBinding.classifyBatch
 module.exports.findPatternBatch = nativeBinding.findPatternBatch

@@ -10,16 +10,84 @@
  * format handling to the Rust noodles reader. The TypeScript side
  * unpacks batched results into AlignmentRecord objects that conform
  * to AbstractSequence and flow through the operations pipeline.
+ *
+ * The alignment reader is managed as an Effect scoped resource via
+ * acquireRelease. When consumed through the AsyncIterable interface,
+ * the reader's close() finalizer runs automatically when the consumer
+ * stops iterating — whether by exhaustion, early break, or error.
  */
 
+import { Effect, Option, Stream } from "effect";
 import { GenotypeString } from "../genotype-string";
 import type { AlignmentBatch, AlignmentReaderHandle } from "../backend";
-import { createAlignmentReaderFromBytes, createAlignmentReaderFromPath } from "../backend/service";
+import { BackendService, backendRuntime } from "../backend/service";
+import { BamError } from "../errors";
 import type { AlignmentRecord, ParserOptions } from "../types";
 import { AbstractParser } from "./abstract-parser";
 
 const DEFAULT_BATCH_SIZE = 4096;
 const utf8_decoder = new TextDecoder();
+
+/**
+ * Build an Effect-managed stream of AlignmentRecords from a scoped reader.
+ *
+ * The reader is acquired via acquireRelease so its close() finalizer is
+ * guaranteed to run when the stream finishes, whether by exhaustion,
+ * early termination, or error. The stream pulls batches from the native
+ * reader and flattens them into individual records.
+ */
+function alignmentRecords(
+  acquire: Effect.Effect<AlignmentReaderHandle, BamError, BackendService>
+): Stream.Stream<AlignmentRecord, BamError, BackendService> {
+  return Stream.unwrap(
+    Effect.gen(function* () {
+      const reader = yield* Effect.acquireRelease(acquire, (r) => Effect.sync(() => r.close()));
+
+      return Stream.paginate(0 as number, (recordIndex) =>
+        Effect.tryPromise({
+          try: async () => {
+            const batch = await reader.readBatch(DEFAULT_BATCH_SIZE);
+            if (batch === null) {
+              return [[], Option.none<number>()] as const;
+            }
+            const records = [...unpackBatch(batch, recordIndex)];
+            return [records, Option.some(recordIndex + records.length)] as const;
+          },
+          catch: (e) =>
+            new BamError(
+              `Failed to read alignment batch: ${e instanceof Error ? e.message : String(e)}`
+            ),
+        })
+      );
+    })
+  );
+}
+
+/**
+ * Translate a BackendService reader acquisition into a BamError on failure.
+ */
+function acquireReaderFromPath(
+  filePath: string
+): Effect.Effect<AlignmentReaderHandle, BamError, BackendService> {
+  return BackendService.use((b) => b.createAlignmentReaderFromPath(filePath)).pipe(
+    Effect.catchTag("BackendUnavailableError", (e) =>
+      Effect.fail(new BamError(`BAM/SAM parsing requires a native or wasm backend: ${e.message}`))
+    )
+  );
+}
+
+/**
+ * Translate a BackendService reader acquisition from bytes into a BamError on failure.
+ */
+function acquireReaderFromBytes(
+  bytes: Uint8Array
+): Effect.Effect<AlignmentReaderHandle, BamError, BackendService> {
+  return BackendService.use((b) => b.createAlignmentReaderFromBytes(bytes)).pipe(
+    Effect.catchTag("BackendUnavailableError", (e) =>
+      Effect.fail(new BamError(`BAM/SAM parsing requires a native or wasm backend: ${e.message}`))
+    )
+  );
+}
 
 /**
  * Parser for BAM and SAM alignment files.
@@ -53,13 +121,14 @@ export class AlignmentParser extends AbstractParser<AlignmentRecord> {
   }
 
   async *parseFile(filePath: string): AsyncIterable<AlignmentRecord> {
-    const reader = await createAlignmentReaderFromPath(filePath);
-    yield* this.readAll(reader);
+    const services = await backendRuntime.services();
+    yield* Stream.toAsyncIterableWith(alignmentRecords(acquireReaderFromPath(filePath)), services);
   }
 
   async *parseString(data: string): AsyncIterable<AlignmentRecord> {
-    const reader = await createAlignmentReaderFromBytes(new Uint8Array(Buffer.from(data, "utf8")));
-    yield* this.readAll(reader);
+    const bytes = new Uint8Array(Buffer.from(data, "utf8"));
+    const services = await backendRuntime.services();
+    yield* Stream.toAsyncIterableWith(alignmentRecords(acquireReaderFromBytes(bytes)), services);
   }
 
   async *parse(stream: ReadableStream<Uint8Array>): AsyncIterable<AlignmentRecord> {
@@ -76,38 +145,20 @@ export class AlignmentParser extends AbstractParser<AlignmentRecord> {
     }
 
     const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
-    const combined = Buffer.allocUnsafe(totalLength);
+    const combined = new Uint8Array(totalLength);
     let offset = 0;
     for (const chunk of chunks) {
       combined.set(chunk, offset);
       offset += chunk.length;
     }
 
-    const reader = await createAlignmentReaderFromBytes(combined);
-    yield* this.readAll(reader);
-  }
-
-  private async *readAll(reader: AlignmentReaderHandle): AsyncIterable<AlignmentRecord> {
-    try {
-      let recordIndex = 0;
-      let batch = await reader.readBatch(DEFAULT_BATCH_SIZE);
-      while (batch !== null) {
-        this.checkAborted();
-        for (const record of unpackBatch(batch, recordIndex)) {
-          yield record;
-          recordIndex++;
-        }
-        batch = await reader.readBatch(DEFAULT_BATCH_SIZE);
-      }
-    } finally {
-      reader.close();
-    }
+    const services = await backendRuntime.services();
+    yield* Stream.toAsyncIterableWith(alignmentRecords(acquireReaderFromBytes(combined)), services);
   }
 }
 
 function* unpackBatch(batch: AlignmentBatch, startIndex: number): Iterable<AlignmentRecord> {
   const format = batch.format as "sam" | "bam";
-  // napi Buffers are already Node Buffers — use directly without copying.
   const { qnameData, sequenceData, qualityData, cigarData, rnameData } = batch;
 
   for (let i = 0; i < batch.count; i++) {

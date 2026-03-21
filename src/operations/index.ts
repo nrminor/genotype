@@ -1918,7 +1918,7 @@ export class SeqOps<T extends AbstractSequence> {
    *   .writeCSV('analysis.csv');
    * ```
    */
-  toTabular<Columns extends readonly ColumnId[] = readonly ["id", "seq", "length"]>(
+  toTabular<Columns extends readonly (ColumnId | string)[] = readonly ["id", "sequence", "length"]>(
     options?: Fx2TabOptions<Columns>
   ): TabularOps<Columns> {
     return new TabularOps(fx2tab(this.source, options));
@@ -1942,7 +1942,7 @@ export class SeqOps<T extends AbstractSequence> {
    *   .writeTSV('output.tsv');
    * ```
    */
-  fx2tab<Columns extends readonly ColumnId[] = readonly ["id", "seq", "length"]>(
+  fx2tab<Columns extends readonly (ColumnId | string)[] = readonly ["id", "sequence", "length"]>(
     options?: Fx2TabOptions<Columns>
   ): TabularOps<Columns> {
     return this.toTabular(options);
@@ -1981,7 +1981,7 @@ export class SeqOps<T extends AbstractSequence> {
    *   .writeTSV('output.tsv');
    * ```
    */
-  asRows<Columns extends readonly ColumnId[] = readonly ["id", "seq", "length"]>(
+  asRows<Columns extends readonly (ColumnId | string)[] = readonly ["id", "sequence", "length"]>(
     options?: Fx2TabOptions<Columns>
   ): TabularOps<Columns> {
     return this.toTabular(options);

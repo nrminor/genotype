@@ -9,7 +9,8 @@
  */
 
 import { type } from "arktype";
-import { sequenceMetricsBatch } from "../backend/service";
+import { Effect } from "effect";
+import { BackendService, backendRuntime } from "../backend/service";
 import { createFastaRecord, createFastqRecord } from "../constructors";
 import { FileError, ParseError } from "../errors";
 import {
@@ -35,17 +36,8 @@ import { readLines } from "../io/stream-utils";
 import { packSequences, type PackedBatch } from "../backend/batch";
 import { SequenceMetricFlag, type SequenceMetricsResult } from "../backend/kernel-types";
 import type { AbstractSequence, FastaSequence, FastqSequence } from "../types";
-import {
-  atContent,
-  baseComposition,
-  baseContent,
-  baseCount,
-  gcContent,
-  sequenceAlphabet,
-} from "./core/calculations";
+import { baseContent, baseCount, sequenceAlphabet } from "./core/calculations";
 import { hashMD5 } from "./core/hashing";
-import { calculateAverageQuality } from "./core/quality";
-import { charToScore } from "./core/quality/conversion";
 
 /** Default columns if none specified */
 const DEFAULT_COLUMNS = ["id", "sequence", "length"] as const;
@@ -142,75 +134,83 @@ export const Tab2FxOptionsSchema = type({
   "qualityEncoding?": '"phred33"|"phred64"|"solexa"',
 });
 
-/**
- * Built-in column identifiers for fx2tab output
- */
-export type BuiltInColumnId =
-  // Basic columns (always available) - using DSVRecord field names
-  | "id"
-  | "sequence"
-  | "quality"
-  | "description"
-  // Computed columns (on-demand)
+/** Basic sequence fields — always available from the sequence object itself */
+export type BasicColumnId = "id" | "sequence" | "quality" | "description";
+
+/** Positional metadata — derived from iteration order, not sequence content */
+export type MetadataColumnId = "index" | "line_number";
+
+/** Metrics computed by the native kernel */
+export type KernelMetricColumnId =
   | "length"
   | "gc"
   | "at"
   | "gc_skew"
   | "at_skew"
-  | "complexity"
   | "entropy"
+  | "alphabet"
   | "avg_qual"
   | "min_qual"
-  | "max_qual"
-  // Metadata columns
-  | "index"
-  | "line_number"
-  // SeqKit parity columns (computed metadata)
-  | "alphabet" // Unique characters in sequence
-  | "seq_hash";
+  | "max_qual";
+
+/** Metrics computed in TypeScript, not delegated to the kernel */
+export type TsComputedColumnId = "complexity" | "seq_hash";
 
 /**
- * Column identifier - can be built-in, dynamic patterns, or custom
+ * Built-in column identifiers for fx2tab output
  */
-export type ColumnId =
-  | BuiltInColumnId
-  | `base_content_${string}` // Dynamic computed column for base content
-  | `base_count_${string}` // Dynamic computed column for base count
-  | string;
+export type BuiltInColumnId =
+  | BasicColumnId
+  | MetadataColumnId
+  | KernelMetricColumnId
+  | TsComputedColumnId;
+
+/** Dynamic base-content percentage column */
+type BaseContentColumnId = `base_content_${string}`;
+
+/** Dynamic base-count column */
+type BaseCountColumnId = `base_count_${string}`;
 
 /**
- * Type mapping for built-in columns
+ * Column identifier — built-in or dynamic base-content/base-count patterns.
+ * Custom column names (from `customColumns` option) remain plain `string` and
+ * are looked up in the record directly; they never enter the typed dispatch path.
  */
-type ColumnValueType<T extends ColumnId> = T extends "id" | "sequence" | "quality" | "description"
+export type ColumnId = BuiltInColumnId | BaseContentColumnId | BaseCountColumnId;
+
+/**
+ * Maps column identifiers to their value types:
+ *
+ *   BasicColumnId (id, sequence, ...)      → string
+ *   MetadataColumnId (index, line_number)  → number | null
+ *   KernelMetricColumnId                   → number | null (except alphabet → string)
+ *   TsComputedColumnId                     → number (except seq_hash → string)
+ *   BaseContentColumnId, BaseCountColumnId → number
+ *   Custom / unknown                       → string | number | null
+ */
+type ColumnValueType<T extends string> = T extends BasicColumnId
   ? string
-  : T extends "alphabet" | "seq_hash"
-    ? string
-    : T extends
-          | "length"
-          | "gc"
-          | "at"
-          | "gc_skew"
-          | "at_skew"
-          | "complexity"
-          | "entropy"
-          | "avg_qual"
-          | "min_qual"
-          | "max_qual"
-          | "index"
-          | "line_number"
-      ? number
-      : T extends `base_content_${string}`
-        ? number
-        : T extends `base_count_${string}`
+  : T extends MetadataColumnId
+    ? number | null
+    : T extends KernelMetricColumnId
+      ? T extends "alphabet"
+        ? string
+        : number | null
+      : T extends TsComputedColumnId
+        ? T extends "seq_hash"
+          ? string
+          : number
+        : T extends BaseContentColumnId | BaseCountColumnId
           ? number
-          : string | number | null; // For custom columns
+          : string | number | null;
 
 /**
- * Type-safe tabular row with known columns
- * Provides both object-style and array-style access
+ * Type-safe tabular row with known columns.
+ * Columns may include built-in ColumnId values or custom string column names.
+ * Provides both object-style and array-style access.
  */
-export type Fx2TabRow<Columns extends readonly ColumnId[] = readonly ColumnId[]> = {
-  [K in Columns[number]]: ColumnValueType<K>;
+export type Fx2TabRow<Columns extends readonly (ColumnId | string)[] = readonly ColumnId[]> = {
+  [K in Columns[number] & string]: ColumnValueType<K>;
 } & {
   /** The raw delimited string representation */
   readonly __raw: string;
@@ -235,8 +235,14 @@ export interface CustomColumn {
 /**
  * Options for fx2tab conversion
  */
-export interface Fx2TabOptions<Columns extends readonly ColumnId[] = readonly ColumnId[]> {
-  /** Columns to include in output (default: ['id', 'seq', 'length']) */
+export interface Fx2TabOptions<
+  Columns extends readonly (ColumnId | string)[] = readonly ColumnId[],
+> {
+  /**
+   * Columns to include in output (default: ['id', 'sequence', 'length']).
+   * Built-in and dynamic columns are typed as ColumnId; custom column names
+   * (keys from `customColumns`) may also appear here as plain strings.
+   */
   columns?: Columns;
 
   /** Output delimiter (default: '\t' for TSV) */
@@ -307,7 +313,7 @@ export type Tab2FxOptions = typeof Tab2FxOptionsSchema.infer;
  *   .toSequences({ format: 'fasta' });
  * ```
  */
-export class TabularOps<Columns extends readonly ColumnId[]> {
+export class TabularOps<Columns extends readonly (ColumnId | string)[]> {
   constructor(private source: AsyncIterable<Fx2TabRow<Columns>>) {}
 
   /**
@@ -557,7 +563,7 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
    * ```
    * @performance O(n) time, O(1) memory - streams without buffering
    */
-  map<NewColumns extends readonly ColumnId[]>(
+  map<NewColumns extends readonly (ColumnId | string)[]>(
     fn: (row: Fx2TabRow<Columns>) => Fx2TabRow<NewColumns>
   ): TabularOps<NewColumns> {
     async function* transform(source: AsyncIterable<Fx2TabRow<Columns>>) {
@@ -669,7 +675,7 @@ export class TabularOps<Columns extends readonly ColumnId[]> {
  *
  * @performance O(n*m) where n=sequences, m=columns. Streams without buffering.
  */
-export async function* fx2tab<Columns extends readonly ColumnId[]>(
+export async function* fx2tab<Columns extends readonly (ColumnId | string)[]>(
   source: AsyncIterable<AbstractSequence>,
   options: Fx2TabOptions<Columns> = {}
 ): AsyncIterable<Fx2TabRow<Columns>> {
@@ -682,21 +688,21 @@ export async function* fx2tab<Columns extends readonly ColumnId[]>(
     nullValue = "",
     includeLineNumbers = false,
     customColumns = {},
-    baseContent,
-    baseCount,
+    baseContent: baseContentBases,
+    baseCount: baseCountBases,
     caseSensitive = false,
   } = options;
 
   // Build dynamic columns from baseContent and baseCount options
   // These are computed columns that don't affect round-trip conversion
   const dynamicColumns: ColumnId[] = [];
-  if (baseContent) {
-    for (const bases of baseContent) {
+  if (baseContentBases) {
+    for (const bases of baseContentBases) {
       dynamicColumns.push(`base_content_${bases}` as ColumnId);
     }
   }
-  if (baseCount) {
-    for (const bases of baseCount) {
+  if (baseCountBases) {
+    for (const bases of baseCountBases) {
       dynamicColumns.push(`base_count_${bases}` as ColumnId);
     }
   }
@@ -745,11 +751,16 @@ export async function* fx2tab<Columns extends readonly ColumnId[]>(
   const flushBatch = async function* (
     sequences: readonly AbstractSequence[]
   ): AsyncGenerator<Fx2TabRow<Columns>, void> {
-    const nativeMetrics = await computeNativeMetricBatch(
-      sequences,
-      effectiveColumns,
-      caseSensitive
+    // Partition columns by category for dispatch. Custom column names (plain strings
+    // in the customColumns record) are filtered out before partitioning.
+    const builtInColumns = effectiveColumns.filter(
+      (col): col is ColumnId => !customColumns[col as string]
     );
+    const { kernel } = partitionColumns(builtInColumns);
+    const hasKernelMetrics = kernel.length > 0;
+    const metrics = hasKernelMetrics
+      ? await backendRuntime.runPromise(computeKernelMetrics(kernel, sequences, caseSensitive))
+      : null;
 
     for (let rowIndex = 0; rowIndex < sequences.length; rowIndex++) {
       const seq = sequences[rowIndex]!;
@@ -757,15 +768,40 @@ export async function* fx2tab<Columns extends readonly ColumnId[]>(
       const stringValues: string[] = [];
 
       for (const col of effectiveColumns) {
-        const value = getColumnValue(seq, col, {
-          customColumns,
-          index: sequenceIndex,
-          lineNumber: includeLineNumbers ? lineNumber : 0,
-          nullValue,
-          caseSensitive,
-          nativeMetrics,
-          rowIndex,
-        });
+        // Custom columns take priority and are looked up by plain string key
+        const customCol = customColumns[col as string];
+        let value: string | number | null;
+        if (customCol) {
+          const computeFn = typeof customCol === "function" ? customCol : customCol.compute;
+          try {
+            value = computeFn(seq);
+          } catch {
+            value = nullValue;
+          }
+        } else if (isKernelMetricColumn(col)) {
+          // Alphabet is a kernel metric when case-insensitive, but the kernel's
+          // bitmask approach can't preserve case — fall back to TS when case-sensitive.
+          if (col === "alphabet" && caseSensitive) {
+            value = sequenceAlphabet(seq.sequence, true);
+          } else {
+            value = readKernelMetric(col, metrics!, rowIndex);
+          }
+        } else if (isBasicColumn(col)) {
+          value = computeBasicColumn(col, seq, nullValue);
+        } else if (isMetadataColumn(col)) {
+          value = computeMetadataColumn(col, sequenceIndex, includeLineNumbers ? lineNumber : 0);
+        } else if (isTsComputedColumn(col)) {
+          value = computeTsColumn(col, seq, caseSensitive);
+        } else if (col.startsWith("base_content_") || col.startsWith("base_count_")) {
+          value = computeDynamicColumn(
+            col as BaseContentColumnId | BaseCountColumnId,
+            seq,
+            caseSensitive
+          );
+        } else {
+          // Unknown column name (e.g. cast from string at runtime) — emit null
+          value = null;
+        }
 
         values.push(value);
         stringValues.push(
@@ -816,7 +852,7 @@ export async function* fx2tab<Columns extends readonly ColumnId[]>(
  * Convert tabular rows back to delimited strings
  * Utility function for writing to files
  */
-export async function* rowsToStrings<Columns extends readonly ColumnId[]>(
+export async function* rowsToStrings<Columns extends readonly (ColumnId | string)[]>(
   source: AsyncIterable<Fx2TabRow<Columns>>
 ): AsyncIterable<string> {
   for await (const row of source) {
@@ -1028,8 +1064,8 @@ export function convertRecordToSequence(
  * @param key - The column key to extract
  * @returns The value or undefined if not present
  */
-function getRowValue<T extends ColumnId>(
-  row: Fx2TabRow<readonly ColumnId[]>,
+function getRowValue<T extends ColumnId, C extends readonly (ColumnId | string)[]>(
+  row: Fx2TabRow<C>,
   key: T
 ): ColumnValueType<T> | undefined {
   // Type-safe access without 'any'
@@ -1042,7 +1078,7 @@ function getRowValue<T extends ColumnId>(
 /**
  * Create a type-safe row object
  */
-function createRow<Columns extends readonly ColumnId[]>(
+function createRow<Columns extends readonly (ColumnId | string)[]>(
   columns: Columns,
   values: Array<string | number | null>,
   stringValues: string[],
@@ -1069,47 +1105,63 @@ interface NativeMetricBatch {
   readonly qualityPresent: readonly boolean[];
 }
 
-function buildMetricFlags(columns: readonly ColumnId[], includeAlphabet: boolean): number {
-  let flags = 0;
+/** Exhaustive mapping from KernelMetricColumnId to its SequenceMetricFlag bit */
+const METRIC_FLAG = {
+  length: SequenceMetricFlag.Length,
+  gc: SequenceMetricFlag.Gc,
+  at: SequenceMetricFlag.At,
+  gc_skew: SequenceMetricFlag.GcSkew,
+  at_skew: SequenceMetricFlag.AtSkew,
+  entropy: SequenceMetricFlag.Entropy,
+  alphabet: SequenceMetricFlag.Alphabet,
+  avg_qual: SequenceMetricFlag.AvgQual,
+  min_qual: SequenceMetricFlag.MinQual,
+  max_qual: SequenceMetricFlag.MaxQual,
+} satisfies Record<KernelMetricColumnId, number>;
 
-  for (const column of columns) {
-    switch (column) {
-      case "length":
-        flags |= SequenceMetricFlag.Length;
-        break;
-      case "gc":
-        flags |= SequenceMetricFlag.Gc;
-        break;
-      case "at":
-        flags |= SequenceMetricFlag.At;
-        break;
-      case "gc_skew":
-        flags |= SequenceMetricFlag.GcSkew;
-        break;
-      case "at_skew":
-        flags |= SequenceMetricFlag.AtSkew;
-        break;
-      case "entropy":
-        flags |= SequenceMetricFlag.Entropy;
-        break;
-      case "alphabet":
-        if (includeAlphabet) {
-          flags |= SequenceMetricFlag.Alphabet;
-        }
-        break;
-      case "avg_qual":
-        flags |= SequenceMetricFlag.AvgQual;
-        break;
-      case "min_qual":
-        flags |= SequenceMetricFlag.MinQual;
-        break;
-      case "max_qual":
-        flags |= SequenceMetricFlag.MaxQual;
-        break;
-    }
+// ---------------------------------------------------------------------------
+// Per-category type guards
+// ---------------------------------------------------------------------------
+
+function isKernelMetricColumn(col: string): col is KernelMetricColumnId {
+  return col in METRIC_FLAG;
+}
+
+const BASIC_COLUMNS = new Set<string>(["id", "sequence", "quality", "description"]);
+function isBasicColumn(col: string): col is BasicColumnId {
+  return BASIC_COLUMNS.has(col);
+}
+
+const METADATA_COLUMNS = new Set<string>(["index", "line_number"]);
+function isMetadataColumn(col: string): col is MetadataColumnId {
+  return METADATA_COLUMNS.has(col);
+}
+
+const TS_COMPUTED_COLUMNS = new Set<string>(["complexity", "seq_hash"]);
+function isTsComputedColumn(col: string): col is TsComputedColumnId {
+  return TS_COMPUTED_COLUMNS.has(col);
+}
+
+// ---------------------------------------------------------------------------
+// Column partitioner
+// ---------------------------------------------------------------------------
+
+function partitionColumns(columns: readonly ColumnId[]) {
+  const kernel: KernelMetricColumnId[] = [];
+  const basic: BasicColumnId[] = [];
+  const tsComputed: TsComputedColumnId[] = [];
+  const metadata: MetadataColumnId[] = [];
+  const dynamic: (BaseContentColumnId | BaseCountColumnId)[] = [];
+
+  for (const col of columns) {
+    if (isKernelMetricColumn(col)) kernel.push(col);
+    else if (isBasicColumn(col)) basic.push(col);
+    else if (isTsComputedColumn(col)) tsComputed.push(col);
+    else if (isMetadataColumn(col)) metadata.push(col);
+    else dynamic.push(col as BaseContentColumnId | BaseCountColumnId);
   }
 
-  return flags;
+  return { kernel, basic, tsComputed, metadata, dynamic } as const;
 }
 
 function packOptionalQualityStrings(sequences: readonly AbstractSequence[]): {
@@ -1171,15 +1223,15 @@ function alphabetFromMask(mask: number): string {
   return out;
 }
 
-async function computeNativeMetricBatch(
+const computeKernelMetrics = Effect.fn("fx2tab.computeKernelMetrics")(function* (
+  columns: readonly KernelMetricColumnId[],
   sequences: readonly AbstractSequence[],
-  columns: readonly ColumnId[],
   caseSensitive: boolean
-): Promise<NativeMetricBatch | null> {
-  const metricFlags = buildMetricFlags(columns, !caseSensitive);
-  if (metricFlags === 0) {
-    return null;
-  }
+) {
+  const metricFlags = columns.reduce((f, col) => {
+    if (col === "alphabet" && caseSensitive) return f;
+    return f | METRIC_FLAG[col];
+  }, 0);
 
   const sequenceBatch = packSequences(sequences);
   const qualityBatch = packOptionalQualityStrings(sequences);
@@ -1195,10 +1247,11 @@ async function computeNativeMetricBatch(
       : metricFlags;
 
   if (effectiveFlags === 0) {
-    return null;
+    return { result: {}, qualityPresent: qualityBatch.qualityPresent } satisfies NativeMetricBatch;
   }
 
-  const result = await sequenceMetricsBatch(
+  const backend = yield* BackendService;
+  const result = yield* backend.sequenceMetricsBatch(
     sequenceBatch.data,
     sequenceBatch.offsets,
     qualityBatch.batch.data,
@@ -1207,85 +1260,102 @@ async function computeNativeMetricBatch(
     qualityBatch.uniformAsciiOffset ?? 33
   );
 
-  return {
-    result,
-    qualityPresent: qualityBatch.qualityPresent,
-  };
+  return { result, qualityPresent: qualityBatch.qualityPresent } satisfies NativeMetricBatch;
+});
+
+// ---------------------------------------------------------------------------
+// Per-category column compute functions (no default branches)
+// ---------------------------------------------------------------------------
+
+function computeBasicColumn(col: BasicColumnId, seq: AbstractSequence, nullValue: string): string {
+  switch (col) {
+    case "id":
+      return seq.id;
+    case "sequence":
+      return seq.sequence?.toString() ?? nullValue;
+    case "quality":
+      return (seq as FastqSequence).quality?.toString() || nullValue;
+    case "description":
+      return seq.description || nullValue;
+  }
 }
 
-function getNativeMetricValue(
-  nativeMetrics: NativeMetricBatch | null,
-  rowIndex: number,
-  column: BuiltInColumnId | string
-): string | number | null | undefined {
-  if (nativeMetrics === null) {
-    return undefined;
+function computeMetadataColumn(
+  col: MetadataColumnId,
+  index: number,
+  lineNumber: number
+): number | null {
+  switch (col) {
+    case "index":
+      return index;
+    case "line_number":
+      return lineNumber > 0 ? lineNumber : null;
   }
+}
 
-  switch (column) {
+function readKernelMetric(
+  col: KernelMetricColumnId,
+  metrics: NativeMetricBatch,
+  rowIndex: number
+): number | string | null {
+  switch (col) {
     case "length":
-      return nativeMetrics.result.lengths?.[rowIndex];
+      return metrics.result.lengths?.[rowIndex] ?? null;
     case "gc":
-      return nativeMetrics.result.gc?.[rowIndex];
+      return metrics.result.gc?.[rowIndex] ?? null;
     case "at":
-      return nativeMetrics.result.at?.[rowIndex];
+      return metrics.result.at?.[rowIndex] ?? null;
     case "gc_skew":
-      return nativeMetrics.result.gcSkew?.[rowIndex];
+      return metrics.result.gcSkew?.[rowIndex] ?? null;
     case "at_skew":
-      return nativeMetrics.result.atSkew?.[rowIndex];
+      return metrics.result.atSkew?.[rowIndex] ?? null;
     case "entropy":
-      return nativeMetrics.result.entropy?.[rowIndex];
+      return metrics.result.entropy?.[rowIndex] ?? null;
     case "alphabet": {
-      const mask = nativeMetrics.result.alphabetMask?.[rowIndex];
-      return mask === undefined ? undefined : alphabetFromMask(mask);
+      const mask = metrics.result.alphabetMask?.[rowIndex];
+      return mask !== undefined ? alphabetFromMask(mask) : null;
     }
     case "avg_qual":
-      return nativeMetrics.qualityPresent[rowIndex]
-        ? nativeMetrics.result.avgQual?.[rowIndex]
-        : null;
+      return metrics.qualityPresent[rowIndex] ? (metrics.result.avgQual?.[rowIndex] ?? null) : null;
     case "min_qual":
-      return nativeMetrics.qualityPresent[rowIndex]
-        ? nativeMetrics.result.minQual?.[rowIndex]
-        : null;
+      return metrics.qualityPresent[rowIndex] ? (metrics.result.minQual?.[rowIndex] ?? null) : null;
     case "max_qual":
-      return nativeMetrics.qualityPresent[rowIndex]
-        ? nativeMetrics.result.maxQual?.[rowIndex]
-        : null;
-    default:
-      return undefined;
+      return metrics.qualityPresent[rowIndex] ? (metrics.result.maxQual?.[rowIndex] ?? null) : null;
   }
 }
 
-/**
- * Get column value from custom or built-in columns
- */
-function getColumnValue(
+function computeTsColumn(
+  col: TsComputedColumnId,
   seq: AbstractSequence,
-  column: ColumnId,
-  options: {
-    customColumns: Record<
-      string,
-      CustomColumn | ((seq: AbstractSequence) => string | number | null)
-    >;
-    index: number;
-    lineNumber: number;
-    nullValue: string;
-    caseSensitive?: boolean;
-    nativeMetrics: NativeMetricBatch | null;
-    rowIndex: number;
+  caseSensitive: boolean
+): number | string {
+  switch (col) {
+    case "complexity": {
+      const seq_upper = seq.sequence.toString().toUpperCase();
+      if (seq_upper.length < 2) return 0;
+      const dinucs = new Set<string>();
+      for (let i = 0; i < seq_upper.length - 1; i++) {
+        dinucs.add(seq_upper.slice(i, i + 2));
+      }
+      return (dinucs.size / (seq_upper.length - 1)) * 100;
+    }
+    case "seq_hash":
+      return hashMD5(seq.sequence.toString(), caseSensitive);
   }
-): string | number | null {
-  const customCol = options.customColumns[column];
-  if (!customCol) {
-    return computeColumn(seq, column, options);
-  }
+}
 
-  try {
-    const computeFn = typeof customCol === "function" ? customCol : customCol.compute;
-    return computeFn(seq);
-  } catch (_error) {
-    return options.nullValue;
+function computeDynamicColumn(
+  col: BaseContentColumnId | BaseCountColumnId,
+  seq: AbstractSequence,
+  caseSensitive: boolean
+): number {
+  if (col.startsWith("base_content_")) {
+    const bases = col.slice(13);
+    return baseContent(seq.sequence, bases, caseSensitive);
   }
+  // Must be base_count_
+  const bases = col.slice(11);
+  return baseCount(seq.sequence, bases, caseSensitive);
 }
 
 /**
@@ -1293,7 +1363,7 @@ function getColumnValue(
  */
 function formatColumnValue(
   value: string | number | null,
-  column: ColumnId,
+  column: ColumnId | string,
   options: {
     excelSafe: boolean;
     precision: number;
@@ -1331,148 +1401,4 @@ function formatColumnValue(
   }
 
   return String(value);
-}
-
-/**
- * Compute value for a specific built-in column
- */
-function computeColumn(
-  seq: AbstractSequence,
-  column: BuiltInColumnId | string,
-  options: {
-    index: number;
-    lineNumber: number;
-    nullValue: string;
-    caseSensitive?: boolean;
-    nativeMetrics: NativeMetricBatch | null;
-    rowIndex: number;
-  }
-): string | number | null {
-  const nativeValue = getNativeMetricValue(options.nativeMetrics, options.rowIndex, column);
-  if (nativeValue !== undefined) {
-    return nativeValue;
-  }
-
-  // Use column directly (no more aliases)
-  const mappedColumn = column;
-
-  switch (mappedColumn) {
-    // Basic columns
-    case "id":
-      return seq.id;
-    case "sequence":
-      return seq.sequence?.toString() ?? options.nullValue;
-    case "quality":
-      return (seq as FastqSequence).quality?.toString() || options.nullValue;
-    case "description":
-      return seq.description || options.nullValue;
-
-    // Computed columns
-    case "length":
-      return seq.length || seq.sequence?.length || 0;
-    case "gc":
-      return gcContent(seq.sequence);
-    case "at":
-      return atContent(seq.sequence);
-    case "gc_skew": {
-      // GC skew = (G - C)/(G + C)
-      const comp = baseComposition(seq.sequence);
-      const g = comp.G || 0;
-      const c = comp.C || 0;
-      return g + c === 0 ? 0 : ((g - c) / (g + c)) * 100;
-    }
-    case "at_skew": {
-      // AT skew = (A - T)/(A + T)
-      const comp = baseComposition(seq.sequence);
-      const a = comp.A || 0;
-      const t = comp.T || comp.U || 0; // Support both DNA and RNA
-      return a + t === 0 ? 0 : ((a - t) / (a + t)) * 100;
-    }
-    case "complexity": {
-      // Linguistic complexity = (number of unique kmers) / (total kmers)
-      // Using k=2 (dinucleotides) for simplicity
-      const seq_upper = seq.sequence.toString().toUpperCase();
-      if (seq_upper.length < 2) return 0;
-
-      const dinucs = new Set<string>();
-      for (let i = 0; i < seq_upper.length - 1; i++) {
-        dinucs.add(seq_upper.slice(i, i + 2));
-      }
-      return (dinucs.size / (seq_upper.length - 1)) * 100;
-    }
-    case "entropy": {
-      // Shannon entropy of nucleotide distribution
-      const comp = baseComposition(seq.sequence);
-      const total = seq.sequence.length;
-      if (total === 0) return 0;
-
-      let entropy = 0;
-      for (const count of Object.values(comp)) {
-        if (count > 0) {
-          const p = count / total;
-          entropy -= p * Math.log2(p);
-        }
-      }
-      return entropy;
-    }
-    case "avg_qual": {
-      const fastq = seq as FastqSequence;
-      if (!fastq.quality) return null;
-      return calculateAverageQuality(fastq.quality, fastq.qualityEncoding || "phred33");
-    }
-    case "min_qual": {
-      const fastq = seq as FastqSequence;
-      if (!fastq.quality) return null;
-
-      const encoding = fastq.qualityEncoding || "phred33";
-      let minQual = Number.MAX_SAFE_INTEGER;
-
-      for (let i = 0; i < fastq.quality.length; i++) {
-        const char = fastq.quality.charAt(i);
-        const qual = charToScore(char, encoding);
-        minQual = Math.min(minQual, qual);
-      }
-      return minQual;
-    }
-    case "max_qual": {
-      const fastq = seq as FastqSequence;
-      if (!fastq.quality) return null;
-
-      const encoding = fastq.qualityEncoding || "phred33";
-      let maxQual = Number.MIN_SAFE_INTEGER;
-
-      for (let i = 0; i < fastq.quality.length; i++) {
-        const char = fastq.quality.charAt(i);
-        const qual = charToScore(char, encoding);
-        maxQual = Math.max(maxQual, qual);
-      }
-      return maxQual;
-    }
-
-    // Metadata columns
-    case "index":
-      return options.index;
-    case "line_number":
-      return options.lineNumber > 0 ? options.lineNumber : null;
-
-    // SeqKit parity columns
-    case "alphabet":
-      return sequenceAlphabet(seq.sequence, options.caseSensitive || false);
-    case "seq_hash":
-      return hashMD5(seq.sequence.toString(), options.caseSensitive || false);
-
-    default:
-      // Check for dynamic column patterns
-      if (column.startsWith("base_content_")) {
-        const bases = column.slice(13); // Remove "base_content_" prefix
-        return baseContent(seq.sequence, bases, options.caseSensitive || false);
-      }
-
-      if (column.startsWith("base_count_")) {
-        const bases = column.slice(11); // Remove "base_count_" prefix
-        return baseCount(seq.sequence, bases, options.caseSensitive || false);
-      }
-
-      return options.nullValue;
-  }
 }

@@ -45,8 +45,8 @@ describe("fx2tab", () => {
     test("provides type-safe field access", async () => {
       const rows: Array<{
         id: string;
-        length: number;
-        gc: number;
+        length: number | null;
+        gc: number | null;
         __columns: readonly string[];
         __delimiter: string;
       }> = [];

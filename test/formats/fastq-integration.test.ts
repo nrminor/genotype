@@ -129,9 +129,12 @@ IIII`;
     });
 
     test("paired parsing works alongside single-file parsing", async () => {
-      const { FastqParser, PairedFastqParser } = require("../../src/formats/fastq");
+      const {
+        FastqParser: RequiredFastqParser,
+        PairedFastqParser,
+      } = require("../../src/formats/fastq");
 
-      const singleParser = new FastqParser();
+      const singleParser = new RequiredFastqParser();
       const pairedParser = new PairedFastqParser();
 
       const r1Data = "@read1/1\nATCG\n+\nIIII";

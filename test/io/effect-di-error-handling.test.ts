@@ -13,8 +13,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, unlinkSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { FileError } from "../../src/errors";
-import { readByteRange, readToString } from "../../src/io/file-reader";
+import { FileIOError, readByteRange, readToString } from "../../src/io/file-reader";
 import { writeString } from "../../src/io/file-writer";
 
 describe("Effect DI Error Handling", () => {
@@ -34,26 +33,26 @@ describe("Effect DI Error Handling", () => {
   });
 
   describe("File Not Found Errors", () => {
-    test("should throw FileError when reading non-existent file", async () => {
+    test("should throw FileIOError when reading non-existent file", async () => {
       const nonExistent = join(tmpdir(), `does-not-exist-${Date.now()}.txt`);
 
       try {
         await readToString(nonExistent);
         expect.unreachable("Should have thrown");
       } catch (error) {
-        expect(error).toBeInstanceOf(FileError);
-        expect((error as FileError).message).toContain("NotFound");
+        expect(error).toBeInstanceOf(FileIOError);
+        expect((error as FileIOError).message).toContain("NotFound");
       }
     });
 
-    test("should throw FileError for non-existent byte range read", async () => {
+    test("should throw FileIOError for non-existent byte range read", async () => {
       const nonExistent = join(tmpdir(), `missing-${Date.now()}.txt`);
 
       try {
         await readByteRange(nonExistent, 0, 100);
         expect.unreachable("Should have thrown");
       } catch (error) {
-        expect(error).toBeInstanceOf(FileError);
+        expect(error).toBeInstanceOf(FileIOError);
       }
     });
   });
@@ -67,8 +66,8 @@ describe("Effect DI Error Handling", () => {
         await readToString(testFile, { maxFileSize: 1 }); // 1 byte limit
         expect.unreachable("Should have thrown");
       } catch (error) {
-        expect(error).toBeInstanceOf(FileError);
-        expect((error as FileError).message).toContain("exceeds");
+        expect(error).toBeInstanceOf(FileIOError);
+        expect((error as FileIOError).message).toContain("exceeds");
       }
     });
   });
@@ -81,8 +80,8 @@ describe("Effect DI Error Handling", () => {
         await readByteRange(testFile, -1, 5);
         expect.unreachable("Should have thrown");
       } catch (error) {
-        expect(error).toBeInstanceOf(FileError);
-        expect((error as FileError).message).toContain("non-negative");
+        expect(error).toBeInstanceOf(FileIOError);
+        expect((error as FileIOError).message).toContain("non-negative");
       }
     });
 
@@ -93,8 +92,8 @@ describe("Effect DI Error Handling", () => {
         await readByteRange(testFile, 0, -5);
         expect.unreachable("Should have thrown");
       } catch (error) {
-        expect(error).toBeInstanceOf(FileError);
-        expect((error as FileError).message).toContain("non-negative");
+        expect(error).toBeInstanceOf(FileIOError);
+        expect((error as FileIOError).message).toContain("non-negative");
       }
     });
 
@@ -105,8 +104,8 @@ describe("Effect DI Error Handling", () => {
         await readByteRange(testFile, 10, 5);
         expect.unreachable("Should have thrown");
       } catch (error) {
-        expect(error).toBeInstanceOf(FileError);
-        expect((error as FileError).message).toContain("less than");
+        expect(error).toBeInstanceOf(FileIOError);
+        expect((error as FileIOError).message).toContain("less than");
       }
     });
 
@@ -154,7 +153,7 @@ describe("Effect DI Error Handling", () => {
         await readToString("");
         expect.unreachable("Should have thrown");
       } catch (error) {
-        expect(error).toBeInstanceOf(FileError);
+        expect(error).toBeInstanceOf(FileIOError);
       }
     });
 

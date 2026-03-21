@@ -5,8 +5,14 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
-import { FileError } from "../../src/errors";
-import { createStream, exists, getMetadata, getSize, readToString } from "../../src/io/file-reader";
+import {
+  FileIOError,
+  createStream,
+  exists,
+  getMetadata,
+  getSize,
+  readToString,
+} from "../../src/io/file-reader";
 import { detectRuntime } from "../../src/io/runtime";
 import { processBuffer, readLines } from "../../src/io/stream-utils";
 
@@ -68,8 +74,8 @@ describe("FileReader", () => {
     });
 
     test("should handle invalid paths", async () => {
-      await expect(exists("")).rejects.toThrow(FileError);
-      await expect(exists("\0invalid")).rejects.toThrow(FileError);
+      await expect(exists("")).rejects.toThrow(FileIOError);
+      await expect(exists("\0invalid")).rejects.toThrow(FileIOError);
     });
 
     test("should distinguish files from directories", async () => {
@@ -85,7 +91,7 @@ describe("FileReader", () => {
     });
 
     test("should throw for non-existing files", async () => {
-      await expect(getSize(TEST_FILES.nonexistent)).rejects.toThrow(FileError);
+      await expect(getSize(TEST_FILES.nonexistent)).rejects.toThrow(FileIOError);
     });
   });
 
@@ -136,7 +142,7 @@ describe("FileReader", () => {
     });
 
     test("should throw for non-existing files", async () => {
-      await expect(createStream(TEST_FILES.nonexistent)).rejects.toThrow(FileError);
+      await expect(createStream(TEST_FILES.nonexistent)).rejects.toThrow(FileIOError);
     });
 
     test("should handle large files efficiently", async () => {
@@ -182,7 +188,7 @@ describe("FileReader", () => {
         readToString(TEST_FILES.large, {
           maxFileSize: 1000,
         })
-      ).rejects.toThrow(FileError);
+      ).rejects.toThrow(FileIOError);
     });
 
     test("should handle different encodings", async () => {
@@ -199,9 +205,9 @@ describe("FileReader", () => {
         await getSize(TEST_FILES.nonexistent);
         expect.unreachable("Should have thrown");
       } catch (error) {
-        expect(error).toBeInstanceOf(FileError);
-        expect((error as FileError).filePath).toBe(TEST_FILES.nonexistent);
-        expect((error as FileError).operation).toBe("stat");
+        expect(error).toBeInstanceOf(FileIOError);
+        expect((error as FileIOError).filePath).toBe(TEST_FILES.nonexistent);
+        expect((error as FileIOError).operation).toBe("stat");
       }
     });
 
@@ -213,7 +219,7 @@ describe("FileReader", () => {
           timeout: 1, // Very short timeout
         });
       } catch (error) {
-        if (error instanceof FileError) {
+        if (error instanceof FileIOError) {
           expect(error.message).toContain("timeout");
         }
       }

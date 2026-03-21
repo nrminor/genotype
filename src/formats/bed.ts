@@ -13,8 +13,10 @@
  */
 
 import { type } from "arktype";
-import { BedError, ValidationError } from "../errors";
-import { createStreamPromise } from "../io/file-reader";
+import { Effect, Stream } from "effect";
+import { BedError, FileError, ValidationError } from "../errors";
+import { createStream, mapPlatformError } from "../io/file-reader";
+import { backendRuntime } from "../backend/service";
 import { readLines } from "../io/stream-utils";
 import {
   parseEndPosition,
@@ -633,9 +635,15 @@ class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
    * Function delegates to parseLines for streaming processing
    */
   async *parseString(data: string): AsyncIterable<BedInterval> {
-    this.checkAborted(); // Inherited interrupt checking
     const lines = data.split(/\r?\n/);
-    yield* this.parseLines(lines);
+    const lineIterable = this.parseLines(lines);
+    const stream = Stream.fromAsyncIterable(
+      lineIterable,
+      (e) => new BedError(`BED parse error: ${e instanceof Error ? e.message : String(e)}`)
+    );
+
+    const services = await backendRuntime.services();
+    yield* Stream.toAsyncIterableWith(stream, services);
   }
 
   /**
@@ -643,68 +651,55 @@ class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
    * Function follows established streaming parser patterns
    */
   async *parseFile(filePath: string, options?: { encoding?: string }): AsyncIterable<BedInterval> {
-    this.throwIfAborted("file parsing"); // Inherited interrupt checking with context
-
     if (filePath.length === 0) {
       throw new ValidationError("filePath must not be empty");
     }
 
-    try {
-      const stream = await createStreamPromise(filePath, {
-        encoding: (options?.encoding as "utf8") || "utf8",
-        maxFileSize: 10_000_000_000, // 10GB max to match FileReader default
-      });
+    const parseLines = this.parseLinesFromAsyncIterable.bind(this);
+    const stream = Stream.unwrap(
+      Effect.gen(function* () {
+        const fileStream = yield* createStream(filePath, {
+          encoding: (options?.encoding as "utf8") || "utf8",
+          maxFileSize: 10_000_000_000,
+        });
+        const lines = readLines(fileStream, "utf8");
 
-      const lines = readLines(stream, "utf8");
-      yield* this.parseLinesFromAsyncIterable(lines);
-    } catch (error) {
-      throw new BedError(
-        `Failed to read BED file '${filePath}': ${error instanceof Error ? error.message : String(error)}`,
-        { context: `File path: ${filePath}` }
-      );
-    }
+        return Stream.fromAsyncIterable(
+          parseLines(lines),
+          (e) =>
+            new BedError(
+              `Failed to parse BED file '${filePath}': ${e instanceof Error ? e.message : String(e)}`,
+              { context: `File path: ${filePath}` }
+            )
+        );
+      }).pipe(
+        mapPlatformError(filePath, "read"),
+        Effect.mapError((e) => new FileError(e.message, filePath, "read", e.cause))
+      )
+    );
+
+    const services = await backendRuntime.services();
+    yield* Stream.toAsyncIterableWith(stream, services);
   }
 
   /**
    * Parse BED intervals from stream
    * Function maintains streaming architecture for memory efficiency
    */
-  async *parse(stream: ReadableStream<Uint8Array>): AsyncIterable<BedInterval> {
-    if (!(stream instanceof ReadableStream)) {
+  async *parse(inputStream: ReadableStream<Uint8Array>): AsyncIterable<BedInterval> {
+    if (!(inputStream instanceof ReadableStream)) {
       throw new ValidationError("stream must be ReadableStream");
     }
 
-    try {
-      // Convert binary stream to text manually to avoid type issues
-      const reader = stream.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
+    const lines = readLines(inputStream, "utf8");
+    const lineIterable = this.parseLinesFromAsyncIterable(lines);
+    const stream = Stream.fromAsyncIterable(
+      lineIterable,
+      (e) => new BedError(`BED stream parse error: ${e instanceof Error ? e.message : String(e)}`)
+    );
 
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split(/\r?\n/);
-          buffer = lines.pop() || "";
-
-          if (lines.length > 0) {
-            yield* this.parseLines(lines);
-          }
-        }
-
-        if (buffer) {
-          yield* this.parseLines([buffer]);
-        }
-      } finally {
-        reader.releaseLock();
-      }
-    } catch (error) {
-      throw new BedError(
-        `Stream parsing failed: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
+    const services = await backendRuntime.services();
+    yield* Stream.toAsyncIterableWith(stream, services);
   }
 
   /**
@@ -716,7 +711,6 @@ class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
 
     for (const line of lines) {
       lineNumber++;
-      this.checkAborted(); // Inherited interrupt checking in parsing loop
 
       if (line.length > this.options.maxLineLength) {
         this.options.onError(

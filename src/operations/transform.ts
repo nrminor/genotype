@@ -9,8 +9,8 @@
  */
 
 import { withSequence } from "../constructors";
-import { getBackend } from "../backend";
-import { GenotypeError } from "../errors";
+import { transformBatch } from "../backend/service";
+
 import { GenotypeString } from "../genotype-string";
 import { packSequences } from "../backend/batch";
 import { TransformOp } from "../backend/kernel-types";
@@ -68,14 +68,6 @@ export class TransformProcessor implements Processor<TransformOptions> {
       return;
     }
 
-    const backend = await getBackend();
-    if (backend.transformBatch === undefined) {
-      throw new GenotypeError(
-        "Transform backend not available. Ensure a compatible backend is configured and built.",
-        "NATIVE_KERNEL_UNAVAILABLE"
-      );
-    }
-
     let batch: AbstractSequence[] = [];
     let batchBytes = 0;
 
@@ -84,14 +76,14 @@ export class TransformProcessor implements Processor<TransformOptions> {
       batchBytes += seq.sequence.length;
 
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        yield* await flushBatch(batch, backend, ops, options.custom, needsTrimSoftClips);
+        yield* await flushBatch(batch, ops, options.custom, needsTrimSoftClips);
         batch = [];
         batchBytes = 0;
       }
     }
 
     if (batch.length > 0) {
-      yield* await flushBatch(batch, backend, ops, options.custom, needsTrimSoftClips);
+      yield* await flushBatch(batch, ops, options.custom, needsTrimSoftClips);
     }
   }
 }
@@ -139,7 +131,6 @@ function buildOpList(options: TransformOptions): TransformOp[] {
  */
 async function* flushBatch(
   sequences: readonly AbstractSequence[],
-  backend: Awaited<ReturnType<typeof getBackend>>,
   ops: readonly TransformOp[],
   custom: ((seq: string) => string) | undefined,
   trimSoftClips: boolean
@@ -154,7 +145,7 @@ async function* flushBatch(
   let data: Uint8Array = packed.data;
 
   for (const op of ops) {
-    const result = await backend.transformBatch!(data, offsets, op);
+    const result = await transformBatch(data, offsets, op);
     data = result.data;
   }
 

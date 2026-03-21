@@ -31,7 +31,7 @@
  */
 
 import { type } from "arktype";
-import { getBackend } from "../backend";
+import { findPatternBatch } from "../backend/service";
 import { ValidationError } from "../errors";
 import type { AbstractSequence, PrimerSequence } from "../types";
 import { GenotypeString } from "../genotype-string";
@@ -180,13 +180,6 @@ export class AmpliconProcessor implements Processor<AmpliconOptions> {
       throw new ValidationError(`Invalid amplicon options: ${validOptions.summary}`);
     }
 
-    const backend = await getBackend();
-    if (backend.findPatternBatch === undefined) {
-      throw new ValidationError(
-        "Amplicon backend is required for amplicon operations but could not be loaded"
-      );
-    }
-
     const useCanonical = shouldUseCanonicalSearch(validOptions);
     const searchJobs = buildSearchJobs(validOptions, useCanonical);
     const maxMismatches = validOptions.maxMismatches ?? 0;
@@ -203,28 +196,14 @@ export class AmpliconProcessor implements Processor<AmpliconOptions> {
       batchBytes += seq.sequence.length;
 
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        yield* flushAmpliconBatch(
-          batch,
-          backend,
-          validOptions,
-          searchJobs,
-          useCanonical,
-          maxMismatches
-        );
+        yield* flushAmpliconBatch(batch, validOptions, searchJobs, useCanonical, maxMismatches);
         batch = [];
         batchBytes = 0;
       }
     }
 
     if (batch.length > 0) {
-      yield* flushAmpliconBatch(
-        batch,
-        backend,
-        validOptions,
-        searchJobs,
-        useCanonical,
-        maxMismatches
-      );
+      yield* flushAmpliconBatch(batch, validOptions, searchJobs, useCanonical, maxMismatches);
     }
   }
 }
@@ -239,7 +218,6 @@ export class AmpliconProcessor implements Processor<AmpliconOptions> {
  */
 async function* flushAmpliconBatch(
   batch: BatchEntry[],
-  backend: Awaited<ReturnType<typeof getBackend>>,
   options: AmpliconOptions & { forwardPrimer: PrimerSequence; reversePrimer?: PrimerSequence },
   searchJobs: SearchJob[],
   useCanonical: boolean,
@@ -251,7 +229,7 @@ async function* flushAmpliconBatch(
   const jobResults = new Map<SearchJob, PatternSearchResult>();
   for (const job of searchJobs) {
     const packed = job.target === "forward" ? forwardPacked : reversePacked;
-    const result = await backend.findPatternBatch!(packed.data, packed.offsets, job.pattern, {
+    const result = await findPatternBatch(packed.data, packed.offsets, job.pattern, {
       maxEdits: maxMismatches,
       caseInsensitive: false,
     });

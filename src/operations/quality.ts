@@ -13,8 +13,8 @@
  */
 
 import { withQuality, withSequence } from "../constructors";
-import { getBackend } from "../backend";
-import { ValidationError } from "../errors";
+import { qualityAvgBatch, qualityBinBatch, qualityTrimBatch } from "../backend/service";
+
 import { packQualityStrings } from "../backend/batch";
 import type { TransformResult } from "../backend/kernel-types";
 import type { AbstractSequence, QualityEncoding, QualityScoreBearing } from "../types";
@@ -94,17 +94,6 @@ export class QualityProcessor implements Processor<QualityOptions> {
       return;
     }
 
-    const backend = await getBackend();
-    if (
-      backend.qualityTrimBatch === undefined ||
-      backend.qualityAvgBatch === undefined ||
-      backend.qualityBinBatch === undefined
-    ) {
-      throw new ValidationError(
-        "Quality backend is required for quality operations but could not be loaded"
-      );
-    }
-
     const encoding = options.encoding ?? "phred33";
 
     let binParams: AsciiStrategyParams | undefined;
@@ -120,14 +109,14 @@ export class QualityProcessor implements Processor<QualityOptions> {
       batch.push(seq);
       batchBytes += seq.quality.length;
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        yield* await flushQualityBatch<T>(batch, backend, options, encoding, binParams);
+        yield* await flushQualityBatch<T>(batch, options, encoding, binParams);
         batch = [];
         batchBytes = 0;
       }
     }
 
     if (batch.length > 0) {
-      yield* await flushQualityBatch<T>(batch, backend, options, encoding, binParams);
+      yield* await flushQualityBatch<T>(batch, options, encoding, binParams);
     }
   }
 }
@@ -147,7 +136,6 @@ export class QualityProcessor implements Processor<QualityOptions> {
  */
 async function* flushQualityBatch<T extends AbstractSequence & QualityScoreBearing>(
   batch: T[],
-  backend: Awaited<ReturnType<typeof getBackend>>,
   options: QualityOptions,
   encoding: QualityEncoding,
   binParams: AsciiStrategyParams | undefined
@@ -162,7 +150,7 @@ async function* flushQualityBatch<T extends AbstractSequence & QualityScoreBeari
     const windowSize = options.trimWindow ?? 4;
     const fromStart = options.trimFromStart ?? true;
     const fromEnd = options.trimFromEnd ?? true;
-    const trimPositions = await backend.qualityTrimBatch!(
+    const trimPositions = await qualityTrimBatch(
       data,
       offsets,
       offset,
@@ -199,7 +187,7 @@ async function* flushQualityBatch<T extends AbstractSequence & QualityScoreBeari
 
   if (needsAvgQuality) {
     const { data, offsets } = packQualityStrings(candidates);
-    const averages = await backend.qualityAvgBatch!(data, offsets, offset);
+    const averages = await qualityAvgBatch(data, offsets, offset);
 
     const filtered: T[] = [];
     for (let i = 0; i < candidates.length; i++) {
@@ -215,7 +203,7 @@ async function* flushQualityBatch<T extends AbstractSequence & QualityScoreBeari
 
   if (binParams !== undefined) {
     const { data, offsets } = packQualityStrings(candidates);
-    const result: TransformResult = await backend.qualityBinBatch!(
+    const result: TransformResult = await qualityBinBatch(
       data,
       offsets,
       binParams.boundaries,

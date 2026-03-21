@@ -55,7 +55,7 @@
  */
 
 import type { AbstractSequence } from "../../types";
-import { getBackend } from "../../backend";
+import { hashBatch } from "../../backend/service";
 import { getNodeNativeKernelSync } from "../../backend/node-native";
 import { extractHashKey, packSequences } from "../../backend/batch";
 import { BloomFilter, ScalableBloomFilter } from "./bloom-filter";
@@ -406,11 +406,8 @@ export class SequenceDeduplicator {
    */
   async *deduplicate(sequences: AsyncIterable<AbstractSequence>): AsyncGenerator<AbstractSequence> {
     if (this.nativeKeyMode !== null) {
-      const backend = await getBackend();
-      if (backend.hashBatch !== undefined) {
-        yield* this.deduplicateNative(sequences, backend);
-        return;
-      }
+      yield* this.deduplicateNative(sequences);
+      return;
     }
 
     for await (const seq of sequences) {
@@ -439,11 +436,8 @@ export class SequenceDeduplicator {
    */
   async process(sequences: AsyncIterable<AbstractSequence>): Promise<void> {
     if (this.nativeKeyMode !== null) {
-      const backend = await getBackend();
-      if (backend.hashBatch !== undefined) {
-        await this.processNative(sequences, backend);
-        return;
-      }
+      await this.processNative(sequences);
+      return;
     }
 
     for await (const seq of sequences) {
@@ -667,8 +661,7 @@ export class SequenceDeduplicator {
   }
 
   private async *deduplicateNative(
-    sequences: AsyncIterable<AbstractSequence>,
-    backend: Awaited<ReturnType<typeof getBackend>>
+    sequences: AsyncIterable<AbstractSequence>
   ): AsyncGenerator<AbstractSequence> {
     let batch: AbstractSequence[] = [];
     let batchBytes = 0;
@@ -678,21 +671,18 @@ export class SequenceDeduplicator {
       batchBytes += seq.sequence.length;
 
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        yield* await this.flushNativeBatch(batch, backend);
+        yield* await this.flushNativeBatch(batch);
         batch = [];
         batchBytes = 0;
       }
     }
 
     if (batch.length > 0) {
-      yield* await this.flushNativeBatch(batch, backend);
+      yield* await this.flushNativeBatch(batch);
     }
   }
 
-  private async processNative(
-    sequences: AsyncIterable<AbstractSequence>,
-    backend: Awaited<ReturnType<typeof getBackend>>
-  ): Promise<void> {
+  private async processNative(sequences: AsyncIterable<AbstractSequence>): Promise<void> {
     let batch: AbstractSequence[] = [];
     let batchBytes = 0;
 
@@ -701,25 +691,22 @@ export class SequenceDeduplicator {
       batchBytes += seq.sequence.length;
 
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        await this.flushNativeBatchNoYield(batch, backend);
+        await this.flushNativeBatchNoYield(batch);
         batch = [];
         batchBytes = 0;
       }
     }
 
     if (batch.length > 0) {
-      await this.flushNativeBatchNoYield(batch, backend);
+      await this.flushNativeBatchNoYield(batch);
     }
   }
 
   private async *flushNativeBatch(
-    batch: readonly AbstractSequence[],
-    backend: Awaited<ReturnType<typeof getBackend>>
+    batch: readonly AbstractSequence[]
   ): AsyncIterable<AbstractSequence> {
     const { data, offsets } = packSequences(batch);
-    const hashBuffer = toBufferView(
-      await backend.hashBatch!(data, offsets, !this.options.caseSensitive)
-    );
+    const hashBuffer = toBufferView(await hashBatch(data, offsets, !this.options.caseSensitive));
 
     for (let i = 0; i < batch.length; i++) {
       const seqHash = extractHashKey(hashBuffer, i);
@@ -731,14 +718,9 @@ export class SequenceDeduplicator {
     }
   }
 
-  private async flushNativeBatchNoYield(
-    batch: readonly AbstractSequence[],
-    backend: Awaited<ReturnType<typeof getBackend>>
-  ): Promise<void> {
+  private async flushNativeBatchNoYield(batch: readonly AbstractSequence[]): Promise<void> {
     const { data, offsets } = packSequences(batch);
-    const hashBuffer = toBufferView(
-      await backend.hashBatch!(data, offsets, !this.options.caseSensitive)
-    );
+    const hashBuffer = toBufferView(await hashBatch(data, offsets, !this.options.caseSensitive));
 
     for (let i = 0; i < batch.length; i++) {
       const seqHash = extractHashKey(hashBuffer, i);
@@ -873,11 +855,8 @@ export class ExactDeduplicator {
    */
   async *deduplicate(sequences: AsyncIterable<AbstractSequence>): AsyncGenerator<AbstractSequence> {
     if (this.nativeKeyMode !== null) {
-      const backend = await getBackend();
-      if (backend.hashBatch !== undefined) {
-        yield* this.deduplicateNative(sequences, backend);
-        return;
-      }
+      yield* this.deduplicateNative(sequences);
+      return;
     }
 
     yield* this.deduplicateScalar(sequences);
@@ -901,8 +880,7 @@ export class ExactDeduplicator {
   }
 
   private async *deduplicateNative(
-    sequences: AsyncIterable<AbstractSequence>,
-    backend: Awaited<ReturnType<typeof getBackend>>
+    sequences: AsyncIterable<AbstractSequence>
   ): AsyncGenerator<AbstractSequence> {
     let batch: AbstractSequence[] = [];
     let batchBytes = 0;
@@ -912,23 +890,22 @@ export class ExactDeduplicator {
       batchBytes += seq.sequence.length;
 
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        yield* await this.flushNativeBatch(batch, backend);
+        yield* await this.flushNativeBatch(batch);
         batch = [];
         batchBytes = 0;
       }
     }
 
     if (batch.length > 0) {
-      yield* await this.flushNativeBatch(batch, backend);
+      yield* await this.flushNativeBatch(batch);
     }
   }
 
   private async *flushNativeBatch(
-    batch: readonly AbstractSequence[],
-    backend: Awaited<ReturnType<typeof getBackend>>
+    batch: readonly AbstractSequence[]
   ): AsyncIterable<AbstractSequence> {
     const { data, offsets } = packSequences(batch);
-    const hashBuffer = toBufferView(await backend.hashBatch!(data, offsets, !this.caseSensitive));
+    const hashBuffer = toBufferView(await hashBatch(data, offsets, !this.caseSensitive));
 
     for (let i = 0; i < batch.length; i++) {
       this.stats.totalProcessed++;

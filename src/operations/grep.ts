@@ -14,7 +14,7 @@
  */
 
 import { type } from "arktype";
-import { getBackend } from "../backend";
+import { grepBatch } from "../backend/service";
 import { GrepError, ValidationError } from "../errors";
 import { packSequences } from "../backend/batch";
 import type { AbstractSequence } from "../types";
@@ -96,11 +96,8 @@ export class GrepProcessor implements Processor<GrepOptions> {
       options.target === "sequence" &&
       options.wholeWord !== true
     ) {
-      const backend = await getBackend();
-      if (backend.grepBatch !== undefined) {
-        yield* this.processNative(source, backend, options.pattern, options);
-        return;
-      }
+      yield* this.processNative(source, options.pattern, options);
+      return;
     }
 
     for await (const seq of source) {
@@ -215,7 +212,6 @@ export class GrepProcessor implements Processor<GrepOptions> {
    */
   private async *processNative(
     source: AsyncIterable<AbstractSequence>,
-    backend: Awaited<ReturnType<typeof getBackend>>,
     pattern: string,
     options: GrepOptions
   ): AsyncIterable<AbstractSequence> {
@@ -235,7 +231,6 @@ export class GrepProcessor implements Processor<GrepOptions> {
       if (batchBytes >= BATCH_BYTE_BUDGET) {
         yield* await flushBatch(
           batch,
-          backend,
           patternBytes,
           maxEdits,
           caseInsensitive,
@@ -250,7 +245,6 @@ export class GrepProcessor implements Processor<GrepOptions> {
     if (batch.length > 0) {
       yield* await flushBatch(
         batch,
-        backend,
         patternBytes,
         maxEdits,
         caseInsensitive,
@@ -267,7 +261,6 @@ export class GrepProcessor implements Processor<GrepOptions> {
  */
 async function* flushBatch(
   sequences: readonly AbstractSequence[],
-  backend: Awaited<ReturnType<typeof getBackend>>,
   patternBytes: Uint8Array,
   maxEdits: number,
   caseInsensitive: boolean,
@@ -275,7 +268,7 @@ async function* flushBatch(
   invert: boolean
 ): AsyncIterable<AbstractSequence> {
   const { data, offsets } = packSequences(sequences);
-  const matches = await backend.grepBatch!(data, offsets, patternBytes, {
+  const matches = await grepBatch(data, offsets, patternBytes, {
     maxEdits,
     caseInsensitive,
     searchBothStrands,

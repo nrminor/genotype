@@ -8,9 +8,9 @@
  */
 
 import { type } from "arktype";
-import { getBackend } from "../backend";
+import { removeGapsBatch, replaceAmbiguousBatch } from "../backend/service";
 import { withSequence } from "../constructors";
-import { GenotypeError, ValidationError } from "../errors";
+import { ValidationError } from "../errors";
 import { GenotypeString } from "../genotype-string";
 import { packSequences } from "../backend/batch";
 import type { AbstractSequence } from "../types";
@@ -99,14 +99,6 @@ export class CleanProcessor implements Processor<CleanOptions> {
       return;
     }
 
-    const backend = await getBackend();
-    if (backend.removeGapsBatch === undefined || backend.replaceAmbiguousBatch === undefined) {
-      throw new GenotypeError(
-        "Clean backend not available. Ensure a compatible backend is configured and built.",
-        "NATIVE_KERNEL_UNAVAILABLE"
-      );
-    }
-
     let batch: AbstractSequence[] = [];
     let batchBytes = 0;
 
@@ -117,14 +109,14 @@ export class CleanProcessor implements Processor<CleanOptions> {
       batchBytes += trimmed.sequence.length;
 
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        yield* await flushBatch(batch, backend, options);
+        yield* await flushBatch(batch, options);
         batch = [];
         batchBytes = 0;
       }
     }
 
     if (batch.length > 0) {
-      yield* await flushBatch(batch, backend, options);
+      yield* await flushBatch(batch, options);
     }
   }
 }
@@ -163,7 +155,6 @@ function applyTrim(seq: AbstractSequence, options: CleanOptions): AbstractSequen
  */
 async function* flushBatch(
   sequences: readonly AbstractSequence[],
-  backend: Awaited<ReturnType<typeof getBackend>>,
   options: CleanOptions
 ): AsyncIterable<AbstractSequence> {
   const packed = packSequences(sequences);
@@ -172,7 +163,7 @@ async function* flushBatch(
 
   if (options.removeGaps === true) {
     const gapChars = options.gapChars ?? ".-*";
-    const result = await backend.removeGapsBatch!(data, asUint32Array(offsets), gapChars);
+    const result = await removeGapsBatch(data, asUint32Array(offsets), gapChars);
     data = result.data;
     offsets = result.offsets;
   }
@@ -182,7 +173,7 @@ async function* flushBatch(
     // replaceAmbiguous is length-preserving, so offsets don't change.
     // We only need the transformed data — keeping the existing offsets
     // avoids replacing a Uint32Array with a number[] of identical values.
-    const result = await backend.replaceAmbiguousBatch!(data, asUint32Array(offsets), replaceChar);
+    const result = await replaceAmbiguousBatch(data, asUint32Array(offsets), replaceChar);
     data = result.data;
   }
 

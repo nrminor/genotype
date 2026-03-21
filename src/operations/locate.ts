@@ -8,7 +8,7 @@
  */
 
 import { type } from "arktype";
-import { getBackend } from "../backend";
+import { findPatternBatch } from "../backend/service";
 import { ValidationError } from "../errors";
 import { packSequences } from "../backend/batch";
 import type { PatternSearchResult } from "../backend/kernel-types";
@@ -103,10 +103,9 @@ export class LocateProcessor {
       return;
     }
 
-    const backend = await getBackend();
-    if (backend.findPatternBatch !== undefined && options.allowOverlaps !== true) {
+    if (options.allowOverlaps !== true) {
       const stringOptions = options as LocateOptions & { pattern: string };
-      yield* this.locateNative(source, backend, stringOptions);
+      yield* this.locateNative(source, stringOptions);
       return;
     }
 
@@ -148,7 +147,6 @@ export class LocateProcessor {
 
   private async *locateNative(
     source: AsyncIterable<AbstractSequence>,
-    backend: Awaited<ReturnType<typeof getBackend>>,
     options: LocateOptions & { pattern: string }
   ): AsyncIterable<MotifLocation> {
     const minLength = options.minLength ?? options.pattern.length;
@@ -166,14 +164,14 @@ export class LocateProcessor {
       batchBytes += seq.sequence.length;
 
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        totalYielded += yield* this.flushNativeBatch(batch, jobs, backend, options, totalYielded);
+        totalYielded += yield* this.flushNativeBatch(batch, jobs, options, totalYielded);
         batch = [];
         batchBytes = 0;
       }
     }
 
     if (batch.length > 0) {
-      yield* this.flushNativeBatch(batch, jobs, backend, options, totalYielded);
+      yield* this.flushNativeBatch(batch, jobs, options, totalYielded);
     }
   }
 
@@ -203,7 +201,6 @@ export class LocateProcessor {
   private async *flushNativeBatch(
     batch: readonly AbstractSequence[],
     jobs: readonly LocateSearchJob[],
-    backend: Awaited<ReturnType<typeof getBackend>>,
     options: LocateOptions & { pattern: string },
     totalYieldedSoFar: number
   ): AsyncGenerator<MotifLocation, number> {
@@ -216,7 +213,7 @@ export class LocateProcessor {
     for (const job of jobs) {
       results.set(
         job,
-        await backend.findPatternBatch!(data, offsets, job.pattern, {
+        await findPatternBatch(data, offsets, job.pattern, {
           maxEdits,
           caseInsensitive,
         })

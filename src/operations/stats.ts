@@ -15,7 +15,7 @@
  */
 
 import { type } from "arktype";
-import { getBackend } from "../backend";
+import { classifyBatch } from "../backend/service";
 import { SequenceError, ValidationError } from "../errors";
 import { GenotypeString, CharSet } from "../genotype-string";
 import { packSequences } from "../backend/batch";
@@ -298,7 +298,6 @@ export class SequenceStatsCalculator {
     const useKernel =
       opts.gapChars === this.defaultOptions.gapChars &&
       opts.ambiguousChars === this.defaultOptions.ambiguousChars;
-    const backend = useKernel ? await getBackend() : undefined;
 
     try {
       let batch: AbstractSequence[] = [];
@@ -307,11 +306,11 @@ export class SequenceStatsCalculator {
       for await (const sequence of sequences) {
         this.processSequenceBookkeeping(sequence, accumulator, opts);
 
-        if (backend?.classifyBatch !== undefined) {
+        if (useKernel) {
           batch.push(sequence);
           batchBytes += sequence.sequence.length;
           if (batchBytes >= BATCH_BYTE_BUDGET) {
-            await flushClassifyBatch(batch, backend, accumulator, opts.includeComposition);
+            await flushClassifyBatch(batch, accumulator, opts.includeComposition);
             batch = [];
             batchBytes = 0;
           }
@@ -320,8 +319,8 @@ export class SequenceStatsCalculator {
         }
       }
 
-      if (backend?.classifyBatch !== undefined && batch.length > 0) {
-        await flushClassifyBatch(batch, backend, accumulator, opts.includeComposition);
+      if (useKernel && batch.length > 0) {
+        await flushClassifyBatch(batch, accumulator, opts.includeComposition);
       }
 
       return this.finalizeStatistics(accumulator, opts);
@@ -760,12 +759,11 @@ export class SequenceStatsCalculator {
  */
 async function flushClassifyBatch(
   batch: AbstractSequence[],
-  backend: Awaited<ReturnType<typeof getBackend>>,
   accumulator: StatsAccumulator,
   includeComposition: boolean
 ): Promise<void> {
   const { data, offsets } = packSequences(batch);
-  const result = await backend.classifyBatch!(data, offsets);
+  const result = await classifyBatch(data, offsets);
   const counts = result.counts;
 
   for (let i = 0; i < batch.length; i++) {

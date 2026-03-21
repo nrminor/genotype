@@ -12,9 +12,9 @@
  */
 
 import { type } from "arktype";
-import { getBackend } from "../backend";
 import { ValidationError } from "../errors";
 import { packSequences } from "../backend/batch";
+import { classifyBatch } from "../backend/service";
 import {
   NUM_CLASSES,
   CLASS_A,
@@ -140,9 +140,8 @@ export class FilterProcessor implements Processor<FilterOptions> {
       options.minGC !== undefined ||
       options.maxGC !== undefined ||
       options.hasAmbiguous !== undefined;
-    const backend = needsClassify ? await getBackend() : undefined;
 
-    if (backend?.classifyBatch === undefined) {
+    if (!needsClassify) {
       for await (const seq of source) {
         if (this.passesFilter(seq, options)) {
           yield seq;
@@ -161,14 +160,14 @@ export class FilterProcessor implements Processor<FilterOptions> {
       batch.push(seq);
       batchBytes += seq.sequence.length;
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        yield* await flushFilterBatch(batch, backend, options);
+        yield* await flushFilterBatch(batch, options);
         batch = [];
         batchBytes = 0;
       }
     }
 
     if (batch.length > 0) {
-      yield* await flushFilterBatch(batch, backend, options);
+      yield* await flushFilterBatch(batch, options);
     }
   }
 
@@ -371,11 +370,10 @@ function gcContentFromCounts(counts: Uint32Array, base: number): number {
  */
 async function* flushFilterBatch(
   batch: AbstractSequence[],
-  backend: Awaited<ReturnType<typeof getBackend>>,
   options: FilterOptions & Partial<AlignmentFilterOptions>
 ): AsyncIterable<AbstractSequence> {
   const { data, offsets } = packSequences(batch);
-  const result = await backend.classifyBatch!(data, offsets);
+  const result = await classifyBatch(data, offsets);
   const counts = result.counts;
 
   for (let i = 0; i < batch.length; i++) {

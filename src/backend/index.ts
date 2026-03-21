@@ -1,57 +1,9 @@
-import { createNodeNativeBackend } from "./node-native";
-import { createWasmBackend } from "./wasm";
-import type { GenotypeBackend, NullBackend } from "./types";
-
-const null_backend: NullBackend = {
-  kind: "none",
-};
-
-let cached_backend: GenotypeBackend | undefined;
-let backend_load_attempted = false;
-
 /**
- * Get the active genotype backend.
+ * Backend module for genotype compute kernels.
  *
- * Tries backends in order of preference: native napi addon first (best
- * performance), then wasm (browser-compatible), then a null backend
- * with no capabilities. The result is cached after the first call.
+ * Re-exports the BackendService and its convenience functions for
+ * operations to consume. Also re-exports types needed by consumers.
  */
-export async function getBackend(): Promise<GenotypeBackend> {
-  if (backend_load_attempted) {
-    return cached_backend ?? null_backend;
-  }
-
-  backend_load_attempted = true;
-
-  // Try native first — best performance, requires napi addon.
-  // createNodeNativeBackend may be undefined in browser bundles where
-  // the bundler has remapped node-native.ts to false via the browser field.
-  if (typeof createNodeNativeBackend === "function") {
-    const native = createNodeNativeBackend();
-    if (native !== undefined) {
-      cached_backend = native;
-      return cached_backend;
-    }
-  }
-
-  // Try wasm — browser-compatible, requires wasm-pack build
-  const wasm = await createWasmBackend();
-  if (wasm !== undefined) {
-    cached_backend = wasm;
-    return cached_backend;
-  }
-
-  cached_backend = null_backend;
-  return cached_backend;
-}
-
-/**
- * Whether any accelerated backend is available.
- */
-export async function isBackendAvailable(): Promise<boolean> {
-  const backend = await getBackend();
-  return backend.kind !== "none";
-}
 
 export type {
   AlignmentBatch,
@@ -63,4 +15,24 @@ export type {
   ReferenceSequenceInfo,
 } from "./types";
 
-export { createNodeNativeBackend, isNodeNativeBackendAvailable } from "./node-native";
+export {
+  BackendService,
+  BackendUnavailableError,
+  backendRuntime,
+  classifyBatch,
+  transformBatch,
+  grepBatch,
+  findPatternBatch,
+  removeGapsBatch,
+  replaceAmbiguousBatch,
+  replaceInvalidBatch,
+  checkValidBatch,
+  qualityAvgBatch,
+  qualityTrimBatch,
+  qualityBinBatch,
+  sequenceMetricsBatch,
+  translateBatch,
+  hashBatch,
+  createAlignmentReaderFromPath,
+  createAlignmentReaderFromBytes,
+} from "./service";

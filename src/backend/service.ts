@@ -37,7 +37,7 @@ export class BackendUnavailableError extends Schema.TaggedErrorClass<BackendUnav
   }
 ) {}
 
-const unavailable = (method: string, kind: string) =>
+const unavailable = (method: string, kind: "node-native" | "wasm" | "none") =>
   Effect.fail(
     new BackendUnavailableError({
       method,
@@ -48,7 +48,7 @@ const unavailable = (method: string, kind: string) =>
 const wrapOptionalMethod = <Args extends unknown[], R>(
   method: ((...args: Args) => Promise<R>) | undefined,
   methodName: string,
-  kind: string
+  kind: "node-native" | "wasm" | "none"
 ): ((...args: Args) => Effect.Effect<R, BackendUnavailableError>) =>
   method === undefined
     ? () => unavailable(methodName, kind)
@@ -84,7 +84,7 @@ const buildNullBackendShape = () => ({
 
 const buildLayerFromGenotypeBackend = (
   backend: GenotypeBackend,
-  kind: string
+  kind: "node-native" | "wasm"
 ): Layer.Layer<BackendService> =>
   Layer.succeed(
     BackendService,
@@ -169,7 +169,7 @@ const buildLayerFromGenotypeBackend = (
 export class BackendService extends ServiceMap.Service<
   BackendService,
   {
-    readonly kind: string;
+    readonly kind: "node-native" | "wasm" | "none";
 
     grepBatch(
       sequences: Uint8Array,

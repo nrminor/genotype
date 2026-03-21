@@ -13,7 +13,8 @@
  */
 
 import { GenotypeString } from "../genotype-string";
-import { getBackend, type AlignmentBatch, type AlignmentReaderHandle } from "../backend";
+import type { AlignmentBatch, AlignmentReaderHandle } from "../backend";
+import { createAlignmentReaderFromBytes, createAlignmentReaderFromPath } from "../backend/service";
 import type { AlignmentRecord, ParserOptions } from "../types";
 import { AbstractParser } from "./abstract-parser";
 
@@ -52,42 +53,16 @@ export class AlignmentParser extends AbstractParser<AlignmentRecord> {
   }
 
   async *parseFile(filePath: string): AsyncIterable<AlignmentRecord> {
-    const backend = await getBackend();
-    if (backend.createAlignmentReaderFromPath === undefined) {
-      throw new Error(
-        "BAM/SAM parsing backend unavailable. " +
-          "Ensure a compatible backend is configured and built."
-      );
-    }
-
-    const reader = await backend.createAlignmentReaderFromPath(filePath);
+    const reader = await createAlignmentReaderFromPath(filePath);
     yield* this.readAll(reader);
   }
 
   async *parseString(data: string): AsyncIterable<AlignmentRecord> {
-    const backend = await getBackend();
-    if (backend.createAlignmentReaderFromBytes === undefined) {
-      throw new Error(
-        "BAM/SAM parsing backend unavailable. " +
-          "Ensure a compatible backend is configured and built."
-      );
-    }
-
-    const reader = await backend.createAlignmentReaderFromBytes(
-      new Uint8Array(Buffer.from(data, "utf8"))
-    );
+    const reader = await createAlignmentReaderFromBytes(new Uint8Array(Buffer.from(data, "utf8")));
     yield* this.readAll(reader);
   }
 
   async *parse(stream: ReadableStream<Uint8Array>): AsyncIterable<AlignmentRecord> {
-    const backend = await getBackend();
-    if (backend.createAlignmentReaderFromBytes === undefined) {
-      throw new Error(
-        "BAM/SAM parsing backend unavailable. " +
-          "Ensure a compatible backend is configured and built."
-      );
-    }
-
     const chunks: Uint8Array[] = [];
     const streamReader = stream.getReader();
     try {
@@ -108,7 +83,7 @@ export class AlignmentParser extends AbstractParser<AlignmentRecord> {
       offset += chunk.length;
     }
 
-    const reader = await backend.createAlignmentReaderFromBytes(combined);
+    const reader = await createAlignmentReaderFromBytes(combined);
     yield* this.readAll(reader);
   }
 

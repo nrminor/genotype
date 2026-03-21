@@ -8,7 +8,7 @@
  */
 
 import { type } from "arktype";
-import { getBackend } from "../backend";
+import { translateBatch } from "../backend/service";
 import { createFastaRecord } from "../constructors";
 import { SequenceError, ValidationError } from "../errors";
 import { packSequences } from "../backend/batch";
@@ -247,11 +247,8 @@ export class TranslateProcessor {
     }
 
     if (options.orfsOnly !== true) {
-      const backend = await getBackend();
-      if (backend.translateBatch !== undefined) {
-        yield* this.translateNative(source, backend, options);
-        return;
-      }
+      yield* this.translateNative(source, options);
+      return;
     }
 
     for await (const seq of source) {
@@ -261,7 +258,6 @@ export class TranslateProcessor {
 
   private async *translateNative(
     source: AsyncIterable<AbstractSequence>,
-    backend: Awaited<ReturnType<typeof getBackend>>,
     options: TranslateOptions
   ): AsyncIterable<AbstractSequence> {
     const frames = this.determineFrames(options);
@@ -286,7 +282,7 @@ export class TranslateProcessor {
         const reverse = frame < 0;
         perFrame.set(
           frame,
-          await backend.translateBatch!(
+          await translateBatch(
             packed.data,
             packed.offsets,
             tables.translationLut,

@@ -9,7 +9,7 @@
  */
 
 import { type } from "arktype";
-import { getBackend } from "../backend";
+import { sequenceMetricsBatch } from "../backend/service";
 import { createFastaRecord, createFastqRecord } from "../constructors";
 import { FileError, ParseError } from "../errors";
 import {
@@ -1176,11 +1176,6 @@ async function computeNativeMetricBatch(
   columns: readonly ColumnId[],
   caseSensitive: boolean
 ): Promise<NativeMetricBatch | null> {
-  const backend = await getBackend();
-  if (backend.sequenceMetricsBatch === undefined) {
-    return null;
-  }
-
   const metricFlags = buildMetricFlags(columns, !caseSensitive);
   if (metricFlags === 0) {
     return null;
@@ -1203,7 +1198,7 @@ async function computeNativeMetricBatch(
     return null;
   }
 
-  const result = await backend.sequenceMetricsBatch(
+  const result = await sequenceMetricsBatch(
     sequenceBatch.data,
     sequenceBatch.offsets,
     qualityBatch.batch.data,

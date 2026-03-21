@@ -277,10 +277,7 @@ const readToStringPromise = (path: string, options: FileReaderOptions = {}): Pro
 /** Read a specific byte range from a file. */
 const readByteRangePromise = (path: string, start: number, end: number): Promise<Uint8Array> =>
   Effect.runPromise(
-    readByteRange(path, start, end).pipe(
-      mapPlatformError(path, "read"),
-      Effect.provide(IOLayer)
-    )
+    readByteRange(path, start, end).pipe(mapPlatformError(path, "read"), Effect.provide(IOLayer))
   );
 
 /** Create a streaming reader for a file with optional auto-decompression. */
@@ -289,10 +286,7 @@ const createStreamPromise = (
   options: FileReaderOptions = {}
 ): Promise<ReadableStream<Uint8Array>> =>
   Effect.runPromise(
-    createStream(path, options).pipe(
-      mapPlatformError(path, "read"),
-      Effect.provide(PlatformLayer)
-    )
+    createStream(path, options).pipe(mapPlatformError(path, "read"), Effect.provide(PlatformLayer))
   );
 
 export {

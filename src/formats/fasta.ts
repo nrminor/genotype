@@ -13,7 +13,12 @@
 import { type } from "arktype";
 import { Effect, Stream } from "effect";
 import { FileError, ParseError, SequenceError, ValidationError } from "../errors";
-import { createStream, existsPromise, getMetadataPromise, mapPlatformError } from "../io/file-reader";
+import {
+  createStream,
+  existsPromise,
+  getMetadataPromise,
+  mapPlatformError,
+} from "../io/file-reader";
 import { backendRuntime } from "../backend/service";
 import { readLines } from "../io/stream-utils";
 import { createFastaRecord } from "../constructors";
@@ -156,10 +161,7 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
     const stream = Stream.fromAsyncIterable(
       lineIterable,
       (e) =>
-        new ParseError(
-          `FASTA parse error: ${e instanceof Error ? e.message : String(e)}`,
-          "FASTA"
-        )
+        new ParseError(`FASTA parse error: ${e instanceof Error ? e.message : String(e)}`, "FASTA")
     );
 
     const services = await backendRuntime.services();
@@ -238,10 +240,7 @@ class FastaParser extends AbstractParser<FastaSequence, FastaParserOptions> {
     const stream = Stream.fromAsyncIterable(
       lineIterable,
       (e) =>
-        new ParseError(
-          `FASTA parse error: ${e instanceof Error ? e.message : String(e)}`,
-          "FASTA"
-        )
+        new ParseError(`FASTA parse error: ${e instanceof Error ? e.message : String(e)}`, "FASTA")
     );
 
     const services = await backendRuntime.services();

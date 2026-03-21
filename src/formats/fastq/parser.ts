@@ -35,8 +35,17 @@
 
 import { type } from "arktype";
 import { createFastqRecord } from "../../constructors";
-import { ParseError, QualityError, SequenceError, ValidationError } from "../../errors";
-import { createStreamPromise, existsPromise, getMetadataPromise, getSizePromise, readByteRangePromise } from "../../io/file-reader";
+import { Effect, Stream } from "effect";
+import { FileError, ParseError, QualityError, SequenceError, ValidationError } from "../../errors";
+import {
+  createStream,
+  getSize,
+  readByteRange,
+  existsPromise,
+  getMetadataPromise,
+  mapPlatformError,
+} from "../../io/file-reader";
+import { backendRuntime } from "../../backend/service";
 import { readLines } from "../../io/stream-utils";
 import { detectEncoding, qualityToScores } from "../../operations/core/quality";
 import type { FastqSequence, FileReaderOptions, QualityEncoding } from "../../types";
@@ -362,45 +371,37 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
    * ```
    */
   async *parseString(data: string): AsyncIterable<FastqSequence> {
+    const iterable = this.parseStringIterable(data);
+    const stream = Stream.fromAsyncIterable(
+      iterable,
+      (e) =>
+        new ParseError(`FASTQ parse error: ${e instanceof Error ? e.message : String(e)}`, "FASTQ")
+    );
+
+    const services = await backendRuntime.services();
+    yield* Stream.toAsyncIterableWith(stream, services);
+  }
+
+  private async *parseStringIterable(data: string): AsyncIterable<FastqSequence> {
     const strategy = this.options.parsingStrategy ?? "auto";
     const confidenceThreshold = this.options.confidenceThreshold ?? 0.8;
 
-    // Log strategy selection if debugging enabled
-    if (this.options.debugStrategy) {
-      console.log(`FASTQ Parser: Strategy = ${strategy}`);
-    }
-
-    // Determine which parser to use
     let useStateMachine = false;
     let detectedFormat: "simple" | "complex" | undefined;
     let detectedConfidence: number | undefined;
 
     if (strategy === "fast") {
-      // Force fast path
       useStateMachine = false;
     } else if (strategy === "state-machine") {
-      // Force state machine
       useStateMachine = true;
     } else {
-      // Auto-detect format complexity
       const detection = detectFastqComplexity(data);
       detectedFormat = detection.format;
       detectedConfidence = detection.confidence;
-
-      if (this.options.debugStrategy) {
-        console.log(`Format detected: ${detection.format}, Confidence: ${detection.confidence}`);
-      }
-
-      // Use state machine if complex format or low confidence
       useStateMachine =
         detection.format === "complex" || detection.confidence < confidenceThreshold;
-
-      if (this.options.debugStrategy) {
-        console.log(useStateMachine ? "Using state machine parser" : "Using fast path parser");
-      }
     }
 
-    // Update metrics for parser selection
     this.updateMetrics(
       strategy,
       useStateMachine ? "state-machine" : "fast",
@@ -408,44 +409,23 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
       detectedConfidence
     );
 
-    // Use the appropriate parser
     const lines = data.split(/\r?\n/);
 
     if (useStateMachine) {
-      // Use state machine for complex formats
       const sequences = parseMultiLineFastq(lines, 1, {
         maxLineLength: this.options.maxLineLength,
         onError: this.options.onError,
-        ...(this.options.qualityEncoding && {
-          qualityEncoding: this.options.qualityEncoding,
-        }),
+        ...(this.options.qualityEncoding && { qualityEncoding: this.options.qualityEncoding }),
         ...(this.options.trackLineNumbers !== undefined && {
           trackLineNumbers: this.options.trackLineNumbers,
         }),
       });
 
-      // Convert array to async generator and add missing fields if needed
       for (const seq of sequences) {
-        // Add quality scores and stats if requested and not present
-        if (this.options.parseQualityScores && seq.quality && !seq.qualityScores) {
-          const qualityScores = qualityToScores(seq.quality, seq.qualityEncoding);
-          const qualityStats = calculateQualityStatistics(qualityScores);
-
-          const enrichedSeq = {
-            ...seq,
-            ...(qualityScores && { qualityScores }),
-            ...(qualityStats && { qualityStats }),
-          };
-          this.parsingMetrics.totalSequences++;
-          yield enrichedSeq;
-        } else {
-          this.parsingMetrics.totalSequences++;
-          yield seq;
-        }
+        this.parsingMetrics.totalSequences++;
+        yield enrichIfNeeded(seq, this.options);
       }
     } else {
-      // Use fast path for simple formats
-      // We need to track sequences from fast path too
       for await (const seq of this.parseLines(lines)) {
         this.parsingMetrics.totalSequences++;
         yield seq;
@@ -501,210 +481,153 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
    * ```
    */
   async *parseFile(filePath: string, options?: FileReaderOptions): AsyncIterable<FastqSequence> {
-    // Validate meaningful constraints (preserve biological validation)
     if (filePath.length === 0) {
       throw new ValidationError("filePath must not be empty");
     }
 
-    try {
-      // Validate file path
-      const validatedPath = await this.validateFilePath(filePath);
+    const parserOpts = this.options;
+    const metrics = this.parsingMetrics;
+    const updateMetrics = this.updateMetrics.bind(this);
+    const parseLinesFn = this.parseLinesFromAsyncIterable.bind(this);
 
-      const strategy = this.options.parsingStrategy ?? "auto";
-      const confidenceThreshold = this.options.confidenceThreshold ?? 0.8;
+    const stream = Stream.unwrap(
+      Effect.gen(function* () {
+        const strategy = parserOpts.parsingStrategy ?? "auto";
+        const confidenceThreshold = parserOpts.confidenceThreshold ?? 0.8;
 
-      // Log strategy selection if debugging enabled
-      if (this.options.debugStrategy) {
-        console.log(`FASTQ Parser (file): Strategy = ${strategy}, File = ${filePath}`);
-      }
+        // Determine parsing strategy — may require file sampling
+        let useStateMachine = false;
+        let detectedFormat: "simple" | "complex" | undefined;
+        let detectedConfidence: number | undefined;
 
-      // Determine which parser to use
-      let useStateMachine = false;
-      let detectedFormat: "simple" | "complex" | undefined;
-      let detectedConfidence: number | undefined;
+        if (strategy === "fast") {
+          useStateMachine = false;
+        } else if (strategy === "state-machine") {
+          useStateMachine = true;
+        } else {
+          const sampleSize = 10240;
+          const fileSize = yield* getSize(filePath);
+          const bytesToRead = Math.min(sampleSize, fileSize);
+          const sampleBuffer = yield* readByteRange(filePath, 0, bytesToRead);
+          const sampleText = new TextDecoder().decode(sampleBuffer);
 
-      if (strategy === "fast") {
-        // Force fast path
-        useStateMachine = false;
-      } else if (strategy === "state-machine") {
-        // Force state machine
-        useStateMachine = true;
-      } else {
-        // Auto-detect by sampling the file
-        // Read first ~10KB for format detection (enough for ~50 FASTQ records)
-        const sampleSize = 10240;
-        const fileSize = await getSizePromise(validatedPath);
-        const bytesToRead = Math.min(sampleSize, fileSize);
-
-        // Read sample from beginning of file
-        const sampleBuffer = await readByteRangePromise(validatedPath, 0, bytesToRead);
-        const sampleText = new TextDecoder().decode(sampleBuffer);
-
-        // Detect format from sample
-        const detection = detectFastqComplexity(sampleText);
-        detectedFormat = detection.format;
-        detectedConfidence = detection.confidence;
-
-        if (this.options.debugStrategy) {
-          console.log(`Format detected: ${detection.format}, Confidence: ${detection.confidence}`);
+          const detection = detectFastqComplexity(sampleText);
+          detectedFormat = detection.format;
+          detectedConfidence = detection.confidence;
+          useStateMachine =
+            detection.format === "complex" || detection.confidence < confidenceThreshold;
         }
 
-        // Use state machine if complex format or low confidence
-        useStateMachine =
-          detection.format === "complex" || detection.confidence < confidenceThreshold;
+        updateMetrics(
+          strategy,
+          useStateMachine ? "state-machine" : "fast",
+          detectedFormat,
+          detectedConfidence
+        );
 
-        if (this.options.debugStrategy) {
-          console.log(useStateMachine ? "Using state machine parser" : "Using fast path parser");
-        }
-      }
+        const fileStream = yield* createStream(filePath, options ?? {});
+        const lines = readLines(fileStream, options?.encoding || "utf8");
 
-      // Update metrics for parser selection
-      this.updateMetrics(
-        strategy,
-        useStateMachine ? "state-machine" : "fast",
-        detectedFormat,
-        detectedConfidence
-      );
+        // Wrap the appropriate parsing path in an async generator, then into a Stream
+        async function* parseWithStrategy(): AsyncIterable<FastqSequence> {
+          if (useStateMachine) {
+            const batchSize = 1000;
+            let lineBuffer: string[] = [];
+            let lineNumber = 0;
 
-      // Create fresh stream for actual parsing
-      const stream = await createStreamPromise(validatedPath, options);
-      const lines = readLines(stream, options?.encoding || "utf8");
+            for await (const line of lines) {
+              lineBuffer.push(line);
+              lineNumber++;
 
-      // Use the appropriate parser
-      if (useStateMachine) {
-        // For state machine, we need to collect lines into batches
-        // because the state machine needs to see multiple lines at once
-        const batchSize = 1000; // Process in batches of 1000 lines
-        let lineBuffer: string[] = [];
-        let lineNumber = 0;
+              if (lineBuffer.length >= batchSize) {
+                const sequences = parseMultiLineFastq(
+                  lineBuffer,
+                  lineNumber - lineBuffer.length + 1,
+                  {
+                    maxLineLength: parserOpts.maxLineLength,
+                    onError: parserOpts.onError,
+                    ...(parserOpts.qualityEncoding && {
+                      qualityEncoding: parserOpts.qualityEncoding,
+                    }),
+                    ...(parserOpts.trackLineNumbers !== undefined && {
+                      trackLineNumbers: parserOpts.trackLineNumbers,
+                    }),
+                  }
+                );
 
-        for await (const line of lines) {
-          lineBuffer.push(line);
-          lineNumber++;
-
-          // Process batch when buffer is full
-          if (lineBuffer.length >= batchSize) {
-            const sequences = parseMultiLineFastq(lineBuffer, lineNumber - lineBuffer.length + 1, {
-              maxLineLength: this.options.maxLineLength,
-              onError: this.options.onError,
-              ...(this.options.qualityEncoding && {
-                qualityEncoding: this.options.qualityEncoding,
-              }),
-              ...(this.options.trackLineNumbers !== undefined && {
-                trackLineNumbers: this.options.trackLineNumbers,
-              }),
-            });
-
-            for (const seq of sequences) {
-              // Add quality scores if needed
-              if (this.options.parseQualityScores && seq.quality && !seq.qualityScores) {
-                const qualityScores = qualityToScores(seq.quality, seq.qualityEncoding);
-                const qualityStats = calculateQualityStatistics(qualityScores);
-
-                const enrichedSeq = {
-                  ...seq,
-                  ...(qualityScores && { qualityScores }),
-                  ...(qualityStats && { qualityStats }),
-                };
-                this.parsingMetrics.totalSequences++;
-                yield enrichedSeq;
-              } else {
-                this.parsingMetrics.totalSequences++;
-                yield seq;
+                for (const seq of sequences) {
+                  metrics.totalSequences++;
+                  yield enrichIfNeeded(seq, parserOpts);
+                }
+                lineBuffer = [];
               }
             }
 
-            lineBuffer = [];
-          }
-        }
+            if (lineBuffer.length > 0) {
+              const sequences = parseMultiLineFastq(
+                lineBuffer,
+                lineNumber - lineBuffer.length + 1,
+                {
+                  maxLineLength: parserOpts.maxLineLength,
+                  onError: parserOpts.onError,
+                  ...(parserOpts.qualityEncoding && {
+                    qualityEncoding: parserOpts.qualityEncoding,
+                  }),
+                  ...(parserOpts.trackLineNumbers !== undefined && {
+                    trackLineNumbers: parserOpts.trackLineNumbers,
+                  }),
+                }
+              );
 
-        // Process remaining lines
-        if (lineBuffer.length > 0) {
-          const sequences = parseMultiLineFastq(lineBuffer, lineNumber - lineBuffer.length + 1, {
-            maxLineLength: this.options.maxLineLength,
-            onError: this.options.onError,
-            ...(this.options.qualityEncoding && {
-              qualityEncoding: this.options.qualityEncoding,
-            }),
-            ...(this.options.trackLineNumbers !== undefined && {
-              trackLineNumbers: this.options.trackLineNumbers,
-            }),
-          });
-
-          for (const seq of sequences) {
-            if (this.options.parseQualityScores && seq.quality && !seq.qualityScores) {
-              const qualityScores = qualityToScores(seq.quality, seq.qualityEncoding);
-              const qualityStats = calculateQualityStatistics(qualityScores);
-
-              const enrichedSeq = {
-                ...seq,
-                ...(qualityScores && { qualityScores }),
-                ...(qualityStats && { qualityStats }),
-              };
-              this.parsingMetrics.totalSequences++;
-              yield enrichedSeq;
-            } else {
-              this.parsingMetrics.totalSequences++;
+              for (const seq of sequences) {
+                metrics.totalSequences++;
+                yield enrichIfNeeded(seq, parserOpts);
+              }
+            }
+          } else {
+            for await (const seq of parseLinesFn(lines)) {
+              metrics.totalSequences++;
               yield seq;
             }
           }
         }
-      } else {
-        // Fast path for streaming
-        for await (const seq of this.parseLinesFromAsyncIterable(lines)) {
-          this.parsingMetrics.totalSequences++;
-          yield seq;
-        }
-      }
-    } catch (error) {
-      // Re-throw with enhanced context
-      if (error instanceof Error) {
-        throw new ParseError(
-          `Failed to parse FASTQ file '${filePath}': ${error.message}`,
-          "FASTQ",
-          undefined,
-          error.stack
+
+        return Stream.fromAsyncIterable(
+          parseWithStrategy(),
+          (e) =>
+            new ParseError(
+              `Failed to parse FASTQ file '${filePath}': ${e instanceof Error ? e.message : String(e)}`,
+              "FASTQ"
+            )
         );
-      }
-      throw error;
-    }
+      }).pipe(
+        mapPlatformError(filePath, "read"),
+        Effect.mapError((e) => new FileError(e.message, filePath, "read", e.cause))
+      )
+    );
+
+    const services = await backendRuntime.services();
+    yield* Stream.toAsyncIterableWith(stream, services);
   }
 
   /**
    * Parse FASTQ sequences from a ReadableStream
    */
-  async *parse(stream: ReadableStream<Uint8Array>): AsyncIterable<FastqSequence> {
-    const reader = stream.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    let lineNumber = 0;
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-
-        if (done) {
-          if (buffer.trim()) {
-            const lines = buffer.split(/\r?\n/);
-            yield* this.parseLines(lines, lineNumber);
-          }
-          break;
-        }
-
-        buffer += decoder.decode(value, { stream: true });
-
-        const lines = buffer.split(/\r?\n/);
-        const poppedLine = lines.pop();
-        buffer = poppedLine !== undefined ? poppedLine : "";
-
-        if (lines.length > 0) {
-          yield* this.parseLines(lines, lineNumber);
-          lineNumber += lines.length;
-        }
-      }
-    } finally {
-      reader.releaseLock();
+  async *parse(inputStream: ReadableStream<Uint8Array>): AsyncIterable<FastqSequence> {
+    if (!(inputStream instanceof ReadableStream)) {
+      throw new ValidationError("stream must be a ReadableStream");
     }
+
+    const lines = readLines(inputStream, "utf8");
+    const lineIterable = this.parseLinesFromAsyncIterable(lines);
+    const stream = Stream.fromAsyncIterable(
+      lineIterable,
+      (e) =>
+        new ParseError(`FASTQ parse error: ${e instanceof Error ? e.message : String(e)}`, "FASTQ")
+    );
+
+    const services = await backendRuntime.services();
+    yield* Stream.toAsyncIterableWith(stream, services);
   }
 
   /**
@@ -1282,6 +1205,19 @@ function buildErrorContext(
  * @returns Quality statistics object or undefined if no scores
  * @internal
  */
+function enrichIfNeeded(seq: FastqSequence, opts: FastqParserOptions): FastqSequence {
+  if (opts.parseQualityScores && seq.quality && !seq.qualityScores) {
+    const qualityScores = qualityToScores(seq.quality, seq.qualityEncoding);
+    const qualityStats = calculateQualityStatistics(qualityScores);
+    return {
+      ...seq,
+      ...(qualityScores && { qualityScores }),
+      ...(qualityStats && { qualityStats }),
+    };
+  }
+  return seq;
+}
+
 function calculateQualityStatistics(
   scores: number[] | undefined,
   options: { lowQualityThreshold?: number } = {}

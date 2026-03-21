@@ -32,8 +32,21 @@ jobs:
         with:
           bun-version: ${{ env.BUN_VERSION }}
 
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: v2
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      - name: Build native module
+        run: bun run build:native:dev
 
       - name: Create test fixtures directory
         run: mkdir -p test/fixtures/real
@@ -92,6 +105,8 @@ jobs:
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: v2
 
       - name: Install dependencies
         run: bun install --frozen-lockfile

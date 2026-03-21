@@ -16,5 +16,12 @@ noodles-bam = "0.87"
 noodles-bgzf = "0.46"
 noodles-sam = "0.83"
 
+[features]
+default = []
+# Silence ensure_simd's AVX/NEON-only compile-time guard for wasm32 targets.
+# Does not disable SIMD — wide selects wasm simd128 intrinsics independently
+# via #[cfg(target_feature="simd128")], controlled by rustflags in .cargo/config.toml.
+wasm-simd = ["sassy/scalar"]
+
 [lints]
 workspace = true

@@ -1,103 +1,85 @@
 /**
- * Mock and test compression layers for Effect DI testing
+ * Mock and test compression layers for Effect DI testing.
  *
  * Provides reusable Layer implementations for testing compression-dependent
  * operations without actual compression/decompression overhead.
- *
- * Usage:
- * ```typescript
- * // In tests, swap layers easily
- * const result = await Effect.runPromise(
- *   program.pipe(
- *     Effect.provide(MockCompressionService),  // Fast tests
- *   ),
- * );
- * ```
  */
 
 import { Effect, Layer } from "effect";
-import { CompressionService, type CompressionServiceShape } from "../../src/compression/service";
-import { CompressionError } from "../../src/errors";
+import {
+  CompressionError,
+  CompressionService,
+  type CompressionServiceShape,
+} from "../../src/compression/service";
 import type { CompressionFormat } from "../../src/types";
 
 /**
- * Mock compression service that passes through data unchanged
- *
- * Useful for testing compression-dependent I/O without actual compression overhead.
- * All compress/decompress operations return data unchanged.
+ * Mock compression service that passes through data unchanged.
  */
 export const MockCompressionService: Layer.Layer<CompressionService> = Layer.succeed(
   CompressionService,
   {
     compress: (data: Uint8Array, format: CompressionFormat) => {
-      // Simulate compression by adding a marker byte
-      if (format === "none") {
-        return Effect.succeed(data);
-      }
-      // Pass through unchanged for testing
+      if (format === "none") return Effect.succeed(data);
       return Effect.succeed(data);
     },
 
     decompress: (data: Uint8Array, format: CompressionFormat) => {
-      // Simulate decompression by removing the marker byte if present
-      if (format === "none") {
-        return Effect.succeed(data);
-      }
-      // Pass through unchanged for testing
+      if (format === "none") return Effect.succeed(data);
       return Effect.succeed(data);
     },
 
-    createCompressionStream: (_format: CompressionFormat) => {
-      return new TransformStream<Uint8Array, Uint8Array>({
-        transform(chunk, controller) {
-          controller.enqueue(chunk);
-        },
-      });
-    },
+    createCompressionStream: () =>
+      Effect.succeed(
+        new TransformStream<Uint8Array, Uint8Array>({
+          transform(chunk, controller) {
+            controller.enqueue(chunk);
+          },
+        })
+      ),
 
-    createDecompressionStream: (_format: CompressionFormat) => {
-      return new TransformStream<Uint8Array, Uint8Array>({
-        transform(chunk, controller) {
-          controller.enqueue(chunk);
-        },
-      });
-    },
+    createDecompressionStream: () =>
+      Effect.succeed(
+        new TransformStream<Uint8Array, Uint8Array>({
+          transform(chunk, controller) {
+            controller.enqueue(chunk);
+          },
+        })
+      ),
   }
 );
 
 /**
- * Failing compression service for error handling tests
- *
- * All operations fail with specified error message.
- * Useful for testing error propagation through I/O operations.
+ * Failing compression service for error handling tests.
  */
 export function createFailingCompressionService(
   errorMessage: string = "Simulated compression failure"
 ): Layer.Layer<CompressionService> {
   return Layer.succeed(CompressionService, {
-    compress: () => {
-      return Effect.fail(new CompressionError(errorMessage, "gzip", "compress"));
-    },
+    compress: () =>
+      Effect.fail(
+        new CompressionError({ message: errorMessage, format: "gzip", operation: "compress" })
+      ),
 
-    decompress: () => {
-      return Effect.fail(new CompressionError(errorMessage, "gzip", "decompress"));
-    },
+    decompress: () =>
+      Effect.fail(
+        new CompressionError({ message: errorMessage, format: "gzip", operation: "decompress" })
+      ),
 
-    createCompressionStream: () => {
-      throw new CompressionError(errorMessage, "gzip", "stream");
-    },
+    createCompressionStream: () =>
+      Effect.fail(
+        new CompressionError({ message: errorMessage, format: "gzip", operation: "stream" })
+      ),
 
-    createDecompressionStream: () => {
-      throw new CompressionError(errorMessage, "gzip", "stream");
-    },
+    createDecompressionStream: () =>
+      Effect.fail(
+        new CompressionError({ message: errorMessage, format: "gzip", operation: "stream" })
+      ),
   });
 }
 
 /**
- * Tracking compression service for observing operations
- *
- * Records all compression/decompression calls for assertions in tests.
- * Wraps real compression service with tracking.
+ * Tracking compression service for observing operations.
  */
 export interface CompressionTracker {
   compressCalls: Array<{
@@ -133,89 +115,75 @@ export function createTrackingCompressionService(
       return baseService.decompress(data, format);
     },
 
-    createCompressionStream: (format: CompressionFormat, level?: number) => {
-      return baseService.createCompressionStream(format, level);
-    },
+    createCompressionStream: (format: CompressionFormat, level?: number) =>
+      baseService.createCompressionStream(format, level),
 
-    createDecompressionStream: (format: CompressionFormat) => {
-      return baseService.createDecompressionStream(format);
-    },
+    createDecompressionStream: (format: CompressionFormat) =>
+      baseService.createDecompressionStream(format),
   });
 }
 
 /**
- * Slow compression service for simulating performance issues
- *
- * Adds artificial delay before operations. Useful for testing
- * timeout handling and concurrent operation behavior.
+ * Slow compression service for simulating performance issues.
  */
 export function createSlowCompressionService(
   delayMs: number = 100,
   baseService?: CompressionServiceShape
 ): Layer.Layer<CompressionService> {
   return Layer.succeed(CompressionService, {
-    compress: (data: Uint8Array, format: CompressionFormat, level?: number) => {
-      return Effect.gen(function* () {
+    compress: (data: Uint8Array, format: CompressionFormat, level?: number) =>
+      Effect.gen(function* () {
         yield* Effect.sleep(delayMs);
-        if (baseService) {
-          return yield* baseService.compress(data, format, level);
-        }
+        if (baseService) return yield* baseService.compress(data, format, level);
         return data;
-      });
-    },
+      }),
 
-    decompress: (data: Uint8Array, format: CompressionFormat) => {
-      return Effect.gen(function* () {
+    decompress: (data: Uint8Array, format: CompressionFormat) =>
+      Effect.gen(function* () {
         yield* Effect.sleep(delayMs);
-        if (baseService) {
-          return yield* baseService.decompress(data, format);
-        }
+        if (baseService) return yield* baseService.decompress(data, format);
         return data;
-      });
-    },
+      }),
 
     createCompressionStream: (format: CompressionFormat, level?: number) => {
-      if (baseService) {
-        return baseService.createCompressionStream(format, level);
-      }
-      return new TransformStream<Uint8Array, Uint8Array>({
-        transform(chunk, controller) {
-          controller.enqueue(chunk);
-        },
-      });
+      if (baseService) return baseService.createCompressionStream(format, level);
+      return Effect.succeed(
+        new TransformStream<Uint8Array, Uint8Array>({
+          transform(chunk, controller) {
+            controller.enqueue(chunk);
+          },
+        })
+      );
     },
 
     createDecompressionStream: (format: CompressionFormat) => {
-      if (baseService) {
-        return baseService.createDecompressionStream(format);
-      }
-      return new TransformStream<Uint8Array, Uint8Array>({
-        transform(chunk, controller) {
-          controller.enqueue(chunk);
-        },
-      });
+      if (baseService) return baseService.createDecompressionStream(format);
+      return Effect.succeed(
+        new TransformStream<Uint8Array, Uint8Array>({
+          transform(chunk, controller) {
+            controller.enqueue(chunk);
+          },
+        })
+      );
     },
   });
 }
 
 /**
- * Format-restricted compression service
- *
- * Only allows specific compression formats.
- * Useful for testing format validation in I/O operations.
+ * Format-restricted compression service for testing format validation.
  */
 export function createFormatRestrictedCompressionService(
   allowedFormats: CompressionFormat[]
 ): Layer.Layer<CompressionService> {
   return Layer.succeed(CompressionService, {
-    compress: (data: Uint8Array, format: CompressionFormat, _level?: number) => {
+    compress: (data: Uint8Array, format: CompressionFormat) => {
       if (!allowedFormats.includes(format)) {
         return Effect.fail(
-          new CompressionError(
-            `Format ${format} not allowed. Allowed: ${allowedFormats.join(", ")}`,
+          new CompressionError({
+            message: `Format ${format} not allowed. Allowed: ${allowedFormats.join(", ")}`,
             format,
-            "compress"
-          )
+            operation: "compress",
+          })
         );
       }
       return Effect.succeed(data);
@@ -224,11 +192,11 @@ export function createFormatRestrictedCompressionService(
     decompress: (data: Uint8Array, format: CompressionFormat) => {
       if (!allowedFormats.includes(format)) {
         return Effect.fail(
-          new CompressionError(
-            `Format ${format} not allowed. Allowed: ${allowedFormats.join(", ")}`,
+          new CompressionError({
+            message: `Format ${format} not allowed. Allowed: ${allowedFormats.join(", ")}`,
             format,
-            "decompress"
-          )
+            operation: "decompress",
+          })
         );
       }
       return Effect.succeed(data);
@@ -236,32 +204,40 @@ export function createFormatRestrictedCompressionService(
 
     createCompressionStream: (format: CompressionFormat) => {
       if (!allowedFormats.includes(format)) {
-        throw new CompressionError(
-          `Format ${format} not allowed. Allowed: ${allowedFormats.join(", ")}`,
-          format,
-          "stream"
+        return Effect.fail(
+          new CompressionError({
+            message: `Format ${format} not allowed. Allowed: ${allowedFormats.join(", ")}`,
+            format,
+            operation: "stream",
+          })
         );
       }
-      return new TransformStream<Uint8Array, Uint8Array>({
-        transform(chunk, controller) {
-          controller.enqueue(chunk);
-        },
-      });
+      return Effect.succeed(
+        new TransformStream<Uint8Array, Uint8Array>({
+          transform(chunk, controller) {
+            controller.enqueue(chunk);
+          },
+        })
+      );
     },
 
     createDecompressionStream: (format: CompressionFormat) => {
       if (!allowedFormats.includes(format)) {
-        throw new CompressionError(
-          `Format ${format} not allowed. Allowed: ${allowedFormats.join(", ")}`,
-          format,
-          "stream"
+        return Effect.fail(
+          new CompressionError({
+            message: `Format ${format} not allowed. Allowed: ${allowedFormats.join(", ")}`,
+            format,
+            operation: "stream",
+          })
         );
       }
-      return new TransformStream<Uint8Array, Uint8Array>({
-        transform(chunk, controller) {
-          controller.enqueue(chunk);
-        },
-      });
+      return Effect.succeed(
+        new TransformStream<Uint8Array, Uint8Array>({
+          transform(chunk, controller) {
+            controller.enqueue(chunk);
+          },
+        })
+      );
     },
   });
 }

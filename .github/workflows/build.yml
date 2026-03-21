@@ -3,37 +3,20 @@ on:
   push:
     tags: ["v*"]
     paths:
-      # Native Rust source code
-      - "src/native/**/*.rs"
-      - "src/native/**/Cargo.toml"
+      - "crates/**/*.rs"
+      - "crates/**/Cargo.toml"
       - "Cargo.toml"
-      # Rust toolchain configuration
       - "rust-toolchain*"
-      - ".rustfmt.toml"
-      - "rustfmt.toml"
-      - "clippy.toml"
-      - ".clippy.toml"
-      - "Cross.toml"
-      # TypeScript FFI integration
-      - "src/native.ts"
-      # Build scripts that handle native modules
+      - ".cargo/config.toml"
       - "scripts/build.mjs"
-      - "scripts/*native*"
   pull_request:
     paths:
-      # Same paths for PR validation
-      - "src/native/**/*.rs"
-      - "src/native/**/Cargo.toml"
+      - "crates/**/*.rs"
+      - "crates/**/Cargo.toml"
       - "Cargo.toml"
       - "rust-toolchain*"
-      - ".rustfmt.toml"
-      - "rustfmt.toml"
-      - "clippy.toml"
-      - ".clippy.toml"
-      - "Cross.toml"
-      - "src/native.ts"
+      - ".cargo/config.toml"
       - "scripts/build.mjs"
-      - "scripts/*native*"
   workflow_dispatch:
 
 env:
@@ -78,10 +61,8 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: "src/native"
           key: ${{ matrix.target }}
 
-      # For cross-compilation on Ubuntu (ARM64 targets)
       - name: Install cross-compilation tools
         if: matrix.os == 'ubuntu-latest' && contains(matrix.target, 'aarch64')
         run: |
@@ -90,13 +71,13 @@ jobs:
           echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
 
       - name: Build native module
-        run: cargo build --manifest-path src/native/Cargo.toml --release --target ${{ matrix.target }}
+        run: cargo build -p genotype-napi --release --target ${{ matrix.target }}
 
       - name: Prepare artifacts (Unix)
         if: runner.os != 'Windows'
         run: |
           mkdir -p artifacts/${{ matrix.platform }}
-          cp target/${{ matrix.target }}/release/libgenotype.* artifacts/${{ matrix.platform }}/ 2>/dev/null || true
+          cp target/${{ matrix.target }}/release/libgenotype*.* artifacts/${{ matrix.platform }}/ 2>/dev/null || true
           cp target/${{ matrix.target }}/release/*.so artifacts/${{ matrix.platform }}/ 2>/dev/null || true
           cp target/${{ matrix.target }}/release/*.dylib artifacts/${{ matrix.platform }}/ 2>/dev/null || true
           ls -la artifacts/${{ matrix.platform }}/
@@ -114,29 +95,3 @@ jobs:
           name: genotype-${{ matrix.platform }}
           path: artifacts/${{ matrix.platform }}
           retention-days: 7
-
-  # Commented out until we have examples ready
-  # build-examples:
-  #   name: Build Examples
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
-  #
-  #     - name: Setup Bun
-  #       uses: oven-sh/setup-bun@v2
-  #       with:
-  #         bun-version: latest
-  #
-  #     - name: Install dependencies
-  #       run: bun install
-  #
-  #     - name: Build examples
-  #       run: bun run build:examples
-  #
-  #     - name: Upload example artifacts
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: genotype-examples
-  #         path: examples/dist/
-  #         retention-days: 7

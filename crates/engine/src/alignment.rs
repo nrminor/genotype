@@ -104,9 +104,8 @@ impl AlignmentReader {
         let n = file.read(&mut magic).map_err(|e| {
             EngineError::Io(format!("failed to read magic bytes from '{path}': {e}"))
         })?;
-        file.seek(std::io::SeekFrom::Start(0)).map_err(|e| {
-            EngineError::Io(format!("failed to seek in '{path}': {e}"))
-        })?;
+        file.seek(std::io::SeekFrom::Start(0))
+            .map_err(|e| EngineError::Io(format!("failed to seek in '{path}': {e}")))?;
 
         let is_bgzf = n >= 2 && magic[0] == 0x1f && magic[1] == 0x8b;
 

@@ -125,6 +125,8 @@
 !/test/fixtures/*.fasta
 !/test/fixtures/*.fastq
 !/test/fixtures/*.bed
+!/test/fixtures/*.bam
+!/test/fixtures/*.sam
 !/test/fixtures/*.json
 !/test/fixtures/*.jsonl
 !/test/fixtures/*.tsv

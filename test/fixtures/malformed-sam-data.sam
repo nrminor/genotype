@@ -1,0 +1,89 @@
+# This file contains various malformed SAM data for error testing
+# Lines starting with # are comments and should be ignored by parsers
+
+# Invalid header types
+@XX	VN:1.6	SO:coordinate
+@YY	Invalid header type
+
+# Malformed header fields
+@HD	INVALID_FIELD
+@HD	VN	Missing colon separator
+@SQ	SN:chr1	Invalid length field
+@SQ	SN:chr2	LN:NOT_A_NUMBER
+
+# Missing required header fields
+@HD	SO:coordinate
+@SQ	SN:chr1
+@RG	SM:sample1
+@PG	VN:1.0
+
+# Insufficient alignment fields (should have 11 minimum)
+read1	99	chr1	1000
+read2	99	chr1	1000	60
+read3	99	chr1	1000	60	150M
+read4	99	chr1	1000	60	150M	=
+read5	99	chr1	1000	60	150M	=	1200
+read6	99	chr1	1000	60	150M	=	1200	350
+read7	99	chr1	1000	60	150M	=	1200	350	ACGT
+
+# Invalid FLAG values
+read_invalid_flag	NOT_A_NUMBER	chr1	1000	60	150M	=	1200	350	ACGT	IIII
+read_flag_negative	-1	chr1	1000	60	150M	=	1200	350	ACGT	IIII
+read_flag_too_large	4096	chr1	1000	60	150M	=	1200	350	ACGT	IIII
+
+# Invalid position values
+read_invalid_pos	99	chr1	NOT_A_NUMBER	60	150M	=	1200	350	ACGT	IIII
+read_negative_pos	99	chr1	-1	60	150M	=	1200	350	ACGT	IIII
+
+# Invalid MAPQ values
+read_invalid_mapq	99	chr1	1000	NOT_A_NUMBER	150M	=	1200	350	ACGT	IIII
+read_negative_mapq	99	chr1	1000	-1	150M	=	1200	350	ACGT	IIII
+read_mapq_too_large	99	chr1	1000	256	150M	=	1200	350	ACGT	IIII
+
+# Invalid CIGAR strings
+read_invalid_cigar	99	chr1	1000	60	150Z	=	1200	350	ACGT	IIII
+read_zero_length_cigar	99	chr1	1000	60	0M	=	1200	350	ACGT	IIII
+read_negative_cigar	99	chr1	1000	60	-5M	=	1200	350	ACGT	IIII
+read_malformed_cigar	99	chr1	1000	60	M150	=	1200	350	ACGT	IIII
+read_empty_cigar	99	chr1	1000	60		=	1200	350	ACGT	IIII
+
+# Invalid mate positions
+read_invalid_pnext	99	chr1	1000	60	150M	=	NOT_A_NUMBER	350	ACGT	IIII
+read_negative_pnext	99	chr1	1000	60	150M	=	-1	350	ACGT	IIII
+
+# Invalid template length
+read_invalid_tlen	99	chr1	1000	60	150M	=	1200	NOT_A_NUMBER	ACGT	IIII
+
+# Sequence/quality length mismatches
+read_seq_qual_mismatch1	99	chr1	1000	60	150M	=	1200	350	ACGT	IIIIIIII
+read_seq_qual_mismatch2	99	chr1	1000	60	150M	=	1200	350	ACGTACGT	IIII
+
+# Invalid optional tags
+read_invalid_tag_format	99	chr1	1000	60	150M	=	1200	350	ACGT	IIII	INVALID_TAG
+read_missing_tag_type	99	chr1	1000	60	150M	=	1200	350	ACGT	IIII	NM:5
+read_missing_tag_value	99	chr1	1000	60	150M	=	1200	350	ACGT	IIII	NM:i:
+read_invalid_int_tag	99	chr1	1000	60	150M	=	1200	350	ACGT	IIII	NM:i:NOT_A_NUMBER
+read_invalid_float_tag	99	chr1	1000	60	150M	=	1200	350	ACGT	IIII	AS:f:NOT_A_NUMBER
+read_invalid_tag_name	99	chr1	1000	60	150M	=	1200	350	ACGT	IIII	X:i:5
+read_numeric_tag_name	99	chr1	1000	60	150M	=	1200	350	ACGT	IIII	12:i:5
+
+# Mixed valid and invalid data
+@HD	VN:1.6	SO:coordinate
+@SQ	SN:chr1	LN:248956422
+valid_read_before_error	99	chr1	1000	60	150M	=	1200	350	ACGT	IIII	NM:i:0
+invalid_read_error	NOT_ENOUGH_FIELDS
+valid_read_after_error	99	chr1	2000	60	150M	=	2200	350	TGCA	JJJJ	NM:i:0
+
+# Empty lines and whitespace issues
+
+
+	
+
+# Line with only tabs
+			
+
+# Very long query name (over typical limits)
+this_is_an_extremely_long_query_name_that_exceeds_normal_limits_and_might_cause_issues_in_some_parsers_especially_if_they_have_fixed_buffer_sizes_or_do_not_handle_very_long_identifiers_properly_so_we_test_with_this_overly_verbose_name	99	chr1	1000	60	150M	=	1200	350	ACGT	IIII
+
+# Truncated file (incomplete last line)
+incomplete_read	99	chr1	1000	60	150M	=	1200	350	AC

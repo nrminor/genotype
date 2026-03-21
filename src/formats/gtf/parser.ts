@@ -7,8 +7,10 @@
  */
 
 import { type } from "arktype";
-import { ParseError, ValidationError } from "../../errors";
-import { createStreamPromise } from "../../io/file-reader";
+import { Effect, Stream } from "effect";
+import { FileError, ParseError, ValidationError } from "../../errors";
+import { createStream, mapPlatformError } from "../../io/file-reader";
+import { backendRuntime } from "../../backend/service";
 import { readLines } from "../../io/stream-utils";
 import type { Strand } from "../../types";
 import { AbstractParser } from "../abstract-parser";
@@ -563,7 +565,13 @@ class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
    */
   override async *parseString(data: string): AsyncIterable<GtfFeature> {
     const lines = data.split(/\r?\n/);
-    yield* this.parseLines(lines);
+    const lineIterable = this.parseLines(lines);
+    const stream = Stream.fromAsyncIterable(
+      lineIterable,
+      (e) => new ParseError(`GTF parse error: ${e instanceof Error ? e.message : String(e)}`, "GTF")
+    );
+
+    yield* await backendRuntime.runPromise(Stream.toAsyncIterableEffect(stream));
   }
 
   /**
@@ -581,22 +589,30 @@ class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
       throw new ValidationError("filePath cannot be empty");
     }
 
-    try {
-      const stream = await createStreamPromise(filePath, {
-        encoding: (options?.encoding as "utf8") || "utf8",
-        maxFileSize: 10_000_000_000, // 10GB max for large annotation files
-      });
+    const parseLines = this.parseLinesFromAsyncIterable.bind(this);
+    const stream = Stream.unwrap(
+      Effect.gen(function* () {
+        const fileStream = yield* createStream(filePath, {
+          encoding: (options?.encoding as "utf8") || "utf8",
+          maxFileSize: 10_000_000_000,
+        });
+        const lines = readLines(fileStream, "utf8");
 
-      const lines = readLines(stream, "utf8");
-      yield* this.parseLinesFromAsyncIterable(lines);
-    } catch (error) {
-      throw new ParseError(
-        `Failed to parse GTF file '${filePath}': ${error instanceof Error ? error.message : String(error)}`,
-        "GTF",
-        undefined,
-        `File path: ${filePath}`
-      );
-    }
+        return Stream.fromAsyncIterable(
+          parseLines(lines),
+          (e) =>
+            new ParseError(
+              `Failed to parse GTF file '${filePath}': ${e instanceof Error ? e.message : String(e)}`,
+              "GTF"
+            )
+        );
+      }).pipe(
+        mapPlatformError(filePath, "read"),
+        Effect.mapError((e) => new FileError(e.message, filePath, "read", e.cause))
+      )
+    );
+
+    yield* await backendRuntime.runPromise(Stream.toAsyncIterableEffect(stream));
   }
 
   /**
@@ -642,9 +658,15 @@ class GtfParser extends AbstractParser<GtfFeature, GtfParserOptions> {
    * @param stream Binary data stream
    * @returns AsyncIterable of GTF features
    */
-  override async *parse(stream: ReadableStream<Uint8Array>): AsyncIterable<GtfFeature> {
-    const lines = readLines(stream, "utf8");
-    yield* this.parseLinesFromAsyncIterable(lines);
+  override async *parse(inputStream: ReadableStream<Uint8Array>): AsyncIterable<GtfFeature> {
+    const lines = readLines(inputStream, "utf8");
+    const lineIterable = this.parseLinesFromAsyncIterable(lines);
+    const stream = Stream.fromAsyncIterable(
+      lineIterable,
+      (e) => new ParseError(`GTF parse error: ${e instanceof Error ? e.message : String(e)}`, "GTF")
+    );
+
+    yield* await backendRuntime.runPromise(Stream.toAsyncIterableEffect(stream));
   }
 
   /**

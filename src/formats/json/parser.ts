@@ -6,8 +6,11 @@
  */
 
 import { type } from "arktype";
-import { ParseError } from "../../errors";
-import { readToStringPromise } from "../../io/file-reader";
+import { Effect, Stream } from "effect";
+import { FileError, ParseError } from "../../errors";
+import { createStream, readToString, mapPlatformError } from "../../io/file-reader";
+import { backendRuntime } from "../../backend/service";
+import { readLines } from "../../io/stream-utils";
 import { convertRecordToSequence } from "../../operations/fx2tab";
 import type { AbstractSequence } from "../../types";
 import { deserializeJSON, deserializeJSONWrapped, jsonlToRows } from "./morphs";
@@ -82,8 +85,19 @@ export class JSONParser {
    * @performance Loads entire file into memory. Use JSONLParser for streaming.
    */
   async *parseFile(path: string, options?: JSONParseOptions): AsyncIterable<AbstractSequence> {
-    const content = await readToStringPromise(path);
-    yield* this.parseString(content, options);
+    const rowToSeq = this.rowToSequence.bind(this);
+    const stream = Stream.unwrap(
+      Effect.gen(function* () {
+        const content = yield* readToString(path, {});
+        const sequences = parseJsonContent(content, rowToSeq, options);
+        return Stream.fromIterable(sequences);
+      }).pipe(
+        mapPlatformError(path, "read"),
+        Effect.mapError((e) => new FileError(e.message, path, "read", e.cause))
+      )
+    );
+
+    yield* await backendRuntime.runPromise(Stream.toAsyncIterableEffect(stream));
   }
 
   /**
@@ -109,25 +123,9 @@ export class JSONParser {
    * ```
    */
   async *parseString(content: string, options?: JSONParseOptions): AsyncIterable<AbstractSequence> {
-    const arrayResult = deserializeJSON(content);
-
-    if (!(arrayResult instanceof type.errors)) {
-      for (const row of arrayResult) {
-        yield this.rowToSequence(row, options);
-      }
-      return;
-    }
-
-    const wrappedResult = deserializeJSONWrapped(content);
-
-    if (!(wrappedResult instanceof type.errors)) {
-      for (const row of wrappedResult.sequences) {
-        yield this.rowToSequence(row, options);
-      }
-      return;
-    }
-
-    throw new ParseError(`JSON validation failed: ${arrayResult.summary}`, "JSON");
+    const sequences = parseJsonContent(content, this.rowToSequence.bind(this), options);
+    const stream = Stream.fromIterable(sequences);
+    yield* await backendRuntime.runPromise(Stream.toAsyncIterableEffect(stream));
   }
 
   /**
@@ -205,6 +203,28 @@ export class JSONParser {
 }
 
 /**
+ * Parse JSON content (array or wrapped format) into sequences.
+ * Tries simple array format first, then wrapped format with metadata.
+ */
+function parseJsonContent(
+  content: string,
+  rowToSequence: (row: Record<string, unknown>, options?: JSONParseOptions) => AbstractSequence,
+  options?: JSONParseOptions
+): AbstractSequence[] {
+  const arrayResult = deserializeJSON(content);
+  if (!(arrayResult instanceof type.errors)) {
+    return arrayResult.map((row) => rowToSequence(row, options));
+  }
+
+  const wrappedResult = deserializeJSONWrapped(content);
+  if (!(wrappedResult instanceof type.errors)) {
+    return wrappedResult.sequences.map((row) => rowToSequence(row, options));
+  }
+
+  throw new ParseError(`JSON validation failed: ${arrayResult.summary}`, "JSON");
+}
+
+/**
  * Parser for JSONL (JSON Lines) format sequence files
  *
  * Parses sequences from JSONL files where each line contains a separate JSON object.
@@ -265,17 +285,34 @@ export class JSONLParser {
    * @performance Streaming with O(1) memory. Ideal for large files.
    */
   async *parseFile(path: string, options?: JSONParseOptions): AsyncIterable<AbstractSequence> {
-    async function* readLines() {
-      const text = await readToStringPromise(path);
-      const lines = text.split("\n");
-      for (const line of lines) {
-        yield line;
+    const rowToSeq = this.rowToSequence.bind(this);
+
+    async function* parseRows(lines: AsyncIterable<string>): AsyncIterable<AbstractSequence> {
+      for await (const row of jsonlToRows(lines)) {
+        yield rowToSeq(row, options);
       }
     }
 
-    for await (const row of jsonlToRows(readLines())) {
-      yield this.rowToSequence(row, options);
-    }
+    const stream = Stream.unwrap(
+      Effect.gen(function* () {
+        const fileStream = yield* createStream(path, {});
+        const lines = readLines(fileStream, "utf8");
+
+        return Stream.fromAsyncIterable(
+          parseRows(lines),
+          (e) =>
+            new ParseError(
+              `JSONL parse error: ${e instanceof Error ? e.message : String(e)}`,
+              "JSONL"
+            )
+        );
+      }).pipe(
+        mapPlatformError(path, "read"),
+        Effect.mapError((e) => new FileError(e.message, path, "read", e.cause))
+      )
+    );
+
+    yield* await backendRuntime.runPromise(Stream.toAsyncIterableEffect(stream));
   }
 
   /**

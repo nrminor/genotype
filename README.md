@@ -52,11 +52,10 @@ plus some extra goodies that make sense in the context of a TypeScript library
 Where possible, GenoType delegates sequence operations to SIMD accelerated kernels
 implemented in Rust. These optimizations, together with the overall speed of modern
 JavaScript runtimes, make GenoType's performance competitive with if not better than
-SeqKit, which is implemented in Go and was one of the inspirations behind GenoType's
-DSL. Additionally, Rust can be compiled both to native extensions and WebAssembly
-modules, which opens the possibility for GenoType to be run on the server, in the
-browser, or anywhere in between. Browser execution is currently not supported but is an
-important part of the library's path to 1.0.
+SeqKit, which is implemented in Go and was one of the inspirations behind GenoType's DSL
+(benchmarks coming soon!). Additionally, Rust compiles both to native extensions as well
+as WebAssembly modules, which means GenoType's SIMD kernels can run on the server, in
+the browser, or anywhere in between.
 
 ### Runtime-Agnostic Architecture
 
@@ -210,19 +209,19 @@ content and checking for off-target sites.
 const potentialGuides = await seqops(sequences)
   // Extract all possible 20bp guide sequences
   .transform({
-    custom: seq => extractKmers(seq, 20)
+    custom: (seq) => extractKmers(seq, 20),
   })
 
   // Filter for optimal guide characteristics
   .filter({
-    minGC: 40,        // Minimum 40% GC
-    maxGC: 60,        // Maximum 60% GC
-    pattern: /GG$/    // Must end with PAM-adjacent GG
+    minGC: 40, // Minimum 40% GC
+    maxGC: 60, // Maximum 60% GC
+    pattern: /GG$/, // Must end with PAM-adjacent GG
   })
 
   // Remove guides with problematic sequences
   .filter({
-    custom: guide => {
+    custom: (guide) => {
       // No poly-T (terminates RNA pol III)
       if (/TTTT/.test(guide.sequence)) return false;
 
@@ -231,15 +230,15 @@ const potentialGuides = await seqops(sequences)
       if (mfe < -10) return false;
 
       return true;
-    }
+    },
   })
 
   // Check for off-targets in genome
   .filter({
-    custom: async guide => {
+    custom: async (guide) => {
       const offTargets = await searchGenome(guide.sequence, { maxMismatches: 3 });
       return offTargets.length === 1; // Only one perfect match
-    }
+    },
   })
 
   .collect();
@@ -302,5 +301,7 @@ const validationReport = await seqops(assemblies)
   .stats({ detailed: true });
 
 console.log(`Validated ${validationReport.numSequences} genomes`);
-console.log(`N50: ${validationReport.n50}, GC: ${((validationReport.gcContent ?? 0) * 100).toFixed(1)}%`);
+console.log(
+  `N50: ${validationReport.n50}, GC: ${((validationReport.gcContent ?? 0) * 100).toFixed(1)}%`
+);
 ```

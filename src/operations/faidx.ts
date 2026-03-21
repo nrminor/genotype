@@ -12,7 +12,7 @@ import { CompressionDetector } from "../compression/detector";
 import { createFastaRecord } from "../constructors";
 import { ParseError, ValidationError } from "../errors";
 import { exists, readByteRange, readToString } from "../io/file-reader";
-import { getPlatform } from "../io/runtime";
+import { PlatformLayer } from "../io/layers";
 import type { FastaSequence, ParseResult } from "../types";
 import { reverseComplement } from "./core/sequence-manipulation";
 
@@ -452,7 +452,7 @@ export class FaiBuilder {
       yield* fs.writeFileString(faiPath, content);
     });
 
-    await Effect.runPromise(program.pipe(Effect.provide(getPlatform())));
+    await Effect.runPromise(program.pipe(Effect.provide(PlatformLayer)));
   }
 
   /**

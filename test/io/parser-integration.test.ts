@@ -7,7 +7,6 @@ import "../matchers";
 import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 import { FileError, ParseError } from "../../src/errors";
-import { FileIOError } from "../../src/io/file-reader";
 import { BedParser } from "../../src/formats/bed";
 import { FastaParser } from "../../src/formats/fasta";
 import { FastqParser } from "../../src/formats/fastq";

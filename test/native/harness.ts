@@ -1,11 +1,7 @@
 import { describe, test } from "bun:test";
-import {
-  type NativeKernel,
-  getNativeKernel,
-  isNativeAvailable,
-} from "../../src/backend/node-native";
+import { type NativeKernel, getNodeNativeKernelSync } from "../../src/backend/node-native";
 
-export const nativeAvailable = isNativeAvailable();
+export const nativeAvailable = getNodeNativeKernelSync() !== undefined;
 
 /**
  * Like `describe`, but the entire block is skipped when the native
@@ -25,7 +21,7 @@ export const testNative = nativeAvailable ? test : test.skip;
  * where the skip guard has already confirmed availability.
  */
 export function requireNativeKernel(): NativeKernel {
-  const kernel = getNativeKernel();
+  const kernel = getNodeNativeKernelSync();
   if (!kernel) throw new Error("Native kernel unavailable — run: just build-native-dev");
   return kernel;
 }

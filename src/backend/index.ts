@@ -9,11 +9,12 @@ export type {
   AlignmentBatch,
   AlignmentReaderHandle,
   FindPatternBatchOptions,
-  GenotypeBackend,
   GrepBatchOptions,
-  NullBackend,
   ReferenceSequenceInfo,
 } from "./types";
+
+export { NativeAddonNotFoundError } from "./node-native";
+export { WasmInitializationError } from "./wasm";
 
 export {
   BackendService,

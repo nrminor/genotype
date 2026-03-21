@@ -1,3 +1,20 @@
+/**
+ * Node/Bun native backend for genotype compute engine.
+ *
+ * Loads the napi-rs addon via require() and provides a
+ * Layer<BackendService, NativeAddonNotFoundError>. The layer
+ * construction is synchronous (require is sync) and uses Effect.try
+ * for typed initialization errors. Layer memoization in the
+ * ManagedRuntime handles caching — no mutable module-level state.
+ *
+ * The NativeKernel interface describes the raw napi return types,
+ * which differ from the kernel-types interfaces (napi marshals
+ * Vec<u32> as number[], not Uint32Array). The buildFromKernel
+ * function handles the type conversions at the boundary.
+ */
+
+import { Effect, Layer, Schema } from "effect";
+import { BackendService, BackendUnavailableError } from "./common";
 import type {
   ClassifyResult,
   PatternSearchResult,
@@ -7,22 +24,17 @@ import type {
   TranslateBatchOptions,
   ValidationMode,
 } from "./kernel-types";
-import type {
-  AlignmentBatch,
-  AlignmentReaderHandle,
-  GenotypeBackend,
-  ReferenceSequenceInfo,
-} from "./types";
+import type { AlignmentBatch, AlignmentReaderHandle, ReferenceSequenceInfo } from "./types";
 
-/**
- * The native kernel interface. Each function here corresponds to a
- * `#[napi]` export from the Rust crate in `src/native/`.
- */
-/**
- * Raw return types from napi-rs. Vec<u32> marshals to number[] (not
- * Uint32Array), so these differ from the typed-array kernel-types
- * interfaces. The backend wrapper converts at the boundary.
- */
+// ---------------------------------------------------------------------------
+
+export class NativeAddonNotFoundError extends Schema.TaggedErrorClass<NativeAddonNotFoundError>()(
+  "NativeAddonNotFoundError",
+  { message: Schema.String }
+) {}
+
+// ---------------------------------------------------------------------------
+
 interface NapiTransformResult {
   data: Buffer;
   offsets: number[];
@@ -61,7 +73,6 @@ export interface NativeKernel {
     caseInsensitive: boolean,
     searchBothStrands: boolean
   ): Buffer;
-
   findPatternBatch(
     sequences: Buffer,
     offsets: Uint32Array,
@@ -69,30 +80,22 @@ export interface NativeKernel {
     maxEdits: number,
     caseInsensitive: boolean
   ): NapiPatternSearchResult;
-
   transformBatch(sequences: Buffer, offsets: Uint32Array, op: TransformOp): NapiTransformResult;
-
   removeGapsBatch(sequences: Buffer, offsets: Uint32Array, gapChars: string): NapiTransformResult;
-
   replaceAmbiguousBatch(
     sequences: Buffer,
     offsets: Uint32Array,
     replacement: string
   ): NapiTransformResult;
-
   replaceInvalidBatch(
     sequences: Buffer,
     offsets: Uint32Array,
     mode: ValidationMode,
     replacement: string
   ): NapiTransformResult;
-
   classifyBatch(sequences: Buffer, offsets: Uint32Array): NapiClassifyResult;
-
   checkValidBatch(sequences: Buffer, offsets: Uint32Array, mode: ValidationMode): Buffer;
-
   qualityAvgBatch(quality: Buffer, offsets: Uint32Array, asciiOffset: number): number[];
-
   qualityTrimBatch(
     quality: Buffer,
     offsets: Uint32Array,
@@ -102,14 +105,12 @@ export interface NativeKernel {
     trimStart: boolean,
     trimEnd: boolean
   ): number[];
-
   qualityBinBatch(
     quality: Buffer,
     offsets: Uint32Array,
     boundaries: Buffer,
     representatives: Buffer
   ): NapiTransformResult;
-
   sequenceMetricsBatch(
     sequences: Buffer,
     seqOffsets: Uint32Array,
@@ -118,7 +119,6 @@ export interface NativeKernel {
     metricFlags: number,
     asciiOffset: number
   ): NapiSequenceMetricsResult;
-
   translateBatch(
     sequences: Buffer,
     offsets: Uint32Array,
@@ -127,48 +127,7 @@ export interface NativeKernel {
     alternativeStartMask: Buffer,
     options: TranslateBatchOptions
   ): NapiTransformResult;
-
   hashBatch(sequences: Buffer, offsets: Uint32Array, caseInsensitive: boolean): Buffer;
-}
-
-let kernel: NativeKernel | undefined;
-let kernelLoadAttempted = false;
-
-function loadKernel(): NativeKernel | undefined {
-  if (kernelLoadAttempted) return kernel;
-  kernelLoadAttempted = true;
-
-  try {
-    // Use napi-rs's generated loader, which handles all platform/arch/libc
-    // combinations (linux-x64-gnu, linux-x64-musl, darwin-arm64, etc.)
-    // rather than constructing the .node filename ourselves.
-    kernel = require("../native/index.js") as NativeKernel;
-  } catch {
-    // Native kernel not available — this is expected when the Rust
-    // crate hasn't been built. All native-accelerated code paths
-    // have TypeScript fallbacks.
-  }
-
-  return kernel;
-}
-
-/**
- * Whether the native kernel is available on this platform.
- *
- * Returns `true` if the napi-rs native module was built and can be
- * loaded, `false` otherwise.
- */
-export function isNativeAvailable(): boolean {
-  return loadKernel() !== undefined;
-}
-
-/**
- * Get the native kernel, or `undefined` if it's not available.
- *
- * The kernel is loaded lazily on first access.
- */
-export function getNativeKernel(): NativeKernel | undefined {
-  return loadKernel();
 }
 
 interface NativeAlignmentBatch {
@@ -202,20 +161,12 @@ interface NativeAlignmentModule {
   };
 }
 
-let cachedAlignmentModule: NativeAlignmentModule | undefined;
-let alignmentLoadAttempted = false;
+// ---------------------------------------------------------------------------
 
-function loadAlignmentModule(): NativeAlignmentModule | undefined {
-  if (alignmentLoadAttempted) return cachedAlignmentModule;
-  alignmentLoadAttempted = true;
-
-  try {
-    cachedAlignmentModule = require("../native/index.js") as NativeAlignmentModule;
-  } catch {
-    // Native addon not available.
-  }
-
-  return cachedAlignmentModule;
+function toBufferView(bytes: Uint8Array): Buffer {
+  return Buffer.isBuffer(bytes)
+    ? bytes
+    : Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 }
 
 function wrapTransformResult(r: NapiTransformResult): TransformResult {
@@ -248,12 +199,6 @@ function wrapSequenceMetricsResult(r: NapiSequenceMetricsResult): SequenceMetric
   if (r.minQual) result.minQual = Int32Array.from(r.minQual);
   if (r.maxQual) result.maxQual = Int32Array.from(r.maxQual);
   return result;
-}
-
-function toBufferView(bytes: Uint8Array): Buffer {
-  return Buffer.isBuffer(bytes)
-    ? bytes
-    : Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 }
 
 function wrapAlignmentReader(reader: NativeAlignmentReader): AlignmentReaderHandle {
@@ -291,194 +236,273 @@ function wrapAlignmentReader(reader: NativeAlignmentReader): AlignmentReaderHand
   };
 }
 
-/**
- * Create the Node/Bun native backend if the napi addon is available.
- */
-export function createNodeNativeBackend(): GenotypeBackend | undefined {
-  const kernel = getNativeKernel();
-  const alignment = loadAlignmentModule();
+// ---------------------------------------------------------------------------
 
-  if (kernel === undefined && alignment === undefined) {
-    return undefined;
-  }
+function buildFromKernel(k: NativeKernel, alignment: NativeAlignmentModule | undefined) {
+  const unavailable = (method: string) =>
+    Effect.fail(
+      new BackendUnavailableError({
+        method,
+        message: `node-native backend does not support ${method}`,
+      })
+    );
 
-  return {
+  return BackendService.of({
     kind: "node-native",
-
-    async grepBatch(sequences, offsets, pattern, options) {
-      if (kernel === undefined) throw new Error("Native kernel unavailable");
-      return kernel.grepBatch(
-        toBufferView(sequences),
-        offsets,
-        toBufferView(pattern),
-        options.maxEdits,
-        options.caseInsensitive,
-        options.searchBothStrands
-      );
-    },
-
-    async findPatternBatch(sequences, offsets, pattern, options) {
-      if (kernel === undefined) throw new Error("Native kernel unavailable");
-      return wrapPatternSearchResult(
-        kernel.findPatternBatch(
-          toBufferView(sequences),
-          offsets,
-          toBufferView(pattern),
-          options.maxEdits,
-          options.caseInsensitive
-        )
-      );
-    },
-
-    async transformBatch(sequences, offsets, op) {
-      if (kernel === undefined) throw new Error("Native kernel unavailable");
-      return wrapTransformResult(kernel.transformBatch(toBufferView(sequences), offsets, op));
-    },
-
-    async removeGapsBatch(sequences, offsets, gapChars) {
-      if (kernel === undefined) throw new Error("Native kernel unavailable");
-      return wrapTransformResult(
-        kernel.removeGapsBatch(toBufferView(sequences), offsets, gapChars)
-      );
-    },
-
-    async replaceAmbiguousBatch(sequences, offsets, replacement) {
-      if (kernel === undefined) throw new Error("Native kernel unavailable");
-      return wrapTransformResult(
-        kernel.replaceAmbiguousBatch(toBufferView(sequences), offsets, replacement)
-      );
-    },
-
-    async replaceInvalidBatch(sequences, offsets, mode, replacement) {
-      if (kernel === undefined) throw new Error("Native kernel unavailable");
-      return wrapTransformResult(
-        kernel.replaceInvalidBatch(toBufferView(sequences), offsets, mode, replacement)
-      );
-    },
-
-    async classifyBatch(sequences, offsets) {
-      if (kernel === undefined) throw new Error("Native kernel unavailable");
-      return wrapClassifyResult(kernel.classifyBatch(toBufferView(sequences), offsets));
-    },
-
-    async checkValidBatch(sequences, offsets, mode) {
-      if (kernel === undefined) throw new Error("Native kernel unavailable");
-      return kernel.checkValidBatch(toBufferView(sequences), offsets, mode);
-    },
-
-    async qualityAvgBatch(quality, offsets, asciiOffset) {
-      if (kernel === undefined) throw new Error("Native kernel unavailable");
-      return Float64Array.from(kernel.qualityAvgBatch(toBufferView(quality), offsets, asciiOffset));
-    },
-
-    async qualityTrimBatch(
-      quality,
-      offsets,
-      asciiOffset,
-      threshold,
-      windowSize,
-      trimStart,
-      trimEnd
-    ) {
-      if (kernel === undefined) throw new Error("Native kernel unavailable");
-      return Uint32Array.from(
-        kernel.qualityTrimBatch(
-          toBufferView(quality),
-          offsets,
-          asciiOffset,
-          threshold,
-          windowSize,
-          trimStart,
-          trimEnd
-        )
-      );
-    },
-
-    async qualityBinBatch(quality, offsets, boundaries, representatives) {
-      if (kernel === undefined) throw new Error("Native kernel unavailable");
-      return wrapTransformResult(
-        kernel.qualityBinBatch(
-          toBufferView(quality),
-          offsets,
-          toBufferView(boundaries),
-          toBufferView(representatives)
-        )
-      );
-    },
-
-    async sequenceMetricsBatch(
-      sequences,
-      seqOffsets,
-      quality,
-      qualOffsets,
-      metricFlags,
-      asciiOffset
-    ) {
-      if (kernel === undefined) throw new Error("Native kernel unavailable");
-      return wrapSequenceMetricsResult(
-        kernel.sequenceMetricsBatch(
-          toBufferView(sequences),
-          seqOffsets,
-          toBufferView(quality),
-          qualOffsets,
-          metricFlags,
-          asciiOffset
-        )
-      );
-    },
-
-    async translateBatch(
+    grepBatch: (sequences, offsets, pattern, options) =>
+      Effect.try({
+        try: () =>
+          k.grepBatch(
+            toBufferView(sequences),
+            offsets,
+            toBufferView(pattern),
+            options.maxEdits,
+            options.caseInsensitive,
+            options.searchBothStrands
+          ),
+        catch: (e) =>
+          new BackendUnavailableError({
+            method: "grepBatch",
+            message: e instanceof Error ? e.message : String(e),
+          }),
+      }),
+    findPatternBatch: (sequences, offsets, pattern, options) =>
+      Effect.try({
+        try: () =>
+          wrapPatternSearchResult(
+            k.findPatternBatch(
+              toBufferView(sequences),
+              offsets,
+              toBufferView(pattern),
+              options.maxEdits,
+              options.caseInsensitive
+            )
+          ),
+        catch: (e) =>
+          new BackendUnavailableError({
+            method: "findPatternBatch",
+            message: e instanceof Error ? e.message : String(e),
+          }),
+      }),
+    transformBatch: (sequences, offsets, op) =>
+      Effect.try({
+        try: () => wrapTransformResult(k.transformBatch(toBufferView(sequences), offsets, op)),
+        catch: (e) =>
+          new BackendUnavailableError({
+            method: "transformBatch",
+            message: e instanceof Error ? e.message : String(e),
+          }),
+      }),
+    removeGapsBatch: (sequences, offsets, gapChars) =>
+      Effect.try({
+        try: () =>
+          wrapTransformResult(k.removeGapsBatch(toBufferView(sequences), offsets, gapChars)),
+        catch: (e) =>
+          new BackendUnavailableError({
+            method: "removeGapsBatch",
+            message: e instanceof Error ? e.message : String(e),
+          }),
+      }),
+    replaceAmbiguousBatch: (sequences, offsets, replacement) =>
+      Effect.try({
+        try: () =>
+          wrapTransformResult(
+            k.replaceAmbiguousBatch(toBufferView(sequences), offsets, replacement)
+          ),
+        catch: (e) =>
+          new BackendUnavailableError({
+            method: "replaceAmbiguousBatch",
+            message: e instanceof Error ? e.message : String(e),
+          }),
+      }),
+    replaceInvalidBatch: (sequences, offsets, mode, replacement) =>
+      Effect.try({
+        try: () =>
+          wrapTransformResult(
+            k.replaceInvalidBatch(toBufferView(sequences), offsets, mode, replacement)
+          ),
+        catch: (e) =>
+          new BackendUnavailableError({
+            method: "replaceInvalidBatch",
+            message: e instanceof Error ? e.message : String(e),
+          }),
+      }),
+    classifyBatch: (sequences, offsets) =>
+      Effect.try({
+        try: () => wrapClassifyResult(k.classifyBatch(toBufferView(sequences), offsets)),
+        catch: (e) =>
+          new BackendUnavailableError({
+            method: "classifyBatch",
+            message: e instanceof Error ? e.message : String(e),
+          }),
+      }),
+    checkValidBatch: (sequences, offsets, mode) =>
+      Effect.try({
+        try: () => k.checkValidBatch(toBufferView(sequences), offsets, mode),
+        catch: (e) =>
+          new BackendUnavailableError({
+            method: "checkValidBatch",
+            message: e instanceof Error ? e.message : String(e),
+          }),
+      }),
+    qualityAvgBatch: (quality, offsets, asciiOffset) =>
+      Effect.try({
+        try: () =>
+          Float64Array.from(k.qualityAvgBatch(toBufferView(quality), offsets, asciiOffset)),
+        catch: (e) =>
+          new BackendUnavailableError({
+            method: "qualityAvgBatch",
+            message: e instanceof Error ? e.message : String(e),
+          }),
+      }),
+    qualityTrimBatch: (quality, offsets, asciiOffset, threshold, windowSize, trimStart, trimEnd) =>
+      Effect.try({
+        try: () =>
+          Uint32Array.from(
+            k.qualityTrimBatch(
+              toBufferView(quality),
+              offsets,
+              asciiOffset,
+              threshold,
+              windowSize,
+              trimStart,
+              trimEnd
+            )
+          ),
+        catch: (e) =>
+          new BackendUnavailableError({
+            method: "qualityTrimBatch",
+            message: e instanceof Error ? e.message : String(e),
+          }),
+      }),
+    qualityBinBatch: (quality, offsets, boundaries, representatives) =>
+      Effect.try({
+        try: () =>
+          wrapTransformResult(
+            k.qualityBinBatch(
+              toBufferView(quality),
+              offsets,
+              toBufferView(boundaries),
+              toBufferView(representatives)
+            )
+          ),
+        catch: (e) =>
+          new BackendUnavailableError({
+            method: "qualityBinBatch",
+            message: e instanceof Error ? e.message : String(e),
+          }),
+      }),
+    sequenceMetricsBatch: (sequences, seqOffsets, quality, qualOffsets, metricFlags, asciiOffset) =>
+      Effect.try({
+        try: () =>
+          wrapSequenceMetricsResult(
+            k.sequenceMetricsBatch(
+              toBufferView(sequences),
+              seqOffsets,
+              toBufferView(quality),
+              qualOffsets,
+              metricFlags,
+              asciiOffset
+            )
+          ),
+        catch: (e) =>
+          new BackendUnavailableError({
+            method: "sequenceMetricsBatch",
+            message: e instanceof Error ? e.message : String(e),
+          }),
+      }),
+    translateBatch: (
       sequences,
       offsets,
       translationLut,
       startMask,
       alternativeStartMask,
       options
-    ) {
-      if (kernel === undefined) throw new Error("Native kernel unavailable");
-      return wrapTransformResult(
-        kernel.translateBatch(
-          toBufferView(sequences),
-          offsets,
-          toBufferView(translationLut),
-          toBufferView(startMask),
-          toBufferView(alternativeStartMask),
-          options
-        )
-      );
-    },
-
-    async hashBatch(sequences, offsets, caseInsensitive) {
-      if (kernel === undefined) throw new Error("Native kernel unavailable");
-      return kernel.hashBatch(toBufferView(sequences), offsets, caseInsensitive);
-    },
-
-    async createAlignmentReaderFromPath(path: string): Promise<AlignmentReaderHandle> {
-      if (alignment === undefined) throw new Error("Alignment reader unavailable");
-      return wrapAlignmentReader(alignment.AlignmentReader.open(path));
-    },
-
-    async createAlignmentReaderFromBytes(bytes: Uint8Array): Promise<AlignmentReaderHandle> {
-      if (alignment === undefined) throw new Error("Alignment reader unavailable");
-      return wrapAlignmentReader(alignment.AlignmentReader.openBytes(toBufferView(bytes)));
-    },
-  };
+    ) =>
+      Effect.try({
+        try: () =>
+          wrapTransformResult(
+            k.translateBatch(
+              toBufferView(sequences),
+              offsets,
+              toBufferView(translationLut),
+              toBufferView(startMask),
+              toBufferView(alternativeStartMask),
+              options
+            )
+          ),
+        catch: (e) =>
+          new BackendUnavailableError({
+            method: "translateBatch",
+            message: e instanceof Error ? e.message : String(e),
+          }),
+      }),
+    hashBatch: (sequences, offsets, caseInsensitive) =>
+      Effect.try({
+        try: () => k.hashBatch(toBufferView(sequences), offsets, caseInsensitive),
+        catch: (e) =>
+          new BackendUnavailableError({
+            method: "hashBatch",
+            message: e instanceof Error ? e.message : String(e),
+          }),
+      }),
+    createAlignmentReaderFromPath: (path) =>
+      alignment === undefined
+        ? unavailable("createAlignmentReaderFromPath")
+        : Effect.try({
+            try: () => wrapAlignmentReader(alignment.AlignmentReader.open(path)),
+            catch: (e) =>
+              new BackendUnavailableError({
+                method: "createAlignmentReaderFromPath",
+                message: e instanceof Error ? e.message : String(e),
+              }),
+          }),
+    createAlignmentReaderFromBytes: (bytes) =>
+      alignment === undefined
+        ? unavailable("createAlignmentReaderFromBytes")
+        : Effect.try({
+            try: () =>
+              wrapAlignmentReader(alignment.AlignmentReader.openBytes(toBufferView(bytes))),
+            catch: (e) =>
+              new BackendUnavailableError({
+                method: "createAlignmentReaderFromBytes",
+                message: e instanceof Error ? e.message : String(e),
+              }),
+          }),
+  });
 }
 
+// ---------------------------------------------------------------------------
+
+export const nativeLayer: Layer.Layer<BackendService, NativeAddonNotFoundError> = Layer.effect(
+  BackendService,
+  Effect.try({
+    try: () => {
+      const mod = require("../native/index.js") as NativeKernel & NativeAlignmentModule;
+      const kernel = mod as NativeKernel;
+      const alignment = "AlignmentReader" in mod ? (mod as NativeAlignmentModule) : undefined;
+      return buildFromKernel(kernel, alignment);
+    },
+    catch: (cause) =>
+      new NativeAddonNotFoundError({
+        message: cause instanceof Error ? cause.message : String(cause),
+      }),
+  })
+);
+
+// ---------------------------------------------------------------------------
+
 /**
- * Internal synchronous access to the current Node-native kernel.
+ * Internal synchronous access to the native kernel.
  *
  * This exists only for rare synchronous helper paths that cannot be
  * made async without a larger public API change. New production code
- * should prefer the async backend abstraction.
+ * should use BackendService via the Effect runtime.
  */
-export function getNodeNativeKernelSync() {
-  return getNativeKernel();
-}
-
-/**
- * Whether the node-native backend is available in the current runtime.
- */
-export function isNodeNativeBackendAvailable(): boolean {
-  return createNodeNativeBackend() !== undefined;
+export function getNodeNativeKernelSync(): NativeKernel | undefined {
+  try {
+    return require("../native/index.js") as NativeKernel;
+  } catch {
+    return undefined;
+  }
 }

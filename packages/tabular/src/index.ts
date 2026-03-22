@@ -3,7 +3,13 @@
  *
  * DSV parsing/writing and fx2tab sequence-to-table conversion.
  * JSON morphs and schemas stay in @genotype/core/formats/json.
+ *
+ * Importing this module augments SeqOps from @genotype/core with
+ * tabular methods: toTabular, writeTSV, writeCSV, writeDSV,
+ * writeJSON, writeJSONL.
  */
+
+import "@genotype/tabular/seqops-ext";
 
 export {
   CSVParser,

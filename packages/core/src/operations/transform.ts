@@ -76,14 +76,14 @@ export class TransformProcessor implements Processor<TransformOptions> {
       batchBytes += seq.sequence.length;
 
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        yield* await flushBatch(batch, ops, options.custom, needsTrimSoftClips);
+        yield* flushBatch(batch, ops, options.custom, needsTrimSoftClips);
         batch = [];
         batchBytes = 0;
       }
     }
 
     if (batch.length > 0) {
-      yield* await flushBatch(batch, ops, options.custom, needsTrimSoftClips);
+      yield* flushBatch(batch, ops, options.custom, needsTrimSoftClips);
     }
   }
 }

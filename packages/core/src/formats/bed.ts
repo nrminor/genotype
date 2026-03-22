@@ -346,7 +346,7 @@ function buildBedInterval(
       : undefined;
   const strand =
     optionalFields.length >= 3 && optionalFields[2] && validateStrand(optionalFields[2])
-      ? (optionalFields[2] as Strand)
+      ? optionalFields[2]
       : undefined;
 
   // Parse thick region coordinates upfront (BED9)
@@ -611,7 +611,7 @@ class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
     super(options);
 
     // Step 3: Application-level warnings based on validated options
-    if (this.options.allowZeroLength === false) {
+    if (!this.options.allowZeroLength) {
       this.options.onWarning?.(
         "allowZeroLength: false disables insertion sites and point mutations - " +
           "these are valid genomics features in BED format",
@@ -619,7 +619,7 @@ class BedParser extends AbstractParser<BedInterval, BedParserOptions> {
       );
     }
 
-    if (this.options.skipValidation === true && !this.options.onError) {
+    if (this.options.skipValidation && !this.options.onError) {
       this.options.onWarning?.(
         "skipValidation: true without custom onError handler may silently ignore " +
           "malformed BED data - consider providing error handler for production use",

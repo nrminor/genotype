@@ -10,7 +10,7 @@ import type { ParserOptions } from "@genotype/core/types";
 /**
  * Supported delimiter types for DSV formats
  */
-export type DelimiterType = "," | "\t" | "|" | ";" | string;
+export type DelimiterType = string;
 
 /**
  * DSV-specific sequence format identifier

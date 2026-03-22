@@ -420,7 +420,7 @@ export class SequenceStatsCalculator {
 
         if (score >= 20) q20Count++;
         if (score >= 30) q30Count++;
-        errorProbabilitySum += 10 ** (-score / 10);
+        errorProbabilitySum += 10 ** (-(score as number) / 10);
       }
     }
 
@@ -604,7 +604,7 @@ export class SequenceStatsCalculator {
 
       if (score >= 20) accumulator.q20Count++;
       if (score >= 30) accumulator.q30Count++;
-      accumulator.errorProbabilitySum += 10 ** (-score / 10);
+      accumulator.errorProbabilitySum += 10 ** (-(score as number) / 10);
     }
   }
 
@@ -724,7 +724,7 @@ export class SequenceStatsCalculator {
    * Create empty statistics result
    * @private
    */
-  private createEmptyStats(fileName?: string | undefined): SequenceStats {
+  private createEmptyStats(fileName?: string): SequenceStats {
     return {
       ...(fileName && { file: fileName }),
       format: "Unknown",

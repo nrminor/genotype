@@ -671,14 +671,14 @@ export class SequenceDeduplicator {
       batchBytes += seq.sequence.length;
 
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        yield* await this.flushNativeBatch(batch);
+        yield* this.flushNativeBatch(batch);
         batch = [];
         batchBytes = 0;
       }
     }
 
     if (batch.length > 0) {
-      yield* await this.flushNativeBatch(batch);
+      yield* this.flushNativeBatch(batch);
     }
   }
 
@@ -890,14 +890,14 @@ export class ExactDeduplicator {
       batchBytes += seq.sequence.length;
 
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        yield* await this.flushNativeBatch(batch);
+        yield* this.flushNativeBatch(batch);
         batch = [];
         batchBytes = 0;
       }
     }
 
     if (batch.length > 0) {
-      yield* await this.flushNativeBatch(batch);
+      yield* this.flushNativeBatch(batch);
     }
   }
 

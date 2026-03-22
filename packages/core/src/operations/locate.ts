@@ -469,10 +469,9 @@ export class LocateProcessor {
         return pattern.length;
       }
 
-      const matches =
-        ignoreCase === true
-          ? seqChar.toLowerCase() === patternChar.toLowerCase()
-          : seqChar === patternChar;
+      const matches = ignoreCase
+        ? seqChar.toLowerCase() === patternChar.toLowerCase()
+        : seqChar === patternChar;
 
       if (!matches) {
         mismatches++;

@@ -176,14 +176,14 @@ export class UniqueProcessor<
       batchBytes += seq.sequence.length;
 
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        yield* await this.flushNativeBatch(batch, by, caseSensitive, conflictResolution, seen);
+        yield* this.flushNativeBatch(batch, by, caseSensitive, conflictResolution, seen);
         batch = [];
         batchBytes = 0;
       }
     }
 
     if (batch.length > 0) {
-      yield* await this.flushNativeBatch(batch, by, caseSensitive, conflictResolution, seen);
+      yield* this.flushNativeBatch(batch, by, caseSensitive, conflictResolution, seen);
     }
 
     if (conflictResolution !== "first") {

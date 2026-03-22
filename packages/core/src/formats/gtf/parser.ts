@@ -478,7 +478,7 @@ function buildGtfFeature(
     start,
     end,
     score,
-    strand: strandStr as Strand,
+    strand: strandStr,
     frame,
     attributes,
     length: end - start + 1, // GTF is 1-based inclusive
@@ -1001,10 +1001,10 @@ class GtfQueryBuilder<TCurrentFilter = GtfFeature> {
  * @public
  */
 function queryGtf(parser: GtfParser): {
-  from: (data: string) => GtfQueryBuilder<GtfFeature>;
+  from: (data: string) => GtfQueryBuilder;
 } {
   return {
-    from: (data: string): GtfQueryBuilder<GtfFeature> => {
+    from: (data: string): GtfQueryBuilder => {
       const features = parser.parseString(data);
       return new GtfQueryBuilder(features);
     },

@@ -756,9 +756,7 @@ export async function* fx2tab<Columns extends readonly (ColumnId | string)[]>(
   ): AsyncGenerator<Fx2TabRow<Columns>, void> {
     // Partition columns by category for dispatch. Custom column names (plain strings
     // in the customColumns record) are filtered out before partitioning.
-    const builtInColumns = effectiveColumns.filter(
-      (col): col is ColumnId => !customColumns[col as string]
-    );
+    const builtInColumns = effectiveColumns.filter((col): col is ColumnId => !customColumns[col]);
     const { kernel } = partitionColumns(builtInColumns);
     const hasKernelMetrics = kernel.length > 0;
     const metrics = hasKernelMetrics
@@ -772,7 +770,7 @@ export async function* fx2tab<Columns extends readonly (ColumnId | string)[]>(
 
       for (const col of effectiveColumns) {
         // Custom columns take priority and are looked up by plain string key
-        const customCol = customColumns[col as string];
+        const customCol = customColumns[col];
         let value: string | number | null;
         if (customCol) {
           const computeFn = typeof customCol === "function" ? customCol : customCol.compute;
@@ -1161,7 +1159,7 @@ function partitionColumns(columns: readonly ColumnId[]) {
     else if (isBasicColumn(col)) basic.push(col);
     else if (isTsComputedColumn(col)) tsComputed.push(col);
     else if (isMetadataColumn(col)) metadata.push(col);
-    else dynamic.push(col as BaseContentColumnId | BaseCountColumnId);
+    else dynamic.push(col);
   }
 
   return { kernel, basic, tsComputed, metadata, dynamic } as const;
@@ -1206,7 +1204,7 @@ function packOptionalQualityStrings(sequences: readonly AbstractSequence[]): {
   offsets[count] = totalBytes;
   const data = Buffer.allocUnsafe(totalBytes);
   for (let i = 0; i < count; i++) {
-    data.set(chunks[i]!, offsets[i]!);
+    data.set(chunks[i]!, offsets[i]);
   }
 
   return {

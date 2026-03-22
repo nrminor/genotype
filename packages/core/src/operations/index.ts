@@ -279,7 +279,7 @@ export class SeqOps<T extends AbstractSequence> {
   static from<T extends AbstractSequence>(sequences: T[]): SeqOps<T> {
     async function* arrayToAsyncIterable(): AsyncIterable<T> {
       for (const seq of sequences) {
-        yield seq as T;
+        yield seq;
       }
     }
     return new SeqOps(arrayToAsyncIterable());
@@ -343,7 +343,7 @@ export class SeqOps<T extends AbstractSequence> {
   ): SeqOps<T> {
     // Handle predicate function
     if (typeof options === "function") {
-      return new SeqOps<T>(this.filterWithPredicate(options) as AsyncIterable<T>);
+      return new SeqOps<T>(this.filterWithPredicate(options));
     }
 
     const processor = new FilterProcessor();
@@ -605,7 +605,7 @@ export class SeqOps<T extends AbstractSequence> {
    */
   quality<U extends T & QualityScoreBearing>(this: SeqOps<U>, options: QualityOptions): SeqOps<U> {
     const processor = new QualityProcessor();
-    return new SeqOps<U>(processor.process(this.source, options) as AsyncIterable<U>);
+    return new SeqOps<U>(processor.process(this.source, options));
   }
 
   /**
@@ -1831,10 +1831,7 @@ export class SeqOps<T extends AbstractSequence> {
    *
    * @performance O(n) memory - loads all sequences. Use writeJSONL() for large datasets.
    */
-  async writeJSON(
-    path: string,
-    options?: Fx2TabOptions<readonly ColumnId[]> & JSONWriteOptions
-  ): Promise<void> {
+  async writeJSON(path: string, options?: Fx2TabOptions & JSONWriteOptions): Promise<void> {
     // Separate Fx2TabOptions from JSONWriteOptions
     const { pretty, includeMetadata, nullValue: jsonNullValue, ...fx2tabOptions } = options || {};
 
@@ -1883,7 +1880,7 @@ export class SeqOps<T extends AbstractSequence> {
    *
    * @performance O(1) memory - streams line-by-line. Use for large datasets.
    */
-  async writeJSONL(path: string, options?: Fx2TabOptions<readonly ColumnId[]>): Promise<void> {
+  async writeJSONL(path: string, options?: Fx2TabOptions): Promise<void> {
     // JSONL doesn't support pretty-printing or metadata (line-oriented format)
     // Force header: false to exclude header row from output
     await this.toTabular({ ...options, header: false }).writeJSONL(path);
@@ -2151,7 +2148,7 @@ export class SeqOps<T extends AbstractSequence> {
       // Return KmerSet for k-mers
       // Note: K type cannot be preserved at compile time since T is generic,
       // but runtime behavior is correct. The return type KmerSet<any> reflects this.
-      return new KmerSet(sequences as unknown as KmerSequence<number>[]);
+      return new KmerSet(sequences as unknown as KmerSequence[]);
     }
 
     // Return generic SequenceSet for other types
@@ -2466,7 +2463,7 @@ export class SeqOps<T extends AbstractSequence> {
             yield item;
           }
         } else {
-          for (const item of result as U[]) {
+          for (const item of result) {
             yield item;
           }
         }
@@ -2944,7 +2941,7 @@ export class SeqOps<T extends AbstractSequence> {
           "maxBufferSize" in otherOrOptions ||
           "onUnpaired" in otherOrOptions))
     ) {
-      const options = otherOrOptions as PairOptions | undefined;
+      const options = otherOrOptions;
       return new SeqOps<T>(processor.process({ mode: "single", source: this.source }, options));
     }
 
@@ -3054,7 +3051,7 @@ export class SeqOps<T extends AbstractSequence> {
  * ```
  */
 export function seqops<T extends AbstractSequence>(sequences: AsyncIterable<T>): SeqOps<T> {
-  return new SeqOps<T>(sequences as AsyncIterable<T>);
+  return new SeqOps<T>(sequences);
 }
 
 // Export processors for advanced usage

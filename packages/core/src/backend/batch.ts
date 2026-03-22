@@ -47,7 +47,7 @@ export function packSequences(sequences: readonly AbstractSequence[]): PackedBat
 
   const data = Buffer.allocUnsafe(totalBytes);
   for (let i = 0; i < count; i++) {
-    data.set(chunks[i]!, offsets[i]!);
+    data.set(chunks[i]!, offsets[i]);
   }
 
   return { data, offsets };
@@ -79,7 +79,7 @@ export function packQualityStrings(sequences: readonly QualityScoreBearing[]): P
 
   const data = Buffer.allocUnsafe(totalBytes);
   for (let i = 0; i < count; i++) {
-    data.set(chunks[i]!, offsets[i]!);
+    data.set(chunks[i]!, offsets[i]);
   }
 
   return { data, offsets };
@@ -113,7 +113,7 @@ export function packStrings(strings: readonly string[]): PackedBatch {
 
   const data = Buffer.allocUnsafe(totalBytes);
   for (let i = 0; i < count; i++) {
-    data.set(chunks[i]!, offsets[i]!);
+    data.set(chunks[i]!, offsets[i]);
   }
 
   return { data, offsets };

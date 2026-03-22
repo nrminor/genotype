@@ -109,14 +109,14 @@ export class CleanProcessor implements Processor<CleanOptions> {
       batchBytes += trimmed.sequence.length;
 
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        yield* await flushBatch(batch, options);
+        yield* flushBatch(batch, options);
         batch = [];
         batchBytes = 0;
       }
     }
 
     if (batch.length > 0) {
-      yield* await flushBatch(batch, options);
+      yield* flushBatch(batch, options);
     }
   }
 }

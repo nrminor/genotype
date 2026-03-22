@@ -52,7 +52,7 @@ describe("Internal sequence set functions", () => {
       expect(
         Array.from(union.values())
           .map((s) => s.sequence.toString())
-          .sort()
+          .sort((a, b) => a.localeCompare(b))
       ).toEqual(["ATCG", "GCTA", "TTTT"]);
     });
   });
@@ -149,7 +149,7 @@ describe("Internal sequence set functions", () => {
       expect(
         Array.from(symDiff.values())
           .map((s) => s.sequence.toString())
-          .sort()
+          .sort((a, b) => a.localeCompare(b))
       ).toEqual(["ATCG", "TTTT"]);
     });
   });

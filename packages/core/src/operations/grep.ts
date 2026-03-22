@@ -193,7 +193,7 @@ export class GrepProcessor implements Processor<GrepOptions> {
    * Check regex pattern matching with case sensitivity handling
    */
   private regexMatches(target: string, pattern: RegExp, ignoreCase: boolean): boolean {
-    if (ignoreCase === true && !pattern.flags.includes("i")) {
+    if (ignoreCase && !pattern.flags.includes("i")) {
       // Create case-insensitive version if needed
       const flags = `${pattern.flags}i`;
       const caseInsensitivePattern = new RegExp(pattern.source, flags);
@@ -229,7 +229,7 @@ export class GrepProcessor implements Processor<GrepOptions> {
       batchBytes += seq.sequence.length;
 
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        yield* await flushBatch(
+        yield* flushBatch(
           batch,
           patternBytes,
           maxEdits,
@@ -243,14 +243,7 @@ export class GrepProcessor implements Processor<GrepOptions> {
     }
 
     if (batch.length > 0) {
-      yield* await flushBatch(
-        batch,
-        patternBytes,
-        maxEdits,
-        caseInsensitive,
-        searchBothStrands,
-        invert
-      );
+      yield* flushBatch(batch, patternBytes, maxEdits, caseInsensitive, searchBothStrands, invert);
     }
   }
 }

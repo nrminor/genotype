@@ -60,7 +60,7 @@ export function charToScore(char: string, encoding: QualityEncoding): QualitySco
     if (!isValidSolexaScore(score)) {
       throw new Error(`Invalid Solexa quality score ${score}. Valid range: -5 to 62`);
     }
-    return score as SolexaScore;
+    return score;
   }
 
   // For other encodings, validate normally
@@ -70,7 +70,7 @@ export function charToScore(char: string, encoding: QualityEncoding): QualitySco
     );
   }
 
-  return score as QualityScore;
+  return score;
 }
 
 /**
@@ -163,7 +163,7 @@ export function qualityToScores(
             `Character '${char}' (ASCII ${char.charCodeAt(0)}) produces out-of-range score.`
         );
       }
-      return score as SolexaScore;
+      return score;
     }
 
     if (!isValidQualityScore(score)) {
@@ -172,7 +172,7 @@ export function qualityToScores(
           `Character '${char}' (ASCII ${char.charCodeAt(0)}) is outside valid ASCII range for ${encoding} encoding.`
       );
     }
-    return score as QualityScore;
+    return score;
   });
 }
 

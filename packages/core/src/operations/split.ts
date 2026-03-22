@@ -6,6 +6,7 @@
  *
  */
 
+import { mkdirSync } from "fs";
 import { type } from "arktype";
 import { SplitError, ValidationError } from "@genotype/core/errors";
 import { FastaWriter, FastqWriter } from "@genotype/core/formats";
@@ -128,6 +129,9 @@ export class SplitProcessor {
     if (validationResult instanceof type.errors) {
       throw new ValidationError(`Invalid split options: ${validationResult.summary}`);
     }
+
+    const outputDir = options.outputDir ?? "./split";
+    mkdirSync(outputDir, { recursive: true });
 
     switch (options.mode) {
       case "by-size":

@@ -131,14 +131,14 @@ export class ValidateProcessor implements Processor<ValidateOptions> {
       batch.push(seq);
       batchBytes += seq.sequence.length;
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        yield* await flushValidateBatch(batch, action, mode, stripGaps, options.fixChar);
+        yield* flushValidateBatch(batch, action, mode, stripGaps, options.fixChar);
         batch = [];
         batchBytes = 0;
       }
     }
 
     if (batch.length > 0) {
-      yield* await flushValidateBatch(batch, action, mode, stripGaps, options.fixChar);
+      yield* flushValidateBatch(batch, action, mode, stripGaps, options.fixChar);
     }
   }
 }
@@ -320,7 +320,7 @@ function sequenceFromBatch(
 ): AbstractSequence {
   if (
     !wasModified &&
-    bytesMatchSequence(original, data.subarray(offsets[index]!, offsets[index + 1]!))
+    bytesMatchSequence(original, data.subarray(offsets[index], offsets[index + 1]))
   ) {
     return original;
   }

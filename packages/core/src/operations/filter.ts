@@ -160,14 +160,14 @@ export class FilterProcessor implements Processor<FilterOptions> {
       batch.push(seq);
       batchBytes += seq.sequence.length;
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        yield* await flushFilterBatch(batch, options);
+        yield* flushFilterBatch(batch, options);
         batch = [];
         batchBytes = 0;
       }
     }
 
     if (batch.length > 0) {
-      yield* await flushFilterBatch(batch, options);
+      yield* flushFilterBatch(batch, options);
     }
   }
 

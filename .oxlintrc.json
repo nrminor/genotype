@@ -112,7 +112,10 @@
     "typescript/no-unsafe-type-assertion": "off",
     "typescript/restrict-template-expressions": "off",
     "typescript/unbound-method": "warn",
-    "typescript/no-redundant-type-constituents": "warn",
+    // ColumnId | string is idiomatic for "known values + any string" with
+    // autocomplete. The linter flags the literal union as redundant with
+    // string, but removing the literals kills IDE autocomplete.
+    "typescript/no-redundant-type-constituents": "off",
     "typescript/no-duplicate-type-constituents": "warn"
   },
   "ignorePatterns": [
@@ -148,6 +151,16 @@
         "setTimeout": "readonly",
         "global": "readonly",
         "process": "readonly"
+      },
+      "rules": {
+        // Bun's test types declare .rejects.toThrow() as returning void, but
+        // at runtime it returns a Promise. The await is necessary; the types
+        // are wrong (bun-types/test.d.ts Matchers.toThrow(): void).
+        "typescript/await-thenable": "off",
+        // oxlint's type-aware mode does not respect noUncheckedIndexedAccess,
+        // so it sees array[i]! as a redundant assertion on `number` when
+        // TypeScript actually infers `number | undefined`.
+        "typescript/no-unnecessary-type-assertion": "off"
       }
     }
   ]

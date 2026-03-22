@@ -354,7 +354,7 @@ export class SequenceSorter {
 
     for await (const seq of sequences) {
       if (
-        this.options.unique !== true ||
+        !this.options.unique ||
         (this.seenIds !== undefined &&
           this.seenIds !== null &&
           !this.seenIds.has(this.getSequenceKey(seq)))

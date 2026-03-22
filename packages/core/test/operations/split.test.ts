@@ -599,7 +599,7 @@ describe("SplitProcessor", () => {
   });
 
   describe("File output options", () => {
-    test.skip("uses custom output directory", async () => {
+    test("uses custom output directory", async () => {
       const customDir = join(tempDir, "custom_output");
       const sequences = [createSequence("seq1", "ATCG")];
 

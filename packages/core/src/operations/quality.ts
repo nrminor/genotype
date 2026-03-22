@@ -109,14 +109,14 @@ export class QualityProcessor implements Processor<QualityOptions> {
       batch.push(seq);
       batchBytes += seq.quality.length;
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        yield* await flushQualityBatch<T>(batch, options, encoding, binParams);
+        yield* flushQualityBatch<T>(batch, options, encoding, binParams);
         batch = [];
         batchBytes = 0;
       }
     }
 
     if (batch.length > 0) {
-      yield* await flushQualityBatch<T>(batch, options, encoding, binParams);
+      yield* flushQualityBatch<T>(batch, options, encoding, binParams);
     }
   }
 }
@@ -174,7 +174,7 @@ async function* flushQualityBatch<T extends AbstractSequence & QualityScoreBeari
           withQuality(
             withSequence(seq, seq.sequence.slice(start, end)),
             seq.quality.slice(start, end)
-          ) as T
+          )
         );
       }
     }
@@ -214,7 +214,7 @@ async function* flushQualityBatch<T extends AbstractSequence & QualityScoreBeari
       const start = result.offsets[i]!;
       const end = result.offsets[i + 1]!;
       const binnedBytes = result.data.subarray(start, end);
-      yield withQuality(candidates[i]!, new TextDecoder("latin1").decode(binnedBytes)) as T;
+      yield withQuality(candidates[i]!, new TextDecoder("latin1").decode(binnedBytes));
     }
   } else {
     yield* candidates;
@@ -347,7 +347,7 @@ function resolveBinningStrategy(
     throw new Error(
       `Invalid boundaries for ${options.bins} bins: expected ${expectedLength}, got ${boundaries.length}.\n` +
         `For ${options.bins} bins, you need ${expectedLength} boundary value(s).\n` +
-        `Example: { bins: ${options.bins}, ${examples[options.bins as keyof typeof examples]} }`
+        `Example: { bins: ${options.bins}, ${examples[options.bins]} }`
     );
   }
 

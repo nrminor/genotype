@@ -9,6 +9,7 @@
  */
 
 import "@genotype/parquet/tabular-ext";
+import "@genotype/parquet/seqops-ext";
 
 export {
   writeParquet,

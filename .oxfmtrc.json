@@ -21,8 +21,8 @@
     "**/dist/",
     "**/*.d.ts",
     "**/node_modules/",
-    "test/fixtures/",
-    "src/native/",
+    "packages/core/test/fixtures/",
+    "packages/core/src/native/",
     "reports/**/*",
     "**/*.backup*",
     "**/backup*/**/*"

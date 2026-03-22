@@ -56,8 +56,8 @@ jobs:
       - name: Create distribution archive
         run: |
           mkdir -p dist-archive
-          cp -r dist/ dist-archive/
-          cp package.json dist-archive/
+          cp -r packages/core/dist/ dist-archive/
+          cp packages/core/package.json dist-archive/
           cp README.md dist-archive/
           cp LICENSE* dist-archive/ 2>/dev/null || true
           # Commented out until examples are ready
@@ -122,7 +122,7 @@ jobs:
 
       - name: Verify version in package.json
         run: |
-          PACKAGE_VERSION=$(grep '"version"' package.json | sed 's/.*"version": "\([^"]*\)".*/\1/')
+          PACKAGE_VERSION=$(grep '"version"' packages/core/package.json | sed 's/.*"version": "\([^"]*\)".*/\1/')
           if [ "$PACKAGE_VERSION" != "${{ steps.version.outputs.version }}" ]; then
             echo "❌ Version mismatch!"
             echo "Tag version: ${{ steps.version.outputs.version }}"

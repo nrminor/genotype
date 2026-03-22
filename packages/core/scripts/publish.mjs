@@ -6,9 +6,10 @@ import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const rootDir = resolve(__dirname, "..");
+const packageRoot = resolve(__dirname, "..");
+const projectRoot = resolve(packageRoot, "../..");
 
-const packageJson = JSON.parse(readFileSync(join(rootDir, "package.json"), "utf8"));
+const packageJson = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8"));
 
 console.log(
   `
@@ -59,7 +60,7 @@ try {
   // biome-ignore lint/suspicious/noEmptyBlockStatements: <Ignoring for now until the publishing system used with Bun and Cargo has firmed up.>
 } catch {}
 
-const libDir = join(rootDir, "dist");
+const libDir = join(packageRoot, "dist");
 if (!existsSync(libDir)) {
   console.error("Error: dist directory not found. Please run 'bun run build' first.");
   process.exit(1);
@@ -73,7 +74,7 @@ const packageJsons = {
 for (const pkgName of Object.keys(packageJsons[libDir].optionalDependencies).filter((x) =>
   x.startsWith(packageJson.name)
 )) {
-  const nativeDir = join(rootDir, "node_modules", pkgName);
+  const nativeDir = join(projectRoot, "node_modules", pkgName);
   if (!existsSync(nativeDir)) {
     console.error(`Error: Native package directory not found: ${nativeDir}`);
     console.error("Please run 'bun run build:native' first.");

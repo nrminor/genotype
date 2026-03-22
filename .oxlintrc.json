@@ -121,17 +121,17 @@
     "**/dist/",
     "**/*.d.ts",
     "**/node_modules/",
-    "test/fixtures/",
-    "src/native/",
+    "packages/core/test/fixtures/",
+    "packages/core/src/native/",
     "reports/**/*",
     "**/*.backup*",
     "**/backup*/**/*",
-    "scripts/*.mjs",
-    "src/formats/bam/*.ts"
+    "packages/core/scripts/*.mjs",
+    "packages/core/src/formats/bam/*.ts"
   ],
   "overrides": [
     {
-      "files": ["test/**/*.ts"],
+      "files": ["packages/core/test/**/*.ts"],
       "env": {
         "jest": true
       },

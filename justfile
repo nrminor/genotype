@@ -2,6 +2,8 @@
 # High-performance TypeScript library for genomic data formats
 # MANDATORY: All code must pass validation with ZERO warnings before commits
 
+core := "packages/core"
+
 # Default recipe shows available commands
 [group('help')]
 default:
@@ -110,28 +112,28 @@ BUN_CI_VERSION := "1.3.10"
 # Run all tests
 [group('test')]
 test:
-    bun test
+    cd {{ core }} && bun test test/
 
 alias t := test
 
-# Run specific test file
+# Run specific test file (path relative to packages/core)
 [group('test')]
 test-file file:
-    bun test {{ file }}
+    cd {{ core }} && bun test {{ file }}
 
 alias tf := test-file
 
 # Run tests in watch mode
 [group('test')]
 test-watch:
-    bun test --watch
+    cd {{ core }} && bun test --watch
 
 alias tw := test-watch
 
 # Run tests with coverage
 [group('test')]
 test-coverage:
-    bun test --coverage
+    cd {{ core }} && bun test --coverage
 
 alias tc := test-coverage
 
@@ -166,14 +168,14 @@ alias ta := test-all
 # Run a single Bun test file inside the Linux CI container image
 [group('test')]
 ci-linux-file file:
-    docker run --rm -v "$PWD":/workspace -w /workspace oven/bun:{{ BUN_CI_VERSION }} bash -lc "bun install >/tmp/bun-install.log 2>&1 && bun test {{ file }} --timeout 30000"
+    docker run --rm -v "$PWD":/workspace -w /workspace/{{ core }} oven/bun:{{ BUN_CI_VERSION }} bash -lc "cd /workspace && bun install >/tmp/bun-install.log 2>&1 && cd /workspace/{{ core }} && bun test {{ file }} --timeout 30000"
 
 alias clf := ci-linux-file
 
 # Run the genomics-heavy format and operation suites in a Linux CI-like container
 [group('test')]
 ci-linux-genomics:
-    docker run --rm -v "$PWD":/workspace -w /workspace oven/bun:{{ BUN_CI_VERSION }} bash -lc "bun install >/tmp/bun-install.log 2>&1 && bun test test/operations/core/sequence-sorter.test.ts --timeout 30000 && bun test test/formats/paired-fastq.test.ts --timeout 30000 && bun test test/formats/dsv.test.ts --timeout 30000 && bun test test/io/file-reader.test.ts --timeout 30000"
+    docker run --rm -v "$PWD":/workspace -w /workspace oven/bun:{{ BUN_CI_VERSION }} bash -lc "cd /workspace && bun install >/tmp/bun-install.log 2>&1 && cd /workspace/{{ core }} && bun test test/operations/core/sequence-sorter.test.ts --timeout 30000 && bun test test/formats/paired-fastq.test.ts --timeout 30000 && bun test test/formats/dsv.test.ts --timeout 30000 && bun test test/io/file-reader.test.ts --timeout 30000"
 
 alias clg := ci-linux-genomics
 
@@ -253,7 +255,7 @@ alias tyc := type-coverage
 [group('lint')]
 check-any:
     @echo "Checking for 'any' type usage..."
-    @grep -r "any" src/ --include="*.ts" --exclude-dir=node_modules || echo "✓ No 'any' types found"
+    @grep -r "any" {{ core }}/src/ --include="*.ts" --exclude-dir=node_modules || echo "✓ No 'any' types found"
 
 alias ca := check-any
 
@@ -317,10 +319,10 @@ alias u := update
 [group('dev')]
 size:
     @echo "Analyzing bundle size..."
-    @du -sh dist/* 2>/dev/null || echo "Run 'just build' first"
+    @du -sh {{ core }}/dist/* 2>/dev/null || echo "Run 'just build' first"
     @echo ""
     @echo "Source size:"
-    @find src -name "*.ts" -not -path "*/native/*" | xargs wc -l | tail -1
+    @find {{ core }}/src -name "*.ts" -not -path "*/native/*" | xargs wc -l | tail -1
 
 # ===== Performance & Benchmarks =====
 
@@ -381,10 +383,10 @@ check-iupac file:
 [group('inspect')]
 todos:
     @echo "TODO items:"
-    @grep -r "TODO" src/ --include="*.ts" || echo "No TODOs found"
+    @grep -r "TODO" {{ core }}/src/ --include="*.ts" || echo "No TODOs found"
     @echo ""
     @echo "FIXME items:"
-    @grep -r "FIXME" src/ --include="*.ts" || echo "No FIXMEs found"
+    @grep -r "FIXME" {{ core }}/src/ --include="*.ts" || echo "No FIXMEs found"
 
 alias todo := todos
 
@@ -394,19 +396,19 @@ loc:
     @echo "Lines of code by module:"
     @echo "========================"
     @echo "Formats:"
-    @wc -l src/formats/*.ts | sort -rn
+    @wc -l {{ core }}/src/formats/*.ts | sort -rn
     @echo ""
     @echo "Operations:"
-    @wc -l src/operations/**/*.ts | sort -rn
+    @wc -l {{ core }}/src/operations/**/*.ts | sort -rn
     @echo ""
     @echo "Core:"
-    @wc -l src/*.ts | sort -rn
+    @wc -l {{ core }}/src/*.ts | sort -rn
 
 # Check for console.log statements (should use proper logging)
 [group('inspect')]
 check-console:
     @echo "Checking for console.log statements..."
-    @grep -r "console.log" src/ --include="*.ts" || echo "✓ No console.log found"
+    @grep -r "console.log" {{ core }}/src/ --include="*.ts" || echo "✓ No console.log found"
 
 alias cc := check-console
 
@@ -437,7 +439,7 @@ alias pr := pr-ready
 complexity:
     @echo "Checking function complexity..."
     @echo "Functions over 70 lines (Tiger Style violation):"
-    @for file in src/**/*.ts; do \
+    @for file in {{ core }}/src/**/*.ts; do \
         awk '/^(export )?[async ]*(function|class)/ {name=$$0; start=NR} \
              /^}/ {if (NR-start > 70) print FILENAME":"start" "name" ("NR-start" lines)"}' $$file; \
     done || echo "✓ All functions under 70 lines"
@@ -448,7 +450,7 @@ alias cx := complexity
 [group('entropy')]
 nesting:
     @echo "Checking for deep nesting (>3 levels)..."
-    @grep -n "        " src/**/*.ts | head -20 || echo "✓ No excessive nesting found"
+    @grep -n "        " {{ core }}/src/**/*.ts | head -20 || echo "✓ No excessive nesting found"
 
 alias nest := nesting
 
@@ -457,10 +459,10 @@ alias nest := nesting
 dead-code:
     @echo "Checking for potentially unused exports..."
     @echo "(This is a heuristic check - verify manually)"
-    @for file in src/**/*.ts; do \
+    @for file in {{ core }}/src/**/*.ts; do \
         grep "^export" $$file | while read -r line; do \
             name=$$(echo $$line | sed -E 's/export .* ([a-zA-Z0-9_]+).*/\1/'); \
-            count=$$(grep -r "$$name" src/ --include="*.ts" | grep -v "^$$file:" | wc -l); \
+            count=$$(grep -r "$$name" {{ core }}/src/ --include="*.ts" | grep -v "^$$file:" | wc -l); \
             if [ $$count -eq 0 ]; then echo "$$file: $$name might be unused"; fi; \
         done; \
     done || echo "✓ No obviously dead code found"

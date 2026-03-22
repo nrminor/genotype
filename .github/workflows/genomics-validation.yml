@@ -2,14 +2,14 @@ name: Genomics Data Validation
 on:
   push:
     paths:
-      - "src/formats/**"
-      - "src/operations/**"
-      - "src/compression/**"
+      - "packages/core/src/formats/**"
+      - "packages/core/src/operations/**"
+      - "packages/core/src/compression/**"
   pull_request:
     paths:
-      - "src/formats/**"
-      - "src/operations/**"
-      - "src/compression/**"
+      - "packages/core/src/formats/**"
+      - "packages/core/src/operations/**"
+      - "packages/core/src/compression/**"
   schedule:
     # Weekly validation with real data every Monday at 2 AM UTC
     - cron: "0 2 * * 1"
@@ -49,42 +49,42 @@ jobs:
         run: bun run build:native:dev
 
       - name: Create test fixtures directory
-        run: mkdir -p test/fixtures/real
+        run: mkdir -p packages/core/test/fixtures/real
 
       # Download test datasets from NCBI for validation
       # Using small reference genomes for CI efficiency
       - name: Download NCBI test data
         run: |
           # SARS-CoV-2 reference genome (small, ~30KB)
-          wget -q -O test/fixtures/real/sars-cov-2.fasta.gz \
+          wget -q -O packages/core/test/fixtures/real/sars-cov-2.fasta.gz \
             "https://ftp.ncbi.nlm.nih.gov/genomes/refseq/viral/SARS-CoV-2/latest_assembly_versions/GCF_009858895.2_ASM985889v3/GCF_009858895.2_ASM985889v3_genomic.fna.gz" \
             || echo "Failed to download SARS-CoV-2 genome, using local test data"
 
           # E. coli reference (small bacterial genome, ~5MB)
-          wget -q -O test/fixtures/real/ecoli.fasta.gz \
+          wget -q -O packages/core/test/fixtures/real/ecoli.fasta.gz \
             "https://ftp.ncbi.nlm.nih.gov/genomes/refseq/bacteria/Escherichia_coli/reference/GCF_000005825.2_ASM582v2/GCF_000005825.2_ASM582v2_genomic.fna.gz" \
             || echo "Failed to download E. coli genome, using local test data"
 
       - name: Validate format parsing with real data
         run: |
           # Test with downloaded data if available, otherwise skip gracefully
-          if [ -f test/fixtures/real/sars-cov-2.fasta.gz ]; then
+          if [ -f packages/core/test/fixtures/real/sars-cov-2.fasta.gz ]; then
             echo "Testing with SARS-CoV-2 genome..."
             echo "Real genomics data tests would run here when implemented"
           else
             echo "Real genomics data not available, running standard format tests only"
           fi
-          bun test test/formats/*.test.ts --timeout 30000
+          bun test packages/core/test/formats/*.test.ts --timeout 30000
 
       - name: Validate compression handling
         run: |
-          bun test test/compression/*.test.ts --timeout 30000
+          bun test packages/core/test/compression/*.test.ts --timeout 30000
 
       - name: Memory usage validation
         run: |
           # Test streaming behavior with existing integration tests
           echo "Testing integration scenarios..."
-          bun test test/integration/*.test.ts --timeout 60000
+          bun test packages/core/test/integration/*.test.ts --timeout 60000
 
   validate-sequence-operations:
     name: Validate Sequence Operations
@@ -116,12 +116,12 @@ jobs:
 
       - name: Test core sequence operations
         run: |
-          bun test test/operations/core/*.test.ts --timeout 30000
+          bun test packages/core/test/operations/core/*.test.ts --timeout 30000
 
       - name: Test SeqOps pipeline operations
         run: |
-          bun test test/operations/seqops.test.ts --timeout 30000
-          bun test test/operations/semantic-api.test.ts --timeout 30000
+          bun test packages/core/test/operations/seqops.test.ts --timeout 30000
+          bun test packages/core/test/operations/semantic-api.test.ts --timeout 30000
 
       # Commented out until we have SeqKit comparison tests ready
       # - name: Test SeqKit compatibility

@@ -14,18 +14,19 @@ import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const rootDir = resolve(__dirname, "..");
-const licensePath = join(rootDir, "LICENSE");
-const packageJson = JSON.parse(readFileSync(join(rootDir, "package.json"), "utf8"));
+const packageRoot = resolve(__dirname, "..");
+const projectRoot = resolve(packageRoot, "../..");
+const licensePath = join(projectRoot, "LICENSE");
+const packageJson = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8"));
 
 const args = process.argv.slice(2);
 const buildLib = args.find((arg) => arg === "--lib");
 const buildNative = args.find((arg) => arg === "--native");
 const buildWasm = args.find((arg) => arg === "--wasm");
 const isDev = args.includes("--dev");
-const nativeDir = join(rootDir, "src", "native");
-const napiManifestPath = join(rootDir, "crates", "napi-adapter", "Cargo.toml");
-const wasmAdapterDir = join(rootDir, "crates", "wasm-adapter");
+const nativeDir = join(packageRoot, "src", "native");
+const napiManifestPath = join(projectRoot, "crates", "napi-adapter", "Cargo.toml");
+const wasmAdapterDir = join(projectRoot, "crates", "wasm-adapter");
 
 if (!buildLib && !buildNative && !buildWasm) {
   console.error("Error: Please specify --lib, --native, --wasm, or a combination");
@@ -63,7 +64,7 @@ if (buildNative) {
     ...(isDev ? [] : ["--release"]),
   ];
   const napiBuild = spawnSync("npx", ["napi", ...napiArgs], {
-    cwd: rootDir,
+    cwd: projectRoot,
     stdio: "inherit",
   });
 
@@ -91,7 +92,7 @@ if (buildWasm) {
 
   const wasmPackArgs = ["build", wasmAdapterDir, "--target", "web", ...(isDev ? ["--dev"] : [])];
   const wasmBuild = spawnSync("wasm-pack", wasmPackArgs, {
-    cwd: rootDir,
+    cwd: projectRoot,
     stdio: "inherit",
   });
 
@@ -118,7 +119,7 @@ if (buildWasm) {
 if (buildLib) {
   console.log("Building library...");
 
-  const distDir = join(rootDir, "dist");
+  const distDir = join(packageRoot, "dist");
   rmSync(distDir, { recursive: true, force: true });
   mkdirSync(distDir, { recursive: true });
 
@@ -141,14 +142,14 @@ if (buildLib) {
       packageJson.module,
     ],
     {
-      cwd: rootDir,
+      cwd: packageRoot,
       stdio: "inherit",
     }
   );
 
   console.log("Generating TypeScript declarations...");
 
-  const tsconfigBuildPath = join(rootDir, "tsconfig.build.json");
+  const tsconfigBuildPath = join(packageRoot, "tsconfig.build.json");
   const tsconfigBuild = {
     extends: "./tsconfig.json",
     compilerOptions: {
@@ -174,7 +175,7 @@ if (buildLib) {
   writeFileSync(tsconfigBuildPath, JSON.stringify(tsconfigBuild, null, 2));
 
   const tscResult = spawnSync("npx", ["tsc", "-p", tsconfigBuildPath], {
-    cwd: rootDir,
+    cwd: packageRoot,
     stdio: "inherit",
   });
 
@@ -222,7 +223,7 @@ if (buildLib) {
 
   writeFileSync(
     join(distDir, "README.md"),
-    replaceLinks(readFileSync(join(rootDir, "README.md"), "utf8"))
+    replaceLinks(readFileSync(join(projectRoot, "README.md"), "utf8"))
   );
   if (existsSync(licensePath)) {
     copyFileSync(licensePath, join(distDir, "LICENSE"));

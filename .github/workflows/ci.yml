@@ -96,7 +96,7 @@ jobs:
         run: bun run build:native:dev
 
       - name: Run TypeScript tests
-        run: bun test
+        run: bun run test
 
   test-rust:
     name: Test Rust

@@ -8,7 +8,7 @@ on:
       - "Cargo.toml"
       - "rust-toolchain*"
       - ".cargo/config.toml"
-      - "scripts/build.mjs"
+      - "packages/core/scripts/build.mjs"
   pull_request:
     paths:
       - "crates/**/*.rs"
@@ -16,7 +16,7 @@ on:
       - "Cargo.toml"
       - "rust-toolchain*"
       - ".cargo/config.toml"
-      - "scripts/build.mjs"
+      - "packages/core/scripts/build.mjs"
   workflow_dispatch:
 
 env:

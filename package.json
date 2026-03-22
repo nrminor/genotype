@@ -1,104 +1,43 @@
 {
-  "name": "genotype",
-  "version": "0.1.0",
-  "description": "A feature-rich TypeScript library for working with genomic data formats (FASTA, FASTQ, SAM, BAM, BED)",
-  "keywords": [
-    "bam",
-    "bed",
-    "bioinformatics",
-    "fasta",
-    "fastq",
-    "genomics",
-    "performance",
-    "sam",
-    "streaming",
-    "typescript"
+  "name": "genotype-monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/*"
   ],
-  "license": "MIT",
-  "author": "",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/nrminor/genotype"
-  },
-  "files": [
-    "dist",
-    "LICENSE*",
-    "README.md",
-    "src"
-  ],
-  "type": "module",
-  "sideEffects": false,
-  "main": "dist/index.js",
-  "module": "src/index.ts",
-  "browser": {
-    "./src/backend/node-native.ts": false,
-    "./dist/backend/node-native.js": false
-  },
-  "types": "src/index.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
   "scripts": {
-    "build": "bun run build:native && bun run build:wasm && bun run build:lib",
-    "build:lib": "bun scripts/build.mjs --lib",
-    "build:native": "bun scripts/build.mjs --native",
-    "build:native:dev": "bun scripts/build.mjs --native --dev",
-    "build:wasm": "bun scripts/build.mjs --wasm",
-    "build:wasm:dev": "bun scripts/build.mjs --wasm --dev",
+    "build": "bun run --cwd packages/core build",
+    "build:lib": "bun run --cwd packages/core build:lib",
+    "build:native": "bun run --cwd packages/core build:native",
+    "build:native:dev": "bun run --cwd packages/core build:native:dev",
+    "build:wasm": "bun run --cwd packages/core build:wasm",
+    "build:wasm:dev": "bun run --cwd packages/core build:wasm:dev",
     "check": "bun run typecheck && bun run lint && bun run lint:rust && bun run test && bun run build",
-    "clean": "rm -rf dist && rm -rf crates/wasm-adapter/pkg && cargo clean",
+    "clean": "rm -rf packages/core/dist && rm -rf crates/wasm-adapter/pkg && cargo clean",
     "clean:rust": "cargo clean",
-    "dev": "tsc --watch",
-    "docs": "typedoc",
-    "docs:serve": "typedoc && bunx serve docs",
+    "docs": "bun run --cwd packages/core docs",
     "format": "bunx oxfmt",
     "format:check": "bunx oxfmt --check",
     "format:rust": "cargo fmt",
-    "lint": "bunx oxlint",
-    "lint:fix": "bunx oxlint --fix",
+    "lint": "bun run --cwd packages/core lint",
+    "lint:fix": "bun run --cwd packages/core lint:fix",
     "lint:rust": "cargo clippy --all-targets -- -D warnings",
-    "lint:types": "bunx oxlint --type-aware",
+    "lint:types": "bun run --cwd packages/core lint:types",
     "prepare": "effect-language-service patch",
-    "prepublishOnly": "bun run clean && bun run build",
-    "test": "bun test",
-    "test:node": "node --test test/**/*.test.js",
+    "test": "bun run --cwd packages/core test",
     "test:rust": "cargo test",
-    "typecheck": "bunx tsgo --noEmit -p tsconfig.test.json",
-    "typecheck:tsc": "tsc --noEmit",
+    "typecheck": "bun run --cwd packages/core typecheck",
     "validate": "bun run check",
     "validate:full": "bun run typecheck && bun run lint && bun run test && bun run test:rust && bun run lint:rust && bun run build"
   },
-  "dependencies": {
-    "@effect/platform-bun": "4.0.0-beta.34",
-    "@effect/platform-node": "4.0.0-beta.34",
-    "@hpcc-js/wasm-zstd": "^1.12.1",
-    "arktype": "^2.2.0",
-    "effect": "4.0.0-beta.34",
-    "fflate": "^0.8.2"
-  },
   "devDependencies": {
-    "@effect/language-service": "^0.80.0",
-    "@napi-rs/cli": "^3.5.1",
-    "@types/bun": "^1.3.10",
-    "@types/node": "^22.19.15",
     "@typescript/native-preview": "^7.0.0-dev.20260307.1",
     "oxfmt": "^0.36.0",
     "oxlint": "^1.51.0",
     "oxlint-tsgolint": "^0.16.0",
-    "tsd": "^0.33.0",
     "type-coverage": "^2.29.0",
     "typedoc": "^0.28.17",
     "typescript": "^6.0.1-rc",
     "typescript-language-server": "^5.1.3",
     "vscode-langservers-extracted": "4.10.0"
-  },
-  "peerDependencies": {
-    "typescript": ">5.9.3"
-  },
-  "engines": {
-    "bun": ">=1.2.0"
   }
 }

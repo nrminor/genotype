@@ -6,10 +6,11 @@ import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const rootDir = resolve(__dirname, "..");
-const packedDir = join(rootDir, "packed");
+const packageRoot = resolve(__dirname, "..");
+const projectRoot = resolve(packageRoot, "../..");
+const packedDir = join(packageRoot, "packed");
 
-const packageJson = JSON.parse(readFileSync(join(rootDir, "package.json"), "utf8"));
+const packageJson = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8"));
 
 const args = process.argv.slice(2);
 const skipBuild = args.includes("--skip-build");
@@ -18,7 +19,7 @@ const verbose = args.includes("--verbose");
 if (!skipBuild) {
   console.log("Building packages first...");
   const buildResult = spawnSync("bun", ["run", "build"], {
-    cwd: rootDir,
+    cwd: packageRoot,
     stdio: "inherit",
   });
 
@@ -28,7 +29,7 @@ if (!skipBuild) {
   }
 }
 
-const libDir = join(rootDir, "dist");
+const libDir = join(packageRoot, "dist");
 if (!existsSync(libDir)) {
   console.error("Error: dist directory not found. Please run 'bun run build' first.");
   process.exit(1);
@@ -49,7 +50,7 @@ packagesToPack.push({
 for (const pkgName of Object.keys(libPackageJson.optionalDependencies || {}).filter((x) =>
   x.startsWith(packageJson.name)
 )) {
-  const nativeDir = join(rootDir, "node_modules", pkgName);
+  const nativeDir = join(projectRoot, "node_modules", pkgName);
   if (existsSync(nativeDir)) {
     packagesToPack.push({
       name: pkgName,

@@ -74,17 +74,17 @@ jobs:
           else
             echo "Real genomics data not available, running standard format tests only"
           fi
-          bun test packages/core/test/formats/*.test.ts --timeout 30000
+          cd packages/core && bun test test/formats/*.test.ts --timeout 30000
 
       - name: Validate compression handling
         run: |
-          bun test packages/core/test/compression/*.test.ts --timeout 30000
+          cd packages/core && bun test test/compression/*.test.ts --timeout 30000
 
       - name: Memory usage validation
         run: |
           # Test streaming behavior with existing integration tests
           echo "Testing integration scenarios..."
-          bun test packages/core/test/integration/*.test.ts --timeout 60000
+          cd packages/core && bun test test/integration/*.test.ts --timeout 60000
 
   validate-sequence-operations:
     name: Validate Sequence Operations
@@ -116,12 +116,11 @@ jobs:
 
       - name: Test core sequence operations
         run: |
-          bun test packages/core/test/operations/core/*.test.ts --timeout 30000
+          cd packages/core && bun test test/operations/core/*.test.ts --timeout 30000
 
       - name: Test SeqOps pipeline operations
         run: |
-          bun test packages/core/test/operations/seqops.test.ts --timeout 30000
-          bun test packages/core/test/operations/semantic-api.test.ts --timeout 30000
+          cd packages/core && bun test test/operations/seqops.test.ts test/operations/semantic-api.test.ts --timeout 30000
 
       # Commented out until we have SeqKit comparison tests ready
       # - name: Test SeqKit compatibility

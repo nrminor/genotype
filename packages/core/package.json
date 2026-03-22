@@ -50,6 +50,7 @@
     "build:wasm": "bun scripts/build.mjs --wasm",
     "build:wasm:dev": "bun scripts/build.mjs --wasm --dev",
     "clean": "rm -rf dist",
+    "docs": "typedoc",
     "lint": "bunx oxlint",
     "lint:fix": "bunx oxlint --fix",
     "lint:types": "bunx oxlint --type-aware",

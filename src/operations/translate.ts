@@ -8,12 +8,12 @@
  */
 
 import { type } from "arktype";
-import { translateBatch } from "../backend/service";
-import { createFastaRecord } from "../constructors";
-import { SequenceError, ValidationError } from "../errors";
-import { packSequences } from "../backend/batch";
-import type { TransformResult } from "../backend/kernel-types";
-import type { AbstractSequence } from "../types";
+import { translateBatch } from "@genotype/core/backend/service";
+import { createFastaRecord } from "@genotype/core/constructors";
+import { SequenceError, ValidationError } from "@genotype/core/errors";
+import { packSequences } from "@genotype/core/backend/batch";
+import type { TransformResult } from "@genotype/core/backend/kernel-types";
+import type { AbstractSequence } from "@genotype/core/types";
 import {
   GeneticCode,
   getGeneticCode,

@@ -1,5 +1,5 @@
 import { expect } from "bun:test";
-import { GenotypeString } from "../src/genotype-string";
+import { GenotypeString } from "@genotype/core/genotype-string";
 
 function describeValue(value: unknown): string {
   if (value === null) return "null";

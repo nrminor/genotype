@@ -7,15 +7,15 @@
  */
 
 import { type } from "arktype";
-import { createFastqRecord, type FastqRecordInput, withQuality } from "../constructors";
-import { ValidationError } from "../errors";
+import { createFastqRecord, type FastqRecordInput, withQuality } from "@genotype/core/constructors";
+import { ValidationError } from "@genotype/core/errors";
 import type {
   AbstractSequence,
   FastaSequence,
   FastqSequence,
   QualityEncoding,
   QualityScoreBearing,
-} from "../types";
+} from "@genotype/core/types";
 import { calculateQualityStats } from "./core";
 import type { ValidPhred33Char, ValidPhred64Char, ValidSolexaChar } from "./core/quality";
 import {

@@ -7,7 +7,7 @@
  *
  */
 
-import type { AbstractSequence, KmerSequence, PrimerSequence } from "../types";
+import type { AbstractSequence, KmerSequence, PrimerSequence } from "@genotype/core/types";
 import {
   sequenceArrayToMap,
   sequenceContainment,

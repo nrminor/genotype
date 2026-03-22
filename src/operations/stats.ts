@@ -15,10 +15,10 @@
  */
 
 import { type } from "arktype";
-import { classifyBatch } from "../backend/service";
-import { SequenceError, ValidationError } from "../errors";
-import { GenotypeString, CharSet } from "../genotype-string";
-import { packSequences } from "../backend/batch";
+import { classifyBatch } from "@genotype/core/backend/service";
+import { SequenceError, ValidationError } from "@genotype/core/errors";
+import { GenotypeString, CharSet } from "@genotype/core/genotype-string";
+import { packSequences } from "@genotype/core/backend/batch";
 import {
   NUM_CLASSES,
   CLASS_A,
@@ -33,13 +33,13 @@ import {
   CLASS_BDHV,
   CLASS_GAP,
   CLASS_OTHER,
-} from "../backend/kernel-types";
+} from "@genotype/core/backend/kernel-types";
 import type {
   AbstractSequence,
   FASTXSequence,
   QualityEncoding,
   QualityScoreBearing,
-} from "../types";
+} from "@genotype/core/types";
 import { charToScore } from "./core/quality";
 
 /** Byte budget per native batch. Sequences accumulate until this threshold. */

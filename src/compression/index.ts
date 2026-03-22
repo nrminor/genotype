@@ -30,8 +30,8 @@
  */
 
 // Import for internal use
-import { CompressionError } from "../errors";
-import type { CompressionFormat } from "../types";
+import { CompressionError } from "@genotype/core/errors";
+import type { CompressionFormat } from "@genotype/core/types";
 import { GzipDecompressor } from "./gzip";
 import { ZstdDecompressor } from "./zstd";
 
@@ -43,20 +43,20 @@ export { CompressionService } from "./service";
 export { ZstdDecompressor } from "./zstd";
 
 // Error exports
-export { CompressionError } from "../errors";
+export { CompressionError } from "@genotype/core/errors";
 // Type exports for external use
 export type {
   CompressedStream,
   CompressionDetection,
   CompressionFormat,
   DecompressorOptions,
-} from "../types";
+} from "@genotype/core/types";
 // Validation schema exports
 export {
   CompressionDetectionSchema,
   CompressionFormatSchema,
   DecompressorOptionsSchema,
-} from "../types";
+} from "@genotype/core/types";
 
 /**
  * Factory function to create appropriate decompressor based on format

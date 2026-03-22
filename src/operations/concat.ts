@@ -7,16 +7,20 @@
  *
  */
 
-import { ConcatError, FileError } from "../errors";
-import { detectFormat, parseAny } from "../index";
-import { existsPromise, getMetadataPromise, readToStringPromise } from "../io/file-reader";
+import { ConcatError, FileError } from "@genotype/core/errors";
+import { detectFormat, parseAny } from "@genotype/core/index";
+import {
+  existsPromise,
+  getMetadataPromise,
+  readToStringPromise,
+} from "@genotype/core/io/file-reader";
 import type {
   AbstractSequence,
   BedInterval,
   FastaSequence,
   FastqSequence,
   FormatDetection,
-} from "../types";
+} from "@genotype/core/types";
 import type { ConcatOptions, Processor } from "./types";
 
 /**

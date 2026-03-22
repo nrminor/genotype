@@ -12,10 +12,10 @@ import {
   createFastqRecord,
   type FastaRecordInput,
   type FastqRecordInput,
-} from "../../src/constructors";
-import { SeqOps, seqops } from "../../src/operations";
-import type { UnpairedStats } from "../../src/operations/interleave";
-import type { AbstractSequence, FastqSequence } from "../../src/types";
+} from "@genotype/core/constructors";
+import { SeqOps, seqops } from "@genotype/core/operations";
+import type { UnpairedStats } from "@genotype/core/operations/interleave";
+import type { AbstractSequence, FastqSequence } from "@genotype/core/types";
 
 describe("SeqOps", () => {
   // Helper functions

@@ -5,7 +5,7 @@
  * Handles quoted fields, escaped quotes, and multi-line fields.
  */
 
-import { ParseError } from "../../errors";
+import { ParseError } from "@genotype/core/errors";
 import { CSVParseState } from "./types";
 
 // DSV-specific parse error

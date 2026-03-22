@@ -1,5 +1,5 @@
 import { describe, test } from "bun:test";
-import { type NativeKernel, getNodeNativeKernelSync } from "../../src/backend/node-native";
+import { type NativeKernel, getNodeNativeKernelSync } from "@genotype/core/backend/node-native";
 
 export const nativeAvailable = getNodeNativeKernelSync() !== undefined;
 

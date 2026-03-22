@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import "../matchers";
-import { createFastaRecord, createFastqRecord } from "../../src/constructors";
-import { ValidationError } from "../../src/errors";
-import { seqops } from "../../src/operations";
-import { rename } from "../../src/operations/rename";
-import type { FastaSequence, FastqSequence } from "../../src/types";
+import { createFastaRecord, createFastqRecord } from "@genotype/core/constructors";
+import { ValidationError } from "@genotype/core/errors";
+import { seqops } from "@genotype/core/operations";
+import { rename } from "@genotype/core/operations/rename";
+import type { FastaSequence, FastqSequence } from "@genotype/core/types";
 
 async function* toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
   for (const item of items) {

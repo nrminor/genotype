@@ -5,10 +5,10 @@
  * from FASTQ data, including fast heuristic and statistical approaches.
  */
 
-import { QualityError } from "../../../errors";
-import { asString } from "../../../genotype-string";
-import type { GenotypeString } from "../../../genotype-string";
-import type { QualityEncoding } from "../../../types";
+import { QualityError } from "@genotype/core/errors";
+import { asString } from "@genotype/core/genotype-string";
+import type { GenotypeString } from "@genotype/core/genotype-string";
+import type { QualityEncoding } from "@genotype/core/types";
 import type { DetectionResult } from "./types";
 
 /**

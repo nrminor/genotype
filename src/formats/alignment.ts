@@ -18,11 +18,11 @@
  */
 
 import { Effect, Option, Stream } from "effect";
-import { GenotypeString } from "../genotype-string";
-import type { AlignmentBatch, AlignmentReaderHandle } from "../backend";
-import { BackendService, backendRuntime } from "../backend/service";
-import { BamError } from "../errors";
-import type { AlignmentRecord, ParserOptions } from "../types";
+import { GenotypeString } from "@genotype/core/genotype-string";
+import type { AlignmentBatch, AlignmentReaderHandle } from "@genotype/core/backend";
+import { BackendService, backendRuntime } from "@genotype/core/backend/service";
+import { BamError } from "@genotype/core/errors";
+import type { AlignmentRecord, ParserOptions } from "@genotype/core/types";
 import { AbstractParser } from "./abstract-parser";
 
 const DEFAULT_BATCH_SIZE = 4096;

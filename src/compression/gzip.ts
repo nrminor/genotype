@@ -6,8 +6,8 @@
  */
 
 import { gunzipSync, gzipSync, Gunzip, Gzip } from "fflate";
-import { CompressionError } from "../errors";
-import type { DecompressorOptions } from "../types";
+import { CompressionError } from "@genotype/core/errors";
+import type { DecompressorOptions } from "@genotype/core/types";
 
 /** Maximum decompressed size (10GB safety limit for genomic files) */
 const MAX_OUTPUT_SIZE = 10_737_418_240;

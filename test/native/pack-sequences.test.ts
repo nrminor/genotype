@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { createFastaRecord } from "../../src/constructors";
-import { packSequences } from "../../src/backend/batch";
+import { createFastaRecord } from "@genotype/core/constructors";
+import { packSequences } from "@genotype/core/backend/batch";
 
 describe("packSequences", () => {
   test("packs sequences into contiguous buffer with correct offsets", () => {

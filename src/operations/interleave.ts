@@ -1,4 +1,4 @@
-import type { AbstractSequence } from "../types";
+import type { AbstractSequence } from "@genotype/core/types";
 
 /**
  * Options for interleaving two sequence streams

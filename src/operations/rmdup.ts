@@ -12,8 +12,8 @@
  */
 
 import { type } from "arktype";
-import { ValidationError } from "../errors";
-import type { AbstractSequence } from "../types";
+import { ValidationError } from "@genotype/core/errors";
+import type { AbstractSequence } from "@genotype/core/types";
 import type { DeduplicationStrategy } from "./core/sequence-deduplicator";
 import { ExactDeduplicator, SequenceDeduplicator } from "./core/sequence-deduplicator";
 import type { Processor, RmdupOptions } from "./types";

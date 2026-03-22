@@ -12,11 +12,11 @@
  */
 
 import { beforeAll, describe, expect, test } from "bun:test";
-import { createFastaRecord } from "../../src/constructors";
-import { ValidationError } from "../../src/errors";
-import { GeneticCode } from "../../src/operations/core/genetic-codes";
-import { TranslateProcessor } from "../../src/operations/translate";
-import type { AbstractSequence } from "../../src/types";
+import { createFastaRecord } from "@genotype/core/constructors";
+import { ValidationError } from "@genotype/core/errors";
+import { GeneticCode } from "@genotype/core/operations/core/genetic-codes";
+import { TranslateProcessor } from "@genotype/core/operations/translate";
+import type { AbstractSequence } from "@genotype/core/types";
 import "../matchers";
 
 // Test data generator

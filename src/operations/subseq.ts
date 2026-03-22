@@ -15,11 +15,11 @@
  */
 
 import { type } from "arktype";
-import { SequenceError, ValidationError } from "../errors";
-import { GenotypeString } from "../genotype-string";
-import { BedParser } from "../formats/bed";
-import { type GtfFeature, GtfParser } from "../formats/gtf";
-import type { AbstractSequence, BedInterval, QualityScoreBearing } from "../types";
+import { SequenceError, ValidationError } from "@genotype/core/errors";
+import { GenotypeString } from "@genotype/core/genotype-string";
+import { BedParser } from "@genotype/core/formats/bed";
+import { type GtfFeature, GtfParser } from "@genotype/core/formats/gtf";
+import type { AbstractSequence, BedInterval, QualityScoreBearing } from "@genotype/core/types";
 import {
   type ParsedCoordinates,
   parseEndPosition,

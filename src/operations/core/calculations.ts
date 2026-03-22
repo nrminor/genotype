@@ -6,8 +6,8 @@
  *
  */
 
-import { GenotypeString, CharSet, Bases } from "../../genotype-string";
-import { ValidationError } from "../../errors";
+import { GenotypeString, CharSet, Bases } from "@genotype/core/genotype-string";
+import { ValidationError } from "@genotype/core/errors";
 import { getGeneticCode } from "./genetic-codes";
 
 const PARTIAL_GC = CharSet.from("RYKM");

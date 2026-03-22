@@ -10,8 +10,8 @@ import {
   CompressionError,
   CompressionService,
   type CompressionServiceShape,
-} from "../../src/compression/service";
-import type { CompressionFormat } from "../../src/types";
+} from "@genotype/core/compression/service";
+import type { CompressionFormat } from "@genotype/core/types";
 
 /**
  * Mock compression service that passes through data unchanged.

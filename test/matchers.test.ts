@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import "./matchers";
-import { GenotypeString } from "../src/genotype-string";
+import { GenotypeString } from "@genotype/core/genotype-string";
 
 describe("toEqualSequence matcher", () => {
   test("matches a string-backed GenotypeString", () => {

@@ -13,10 +13,10 @@ import {
   classifyBatch,
   removeGapsBatch,
   replaceInvalidBatch,
-} from "../backend/service";
-import { withSequence } from "../constructors";
-import { ValidationError } from "../errors";
-import { packSequences } from "../backend/batch";
+} from "@genotype/core/backend/service";
+import { withSequence } from "@genotype/core/constructors";
+import { ValidationError } from "@genotype/core/errors";
+import { packSequences } from "@genotype/core/backend/batch";
 import {
   CLASS_BDHV,
   CLASS_N,
@@ -28,8 +28,8 @@ import {
   CLASS_WEAK,
   NUM_CLASSES,
   ValidationMode,
-} from "../backend/kernel-types";
-import type { AbstractSequence } from "../types";
+} from "@genotype/core/backend/kernel-types";
+import type { AbstractSequence } from "@genotype/core/types";
 import type { Processor, ValidateOptions } from "./types";
 
 export {

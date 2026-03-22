@@ -13,8 +13,12 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, unlinkSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { FileIOError, readByteRangePromise, readToStringPromise } from "../../src/io/file-reader";
-import { writeString } from "../../src/io/file-writer";
+import {
+  FileIOError,
+  readByteRangePromise,
+  readToStringPromise,
+} from "@genotype/core/io/file-reader";
+import { writeString } from "@genotype/core/io/file-writer";
 
 describe("Effect DI Error Handling", () => {
   let testFile: string;

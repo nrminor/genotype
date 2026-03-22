@@ -10,9 +10,9 @@ import {
   ExactDeduplicator,
   findDuplicates,
   SequenceDeduplicator,
-} from "../../../src/operations/core/sequence-deduplicator";
-import { createFastaRecord } from "../../../src/constructors";
-import type { AbstractSequence } from "../../../src/types";
+} from "@genotype/core/operations/core/sequence-deduplicator";
+import { createFastaRecord } from "@genotype/core/constructors";
+import type { AbstractSequence } from "@genotype/core/types";
 
 /** Helper to create test sequences with required length field */
 function seq(id: string, sequence: string, description?: string): AbstractSequence {

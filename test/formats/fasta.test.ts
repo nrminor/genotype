@@ -4,7 +4,7 @@
 
 import { describe, expect, test } from "bun:test";
 import "../matchers";
-import { FastaParser, type FastaSequence } from "../../src/index";
+import { FastaParser, type FastaSequence } from "@genotype/core/index";
 
 describe("FastaParser", () => {
   const parser = new FastaParser();

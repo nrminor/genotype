@@ -8,8 +8,8 @@
 import { describe, expect, test } from "bun:test";
 import "../matchers";
 import { type } from "arktype";
-import { createFastaRecord } from "../../src/constructors";
-import { ParseError } from "../../src/errors";
+import { createFastaRecord } from "@genotype/core/constructors";
+import { ParseError } from "@genotype/core/errors";
 import {
   deserializeJSON,
   deserializeJSONWrapped,
@@ -22,9 +22,9 @@ import {
   serializeJSONPretty,
   serializeJSONWithMetadata,
   serializeJSONWithMetadataPretty,
-} from "../../src/formats/json";
-import { SeqOps } from "../../src/operations";
-import type { FastaSequence, FastqSequence } from "../../src/types";
+} from "@genotype/core/formats/json";
+import { SeqOps } from "@genotype/core/operations";
+import type { FastaSequence, FastqSequence } from "@genotype/core/types";
 
 // =============================================================================
 // MORPHS & VALIDATION

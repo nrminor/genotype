@@ -16,7 +16,7 @@
 
 import { Effect, Layer, Schema, ServiceMap } from "effect";
 import { Zstd } from "@hpcc-js/wasm-zstd";
-import type { CompressionFormat } from "../types";
+import type { CompressionFormat } from "@genotype/core/types";
 import {
   compress as compressGzip,
   createCompressionStream as createGzipCompressionStream,

@@ -55,9 +55,9 @@
  *
  */
 
-import { createFastaRecord, createFastqRecord } from "../../constructors";
-import { Bases } from "../../genotype-string";
-import type { AbstractSequence, FastqSequence, QualityEncoding } from "../../types";
+import { createFastaRecord, createFastqRecord } from "@genotype/core/constructors";
+import { Bases } from "@genotype/core/genotype-string";
+import type { AbstractSequence, FastqSequence, QualityEncoding } from "@genotype/core/types";
 import { ExternalSorter } from "./memory";
 import { calculateAverageQuality } from "./quality";
 

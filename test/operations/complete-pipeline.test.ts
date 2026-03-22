@@ -6,9 +6,9 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { createFastaRecord } from "../../src/constructors";
-import { seqops } from "../../src/operations";
-import type { AbstractSequence } from "../../src/types";
+import { createFastaRecord } from "@genotype/core/constructors";
+import { seqops } from "@genotype/core/operations";
+import type { AbstractSequence } from "@genotype/core/types";
 
 /** Convert an array to an async iterable for seqops */
 async function* toAsync<T>(arr: T[]): AsyncGenerator<T> {

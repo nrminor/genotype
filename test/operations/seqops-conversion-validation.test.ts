@@ -4,9 +4,9 @@
 
 import { describe, expect, test } from "bun:test";
 import "../matchers";
-import { createFastaRecord, createFastqRecord } from "../../src/constructors";
-import { seqops } from "../../src/operations";
-import type { FastaSequence, FastqSequence } from "../../src/types";
+import { createFastaRecord, createFastqRecord } from "@genotype/core/constructors";
+import { seqops } from "@genotype/core/operations";
+import type { FastaSequence, FastqSequence } from "@genotype/core/types";
 
 // Helper to create test FASTA sequences
 async function* createFastaSource(): AsyncIterable<FastaSequence> {

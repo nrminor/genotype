@@ -8,11 +8,11 @@
  */
 
 import { type } from "arktype";
-import { findPatternBatch } from "../backend/service";
-import { ValidationError } from "../errors";
-import { packSequences } from "../backend/batch";
-import type { PatternSearchResult } from "../backend/kernel-types";
-import type { AbstractSequence, MotifLocation } from "../types";
+import { findPatternBatch } from "@genotype/core/backend/service";
+import { ValidationError } from "@genotype/core/errors";
+import { packSequences } from "@genotype/core/backend/batch";
+import type { PatternSearchResult } from "@genotype/core/backend/kernel-types";
+import type { AbstractSequence, MotifLocation } from "@genotype/core/types";
 import { fuzzyMatch } from "./core/pattern-matching";
 import { reverseComplement } from "./core/sequence-manipulation";
 import type { LocateOptions } from "./types";

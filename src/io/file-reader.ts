@@ -12,9 +12,13 @@
 
 import { type } from "arktype";
 import { Effect, FileSystem, Schema, Stream } from "effect";
-import { CompressionDetector, CompressionService, createDecompressor } from "../compression";
-import type { FileMetadata, FileReaderOptions } from "../types";
-import { FilePathSchema, FileReaderOptionsSchema } from "../types";
+import {
+  CompressionDetector,
+  CompressionService,
+  createDecompressor,
+} from "@genotype/core/compression";
+import type { FileMetadata, FileReaderOptions } from "@genotype/core/types";
+import { FilePathSchema, FileReaderOptionsSchema } from "@genotype/core/types";
 import { IOLayer, PlatformLayer } from "./layers";
 
 /** Typed error for file I/O failures within Effect pipelines. */

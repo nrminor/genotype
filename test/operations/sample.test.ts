@@ -6,11 +6,11 @@
  */
 
 import { beforeEach, describe, expect, test } from "bun:test";
-import { createFastaRecord } from "../../src/constructors";
-import { seqops } from "../../src/operations/index";
-import { SampleProcessor } from "../../src/operations/sample";
-import type { SampleOptions } from "../../src/operations/types";
-import type { AbstractSequence } from "../../src/types";
+import { createFastaRecord } from "@genotype/core/constructors";
+import { seqops } from "@genotype/core/operations/index";
+import { SampleProcessor } from "@genotype/core/operations/sample";
+import type { SampleOptions } from "@genotype/core/operations/types";
+import type { AbstractSequence } from "@genotype/core/types";
 
 /** Convert an array to AsyncIterable for processor tests */
 async function* toAsync<T>(items: T[]): AsyncIterable<T> {

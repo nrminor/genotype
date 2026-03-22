@@ -3,10 +3,10 @@
  */
 
 import { type } from "arktype";
-import { createKmerRecord } from "../constructors";
-import { ValidationError } from "../errors";
-import { GenotypeString } from "../genotype-string";
-import type { AbstractSequence, KmerSequence } from "../types";
+import { createKmerRecord } from "@genotype/core/constructors";
+import { ValidationError } from "@genotype/core/errors";
+import { GenotypeString } from "@genotype/core/genotype-string";
+import type { AbstractSequence, KmerSequence } from "@genotype/core/types";
 import type { Processor, WindowOptions } from "./types";
 
 const WindowOptionsSchema = type({

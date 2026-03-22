@@ -3,7 +3,7 @@ import "../matchers";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { FaiBuilder, Faidx } from "../../src/operations/faidx";
+import { FaiBuilder, Faidx } from "@genotype/core/operations/faidx";
 
 describe("FaiBuilder", () => {
   let tempDir: string;

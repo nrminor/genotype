@@ -14,7 +14,7 @@ import {
   isStopCodon,
   translate,
   translateSixFrames,
-} from "../../../src/operations/core/genetic-codes";
+} from "@genotype/core/operations/core/genetic-codes";
 
 describe("NCBI Genetic Code Biological Validation", () => {
   describe("Standard Genetic Code (Table 1) - NCBI Compliance", () => {

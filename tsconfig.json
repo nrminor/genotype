@@ -36,6 +36,9 @@
     "experimentalDecorators": true,
     "lib": ["ES2022", "DOM"],
     "types": ["bun", "node"],
+    "paths": {
+      "@genotype/core/*": ["./src/*"]
+    },
     "plugins": [{ "name": "@effect/language-service" }]
   },
   "include": ["src/**/*"],

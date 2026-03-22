@@ -10,7 +10,7 @@
  */
 
 import type { type } from "arktype";
-import { GenotypeError, ValidationError } from "../../errors";
+import { GenotypeError, ValidationError } from "@genotype/core/errors";
 
 /**
  * Custom validation function signature

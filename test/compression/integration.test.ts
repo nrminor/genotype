@@ -6,8 +6,8 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { CompressionDetector, createDecompressor } from "../../src/compression";
-import { CompressionError } from "../../src/errors";
+import { CompressionDetector, createDecompressor } from "@genotype/core/compression";
+import { CompressionError } from "@genotype/core/errors";
 
 // Mock compressed data for testing
 const mockGzipData = new Uint8Array([0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00]);

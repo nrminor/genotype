@@ -12,9 +12,9 @@
  */
 
 import { type } from "arktype";
-import { ValidationError } from "../errors";
-import { packSequences } from "../backend/batch";
-import { classifyBatch } from "../backend/service";
+import { ValidationError } from "@genotype/core/errors";
+import { packSequences } from "@genotype/core/backend/batch";
+import { classifyBatch } from "@genotype/core/backend/service";
 import {
   NUM_CLASSES,
   CLASS_A,
@@ -27,8 +27,8 @@ import {
   CLASS_WEAK,
   CLASS_TWO_BASE,
   CLASS_BDHV,
-} from "../backend/kernel-types";
-import type { AbstractSequence } from "../types";
+} from "@genotype/core/backend/kernel-types";
+import type { AbstractSequence } from "@genotype/core/types";
 import { gcContent } from "./core/calculations";
 import type { AlignmentFilterOptions, FilterOptions, Processor } from "./types";
 

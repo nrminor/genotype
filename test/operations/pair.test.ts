@@ -13,11 +13,11 @@
 
 import { describe, expect, test } from "bun:test";
 import "../matchers";
-import { createFastaRecord, createFastqRecord } from "../../src/constructors";
-import { MemoryError, PairSyncError } from "../../src/errors";
-import { SeqOps } from "../../src/operations";
-import { PairProcessor } from "../../src/operations/pair";
-import type { FastaSequence, FastqSequence } from "../../src/types";
+import { createFastaRecord, createFastqRecord } from "@genotype/core/constructors";
+import { MemoryError, PairSyncError } from "@genotype/core/errors";
+import { SeqOps } from "@genotype/core/operations";
+import { PairProcessor } from "@genotype/core/operations/pair";
+import type { FastaSequence, FastqSequence } from "@genotype/core/types";
 
 describe("PairProcessor", () => {
   const processor = new PairProcessor();

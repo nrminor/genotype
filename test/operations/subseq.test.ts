@@ -14,9 +14,9 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { createFastaRecord } from "../../src/constructors";
-import { SubseqExtractor } from "../../src/operations/subseq";
-import type { AbstractSequence } from "../../src/types";
+import { createFastaRecord } from "@genotype/core/constructors";
+import { SubseqExtractor } from "@genotype/core/operations/subseq";
+import type { AbstractSequence } from "@genotype/core/types";
 import "../matchers";
 
 describe("SubseqExtractor", () => {

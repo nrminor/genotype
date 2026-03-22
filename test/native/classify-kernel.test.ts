@@ -1,6 +1,6 @@
 import { describe, expect } from "bun:test";
-import { createFastaRecord } from "../../src/constructors";
-import { packSequences } from "../../src/backend/batch";
+import { createFastaRecord } from "@genotype/core/constructors";
+import { packSequences } from "@genotype/core/backend/batch";
 import {
   ValidationMode,
   NUM_CLASSES,
@@ -16,10 +16,10 @@ import {
   CLASS_BDHV,
   CLASS_GAP,
   CLASS_OTHER,
-} from "../../src/backend/kernel-types";
-import { gcContent, atContent } from "../../src/operations/core/calculations";
-import { SequenceValidator } from "../../src/operations/core/sequence-validation";
-import type { AbstractSequence } from "../../src/types";
+} from "@genotype/core/backend/kernel-types";
+import { gcContent, atContent } from "@genotype/core/operations/core/calculations";
+import { SequenceValidator } from "@genotype/core/operations/core/sequence-validation";
+import type { AbstractSequence } from "@genotype/core/types";
 import { describeNative, requireNativeKernel, testNative } from "./harness";
 
 function makeSequences(...seqStrings: string[]): AbstractSequence[] {

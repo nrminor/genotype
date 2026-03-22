@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { GenotypeString, genotypeStringInternal, CharSet, Bases } from "../src/genotype-string";
+import {
+  GenotypeString,
+  genotypeStringInternal,
+  CharSet,
+  Bases,
+} from "@genotype/core/genotype-string";
 
 describe("GenotypeString", () => {
   describe("factory methods", () => {

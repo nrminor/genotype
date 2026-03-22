@@ -9,7 +9,7 @@
  */
 
 import { type } from "arktype";
-import { DSVParseError, ValidationError } from "../../errors";
+import { DSVParseError, ValidationError } from "@genotype/core/errors";
 import { MAX_FIELD_SIZE } from "./constants";
 
 /**

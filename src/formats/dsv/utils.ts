@@ -5,8 +5,8 @@
  * text normalization, calculations, and data manipulation.
  */
 
-import { type GenotypeString, asString } from "../../genotype-string";
-import { ValidationError } from "../../errors";
+import { type GenotypeString, asString } from "@genotype/core/genotype-string";
+import { ValidationError } from "@genotype/core/errors";
 
 /**
  * Remove Byte Order Mark (BOM) from text

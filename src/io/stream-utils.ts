@@ -6,8 +6,8 @@
  * cross-platform compatibility.
  */
 
-import { BufferError, MemoryError, StreamError } from "../errors";
-import type { LineProcessingResult } from "../types";
+import { BufferError, MemoryError, StreamError } from "@genotype/core/errors";
+import type { LineProcessingResult } from "@genotype/core/types";
 import { detectRuntime } from "./runtime";
 
 // Constants for stream processing

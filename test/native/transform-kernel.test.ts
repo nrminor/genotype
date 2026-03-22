@@ -1,7 +1,7 @@
 import { describe, expect } from "bun:test";
-import { createFastaRecord } from "../../src/constructors";
-import { packSequences } from "../../src/backend/batch";
-import { TransformOp } from "../../src/backend/kernel-types";
+import { createFastaRecord } from "@genotype/core/constructors";
+import { packSequences } from "@genotype/core/backend/batch";
+import { TransformOp } from "@genotype/core/backend/kernel-types";
 import {
   complement,
   reverse,
@@ -10,8 +10,8 @@ import {
   toDNA,
   removeGaps,
   replaceAmbiguousBases,
-} from "../../src/operations/core/sequence-manipulation";
-import type { AbstractSequence } from "../../src/types";
+} from "@genotype/core/operations/core/sequence-manipulation";
+import type { AbstractSequence } from "@genotype/core/types";
 import { describeNative, requireNativeKernel, testNative } from "./harness";
 
 function makeSequences(...seqStrings: string[]): AbstractSequence[] {

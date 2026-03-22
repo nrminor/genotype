@@ -5,7 +5,7 @@
  * Supports CSV, TSV, and other delimiter-separated formats with full RFC 4180 compliance.
  */
 
-import type { ParserOptions } from "../../types";
+import type { ParserOptions } from "@genotype/core/types";
 
 /**
  * Supported delimiter types for DSV formats

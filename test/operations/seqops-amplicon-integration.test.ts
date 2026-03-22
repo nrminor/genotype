@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { createFastaRecord } from "../../src/constructors";
-import { primer } from "../../src/operations/core/alphabet";
-import { SeqOps } from "../../src/operations/index";
-import type { AbstractSequence } from "../../src/types";
+import { createFastaRecord } from "@genotype/core/constructors";
+import { primer } from "@genotype/core/operations/core/alphabet";
+import { SeqOps } from "@genotype/core/operations/index";
+import type { AbstractSequence } from "@genotype/core/types";
 
 describe("SeqOps Amplicon Integration", () => {
   let testSequences: AbstractSequence[];

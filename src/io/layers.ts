@@ -8,7 +8,7 @@
  */
 
 import { Layer } from "effect";
-import { CompressionService } from "../compression";
+import { CompressionService } from "@genotype/core/compression";
 import { getPlatform } from "./runtime";
 
 /** Filesystem access for the current runtime (Node, Bun, or Deno). */

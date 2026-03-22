@@ -5,7 +5,7 @@
  * for CSV, TSV, and other delimiter-separated value formats.
  */
 
-import type { CompressionFormat } from "../../types";
+import type { CompressionFormat } from "@genotype/core/types";
 import { parseCSVRow } from "./state-machine";
 
 /**

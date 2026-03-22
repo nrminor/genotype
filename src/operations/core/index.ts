@@ -6,7 +6,7 @@
  */
 
 // Re-export quality encoding from types to maintain backward compatibility
-export { QualityEncoding } from "../../types";
+export { QualityEncoding } from "@genotype/core/types";
 export { SequenceValidator } from "./sequence-validation";
 export type { DNASequence, IUPACSequence, PrimerSequence, RNASequence } from "./alphabet";
 // Alphabet validation and template literal tags

@@ -12,9 +12,9 @@ import {
   getMetadataPromise,
   getSizePromise,
   readToStringPromise,
-} from "../../src/io/file-reader";
-import { detectRuntime } from "../../src/io/runtime";
-import { processBuffer, readLines } from "../../src/io/stream-utils";
+} from "@genotype/core/io/file-reader";
+import { detectRuntime } from "@genotype/core/io/runtime";
+import { processBuffer, readLines } from "@genotype/core/io/stream-utils";
 
 // Test fixtures directory - use absolute path for reliability
 const FIXTURES_DIR = join(process.cwd(), "test", "io", "fixtures");

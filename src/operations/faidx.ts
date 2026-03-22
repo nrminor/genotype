@@ -8,12 +8,16 @@
 
 import { type } from "arktype";
 import { Effect, FileSystem } from "effect";
-import { CompressionDetector } from "../compression/detector";
-import { createFastaRecord } from "../constructors";
-import { ParseError, ValidationError } from "../errors";
-import { existsPromise, readByteRangePromise, readToStringPromise } from "../io/file-reader";
-import { PlatformLayer } from "../io/layers";
-import type { FastaSequence, ParseResult } from "../types";
+import { CompressionDetector } from "@genotype/core/compression/detector";
+import { createFastaRecord } from "@genotype/core/constructors";
+import { ParseError, ValidationError } from "@genotype/core/errors";
+import {
+  existsPromise,
+  readByteRangePromise,
+  readToStringPromise,
+} from "@genotype/core/io/file-reader";
+import { PlatformLayer } from "@genotype/core/io/layers";
+import type { FastaSequence, ParseResult } from "@genotype/core/types";
 import { reverseComplement } from "./core/sequence-manipulation";
 
 /**

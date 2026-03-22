@@ -6,8 +6,8 @@
  * paired-end read support.
  */
 
-export { PairSyncError } from "../../errors";
-export type { FastqSequence } from "../../types";
+export { PairSyncError } from "@genotype/core/errors";
+export type { FastqSequence } from "@genotype/core/types";
 
 export { PairedFastqParser } from "./paired";
 export { FastqParser } from "./parser";

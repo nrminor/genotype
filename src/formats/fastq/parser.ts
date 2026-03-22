@@ -12,14 +12,14 @@
  */
 
 import { Effect, Option, Stream } from "effect";
-import { createFastqRecord } from "../../constructors";
-import { FileError, ParseError } from "../../errors";
-import { GenotypeString } from "../../genotype-string";
-import type { FastqBatch, FastqReaderHandle } from "../../backend/types";
-import { BackendService, backendRuntime } from "../../backend/service";
-import { detectEncoding } from "../../operations/core/quality";
-import type { FastqSequence, QualityEncoding } from "../../types";
-import { AbstractParser } from "../abstract-parser";
+import { createFastqRecord } from "@genotype/core/constructors";
+import { FileError, ParseError } from "@genotype/core/errors";
+import { GenotypeString } from "@genotype/core/genotype-string";
+import type { FastqBatch, FastqReaderHandle } from "@genotype/core/backend/types";
+import { BackendService, backendRuntime } from "@genotype/core/backend/service";
+import { detectEncoding } from "@genotype/core/operations/core/quality";
+import type { FastqSequence, QualityEncoding } from "@genotype/core/types";
+import { AbstractParser } from "@genotype/core/formats/abstract-parser";
 import type { FastqParserOptions } from "./types";
 
 const DEFAULT_BATCH_SIZE = 4096;

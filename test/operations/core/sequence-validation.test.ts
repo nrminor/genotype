@@ -14,7 +14,7 @@ import {
   IUPAC_PROTEIN,
   IUPAC_RNA,
   SequenceValidator,
-} from "../../../src/operations/core/sequence-validation";
+} from "@genotype/core/operations/core/sequence-validation";
 
 describe("IUPAC Pattern Constants", () => {
   test("IUPAC_DNA should match valid DNA sequences", () => {

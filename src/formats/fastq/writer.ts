@@ -6,10 +6,10 @@
  */
 
 import { Effect } from "effect";
-import { ParseError } from "../../errors";
-import { BackendService, backendRuntime } from "../../backend/service";
-import type { FastqBatch } from "../../backend/types";
-import type { FastqSequence } from "../../types";
+import { ParseError } from "@genotype/core/errors";
+import { BackendService, backendRuntime } from "@genotype/core/backend/service";
+import type { FastqBatch } from "@genotype/core/backend/types";
+import type { FastqSequence } from "@genotype/core/types";
 
 export class FastqWriter {
   private readonly compress: boolean;

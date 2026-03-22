@@ -12,12 +12,12 @@
  */
 
 import { Effect, Option, Stream } from "effect";
-import { GenotypeString } from "../genotype-string";
-import type { FastaBatch, FastaReaderHandle } from "../backend/types";
-import { BackendService, backendRuntime } from "../backend/service";
-import { FileError, ParseError, SequenceError } from "../errors";
-import { createFastaRecord } from "../constructors";
-import type { FastaSequence, ParserOptions } from "../types";
+import { GenotypeString } from "@genotype/core/genotype-string";
+import type { FastaBatch, FastaReaderHandle } from "@genotype/core/backend/types";
+import { BackendService, backendRuntime } from "@genotype/core/backend/service";
+import { FileError, ParseError, SequenceError } from "@genotype/core/errors";
+import { createFastaRecord } from "@genotype/core/constructors";
+import type { FastaSequence, ParserOptions } from "@genotype/core/types";
 import { AbstractParser } from "./abstract-parser";
 
 const DEFAULT_BATCH_SIZE = 4096;

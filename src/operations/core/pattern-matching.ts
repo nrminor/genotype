@@ -22,9 +22,9 @@
  * - IUPAC matching has overhead for ambiguous base expansion
  */
 
-import type { AbstractSequence } from "../../types";
-import { GenotypeString, asString } from "../../genotype-string";
-import { ValidationError } from "../../errors";
+import type { AbstractSequence } from "@genotype/core/types";
+import { GenotypeString, asString } from "@genotype/core/genotype-string";
+import { ValidationError } from "@genotype/core/errors";
 import { reverseComplement } from "./sequence-manipulation";
 import { expandAmbiguous } from "./sequence-validation";
 

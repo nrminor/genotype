@@ -1,8 +1,8 @@
 import { describe, expect } from "bun:test";
-import { createFastaRecord } from "../../src/constructors";
-import { packSequences } from "../../src/backend/batch";
-import { hasPatternWithMismatches } from "../../src/operations/core/pattern-matching";
-import type { AbstractSequence } from "../../src/types";
+import { createFastaRecord } from "@genotype/core/constructors";
+import { packSequences } from "@genotype/core/backend/batch";
+import { hasPatternWithMismatches } from "@genotype/core/operations/core/pattern-matching";
+import type { AbstractSequence } from "@genotype/core/types";
 import { describeNative, requireNativeKernel, testNative } from "./harness";
 
 function makeSequences(...seqStrings: string[]): AbstractSequence[] {

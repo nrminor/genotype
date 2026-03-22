@@ -8,13 +8,13 @@
  * escape hatch applies per-sequence after all kernel ops complete.
  */
 
-import { withSequence } from "../constructors";
-import { transformBatch } from "../backend/service";
+import { withSequence } from "@genotype/core/constructors";
+import { transformBatch } from "@genotype/core/backend/service";
 
-import { GenotypeString } from "../genotype-string";
-import { packSequences } from "../backend/batch";
-import { TransformOp } from "../backend/kernel-types";
-import type { AbstractSequence, AlignmentRecord } from "../types";
+import { GenotypeString } from "@genotype/core/genotype-string";
+import { packSequences } from "@genotype/core/backend/batch";
+import { TransformOp } from "@genotype/core/backend/kernel-types";
+import type { AbstractSequence, AlignmentRecord } from "@genotype/core/types";
 import type { AlignmentTransformOptions, Processor, TransformOptions } from "./types";
 
 /** Byte budget per native batch. Sequences accumulate until this threshold. */

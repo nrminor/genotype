@@ -10,8 +10,8 @@
  * point without manual polling.
  */
 
-import { ParseError } from "../errors";
-import type { ParserOptions } from "../types";
+import { ParseError } from "@genotype/core/errors";
+import type { ParserOptions } from "@genotype/core/types";
 
 /**
  * Abstract parser base class with shared option defaults.

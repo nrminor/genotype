@@ -16,7 +16,7 @@ import type { FindPatternBatchOptions, GrepBatchOptions } from "./types";
 import { BackendService, BackendUnavailableError } from "./common";
 import { nativeLayer } from "./node-native";
 import { wasmLayer } from "./wasm";
-import { RuntimeEnvLayer } from "../io/layers";
+import { RuntimeEnvLayer } from "@genotype/core/io/layers";
 
 export {
   BackendService,

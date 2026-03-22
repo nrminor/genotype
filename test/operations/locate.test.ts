@@ -6,11 +6,11 @@
  */
 
 import { beforeEach, describe, expect, test } from "bun:test";
-import { createFastaRecord } from "../../src/constructors";
-import { ValidationError } from "../../src/errors";
-import { LocateProcessor } from "../../src/operations/locate";
-import type { LocateOptions } from "../../src/operations/types";
-import type { AbstractSequence, MotifLocation } from "../../src/types";
+import { createFastaRecord } from "@genotype/core/constructors";
+import { ValidationError } from "@genotype/core/errors";
+import { LocateProcessor } from "@genotype/core/operations/locate";
+import type { LocateOptions } from "@genotype/core/operations/types";
+import type { AbstractSequence, MotifLocation } from "@genotype/core/types";
 
 /**
  * Helper to convert an array to an async iterable for compatibility with LocateProcessor

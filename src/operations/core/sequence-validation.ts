@@ -16,7 +16,7 @@
  */
 
 import { type } from "arktype";
-import { ValidationError, assertUnreachable } from "../../errors";
+import { ValidationError, assertUnreachable } from "@genotype/core/errors";
 
 /**
  * IUPAC DNA pattern including all standard bases and ambiguity codes

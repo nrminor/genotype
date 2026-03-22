@@ -3,9 +3,9 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { createFastaRecord, createFastqRecord } from "../../src/constructors";
-import { SequenceStatsCalculator } from "../../src/operations/stats";
-import type { AbstractSequence, FastqSequence } from "../../src/types";
+import { createFastaRecord, createFastqRecord } from "@genotype/core/constructors";
+import { SequenceStatsCalculator } from "@genotype/core/operations/stats";
+import type { AbstractSequence, FastqSequence } from "@genotype/core/types";
 
 describe("SequenceStatsCalculator", () => {
   // Helper functions

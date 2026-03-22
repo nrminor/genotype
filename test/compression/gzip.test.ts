@@ -7,8 +7,8 @@
 
 import { describe, expect, test } from "bun:test";
 import { gzipSync } from "fflate";
-import { GzipDecompressor } from "../../src/compression/gzip";
-import { CompressionError } from "../../src/errors";
+import { GzipDecompressor } from "@genotype/core/compression/gzip";
+import { CompressionError } from "@genotype/core/errors";
 
 // Mock gzip data for testing (simplified header + data)
 const _MOCK_FASTA_DATA = new TextEncoder().encode(">sequence1\nACGTACGT\n>sequence2\nGGCCTTAA\n");

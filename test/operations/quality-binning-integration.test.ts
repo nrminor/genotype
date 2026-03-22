@@ -11,9 +11,9 @@
 
 import { describe, expect, test } from "bun:test";
 import "../matchers";
-import { createFastaRecord, createFastqRecord } from "../../src/constructors";
-import { binQuality } from "../../src/operations/quality";
-import type { AbstractSequence, FastqSequence } from "../../src/types";
+import { createFastaRecord, createFastqRecord } from "@genotype/core/constructors";
+import { binQuality } from "@genotype/core/operations/quality";
+import type { AbstractSequence, FastqSequence } from "@genotype/core/types";
 
 // Helper to create test FASTQ sequences
 function createFastqSequence(id: string, sequence: string, quality: string): FastqSequence {

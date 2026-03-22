@@ -12,8 +12,8 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, unlinkSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { readByteRangePromise, readToStringPromise } from "../../src/io/file-reader";
-import { writeBytes, writeString } from "../../src/io/file-writer";
+import { readByteRangePromise, readToStringPromise } from "@genotype/core/io/file-reader";
+import { writeBytes, writeString } from "@genotype/core/io/file-writer";
 
 describe("Effect DI Integration - Compression Layers", () => {
   let testFile: string;

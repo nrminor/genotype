@@ -10,10 +10,10 @@
 
 import { join } from "path";
 import { beforeAll, describe, expect, test } from "bun:test";
-import { createFastaRecord } from "../../src/constructors";
-import { AlignmentParser } from "../../src/formats/alignment";
-import { seqops } from "../../src/operations";
-import type { AlignmentRecord } from "../../src/types";
+import { createFastaRecord } from "@genotype/core/constructors";
+import { AlignmentParser } from "@genotype/core/formats/alignment";
+import { seqops } from "@genotype/core/operations";
+import type { AlignmentRecord } from "@genotype/core/types";
 
 const SAM_PATH = join(process.cwd(), "test", "fixtures", "valid-alignments.sam");
 

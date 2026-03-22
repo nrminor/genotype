@@ -14,10 +14,10 @@
  */
 
 import { type } from "arktype";
-import { grepBatch } from "../backend/service";
-import { GrepError, ValidationError } from "../errors";
-import { packSequences } from "../backend/batch";
-import type { AbstractSequence } from "../types";
+import { grepBatch } from "@genotype/core/backend/service";
+import { GrepError, ValidationError } from "@genotype/core/errors";
+import { packSequences } from "@genotype/core/backend/batch";
+import type { AbstractSequence } from "@genotype/core/types";
 import { hasPatternWithMismatches } from "./core/pattern-matching";
 import { escapeRegex } from "./core/string-utils";
 import type { GrepOptions, Processor } from "./types";

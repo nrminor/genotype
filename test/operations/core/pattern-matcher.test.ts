@@ -10,9 +10,9 @@ import {
   hasPattern,
   SequenceMatcher,
   type SequenceMatch,
-} from "../../../src/operations/core/pattern-matching";
-import { createFastaRecord } from "../../../src/constructors";
-import type { AbstractSequence } from "../../../src/types";
+} from "@genotype/core/operations/core/pattern-matching";
+import { createFastaRecord } from "@genotype/core/constructors";
+import type { AbstractSequence } from "@genotype/core/types";
 
 describe("SequenceMatcher", () => {
   // Helper to create test sequences

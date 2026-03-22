@@ -7,8 +7,8 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { GenotypeString } from "../../../src/genotype-string";
-import { ValidationError } from "../../../src/errors";
+import { GenotypeString } from "@genotype/core/genotype-string";
+import { ValidationError } from "@genotype/core/errors";
 import {
   complement,
   reverseComplement,

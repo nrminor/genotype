@@ -8,7 +8,7 @@
  * whether the kernel runs via napi, wasm, or a pure-TypeScript fallback.
  */
 
-import type { AbstractSequence, QualityScoreBearing } from "../types";
+import type { AbstractSequence, QualityScoreBearing } from "@genotype/core/types";
 
 /**
  * The result of packing an array of sequences into the batch layout

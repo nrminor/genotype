@@ -5,7 +5,7 @@
  * with focus on core functionality and Tiger Style compliance.
  */
 
-import type { ParserOptions, Strand } from "../../types";
+import type { ParserOptions, Strand } from "@genotype/core/types";
 
 /**
  * Standard GTF feature types from specification

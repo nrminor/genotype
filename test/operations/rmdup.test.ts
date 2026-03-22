@@ -7,10 +7,10 @@
 
 import { beforeEach, describe, expect, test } from "bun:test";
 import "../matchers";
-import { createFastaRecord } from "../../src/constructors";
-import { RmdupProcessor } from "../../src/operations/rmdup";
-import type { RmdupOptions } from "../../src/operations/types";
-import type { AbstractSequence } from "../../src/types";
+import { createFastaRecord } from "@genotype/core/constructors";
+import { RmdupProcessor } from "@genotype/core/operations/rmdup";
+import type { RmdupOptions } from "@genotype/core/operations/types";
+import type { AbstractSequence } from "@genotype/core/types";
 
 function createSequence(id: string, sequence: string, description?: string): AbstractSequence {
   return createFastaRecord({ id, sequence, description });

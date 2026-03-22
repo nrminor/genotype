@@ -5,9 +5,9 @@ import {
   createFastqRecord,
   type FastaRecordInput,
   type FastqRecordInput,
-} from "../../src/constructors";
-import { replace } from "../../src/operations/replace";
-import type { FastaSequence, FastqSequence } from "../../src/types";
+} from "@genotype/core/constructors";
+import { replace } from "@genotype/core/operations/replace";
+import type { FastaSequence, FastqSequence } from "@genotype/core/types";
 
 async function* fastaToAsync(items: FastaRecordInput[]): AsyncIterable<FastaSequence> {
   for (const item of items) {

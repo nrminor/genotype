@@ -15,7 +15,7 @@ import {
   findBinIndex,
   PRESETS,
   validateBoundaries,
-} from "../../../src/operations/core/quality/binning";
+} from "@genotype/core/operations/core/quality/binning";
 
 describe("Quality Binning - Platform Presets", () => {
   test("PRESETS contains all three platforms", () => {

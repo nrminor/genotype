@@ -4,9 +4,9 @@
 
 import { describe, expect, test } from "bun:test";
 import "../matchers";
-import { PairSyncError } from "../../src/errors";
-import { defaultExtractPairId, PairedFastqParser } from "../../src/formats/fastq/paired";
-import type { PairedFastqRead } from "../../src/formats/fastq/types";
+import { PairSyncError } from "@genotype/core/errors";
+import { defaultExtractPairId, PairedFastqParser } from "@genotype/core/formats/fastq/paired";
+import type { PairedFastqRead } from "@genotype/core/formats/fastq/types";
 
 describe("defaultExtractPairId", () => {
   describe("Illumina naming convention (/1, /2)", () => {

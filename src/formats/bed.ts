@@ -14,17 +14,20 @@
 
 import { type } from "arktype";
 import { Effect, Stream } from "effect";
-import { BedError, FileError, ValidationError } from "../errors";
-import { createStream, mapPlatformError } from "../io/file-reader";
-import { backendRuntime } from "../backend/service";
-import { readLines } from "../io/stream-utils";
+import { BedError, FileError, ValidationError } from "@genotype/core/errors";
+import { createStream, mapPlatformError } from "@genotype/core/io/file-reader";
+import { backendRuntime } from "@genotype/core/backend/service";
+import { readLines } from "@genotype/core/io/stream-utils";
 import {
   parseEndPosition,
   parseStartPosition,
   validateFinalCoordinates,
-} from "../operations/core/coordinates";
-import type { BedInterval, ParserOptions, Strand, ZeroBasedCoordinate } from "../types";
-import { BedIntervalSchema, ZeroBasedCoordinate as ZeroBasedCoordinateValidator } from "../types";
+} from "@genotype/core/operations/core/coordinates";
+import type { BedInterval, ParserOptions, Strand, ZeroBasedCoordinate } from "@genotype/core/types";
+import {
+  BedIntervalSchema,
+  ZeroBasedCoordinate as ZeroBasedCoordinateValidator,
+} from "@genotype/core/types";
 import { AbstractParser } from "./abstract-parser";
 
 /**

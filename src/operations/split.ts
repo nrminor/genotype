@@ -7,10 +7,10 @@
  */
 
 import { type } from "arktype";
-import { SplitError, ValidationError } from "../errors";
-import { FastaWriter, FastqWriter } from "../formats";
-import { appendString, openForWriting } from "../io/file-writer";
-import type { AbstractSequence, FastaSequence, FastqSequence } from "../types";
+import { SplitError, ValidationError } from "@genotype/core/errors";
+import { FastaWriter, FastqWriter } from "@genotype/core/formats";
+import { appendString, openForWriting } from "@genotype/core/io/file-writer";
+import type { AbstractSequence, FastaSequence, FastqSequence } from "@genotype/core/types";
 import type { SplitOptions } from "./types";
 
 /**

@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { createFastaRecord } from "../../src/constructors";
-import { seqops } from "../../src/operations";
-import { KmerSet, SequenceSet } from "../../src/operations/types";
-import type { AbstractSequence } from "../../src/types";
+import { createFastaRecord } from "@genotype/core/constructors";
+import { seqops } from "@genotype/core/operations";
+import { KmerSet, SequenceSet } from "@genotype/core/operations/types";
+import type { AbstractSequence } from "@genotype/core/types";
 import "../matchers";
 
 function createSequence(

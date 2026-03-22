@@ -12,8 +12,8 @@
  */
 
 import { type } from "arktype";
-import { ValidationError } from "../errors";
-import type { AbstractSequence } from "../types";
+import { ValidationError } from "@genotype/core/errors";
+import type { AbstractSequence } from "@genotype/core/types";
 import { type SortOptions as CoreSortOptions, SequenceSorter } from "./core/sequence-sorter";
 
 /**

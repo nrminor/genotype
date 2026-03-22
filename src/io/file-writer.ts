@@ -6,8 +6,8 @@
  */
 
 import { Effect, FileSystem, Path } from "effect";
-import { CompressionDetector, CompressionService } from "../compression";
-import type { WriteOptions } from "../types";
+import { CompressionDetector, CompressionService } from "@genotype/core/compression";
+import type { WriteOptions } from "@genotype/core/types";
 import { FileIOError } from "./file-reader";
 import { IOLayer, PlatformLayer } from "./layers";
 

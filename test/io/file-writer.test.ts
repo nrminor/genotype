@@ -5,8 +5,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, rmSync } from "fs";
 import { join } from "path";
-import { readToStringPromise } from "../../src/io/file-reader";
-import { writeBytes, writeString } from "../../src/io/file-writer";
+import { readToStringPromise } from "@genotype/core/io/file-reader";
+import { writeBytes, writeString } from "@genotype/core/io/file-writer";
 
 // Test fixtures directory
 const FIXTURES_DIR = join(process.cwd(), "test", "io", "fixtures", "write-test");

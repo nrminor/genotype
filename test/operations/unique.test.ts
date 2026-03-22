@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import "../matchers";
-import { createFastaRecord, createFastqRecord } from "../../src/constructors";
-import { seqops } from "../../src/operations";
-import { UniqueProcessor } from "../../src/operations/unique";
-import type { AbstractSequence, FastqSequence } from "../../src/types";
+import { createFastaRecord, createFastqRecord } from "@genotype/core/constructors";
+import { seqops } from "@genotype/core/operations";
+import { UniqueProcessor } from "@genotype/core/operations/unique";
+import type { AbstractSequence, FastqSequence } from "@genotype/core/types";
 
 describe("UniqueProcessor", () => {
   async function* makeAsync<T>(items: T[]): AsyncIterable<T> {

@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import "../matchers";
-import { createFastaRecord } from "../../src/constructors";
-import { AmpliconProcessor } from "../../src/operations/amplicon";
-import { primer } from "../../src/operations/core/alphabet";
-import type { FastaSequence, PrimerSequence } from "../../src/types";
+import { createFastaRecord } from "@genotype/core/constructors";
+import { AmpliconProcessor } from "@genotype/core/operations/amplicon";
+import { primer } from "@genotype/core/operations/core/alphabet";
+import type { FastaSequence, PrimerSequence } from "@genotype/core/types";
 
 // Helper to convert arrays to async iterables (established pattern)
 async function* toAsyncIterable<T>(items: T[]): AsyncIterable<T> {

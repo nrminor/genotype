@@ -6,13 +6,13 @@ import {
   ResourceLimitError,
   SecurityPathError,
   ValidationError,
-} from "../src/errors";
+} from "@genotype/core/errors";
 import {
   ChromosomeSchema,
   FilePathSchema,
   GenomicCoordinate,
   SequenceIdSchema,
-} from "../src/types";
+} from "@genotype/core/types";
 
 describe("Empty Validation Audit Fixes - Proper Error Handling", () => {
   describe("Security Path Validation", () => {

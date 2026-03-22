@@ -7,10 +7,10 @@
 
 import { describe, expect, test } from "bun:test";
 import "../matchers";
-import { createFastaRecord } from "../../src/constructors";
-import { FastaParser } from "../../src/formats/fasta";
-import { SeqOps } from "../../src/operations";
-import type { AbstractSequence, FastqSequence } from "../../src/types";
+import { createFastaRecord } from "@genotype/core/constructors";
+import { FastaParser } from "@genotype/core/formats/fasta";
+import { SeqOps } from "@genotype/core/operations";
+import type { AbstractSequence, FastqSequence } from "@genotype/core/types";
 
 /**
  * Type guard to check if a sequence is a FASTQ sequence

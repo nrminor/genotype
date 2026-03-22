@@ -14,8 +14,8 @@ import {
   wrapCompressionStream,
   wrapStream,
   ZstdDecompressor,
-} from "../../src/compression/zstd";
-import { CompressionError } from "../../src/errors";
+} from "@genotype/core/compression/zstd";
+import { CompressionError } from "@genotype/core/errors";
 
 // Test data
 const MOCK_FASTA_DATA = new TextEncoder().encode(

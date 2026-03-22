@@ -9,14 +9,14 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { CompressionDetector } from "../../src/compression/detector";
+import { CompressionDetector } from "@genotype/core/compression/detector";
 // fflate implementation is now in gzip.ts
-import { GzipDecompressor } from "../../src/compression/gzip";
-import { CompressionError } from "../../src/errors";
-import { BedParser } from "../../src/formats/bed";
-import { FastaParser } from "../../src/formats/fasta";
-import { FastqParser } from "../../src/formats/fastq";
-import type { BedInterval, FastaSequence, FastqSequence } from "../../src/types";
+import { GzipDecompressor } from "@genotype/core/compression/gzip";
+import { CompressionError } from "@genotype/core/errors";
+import { BedParser } from "@genotype/core/formats/bed";
+import { FastaParser } from "@genotype/core/formats/fasta";
+import { FastqParser } from "@genotype/core/formats/fastq";
+import type { BedInterval, FastaSequence, FastqSequence } from "@genotype/core/types";
 import "../matchers";
 
 describe("Compression-Format Integration Tests", () => {

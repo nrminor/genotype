@@ -2,9 +2,9 @@
  * Sequence deduplication processor
  */
 
-import type { AbstractSequence, QualityEncoding } from "../types";
-import { hashBatch } from "../backend/service";
-import { extractHashKey, packSequences } from "../backend/batch";
+import type { AbstractSequence, QualityEncoding } from "@genotype/core/types";
+import { hashBatch } from "@genotype/core/backend/service";
+import { extractHashKey, packSequences } from "@genotype/core/backend/batch";
 import type { Processor } from "./types";
 import { calculateAverageQuality } from "./core/quality";
 

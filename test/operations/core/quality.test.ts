@@ -30,7 +30,7 @@ import {
   qualityToScores,
   scoreToChar,
   scoreToErrorProbability,
-} from "../../../src/operations/core/quality";
+} from "@genotype/core/operations/core/quality";
 
 describe("Quality Operations - Type Safety", () => {
   describe("isValidQualityScore type guard", () => {

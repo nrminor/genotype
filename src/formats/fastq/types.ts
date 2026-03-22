@@ -5,7 +5,7 @@
  * Separated for better organization and to prevent circular dependencies.
  */
 
-import type { FastqSequence, ParserOptions, QualityEncoding } from "../../types";
+import type { FastqSequence, ParserOptions, QualityEncoding } from "@genotype/core/types";
 
 /**
  * Parsing strategy for FASTQ format selection

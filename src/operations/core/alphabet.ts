@@ -28,7 +28,7 @@
  * ```
  */
 
-import { AlphabetValidationError } from "../../errors";
+import { AlphabetValidationError } from "@genotype/core/errors";
 import { IUPAC_DNA, IUPAC_RNA } from "./sequence-validation";
 
 /**

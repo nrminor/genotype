@@ -6,9 +6,9 @@
 
 import { describe, expect, test } from "bun:test";
 import "../matchers";
-import { createFastaRecord, createFastqRecord } from "../../src/constructors";
-import { seqops } from "../../src/operations";
-import type { AbstractSequence, FastqSequence } from "../../src/types";
+import { createFastaRecord, createFastqRecord } from "@genotype/core/constructors";
+import { seqops } from "@genotype/core/operations";
+import type { AbstractSequence, FastqSequence } from "@genotype/core/types";
 
 describe("SeqOps Semantic API", () => {
   // Helper to create test sequences

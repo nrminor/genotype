@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import "../matchers";
-import { createFastaRecord, type FastaRecordInput } from "../../src/constructors";
+import { createFastaRecord, type FastaRecordInput } from "@genotype/core/constructors";
 import {
   sequenceArrayToMap,
   sequenceContainment,
@@ -14,9 +14,9 @@ import {
   sequenceSymmetricDifference,
   sequenceUnion,
   sequenceUnique,
-} from "../../src/operations/core/sequence-sets";
-import { SequenceSet } from "../../src/operations/types";
-import type { AbstractSequence } from "../../src/types";
+} from "@genotype/core/operations/core/sequence-sets";
+import { SequenceSet } from "@genotype/core/operations/types";
+import type { AbstractSequence } from "@genotype/core/types";
 
 function toSequences(records: FastaRecordInput[]): AbstractSequence[] {
   return records.map((record) => createFastaRecord(record));

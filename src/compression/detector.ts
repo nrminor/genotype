@@ -6,8 +6,8 @@
  * bioinformatics workflows.
  */
 
-import { CompressionError } from "../errors";
-import type { CompressionDetection, CompressionFormat } from "../types";
+import { CompressionError } from "@genotype/core/errors";
+import type { CompressionDetection, CompressionFormat } from "@genotype/core/types";
 
 /**
  * Magic byte signatures for compression formats commonly used in genomics

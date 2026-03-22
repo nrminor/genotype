@@ -7,12 +7,12 @@
 
 import { type } from "arktype";
 import { Effect, Stream } from "effect";
-import { FileError, ParseError } from "../../errors";
-import { createStream, readToString, mapPlatformError } from "../../io/file-reader";
-import { backendRuntime } from "../../backend/service";
-import { readLines } from "../../io/stream-utils";
-import { convertRecordToSequence } from "../../operations/fx2tab";
-import type { AbstractSequence } from "../../types";
+import { FileError, ParseError } from "@genotype/core/errors";
+import { createStream, readToString, mapPlatformError } from "@genotype/core/io/file-reader";
+import { backendRuntime } from "@genotype/core/backend/service";
+import { readLines } from "@genotype/core/io/stream-utils";
+import { convertRecordToSequence } from "@genotype/core/operations/fx2tab";
+import type { AbstractSequence } from "@genotype/core/types";
 import { deserializeJSON, deserializeJSONWrapped, jsonlToRows } from "./morphs";
 import type { JSONParseOptions } from "./types";
 

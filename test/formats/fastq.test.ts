@@ -4,13 +4,13 @@
 
 import { describe, expect, test } from "bun:test";
 import "../matchers";
-import { FastqParser, type FastqSequence } from "../../src/index";
+import { FastqParser, type FastqSequence } from "@genotype/core/index";
 import {
   calculateQualityStats,
   detectEncoding,
   qualityToScores,
   scoresToQuality,
-} from "../../src/operations/core/quality";
+} from "@genotype/core/operations/core/quality";
 
 describe("QualityScores", () => {
   test("should convert Phred+33 to numbers", () => {

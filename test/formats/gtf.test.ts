@@ -18,9 +18,9 @@
  */
 
 import { beforeEach, describe, expect, test } from "bun:test";
-import { GenotypeError } from "../../src/errors";
-import { GtfParser, GtfUtils, GtfWriter, type GtfFeature } from "../../src/formats/gtf";
-import { GtfQueryBuilder } from "../../src/formats/gtf/parser";
+import { GenotypeError } from "@genotype/core/errors";
+import { GtfParser, GtfUtils, GtfWriter, type GtfFeature } from "@genotype/core/formats/gtf";
+import { GtfQueryBuilder } from "@genotype/core/formats/gtf/parser";
 
 describe("GTF Format - Current Implementation Behavior", () => {
   let parser: GtfParser;

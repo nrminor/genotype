@@ -6,9 +6,9 @@
  * All functions are optimized for performance with O(1) or O(n) complexity.
  */
 
-import { asString } from "../../../genotype-string";
-import type { GenotypeString } from "../../../genotype-string";
-import type { QualityEncoding } from "../../../types";
+import { asString } from "@genotype/core/genotype-string";
+import type { GenotypeString } from "@genotype/core/genotype-string";
+import type { QualityEncoding } from "@genotype/core/types";
 import { getEncodingInfo } from "./encoding-info";
 import { errorProbabilityToScore, scoreToErrorProbability } from "./statistics";
 import type { QualityScore, SolexaScore } from "./types";

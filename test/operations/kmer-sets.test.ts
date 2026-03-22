@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { createKmerRecord } from "../../src/constructors";
-import { KmerSet } from "../../src/operations/types";
-import type { KmerSequence } from "../../src/types";
+import { createKmerRecord } from "@genotype/core/constructors";
+import { KmerSet } from "@genotype/core/operations/types";
+import type { KmerSequence } from "@genotype/core/types";
 
 function createKmer<K extends number>(
   kmerSize: K,

@@ -10,7 +10,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { DSVParseError } from "../../src/errors";
+import { DSVParseError } from "@genotype/core/errors";
 import {
   CSVParser,
   CSVWriter,
@@ -25,7 +25,7 @@ import {
   sniff,
   TSVParser,
   TSVWriter,
-} from "../../src/formats/dsv";
+} from "@genotype/core/formats/dsv";
 
 describe("DSV Format Module", () => {
   describe("Excel Gene Name Protection", () => {

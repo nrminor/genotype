@@ -13,11 +13,11 @@ import "../matchers";
 import { promises as fs } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { createFastaRecord, createFastqRecord } from "../../src/constructors";
-import { ConcatError } from "../../src/errors";
-import { seqops } from "../../src/operations";
-import { ConcatProcessor } from "../../src/operations/concat";
-import type { AbstractSequence, FastaSequence, FastqSequence } from "../../src/types";
+import { createFastaRecord, createFastqRecord } from "@genotype/core/constructors";
+import { ConcatError } from "@genotype/core/errors";
+import { seqops } from "@genotype/core/operations";
+import { ConcatProcessor } from "@genotype/core/operations/concat";
+import type { AbstractSequence, FastaSequence, FastqSequence } from "@genotype/core/types";
 
 describe("ConcatProcessor", () => {
   const processor = new ConcatProcessor();

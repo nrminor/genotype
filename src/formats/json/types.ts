@@ -6,7 +6,7 @@
  */
 
 import { type } from "arktype";
-import type { ParserOptions } from "../../types";
+import type { ParserOptions } from "@genotype/core/types";
 
 /**
  * JSON format type

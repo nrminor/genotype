@@ -12,12 +12,12 @@
  * no operations are requested, sequences pass through unchanged.
  */
 
-import { withQuality, withSequence } from "../constructors";
-import { qualityAvgBatch, qualityBinBatch, qualityTrimBatch } from "../backend/service";
+import { withQuality, withSequence } from "@genotype/core/constructors";
+import { qualityAvgBatch, qualityBinBatch, qualityTrimBatch } from "@genotype/core/backend/service";
 
-import { packQualityStrings } from "../backend/batch";
-import type { TransformResult } from "../backend/kernel-types";
-import type { AbstractSequence, QualityEncoding, QualityScoreBearing } from "../types";
+import { packQualityStrings } from "@genotype/core/backend/batch";
+import type { TransformResult } from "@genotype/core/backend/kernel-types";
+import type { AbstractSequence, QualityEncoding, QualityScoreBearing } from "@genotype/core/types";
 import {
   type BinningStrategy,
   calculateRepresentatives,

@@ -7,8 +7,8 @@
  *
  */
 
-import { GenotypeString, asString } from "../../genotype-string";
-import { ValidationError } from "../../errors";
+import { GenotypeString, asString } from "@genotype/core/genotype-string";
+import { ValidationError } from "@genotype/core/errors";
 
 /**
  * DNA complement mapping including IUPAC ambiguity codes

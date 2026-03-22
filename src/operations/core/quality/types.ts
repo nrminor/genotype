@@ -7,7 +7,7 @@
  * branded types and template literals.
  */
 
-import type { QualityEncoding } from "../../../types";
+import type { QualityEncoding } from "@genotype/core/types";
 
 /**
  * Branded type for standard quality scores (Phred33/Phred64)

@@ -12,8 +12,8 @@
  * Maintains O(1) memory streaming architecture - suitable for 100GB+ files.
  */
 
-import { QualityError } from "../../../errors";
-import type { QualityEncoding } from "../../../types";
+import { QualityError } from "@genotype/core/errors";
+import type { QualityEncoding } from "@genotype/core/types";
 import { charToScore, scoreToChar } from "./conversion";
 import { getEncodingInfo } from "./encoding-info";
 

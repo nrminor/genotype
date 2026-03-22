@@ -73,8 +73,8 @@
  * ```
  */
 
-import { PairSyncError } from "../../errors";
-import type { FastqSequence } from "../../types";
+import { PairSyncError } from "@genotype/core/errors";
+import type { FastqSequence } from "@genotype/core/types";
 import { FastqParser } from "./parser";
 import type { PairedFastqParserOptions, PairedFastqRead } from "./types";
 

@@ -10,8 +10,8 @@ import {
   primer,
   rna,
   validateAndBrand,
-} from "../../../src/operations/core/alphabet";
-import { AlphabetValidationError } from "../../../src/errors";
+} from "@genotype/core/operations/core/alphabet";
+import { AlphabetValidationError } from "@genotype/core/errors";
 
 /** Creates a synthetic TemplateStringsArray for testing runtime error paths */
 function makeTemplateArray(str: string): TemplateStringsArray {

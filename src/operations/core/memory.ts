@@ -5,9 +5,9 @@
  * Includes external sorting, memory monitoring, and disk-based processing strategies
  */
 
-import { createStreamPromise } from "../../io/file-reader";
-import { deleteFile, writeString } from "../../io/file-writer";
-import { readLines } from "../../io/stream-utils";
+import { createStreamPromise } from "@genotype/core/io/file-reader";
+import { deleteFile, writeString } from "@genotype/core/io/file-writer";
+import { readLines } from "@genotype/core/io/stream-utils";
 
 /**
  * Memory management strategy for operations

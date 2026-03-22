@@ -31,12 +31,12 @@
  */
 
 import { type } from "arktype";
-import { findPatternBatch } from "../backend/service";
-import { ValidationError } from "../errors";
-import type { AbstractSequence, PrimerSequence } from "../types";
-import { GenotypeString } from "../genotype-string";
-import type { PackedBatch } from "../backend/batch";
-import type { PatternSearchResult } from "../backend/kernel-types";
+import { findPatternBatch } from "@genotype/core/backend/service";
+import { ValidationError } from "@genotype/core/errors";
+import type { AbstractSequence, PrimerSequence } from "@genotype/core/types";
+import { GenotypeString } from "@genotype/core/genotype-string";
+import type { PackedBatch } from "@genotype/core/backend/batch";
+import type { PatternSearchResult } from "@genotype/core/backend/kernel-types";
 import { isPrimerSequence } from "./core/alphabet";
 import { parseEndPosition, parseStartPosition, validateRegionString } from "./core/coordinates";
 import type { PatternMatch } from "./core/pattern-matching";

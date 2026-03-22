@@ -12,9 +12,9 @@ import {
   getTopSequences,
   SequenceSorter,
   sortSequences,
-} from "../../../src/operations/core/sequence-sorter";
-import { createFastaRecord, createFastqRecord } from "../../../src/constructors";
-import type { AbstractSequence, FastqSequence } from "../../../src/types";
+} from "@genotype/core/operations/core/sequence-sorter";
+import { createFastaRecord, createFastqRecord } from "@genotype/core/constructors";
+import type { AbstractSequence, FastqSequence } from "@genotype/core/types";
 import "../../matchers";
 
 /** Helper to create test sequences with required length field */

@@ -5,8 +5,8 @@
  * including basic statistics and error probability calculations.
  */
 
-import type { GenotypeString } from "../../../genotype-string";
-import type { QualityEncoding } from "../../../types";
+import type { GenotypeString } from "@genotype/core/genotype-string";
+import type { QualityEncoding } from "@genotype/core/types";
 import { getEncodingInfo } from "./encoding-info";
 import type { QualityStats } from "./types";
 

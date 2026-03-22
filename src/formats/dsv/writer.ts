@@ -12,8 +12,8 @@
  */
 
 import { type } from "arktype";
-import { ValidationError } from "../../errors";
-import { writeString } from "../../io/file-writer";
+import { ValidationError } from "@genotype/core/errors";
+import { writeString } from "@genotype/core/io/file-writer";
 
 // Import from local DSV modules
 import { DEFAULT_ESCAPE, DEFAULT_QUOTE } from "./constants";

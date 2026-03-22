@@ -1,13 +1,22 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import "../matchers";
 import { rm } from "node:fs/promises";
-import { createFastaRecord, createFastqRecord } from "../../src/constructors";
-import { FileError } from "../../src/errors";
-import { seqops } from "../../src/operations";
-import { baseContent, baseCount, sequenceAlphabet } from "../../src/operations/core/calculations";
-import { hashMD5 } from "../../src/operations/core/hashing";
-import { type ColumnId, type Fx2TabRow, fx2tab, TabularOps } from "../../src/operations/fx2tab";
-import type { AbstractSequence } from "../../src/types";
+import { createFastaRecord, createFastqRecord } from "@genotype/core/constructors";
+import { FileError } from "@genotype/core/errors";
+import { seqops } from "@genotype/core/operations";
+import {
+  baseContent,
+  baseCount,
+  sequenceAlphabet,
+} from "@genotype/core/operations/core/calculations";
+import { hashMD5 } from "@genotype/core/operations/core/hashing";
+import {
+  type ColumnId,
+  type Fx2TabRow,
+  fx2tab,
+  TabularOps,
+} from "@genotype/core/operations/fx2tab";
+import type { AbstractSequence } from "@genotype/core/types";
 
 describe("fx2tab", () => {
   const createFasta = (id: string, sequence: string, description?: string) =>

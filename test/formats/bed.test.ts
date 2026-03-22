@@ -7,9 +7,9 @@
  */
 
 import { beforeEach, describe, expect, test } from "bun:test";
-import { BedError } from "../../src/errors";
-import { BedParser, BedUtils, BedWriter } from "../../src/formats/bed";
-import type { BedInterval } from "../../src/types";
+import { BedError } from "@genotype/core/errors";
+import { BedParser, BedUtils, BedWriter } from "@genotype/core/formats/bed";
+import type { BedInterval } from "@genotype/core/types";
 
 describe("BED Format - Current Implementation Behavior", () => {
   let parser: BedParser;

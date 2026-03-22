@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import "../matchers";
-import { createFastaRecord } from "../../src/constructors";
-import { ValidationError } from "../../src/errors";
-import { WindowsProcessor } from "../../src/operations/windows";
-import type { KmerSequence } from "../../src/types";
+import { createFastaRecord } from "@genotype/core/constructors";
+import { ValidationError } from "@genotype/core/errors";
+import { WindowsProcessor } from "@genotype/core/operations/windows";
+import type { KmerSequence } from "@genotype/core/types";
 
 function createSequence(id: string, sequence: string, lineNumber = 1) {
   return createFastaRecord({ id, sequence, lineNumber });

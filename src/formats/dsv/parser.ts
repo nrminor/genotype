@@ -12,15 +12,15 @@
  */
 
 import { type } from "arktype";
-import { CompressionDetector } from "../../compression/detector";
-import { wrapStream as wrapGzipStream } from "../../compression/gzip";
-import { wrapStream as wrapZstdStream } from "../../compression/zstd";
+import { CompressionDetector } from "@genotype/core/compression/detector";
+import { wrapStream as wrapGzipStream } from "@genotype/core/compression/gzip";
+import { wrapStream as wrapZstdStream } from "@genotype/core/compression/zstd";
 import { Effect, Stream } from "effect";
-import { CompressionError, DSVParseError, FileError, ValidationError } from "../../errors";
-import { createStream, mapPlatformError } from "../../io/file-reader";
-import { backendRuntime } from "../../backend/service";
-import type { CompressionFormat } from "../../types";
-import { AbstractParser } from "../abstract-parser";
+import { CompressionError, DSVParseError, FileError, ValidationError } from "@genotype/core/errors";
+import { createStream, mapPlatformError } from "@genotype/core/io/file-reader";
+import { backendRuntime } from "@genotype/core/backend/service";
+import type { CompressionFormat } from "@genotype/core/types";
+import { AbstractParser } from "@genotype/core/formats/abstract-parser";
 
 // Import from local DSV modules
 import {

@@ -10,15 +10,15 @@
  *
  */
 
-import { createFastqRecord } from "../constructors";
-import { FastaWriter, FastqWriter } from "../formats";
+import { createFastqRecord } from "@genotype/core/constructors";
+import { FastaWriter, FastqWriter } from "@genotype/core/formats";
 import {
   JSONLParser,
   type JSONParseOptions,
   JSONParser,
   type JSONWriteOptions,
-} from "../formats/json";
-import { openForWriting } from "../io/file-writer";
+} from "@genotype/core/formats/json";
+import { openForWriting } from "@genotype/core/io/file-writer";
 import type {
   AbstractSequence,
   AlignmentRecord,
@@ -28,7 +28,7 @@ import type {
   MotifLocation,
   QualityScoreBearing,
   ValidGenomicRegion,
-} from "../types";
+} from "@genotype/core/types";
 // Import processors
 import { AmpliconProcessor } from "./amplicon";
 import { CleanProcessor } from "./clean";

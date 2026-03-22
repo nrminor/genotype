@@ -10,9 +10,9 @@
 
 import { type } from "arktype";
 import { Effect } from "effect";
-import { BackendService, backendRuntime } from "../backend/service";
-import { createFastaRecord, createFastqRecord } from "../constructors";
-import { FileError, ParseError } from "../errors";
+import { BackendService, backendRuntime } from "@genotype/core/backend/service";
+import { createFastaRecord, createFastqRecord } from "@genotype/core/constructors";
+import { FileError, ParseError } from "@genotype/core/errors";
 import {
   CSVParser,
   CSVWriter,
@@ -21,21 +21,24 @@ import {
   detectDelimiter,
   TSVParser,
   TSVWriter,
-} from "../formats/dsv";
-import type { JSONWriteOptions } from "../formats/json";
+} from "@genotype/core/formats/dsv";
+import type { JSONWriteOptions } from "@genotype/core/formats/json";
 import {
   generateCollectionMetadata,
   serializeJSON,
   serializeJSONPretty,
   serializeJSONWithMetadata,
   serializeJSONWithMetadataPretty,
-} from "../formats/json";
-import { createStreamPromise, existsPromise, getSizePromise } from "../io/file-reader";
-import { openForWriting } from "../io/file-writer";
-import { readLines } from "../io/stream-utils";
-import { packSequences, type PackedBatch } from "../backend/batch";
-import { SequenceMetricFlag, type SequenceMetricsResult } from "../backend/kernel-types";
-import type { AbstractSequence, FastaSequence, FastqSequence } from "../types";
+} from "@genotype/core/formats/json";
+import { createStreamPromise, existsPromise, getSizePromise } from "@genotype/core/io/file-reader";
+import { openForWriting } from "@genotype/core/io/file-writer";
+import { readLines } from "@genotype/core/io/stream-utils";
+import { packSequences, type PackedBatch } from "@genotype/core/backend/batch";
+import {
+  SequenceMetricFlag,
+  type SequenceMetricsResult,
+} from "@genotype/core/backend/kernel-types";
+import type { AbstractSequence, FastaSequence, FastqSequence } from "@genotype/core/types";
 import { baseContent, baseCount, sequenceAlphabet } from "./core/calculations";
 import { hashMD5 } from "./core/hashing";
 

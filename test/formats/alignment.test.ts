@@ -11,8 +11,8 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import { beforeAll, describe, expect, test } from "bun:test";
-import { AlignmentParser } from "../../src/formats/alignment";
-import type { AlignmentRecord } from "../../src/types";
+import { AlignmentParser } from "@genotype/core/formats/alignment";
+import type { AlignmentRecord } from "@genotype/core/types";
 
 const FIXTURES = join(process.cwd(), "test", "fixtures");
 const SAM_PATH = join(FIXTURES, "valid-alignments.sam");

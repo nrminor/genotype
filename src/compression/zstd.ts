@@ -10,9 +10,9 @@
  */
 
 import { Zstd } from "@hpcc-js/wasm-zstd";
-import { CompressionError } from "../errors";
-import type { DecompressorOptions } from "../types";
-import { DecompressorOptionsSchema } from "../types";
+import { CompressionError } from "@genotype/core/errors";
+import type { DecompressorOptions } from "@genotype/core/types";
+import { DecompressorOptionsSchema } from "@genotype/core/types";
 
 /**
  * Zstd magic number for format validation (0xFD2FB528 little-endian)

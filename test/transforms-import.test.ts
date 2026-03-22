@@ -17,7 +17,7 @@ import {
   reverse,
   reverseComplement,
   SequenceTransforms,
-} from "../src/operations/core";
+} from "@genotype/core/operations/core";
 
 test("Individual function imports work correctly", () => {
   const seq = "ATCG";

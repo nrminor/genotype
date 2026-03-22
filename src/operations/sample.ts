@@ -8,8 +8,8 @@
  */
 
 import { type } from "arktype";
-import { ValidationError } from "../errors";
-import type { AbstractSequence } from "../types";
+import { ValidationError } from "@genotype/core/errors";
+import type { AbstractSequence } from "@genotype/core/types";
 import { RandomSampler, ReservoirSampler, SystematicSampler } from "./core/sampling";
 import type { SampleOptions } from "./types";
 

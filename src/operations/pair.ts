@@ -10,9 +10,9 @@
  *
  */
 
-import { MemoryError, PairSyncError } from "../errors";
-import { defaultExtractPairId } from "../formats/fastq/paired";
-import type { AbstractSequence } from "../types";
+import { MemoryError, PairSyncError } from "@genotype/core/errors";
+import { defaultExtractPairId } from "@genotype/core/formats/fastq/paired";
+import type { AbstractSequence } from "@genotype/core/types";
 
 /**
  * Dual-stream pairing mode configuration

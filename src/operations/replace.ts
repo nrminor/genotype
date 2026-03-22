@@ -15,10 +15,10 @@
 
 import { basename, extname } from "node:path";
 import { type } from "arktype";
-import { ValidationError } from "../errors";
-import { withSequence } from "../constructors";
-import { readToStringPromise } from "../io/file-reader";
-import type { AbstractSequence } from "../types";
+import { ValidationError } from "@genotype/core/errors";
+import { withSequence } from "@genotype/core/constructors";
+import { readToStringPromise } from "@genotype/core/io/file-reader";
+import type { AbstractSequence } from "@genotype/core/types";
 import { escapeRegex } from "./core/string-utils";
 import type { ReplaceOptions } from "./types";
 

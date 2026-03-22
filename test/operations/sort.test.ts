@@ -7,10 +7,10 @@
  */
 
 import { beforeEach, describe, expect, test } from "bun:test";
-import { createFastaRecord, createFastqRecord } from "../../src/constructors";
-import { SortProcessor } from "../../src/operations/sort";
-import type { AbstractSequence, FastqSequence } from "../../src/types";
-import type { SortOptions } from "../../src/operations/core/sequence-sorter";
+import { createFastaRecord, createFastqRecord } from "@genotype/core/constructors";
+import { SortProcessor } from "@genotype/core/operations/sort";
+import type { AbstractSequence, FastqSequence } from "@genotype/core/types";
+import type { SortOptions } from "@genotype/core/operations/core/sequence-sorter";
 import "../matchers";
 
 /**

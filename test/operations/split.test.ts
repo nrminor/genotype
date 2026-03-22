@@ -8,11 +8,11 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "fs";
 import { join } from "path";
-import { createFastaRecord } from "../../src/constructors";
-import { ValidationError } from "../../src/errors";
-import { seqops } from "../../src/operations";
-import { SplitProcessor } from "../../src/operations/split";
-import type { AbstractSequence } from "../../src/types";
+import { createFastaRecord } from "@genotype/core/constructors";
+import { ValidationError } from "@genotype/core/errors";
+import { seqops } from "@genotype/core/operations";
+import { SplitProcessor } from "@genotype/core/operations/split";
+import type { AbstractSequence } from "@genotype/core/types";
 
 describe("SplitProcessor", () => {
   let processor: SplitProcessor;

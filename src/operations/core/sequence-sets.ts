@@ -7,7 +7,7 @@
  * Used internally by both SequenceSet<T> and KmerSet<K> classes as thin wrappers.
  */
 
-import type { AbstractSequence } from "../../types";
+import type { AbstractSequence } from "@genotype/core/types";
 
 /**
  * Union (A ∪ B): All sequences in either set A or set B

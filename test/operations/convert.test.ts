@@ -11,17 +11,17 @@
 
 import { beforeAll, describe, expect, spyOn, test } from "bun:test";
 import "../matchers";
-import { createFastaRecord, createFastqRecord } from "../../src/constructors";
-import { ValidationError } from "../../src/errors";
-import { seqops } from "../../src/operations";
+import { createFastaRecord, createFastqRecord } from "@genotype/core/constructors";
+import { ValidationError } from "@genotype/core/errors";
+import { seqops } from "@genotype/core/operations";
 import {
   ConvertProcessor,
   type Fa2FqOptions,
   type Fq2FaOptions,
   fa2fq,
   fq2fa,
-} from "../../src/operations/convert";
-import type { AbstractSequence, FastaSequence, FastqSequence } from "../../src/types";
+} from "@genotype/core/operations/convert";
+import type { AbstractSequence, FastaSequence, FastqSequence } from "@genotype/core/types";
 
 // Test data generators following established patterns
 function createFastqSequence(

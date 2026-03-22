@@ -6,11 +6,11 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import "../matchers";
 import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
-import { FileError, ParseError } from "../../src/errors";
-import { BedParser } from "../../src/formats/bed";
-import { FastaParser } from "../../src/formats/fasta";
-import { FastqParser } from "../../src/formats/fastq";
-import type { BedInterval, FastaSequence, FastqSequence } from "../../src/types";
+import { FileError, ParseError } from "@genotype/core/errors";
+import { BedParser } from "@genotype/core/formats/bed";
+import { FastaParser } from "@genotype/core/formats/fasta";
+import { FastqParser } from "@genotype/core/formats/fastq";
+import type { BedInterval, FastaSequence, FastqSequence } from "@genotype/core/types";
 
 // Test fixtures directory - use absolute path for reliability
 const FIXTURES_DIR = join(process.cwd(), "test", "io", "fixtures");

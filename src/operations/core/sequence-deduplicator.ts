@@ -54,10 +54,10 @@
  *
  */
 
-import type { AbstractSequence } from "../../types";
-import { hashBatch } from "../../backend/service";
-import { getNodeNativeKernelSync } from "../../backend/node-native";
-import { extractHashKey, packSequences } from "../../backend/batch";
+import type { AbstractSequence } from "@genotype/core/types";
+import { hashBatch } from "@genotype/core/backend/service";
+import { getNodeNativeKernelSync } from "@genotype/core/backend/node-native";
+import { extractHashKey, packSequences } from "@genotype/core/backend/batch";
 import { BloomFilter, ScalableBloomFilter } from "./bloom-filter";
 
 const BATCH_BYTE_BUDGET = 4 * 1024 * 1024;

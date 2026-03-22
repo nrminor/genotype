@@ -134,7 +134,11 @@
   ],
   "overrides": [
     {
-      "files": ["packages/core/test/**/*.ts", "packages/tabular/test/**/*.ts", "packages/parquet/test/**/*.ts"],
+      "files": [
+        "packages/core/test/**/*.ts",
+        "packages/tabular/test/**/*.ts",
+        "packages/parquet/test/**/*.ts"
+      ],
       "env": {
         "jest": true
       },

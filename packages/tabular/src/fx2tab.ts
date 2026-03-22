@@ -11,7 +11,11 @@
 import { type } from "arktype";
 import { Effect } from "effect";
 import { BackendService, backendRuntime } from "@genotype/core/backend/service";
-import { convertRecordToSequence, createFastaRecord, createFastqRecord } from "@genotype/core/constructors";
+import {
+  convertRecordToSequence,
+  createFastaRecord,
+  createFastqRecord,
+} from "@genotype/core/constructors";
 import { FileError, ParseError } from "@genotype/core/errors";
 import {
   CSVParser,
@@ -38,8 +42,12 @@ import {
   SequenceMetricFlag,
   type SequenceMetricsResult,
 } from "@genotype/core/backend/kernel-types";
-import type { AbstractSequence, FastaSequence, FastqSequence } from "@genotype/core/types";
-import { baseContent, baseCount, sequenceAlphabet } from "@genotype/core/operations/core/calculations";
+import type { AbstractSequence, FastqSequence } from "@genotype/core/types";
+import {
+  baseContent,
+  baseCount,
+  sequenceAlphabet,
+} from "@genotype/core/operations/core/calculations";
 import { hashMD5 } from "@genotype/core/operations/core/hashing";
 
 /** Default columns if none specified */

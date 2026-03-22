@@ -37,7 +37,10 @@ async function* toAsync<T>(items: T[]): AsyncIterable<T> {
 describe("SeqOps tabular extension methods", () => {
   test("toTabular() is available after importing @genotype/tabular", async () => {
     const ops = seqops(toAsync(testSequences()));
-    const tabular = ops.toTabular({ columns: ["id", "sequence", "length"] as const, header: false });
+    const tabular = ops.toTabular({
+      columns: ["id", "sequence", "length"] as const,
+      header: false,
+    });
     expect(tabular).toBeDefined();
     const rows = await tabular.toArray();
     expect(rows).toHaveLength(3);

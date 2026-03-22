@@ -1,4 +1,16 @@
 {
-  "references": [{ "path": "./packages/core" }, { "path": "./packages/tabular" }, { "path": "./packages/parquet" }],
+  "compilerOptions": {
+    "paths": {
+      "@genotype/core/*": ["./packages/core/src/*"],
+      "@genotype/tabular/*": ["./packages/tabular/src/*"],
+      "@genotype/parquet/*": ["./packages/parquet/src/*"],
+      "@genotype/wasm-pkg/*": ["./crates/wasm-adapter/pkg/*"]
+    }
+  },
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/tabular" },
+    { "path": "./packages/parquet" }
+  ],
   "files": []
 }

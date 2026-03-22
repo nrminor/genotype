@@ -12,11 +12,7 @@
 
 import { createFastqRecord } from "@genotype/core/constructors";
 import { FastaWriter, FastqWriter } from "@genotype/core/formats";
-import {
-  JSONLParser,
-  type JSONParseOptions,
-  JSONParser,
-} from "@genotype/core/formats/json";
+import { JSONLParser, type JSONParseOptions, JSONParser } from "@genotype/core/formats/json";
 import { openForWriting } from "@genotype/core/io/file-writer";
 import type {
   AbstractSequence,

@@ -30,7 +30,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": "../..",
     "removeComments": false,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,

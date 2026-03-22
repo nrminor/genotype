@@ -9,12 +9,7 @@ import {
   sequenceAlphabet,
 } from "@genotype/core/operations/core/calculations";
 import { hashMD5 } from "@genotype/core/operations/core/hashing";
-import {
-  type ColumnId,
-  type Fx2TabRow,
-  fx2tab,
-  TabularOps,
-} from "@genotype/tabular/fx2tab";
+import { type ColumnId, type Fx2TabRow, fx2tab, TabularOps } from "@genotype/tabular/fx2tab";
 import type { AbstractSequence } from "@genotype/core/types";
 
 describe("fx2tab", () => {

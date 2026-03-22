@@ -17,13 +17,19 @@ import { type ColumnId, type Fx2TabOptions, fx2tab, TabularOps } from "@genotype
 
 declare module "@genotype/core/operations" {
   interface SeqOps<T extends AbstractSequence> {
-    toTabular<Columns extends readonly (ColumnId | string)[] = readonly ["id", "sequence", "length"]>(
+    toTabular<
+      Columns extends readonly (ColumnId | string)[] = readonly ["id", "sequence", "length"],
+    >(
       options?: Fx2TabOptions<Columns>
     ): TabularOps<Columns>;
 
     writeTSV(path: string, options?: Omit<Fx2TabOptions, "delimiter">): Promise<void>;
     writeCSV(path: string, options?: Omit<Fx2TabOptions, "delimiter">): Promise<void>;
-    writeDSV(path: string, delimiter: string, options?: Omit<Fx2TabOptions, "delimiter">): Promise<void>;
+    writeDSV(
+      path: string,
+      delimiter: string,
+      options?: Omit<Fx2TabOptions, "delimiter">
+    ): Promise<void>;
     writeJSON(path: string, options?: Fx2TabOptions & JSONWriteOptions): Promise<void>;
     writeJSONL(path: string, options?: Fx2TabOptions): Promise<void>;
   }

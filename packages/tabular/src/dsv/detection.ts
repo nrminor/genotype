@@ -6,7 +6,7 @@
  */
 
 import type { CompressionFormat } from "@genotype/core/types";
-import { parseCSVRow } from "./state-machine";
+import { parseCSVRow } from "@genotype/tabular/dsv/state-machine";
 
 /**
  * Detect the delimiter used in DSV content

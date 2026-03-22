@@ -16,11 +16,11 @@ import { ValidationError } from "@genotype/core/errors";
 import { writeString } from "@genotype/core/io/file-writer";
 
 // Import from local DSV modules
-import { DEFAULT_ESCAPE, DEFAULT_QUOTE } from "./constants";
-import { protectFromExcel } from "./excel-protection";
-import type { DSVRecord, DSVWriterOptions } from "./types";
-import { calculateBaseCount, calculateGC } from "./utils";
-import { DSVWriterOptionsSchema } from "./validation";
+import { DEFAULT_ESCAPE, DEFAULT_QUOTE } from "@genotype/tabular/dsv/constants";
+import { protectFromExcel } from "@genotype/tabular/dsv/excel-protection";
+import type { DSVRecord, DSVWriterOptions } from "@genotype/tabular/dsv/types";
+import { calculateBaseCount, calculateGC } from "@genotype/tabular/dsv/utils";
+import { DSVWriterOptionsSchema } from "@genotype/tabular/dsv/validation";
 
 /**
  * DSVWriter - Core CSV/TSV writer implementation

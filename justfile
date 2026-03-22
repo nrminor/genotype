@@ -3,6 +3,7 @@
 # MANDATORY: All code must pass validation with ZERO warnings before commits
 
 core := "packages/core"
+tabular := "packages/tabular"
 
 # Default recipe shows available commands
 [group('help')]
@@ -113,6 +114,7 @@ BUN_CI_VERSION := "1.3.10"
 [group('test')]
 test:
     cd {{ core }} && bun test test/
+    cd {{ tabular }} && bun test test/
 
 alias t := test
 

@@ -11,7 +11,7 @@ import { FileError, ParseError } from "@genotype/core/errors";
 import { createStream, readToString, mapPlatformError } from "@genotype/core/io/file-reader";
 import { backendRuntime } from "@genotype/core/backend/service";
 import { readLines } from "@genotype/core/io/stream-utils";
-import { convertRecordToSequence } from "@genotype/core/operations/fx2tab";
+import { convertRecordToSequence } from "@genotype/core/constructors";
 import type { AbstractSequence } from "@genotype/core/types";
 import { deserializeJSON, deserializeJSONWrapped, jsonlToRows } from "./morphs";
 import type { JSONParseOptions } from "./types";

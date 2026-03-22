@@ -48,13 +48,13 @@ export type {
   DSVParserState,
   DSVRecord,
   DSVWriterOptions,
-} from "./types";
+} from "@genotype/tabular/dsv/types";
 
-export { CSVParseState } from "./types";
+export { CSVParseState } from "@genotype/tabular/dsv/types";
 
-export { CSVParser, DSVParser, TSVParser } from "./parser";
+export { CSVParser, DSVParser, TSVParser } from "@genotype/tabular/dsv/parser";
 
-export { CSVWriter, DSVWriter, TSVWriter } from "./writer";
+export { CSVWriter, DSVWriter, TSVWriter } from "@genotype/tabular/dsv/writer";
 
 export {
   detectDelimiter,
@@ -63,7 +63,7 @@ export {
   extractHeaders,
   FormatDetector,
   sniff,
-} from "./detection";
+} from "@genotype/tabular/dsv/detection";
 
 export {
   DSVParserOptionsSchema,
@@ -71,7 +71,7 @@ export {
   FieldValidator,
   validateDSV,
   validateFieldSize,
-} from "./validation";
+} from "@genotype/tabular/dsv/validation";
 
 export {
   calculateBaseCount,
@@ -83,16 +83,16 @@ export {
   normalizeLineEndings,
   removeBOM,
   summarizeDSV,
-} from "./utils";
+} from "@genotype/tabular/dsv/utils";
 
-export { ExcelProtector, protectFromExcel } from "./excel-protection";
+export { ExcelProtector, protectFromExcel } from "@genotype/tabular/dsv/excel-protection";
 
 export {
   CSVFieldParser,
   countUnescapedQuotes,
   hasBalancedQuotes,
   parseCSVRow,
-} from "./state-machine";
+} from "@genotype/tabular/dsv/state-machine";
 
 export {
   COMMENT_PREFIXES,
@@ -103,4 +103,4 @@ export {
   MAX_DETECTION_LINES,
   MAX_FIELD_SIZE,
   MAX_ROW_SIZE,
-} from "./constants";
+} from "@genotype/tabular/dsv/constants";

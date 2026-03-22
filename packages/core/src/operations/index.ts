@@ -16,7 +16,6 @@ import {
   JSONLParser,
   type JSONParseOptions,
   JSONParser,
-  type JSONWriteOptions,
 } from "@genotype/core/formats/json";
 import { openForWriting } from "@genotype/core/io/file-writer";
 import type {
@@ -35,14 +34,6 @@ import { CleanProcessor } from "./clean";
 import { ConcatProcessor } from "./concat";
 import { ConvertProcessor, type Fa2FqOptions, fa2fq, fq2fa } from "./convert";
 import { FilterProcessor } from "./filter";
-import {
-  type ColumnId,
-  type Fx2TabOptions,
-  fx2tab,
-  type Tab2FxOptions,
-  TabularOps,
-  tab2fx,
-} from "./fx2tab";
 import { GrepProcessor } from "./grep";
 import { type InterleaveOptions, InterleaveProcessor } from "./interleave";
 import { LocateProcessor } from "./locate";
@@ -117,80 +108,6 @@ export class SeqOps<T extends AbstractSequence> {
   constructor(private readonly source: AsyncIterable<T>) {}
 
   /**
-   * Create SeqOps pipeline from delimiter-separated file
-   *
-   * Supports auto-detection of delimiter and format. Files can be compressed
-   * (.gz, .zst) and will be automatically decompressed during streaming.
-   *
-   * @param path - Path to DSV file (TSV, CSV, or custom delimiter)
-   * @param options - Parsing options (delimiter auto-detected if not specified)
-   * @returns New SeqOps pipeline for sequence processing
-   *
-   * @example
-   * ```typescript
-   * // Auto-detect delimiter
-   * const sequences = await SeqOps.fromDSV('data.txt').collect();
-   *
-   * // Explicit delimiter with custom columns
-   * const genes = await SeqOps.fromDSV('genes.psv', {
-   *   delimiter: '|',
-   *   format: 'fastq'
-   * }).filter({ minLength: 100 });
-   * ```
-   */
-  static fromDSV(path: string, options?: Tab2FxOptions): SeqOps<AbstractSequence> {
-    return new SeqOps(tab2fx(path, options));
-  }
-
-  /**
-   * Create SeqOps pipeline from TSV (tab-separated) file
-   *
-   * Convenience method for TSV files with tab delimiter pre-configured.
-   *
-   * @param path - Path to TSV file
-   * @param options - Parsing options (delimiter forced to tab)
-   * @returns New SeqOps pipeline
-   *
-   * @example
-   * ```typescript
-   * await SeqOps.fromTSV('sequences.tsv')
-   *   .filter({ minLength: 50 })
-   *   .writeFasta('filtered.fa');
-   * ```
-   */
-  static fromTSV(
-    path: string,
-    options?: Omit<Tab2FxOptions, "delimiter">
-  ): SeqOps<AbstractSequence> {
-    return SeqOps.fromDSV(path, { ...options, delimiter: "\t" });
-  }
-
-  /**
-   * Create SeqOps pipeline from CSV (comma-separated) file
-   *
-   * Convenience method for CSV files with comma delimiter pre-configured.
-   * Handles Excel-exported CSV files with proper quote escaping.
-   *
-   * @param path - Path to CSV file
-   * @param options - Parsing options (delimiter forced to comma)
-   * @returns New SeqOps pipeline
-   *
-   * @example
-   * ```typescript
-   * await SeqOps.fromCSV('excel_export.csv')
-   *   .clean()
-   *   .stats()
-   *   .writeFastq('processed.fq');
-   * ```
-   */
-  static fromCSV(
-    path: string,
-    options?: Omit<Tab2FxOptions, "delimiter">
-  ): SeqOps<AbstractSequence> {
-    return SeqOps.fromDSV(path, { ...options, delimiter: "," });
-  }
-
-  /**
    * Create SeqOps pipeline from JSON file
    *
    * Parses JSON files containing sequence arrays. Supports both simple
@@ -203,16 +120,9 @@ export class SeqOps<T extends AbstractSequence> {
    *
    * @example
    * ```typescript
-   * // Parse JSON array of sequences
    * await SeqOps.fromJSON('sequences.json')
    *   .filter({ minLength: 100 })
    *   .writeFasta('filtered.fa');
-   *
-   * // Parse FASTQ sequences with quality encoding
-   * await SeqOps.fromJSON('reads.json', {
-   *   format: 'fastq',
-   *   qualityEncoding: 'phred33'
-   * }).quality({ minScore: 20 });
    * ```
    *
    * @performance O(n) memory - loads entire file. Use fromJSONL() for large datasets.
@@ -1797,277 +1707,8 @@ export class SeqOps<T extends AbstractSequence> {
     });
   }
 
-  /**
-   * Write sequences to JSON file
-   *
-   * Convenience method that converts sequences to tabular format and writes
-   * as JSON. Supports both simple array format and wrapped format with metadata.
-   * Loads entire dataset into memory before writing.
-   *
-   * @param path - Output file path
-   * @param options - Combined column selection and JSON formatting options
-   * @returns Promise resolving when write is complete
-   *
-   * @example
-   * ```typescript
-   * // Simple JSON array
-   * await SeqOps.fromFasta('input.fa')
-   *   .writeJSON('output.json');
-   *
-   * // With selected columns
-   * await SeqOps.fromFasta('input.fa')
-   *   .writeJSON('output.json', {
-   *     columns: ['id', 'sequence', 'length', 'gc']
-   *   });
-   *
-   * // Pretty-printed with metadata
-   * await SeqOps.fromFasta('input.fa')
-   *   .writeJSON('output.json', {
-   *     columns: ['id', 'sequence', 'length'],
-   *     pretty: true,
-   *     includeMetadata: true
-   *   });
-   * ```
-   *
-   * @performance O(n) memory - loads all sequences. Use writeJSONL() for large datasets.
-   */
-  async writeJSON(path: string, options?: Fx2TabOptions & JSONWriteOptions): Promise<void> {
-    // Separate Fx2TabOptions from JSONWriteOptions
-    const { pretty, includeMetadata, nullValue: jsonNullValue, ...fx2tabOptions } = options || {};
-
-    // Build JSON-specific options
-    const jsonOptions: JSONWriteOptions = {
-      ...(pretty !== undefined && { pretty }),
-      ...(includeMetadata !== undefined && { includeMetadata }),
-      ...(jsonNullValue !== undefined && { nullValue: jsonNullValue }),
-    };
-
-    // Force header: false to exclude header row from JSON output
-    await this.toTabular({ ...fx2tabOptions, header: false }).writeJSON(path, jsonOptions);
-  }
-
-  /**
-   * Write sequences to JSONL (JSON Lines) file
-   *
-   * Convenience method that converts sequences to tabular format and writes
-   * as JSONL (one JSON object per line). Provides streaming with O(1) memory
-   * usage, ideal for large datasets.
-   *
-   * Note: JSONL format does not support metadata or pretty-printing.
-   * Each line is a separate, compact JSON object.
-   *
-   * @param path - Output file path
-   * @param options - Column selection options (JSON formatting options not applicable)
-   * @returns Promise resolving when write is complete
-   *
-   * @example
-   * ```typescript
-   * // Basic JSONL output
-   * await SeqOps.fromFasta('input.fa')
-   *   .writeJSONL('output.jsonl');
-   *
-   * // With selected columns
-   * await SeqOps.fromFasta('input.fa')
-   *   .writeJSONL('output.jsonl', {
-   *     columns: ['id', 'sequence', 'length', 'gc']
-   *   });
-   *
-   * // Large dataset streaming
-   * await SeqOps.fromFasta('huge-dataset.fa')
-   *   .filter({ minLength: 100 })
-   *   .writeJSONL('filtered.jsonl'); // O(1) memory
-   * ```
-   *
-   * @performance O(1) memory - streams line-by-line. Use for large datasets.
-   */
-  async writeJSONL(path: string, options?: Fx2TabOptions): Promise<void> {
-    // JSONL doesn't support pretty-printing or metadata (line-oriented format)
-    // Force header: false to exclude header row from output
-    await this.toTabular({ ...options, header: false }).writeJSONL(path);
-  }
-
-  /**
-   * Convert sequences to tabular format
-   *
-   * Transform sequences into a tabular representation with configurable columns.
-   * This is the primary method for tabular conversion, providing a more intuitive
-   * name than the seqkit-inspired fx2tab.
-   *
-   * @param options - Column selection and formatting options
-   * @returns TabularOps instance for further processing or writing
-   *
-   * @example
-   * ```typescript
-   * // Basic conversion to tabular format
-   * await seqops(sequences)
-   *   .toTabular({ columns: ['id', 'seq', 'length', 'gc'] })
-   *   .writeTSV('output.tsv');
-   *
-   * // With custom columns
-   * await seqops(sequences)
-   *   .toTabular({
-   *     columns: ['id', 'seq', 'gc'],
-   *     customColumns: {
-   *       high_gc: (seq) => seq.gc > 60 ? 'HIGH' : 'NORMAL'
-   *     }
-   *   })
-   *   .writeCSV('analysis.csv');
-   * ```
-   */
-  toTabular<Columns extends readonly (ColumnId | string)[] = readonly ["id", "sequence", "length"]>(
-    options?: Fx2TabOptions<Columns>
-  ): TabularOps<Columns> {
-    return new TabularOps(fx2tab(this.source, options));
-  }
-
-  /**
-   * Convert sequences to tabular format (SeqKit compatibility)
-   *
-   * Alias for `.toTabular()` maintained for SeqKit parity and backward compatibility.
-   * New code should prefer `.toTabular()` for better clarity.
-   *
-   * @param options - Column selection and formatting options
-   * @returns TabularOps instance for further processing or writing
-   * @see {@link toTabular} - Primary method for tabular conversion
-   *
-   * @example
-   * ```typescript
-   * // Legacy name for SeqKit users
-   * await seqops(sequences)
-   *   .fx2tab({ columns: ['id', 'seq', 'gc'] })
-   *   .writeTSV('output.tsv');
-   * ```
-   */
-  fx2tab<Columns extends readonly (ColumnId | string)[] = readonly ["id", "sequence", "length"]>(
-    options?: Fx2TabOptions<Columns>
-  ): TabularOps<Columns> {
-    return this.toTabular(options);
-  }
-
-  /**
-   * Convert sequences to row-based format
-   *
-   * Clearer alias for `.toTabular()` that emphasizes the row-based structure
-   * used for output to various formats (TSV, CSV, JSON, JSONL).
-   *
-   * This method converts sequences into a structured row format that can be
-   * written to tabular formats (TSV/CSV) or object formats (JSON/JSONL).
-   * Use this when the term "tabular" feels semantically incorrect for your
-   * output format (e.g., JSON).
-   *
-   * @param options - Column selection and formatting options
-   * @returns TabularOps instance for further processing or writing
-   * @see {@link toTabular} - Original method name
-   *
-   * @example
-   * ```typescript
-   * // Writing to JSON - "rows" is clearer than "tabular"
-   * await seqops(sequences)
-   *   .asRows({ columns: ['id', 'sequence', 'length'] })
-   *   .writeJSON('output.json');
-   *
-   * // Writing to JSONL
-   * await seqops(sequences)
-   *   .asRows({ columns: ['id', 'seq', 'gc'] })
-   *   .writeJSONL('output.jsonl');
-   *
-   * // Also works for tabular formats
-   * await seqops(sequences)
-   *   .asRows({ columns: ['id', 'seq', 'length'] })
-   *   .writeTSV('output.tsv');
-   * ```
-   */
-  asRows<Columns extends readonly (ColumnId | string)[] = readonly ["id", "sequence", "length"]>(
-    options?: Fx2TabOptions<Columns>
-  ): TabularOps<Columns> {
-    return this.toTabular(options);
-  }
-
-  /**
-   * Write sequences as TSV (tab-separated values)
-   *
-   * Terminal operation that writes sequences as tab-separated values.
-   *
-   * @param path - Output file path
-   * @param options - Conversion options (delimiter will be set to tab)
-   *
-   * @example
-   * ```typescript
-   * // Simple TSV output
-   * await seqops(sequences).writeTSV('output.tsv');
-   *
-   * // With column selection
-   * await seqops(sequences).writeTSV('output.tsv', {
-   *   columns: ['id', 'seq', 'length', 'gc']
-   * });
-   * ```
-   */
-  async writeTSV(path: string, options: Omit<Fx2TabOptions, "delimiter"> = {}): Promise<void> {
-    await openForWriting(path, async (handle) => {
-      for await (const row of fx2tab(this.source, { ...options, delimiter: "\t" })) {
-        await handle.writeString(`${row.__raw}\n`);
-      }
-    });
-  }
-
-  /**
-   * Write sequences as CSV (comma-separated values)
-   *
-   * Terminal operation that writes sequences as comma-separated values.
-   * Excel protection is recommended for CSV files.
-   *
-   * @param path - Output file path
-   * @param options - Conversion options (delimiter will be set to comma)
-   *
-   * @example
-   * ```typescript
-   * // CSV with Excel protection
-   * await seqops(sequences).writeCSV('output.csv', {
-   *   excelSafe: true
-   * });
-   * ```
-   */
-  async writeCSV(path: string, options: Omit<Fx2TabOptions, "delimiter"> = {}): Promise<void> {
-    await openForWriting(path, async (handle) => {
-      for await (const row of fx2tab(this.source, { ...options, delimiter: "," })) {
-        await handle.writeString(`${row.__raw}\n`);
-      }
-    });
-  }
-
-  /**
-   * Write sequences as DSV with custom delimiter
-   *
-   * Terminal operation for any delimiter-separated format.
-   *
-   * @param path - Output file path
-   * @param delimiter - Custom delimiter character(s)
-   * @param options - Conversion options
-   *
-   * @example
-   * ```typescript
-   * // Pipe-delimited output
-   * await seqops(sequences).writeDSV('output.psv', '|', {
-   *   columns: ['id', 'seq', 'length']
-   * });
-   *
-   * // Semicolon for European Excel
-   * await seqops(sequences).writeDSV('output.csv', ';', {
-   *   excelSafe: true
-   * });
-   * ```
-   */
-  async writeDSV(
-    path: string,
-    delimiter: string,
-    options: Omit<Fx2TabOptions, "delimiter"> = {}
-  ): Promise<void> {
-    await openForWriting(path, async (handle) => {
-      for await (const row of fx2tab(this.source, { ...options, delimiter })) {
-        await handle.writeString(`${row.__raw}\n`);
-      }
-    });
-  }
+  // --- Tabular methods (writeJSON, writeJSONL, toTabular, fx2tab, asRows,
+  //     writeTSV, writeCSV, writeDSV) have moved to @genotype/tabular ---
 
   /**
    * Collect all sequences into an array
@@ -3065,16 +2706,6 @@ export {
   type FaidxOptions,
   type FaidxRecord,
 } from "./faidx";
-export {
-  type ColumnId,
-  type Fx2TabOptions,
-  type Fx2TabRow,
-  fx2tab,
-  rowsToStrings,
-  type Tab2FxOptions,
-  TabularOps,
-  tab2fx,
-} from "./fx2tab";
 export type { PairOptions } from "./pair";
 // Export split-specific types
 export { SplitProcessor, type SplitResult, type SplitSummary } from "./split";

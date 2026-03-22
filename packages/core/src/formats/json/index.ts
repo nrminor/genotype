@@ -2,6 +2,7 @@
  * JSON Format Module
  *
  * Re-exports for JSON and JSONL format support.
+ * Write options and collection metadata have moved to @genotype/tabular.
  */
 
 export {

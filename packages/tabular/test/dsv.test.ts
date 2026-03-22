@@ -25,7 +25,7 @@ import {
   sniff,
   TSVParser,
   TSVWriter,
-} from "@genotype/core/formats/dsv";
+} from "@genotype/tabular/dsv";
 
 describe("DSV Format Module", () => {
   describe("Excel Gene Name Protection", () => {

@@ -5,7 +5,7 @@
  * Handles gene names (SEPT1→Sep-1), leading zeros, large numbers, and formulas.
  */
 
-import { EXCEL_GENE_PATTERNS } from "./constants";
+import { EXCEL_GENE_PATTERNS } from "@genotype/tabular/dsv/constants";
 
 /**
  * Protect gene names from Excel date corruption

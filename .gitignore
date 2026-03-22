@@ -40,6 +40,10 @@
 !/packages/core/package.json
 !/packages/core/tsconfig.json
 !/packages/core/tsconfig.test.json
+!/packages/tabular/
+!/packages/tabular/package.json
+!/packages/tabular/tsconfig.json
+!/packages/tabular/tsconfig.test.json
 
 # === SOURCE CODE ===
 # Main TypeScript source
@@ -55,8 +59,6 @@
 !/packages/core/src/formats/fastq/*.ts
 !/packages/core/src/formats/json/
 !/packages/core/src/formats/json/*.ts
-!/packages/core/src/formats/dsv/
-!/packages/core/src/formats/dsv/*.ts
 !/packages/core/src/io/
 !/packages/core/src/io/*.ts
 !/packages/core/src/utils/
@@ -136,6 +138,16 @@
 !/packages/core/test/fixtures/*.json
 !/packages/core/test/fixtures/*.jsonl
 !/packages/core/test/fixtures/*.tsv
+
+# === TABULAR PACKAGE ===
+# Source
+!/packages/tabular/src/
+!/packages/tabular/src/*.ts
+!/packages/tabular/src/dsv/
+!/packages/tabular/src/dsv/*.ts
+# Tests
+!/packages/tabular/test/
+!/packages/tabular/test/*.test.ts
 
 # === BUILD & DEPLOYMENT SCRIPTS ===
 # Automation scripts

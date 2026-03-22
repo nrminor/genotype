@@ -11,7 +11,7 @@
 import { type } from "arktype";
 import { Effect } from "effect";
 import { BackendService, backendRuntime } from "@genotype/core/backend/service";
-import { createFastaRecord, createFastqRecord } from "@genotype/core/constructors";
+import { convertRecordToSequence, createFastaRecord, createFastqRecord } from "@genotype/core/constructors";
 import { FileError, ParseError } from "@genotype/core/errors";
 import {
   CSVParser,
@@ -21,7 +21,7 @@ import {
   detectDelimiter,
   TSVParser,
   TSVWriter,
-} from "@genotype/core/formats/dsv";
+} from "@genotype/tabular/dsv";
 import type { JSONWriteOptions } from "@genotype/core/formats/json";
 import {
   generateCollectionMetadata,
@@ -39,8 +39,8 @@ import {
   type SequenceMetricsResult,
 } from "@genotype/core/backend/kernel-types";
 import type { AbstractSequence, FastaSequence, FastqSequence } from "@genotype/core/types";
-import { baseContent, baseCount, sequenceAlphabet } from "./core/calculations";
-import { hashMD5 } from "./core/hashing";
+import { baseContent, baseCount, sequenceAlphabet } from "@genotype/core/operations/core/calculations";
+import { hashMD5 } from "@genotype/core/operations/core/hashing";
 
 /** Default columns if none specified */
 const DEFAULT_COLUMNS = ["id", "sequence", "length"] as const;
@@ -987,75 +987,6 @@ export async function* tab2fx(
       "tab2fx"
     );
   }
-}
-
-/**
- * Convert a record with sequence fields to an AbstractSequence
- *
- * Shared conversion logic used by both tab2fx() and JSON parsers.
- * Handles both FASTA and FASTQ formats based on presence of quality field.
- *
- * Type-safe overloads ensure return type matches the format parameter:
- * - format="fasta" → returns FastaSequence
- * - format="fastq" → returns FastqSequence
- * - format=union → returns AbstractSequence (FastaSequence | FastqSequence)
- *
- * @param record - Object with id, sequence, and optional quality/description fields
- * @param format - Target format ("fasta" or "fastq")
- * @param qualityEncoding - Quality encoding for FASTQ sequences
- * @returns Typed sequence object (FastaSequence, FastqSequence, or AbstractSequence)
- *
- * @internal
- */
-export function convertRecordToSequence(
-  record: {
-    id: string;
-    sequence: string;
-    description?: string;
-    length?: number;
-  },
-  format: "fasta",
-  qualityEncoding?: never
-): FastaSequence;
-export function convertRecordToSequence(
-  record: {
-    id: string;
-    sequence: string;
-    quality: string;
-    description?: string;
-    length?: number;
-  },
-  format: "fastq",
-  qualityEncoding: "phred33" | "phred64" | "solexa"
-): FastqSequence;
-export function convertRecordToSequence(
-  record: {
-    id: string;
-    sequence: string;
-    quality?: string;
-    description?: string;
-    length?: number;
-  },
-  format: "fasta" | "fastq",
-  qualityEncoding?: "phred33" | "phred64" | "solexa"
-): AbstractSequence;
-export function convertRecordToSequence(
-  record: {
-    id: string;
-    sequence: string;
-    quality?: string;
-    description?: string;
-    length?: number;
-  },
-  format: "fasta" | "fastq" = "fasta",
-  qualityEncoding: "phred33" | "phred64" | "solexa" = "phred33"
-): AbstractSequence {
-  const { id, sequence, quality, description } = record;
-
-  if (format === "fastq" && quality) {
-    return createFastqRecord({ id, sequence, quality, qualityEncoding, description });
-  }
-  return createFastaRecord({ id, sequence, description });
 }
 
 /**

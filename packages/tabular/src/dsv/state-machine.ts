@@ -6,7 +6,7 @@
  */
 
 import { ParseError } from "@genotype/core/errors";
-import { CSVParseState } from "./types";
+import { CSVParseState } from "@genotype/tabular/dsv/types";
 
 // DSV-specific parse error
 class DSVParseError extends ParseError {

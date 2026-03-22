@@ -1,9 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import "../matchers";
+import "../../core/test/matchers";
 import { rm } from "node:fs/promises";
 import { createFastaRecord, createFastqRecord } from "@genotype/core/constructors";
 import { FileError } from "@genotype/core/errors";
-import { seqops } from "@genotype/core/operations";
 import {
   baseContent,
   baseCount,
@@ -15,7 +14,7 @@ import {
   type Fx2TabRow,
   fx2tab,
   TabularOps,
-} from "@genotype/core/operations/fx2tab";
+} from "@genotype/tabular/fx2tab";
 import type { AbstractSequence } from "@genotype/core/types";
 
 describe("fx2tab", () => {
@@ -405,24 +404,19 @@ describe("fx2tab", () => {
       // Use asyncSequences() generator function, not testSequences array
 
       // Test that both methods produce identical results
-      const toTabularResults = await seqops(asyncSequences())
-        .toTabular({ columns: ["id", "sequence", "length", "gc"], header: false })
-        .toArray();
+      const tabularResults = await new TabularOps(
+        fx2tab(asyncSequences(), { columns: ["id", "sequence", "length", "gc"], header: false })
+      ).toArray();
 
-      const fx2tabResults = await seqops(asyncSequences())
-        .fx2tab({ columns: ["id", "sequence", "length", "gc"], header: false })
-        .toArray();
-
-      expect(toTabularResults).toEqual(fx2tabResults);
-      expect(toTabularResults).toHaveLength(3);
-      expect(toTabularResults[0]!.id).toBe("seq1");
-      expect(toTabularResults[0]!.sequence).toEqualSequence("ATCGATCG");
-      expect(toTabularResults[0]!.length).toBe(8);
-      expect(toTabularResults[0]!.gc).toBe(50);
+      expect(tabularResults).toHaveLength(3);
+      expect(tabularResults[0]!.id).toBe("seq1");
+      expect(tabularResults[0]!.sequence).toEqualSequence("ATCGATCG");
+      expect(tabularResults[0]!.length).toBe(8);
+      expect(tabularResults[0]!.gc).toBe(50);
     });
 
     test("toTabular() works with default columns", async () => {
-      const result = await seqops(asyncSequences()).toTabular().toArray();
+      const result = await new TabularOps(fx2tab(asyncSequences())).toArray();
 
       // Default includes header
       expect(result).toHaveLength(4);
@@ -432,16 +426,16 @@ describe("fx2tab", () => {
       expect(result[1]!.length).toBe(8);
     });
 
-    test("toTabular() supports custom columns", async () => {
-      const result = await seqops(asyncSequences())
-        .toTabular({
+    test("fx2tab supports custom columns", async () => {
+      const result = await new TabularOps(
+        fx2tab(asyncSequences(), {
           columns: ["id", "gc", "custom"] as const,
           customColumns: {
-            custom: (seq) => `${seq.id}_custom`,
+            custom: (seq: AbstractSequence) => `${seq.id}_custom`,
           },
           header: false,
         })
-        .toArray();
+      ).toArray();
 
       expect(result).toHaveLength(3);
       expect(result[0]!.id).toBe("seq1");

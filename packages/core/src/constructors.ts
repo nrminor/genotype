@@ -184,3 +184,60 @@ export function withQuality<T extends { quality: GenotypeString }>(
 ): T {
   return { ...record, quality: GenotypeString.fromString(quality) } as T;
 }
+
+/**
+ * Convert a plain record object to a typed sequence.
+ *
+ * Delegates to createFastaRecord or createFastqRecord based on format.
+ * Used by JSON and tabular parsers for uniform record-to-sequence conversion.
+ */
+export function convertRecordToSequence(
+  record: {
+    id: string;
+    sequence: string;
+    description?: string;
+    length?: number;
+  },
+  format: "fasta",
+  qualityEncoding?: never
+): FastaSequence;
+export function convertRecordToSequence(
+  record: {
+    id: string;
+    sequence: string;
+    quality: string;
+    description?: string;
+    length?: number;
+  },
+  format: "fastq",
+  qualityEncoding: "phred33" | "phred64" | "solexa"
+): FastqSequence;
+export function convertRecordToSequence(
+  record: {
+    id: string;
+    sequence: string;
+    quality?: string;
+    description?: string;
+    length?: number;
+  },
+  format: "fasta" | "fastq",
+  qualityEncoding?: "phred33" | "phred64" | "solexa"
+): AbstractSequence;
+export function convertRecordToSequence(
+  record: {
+    id: string;
+    sequence: string;
+    quality?: string;
+    description?: string;
+    length?: number;
+  },
+  format: "fasta" | "fastq" = "fasta",
+  qualityEncoding: "phred33" | "phred64" | "solexa" = "phred33"
+): AbstractSequence {
+  const { id, sequence, quality, description } = record;
+
+  if (format === "fastq" && quality) {
+    return createFastqRecord({ id, sequence, quality, qualityEncoding, description });
+  }
+  return createFastaRecord({ id, sequence, description });
+}

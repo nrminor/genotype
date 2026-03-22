@@ -29,18 +29,18 @@ import {
   DEFAULT_QUOTE,
   MAX_DETECTION_LINES,
   MAX_FIELD_SIZE,
-} from "./constants";
-import { detectDelimiter, detectHeaders } from "./detection";
-import { hasBalancedQuotes, parseCSVRow } from "./state-machine";
-import type { DSVParserOptions, DSVParserState, DSVRecord } from "./types";
+} from "@genotype/tabular/dsv/constants";
+import { detectDelimiter, detectHeaders } from "@genotype/tabular/dsv/detection";
+import { hasBalancedQuotes, parseCSVRow } from "@genotype/tabular/dsv/state-machine";
+import type { DSVParserOptions, DSVParserState, DSVRecord } from "@genotype/tabular/dsv/types";
 import {
   calculateBaseCount,
   calculateGC,
   calculateGCSkew,
   handleRaggedRow,
   removeBOM,
-} from "./utils";
-import { DSVParserOptionsSchema, validateFieldSize } from "./validation";
+} from "@genotype/tabular/dsv/utils";
+import { DSVParserOptionsSchema, validateFieldSize } from "@genotype/tabular/dsv/validation";
 
 /**
  * BufferedStreamReader - Allows peeking at stream bytes without consuming

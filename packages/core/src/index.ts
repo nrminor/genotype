@@ -56,20 +56,6 @@ export { AlignmentParser } from "./formats/alignment";
 export { BackendService, BackendUnavailableError, backendRuntime } from "./backend";
 // BED format
 export { BedFormat, BedParser, BedUtils, BedWriter } from "./formats/bed";
-// DSV/CSV/TSV format
-export {
-  CSVParser,
-  CSVWriter,
-  DSVParser,
-  type DSVParserOptions,
-  type DSVRecord,
-  DSVWriter,
-  type DSVWriterOptions,
-  detectDelimiter,
-  protectFromExcel,
-  TSVParser,
-  TSVWriter,
-} from "./formats/dsv";
 // FASTA format
 export { FastaParser, FastaUtils, FastaWriter } from "./formats/fasta";
 // FASTQ format

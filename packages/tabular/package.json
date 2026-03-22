@@ -1,0 +1,31 @@
+{
+  "name": "@genotype/tabular",
+  "version": "0.1.0",
+  "description": "Tabular data formats for genotype: DSV parsing/writing, fx2tab sequence-to-table conversion, and JSON tabular morphs",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nrminor/genotype",
+    "directory": "packages/tabular"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "lint": "bunx oxlint",
+    "test": "bun test test/",
+    "typecheck": "bunx tsgo --noEmit -p tsconfig.test.json"
+  },
+  "dependencies": {
+    "@genotype/core": "workspace:*",
+    "arktype": "^2.2.0",
+    "effect": "4.0.0-beta.34"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.10"
+  },
+  "peerDependencies": {
+    "typescript": ">5.9.3"
+  }
+}

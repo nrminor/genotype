@@ -92,17 +92,19 @@ export const serializeToParquet = <Columns extends readonly (ColumnId | string)[
  * serializes to Parquet via parquet-wasm, and writes to disk.
  *
  * This is the public boundary — it runs the Effect pipeline and
- * returns a Promise.
+ * returns a Promise. Pass a signal to support cancellation.
  */
 export async function writeParquet<Columns extends readonly (ColumnId | string)[]>(
   source: AsyncIterable<Fx2TabRow<Columns>>,
   path: string,
-  options?: ParquetWriteOptions
+  options?: ParquetWriteOptions & { signal?: AbortSignal }
 ): Promise<void> {
+  const { signal, ...writeOptions } = options ?? {};
   const parquetBytes = await Effect.runPromise(
-    serializeToParquet(source, options).pipe(
+    serializeToParquet(source, writeOptions).pipe(
       Effect.mapError((e) => new ParquetWriteError({ message: e.message, path, cause: e.cause }))
-    )
+    ),
+    signal ? { signal } : undefined
   );
 
   await writeBytes(path, parquetBytes);

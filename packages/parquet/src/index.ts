@@ -1,7 +1,7 @@
 /**
  * @genotype/parquet — Apache Parquet read/write for genotype
  *
- * Provides parquet writing (and eventually reading) backed by parquet-wasm
+ * Provides parquet reading and writing backed by parquet-wasm
  * and Apache Arrow. Integrates with @genotype/tabular's fx2tab column types
  * for typed sequence-to-parquet conversion.
  *
@@ -15,6 +15,12 @@ export {
   serializeToParquet,
   type ParquetWriteOptions,
 } from "@genotype/parquet/writer";
+export {
+  readParquet,
+  readParquetStream,
+  type ParquetReadOptions,
+  type ParquetRow,
+} from "@genotype/parquet/reader";
 export { ParquetWriteError, ParquetReadError } from "@genotype/parquet/errors";
 export { initParquetWasm, ParquetWasmInitError } from "@genotype/parquet/wasm-init";
 export { PARQUET_VERSION } from "@genotype/parquet/version";

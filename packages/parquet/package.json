@@ -1,0 +1,32 @@
+{
+  "name": "@genotype/parquet",
+  "version": "0.1.0",
+  "description": "Apache Parquet read/write support for genotype, backed by parquet-wasm and Apache Arrow",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nrminor/genotype",
+    "directory": "packages/parquet"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "lint": "bunx oxlint",
+    "test": "bun test test/",
+    "typecheck": "bunx tsgo --noEmit -p tsconfig.test.json"
+  },
+  "dependencies": {
+    "@genotype/core": "workspace:*",
+    "@genotype/tabular": "workspace:*",
+    "apache-arrow": "^21.1.0",
+    "parquet-wasm": "^0.7.1"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.10"
+  },
+  "peerDependencies": {
+    "typescript": ">5.9.3"
+  }
+}

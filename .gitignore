@@ -44,6 +44,10 @@
 !/packages/tabular/package.json
 !/packages/tabular/tsconfig.json
 !/packages/tabular/tsconfig.test.json
+!/packages/parquet/
+!/packages/parquet/package.json
+!/packages/parquet/tsconfig.json
+!/packages/parquet/tsconfig.test.json
 
 # === SOURCE CODE ===
 # Main TypeScript source
@@ -148,6 +152,14 @@
 # Tests
 !/packages/tabular/test/
 !/packages/tabular/test/*.test.ts
+
+# === PARQUET PACKAGE ===
+# Source
+!/packages/parquet/src/
+!/packages/parquet/src/*.ts
+# Tests
+!/packages/parquet/test/
+!/packages/parquet/test/*.test.ts
 
 # === BUILD & DEPLOYMENT SCRIPTS ===
 # Automation scripts

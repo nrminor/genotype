@@ -4,6 +4,7 @@
 
 core := "packages/core"
 tabular := "packages/tabular"
+parquet := "packages/parquet"
 
 # Default recipe shows available commands
 [group('help')]
@@ -115,6 +116,7 @@ BUN_CI_VERSION := "1.3.10"
 test:
     cd {{ core }} && bun test test/
     cd {{ tabular }} && bun test test/
+    cd {{ parquet }} && bun test test/
 
 alias t := test
 

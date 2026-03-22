@@ -23,9 +23,9 @@
     "lint:rust": "cargo clippy --all-targets -- -D warnings",
     "lint:types": "bun run --cwd packages/core lint:types",
     "prepare": "effect-language-service patch",
-    "test": "bun run --cwd packages/core test && bun run --cwd packages/tabular test",
+    "test": "bun run --cwd packages/core test && bun run --cwd packages/tabular test && bun run --cwd packages/parquet test",
     "test:rust": "cargo test",
-    "typecheck": "bun run --cwd packages/core typecheck && bun run --cwd packages/tabular typecheck",
+    "typecheck": "bun run --cwd packages/core typecheck && bun run --cwd packages/tabular typecheck && bun run --cwd packages/parquet typecheck",
     "validate": "bun run check",
     "validate:full": "bun run typecheck && bun run lint && bun run test && bun run test:rust && bun run lint:rust && bun run build"
   },

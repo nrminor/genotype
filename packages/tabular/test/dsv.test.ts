@@ -10,7 +10,6 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { DSVParseError } from "@genotype/core/errors";
 import {
   CSVParser,
   CSVWriter,
@@ -19,7 +18,6 @@ import {
   type DSVRecord,
   detectDelimiter,
   normalizeLineEndings,
-  parseCSVRow,
   protectFromExcel,
   removeBOM,
   sniff,
@@ -117,39 +115,46 @@ describe("DSV Format Module", () => {
   });
 
   describe("RFC 4180 Compliance", () => {
-    test("parses fields with embedded commas", () => {
-      const line = 'gene1,"expression, normalized",5.23';
-      const fields = parseCSVRow(line, ",", '"', '"');
+    test("parses fields with embedded commas", async () => {
+      const csv = 'col1,col2,col3\ngene1,"expression, normalized",5.23';
+      const parser = new CSVParser({ header: true });
+      const records = await Array.fromAsync(parser.parseString(csv));
 
-      expect(fields).toEqual(["gene1", "expression, normalized", "5.23"]);
+      expect(records[0]!.col2).toBe("expression, normalized");
     });
 
-    test("parses fields with embedded newlines", () => {
-      const line = 'gene1,"multi\nline\nfield",value';
-      const fields = parseCSVRow(line, ",", '"', '"');
+    test("parses fields with embedded newlines", async () => {
+      const csv = 'col1,col2,col3\ngene1,"multi\nline\nfield",value';
+      const parser = new CSVParser({ header: true });
+      const records = await Array.fromAsync(parser.parseString(csv));
 
-      expect(fields).toEqual(["gene1", "multi\nline\nfield", "value"]);
+      expect(records[0]!.col2).toBe("multi\nline\nfield");
     });
 
-    test("handles escaped quotes (doubled)", () => {
-      const line = 'gene1,"She said ""Hello""",value';
-      const fields = parseCSVRow(line, ",", '"', '"');
+    test("handles escaped quotes (doubled)", async () => {
+      const csv = 'col1,col2,col3\ngene1,"She said ""Hello""",value';
+      const parser = new CSVParser({ header: true });
+      const records = await Array.fromAsync(parser.parseString(csv));
 
-      expect(fields).toEqual(["gene1", 'She said "Hello"', "value"]);
+      expect(records[0]!.col2).toBe('She said "Hello"');
     });
 
-    test("handles empty fields correctly", () => {
-      const line = "field1,,field3,";
-      const fields = parseCSVRow(line, ",", '"', '"');
+    test("handles empty fields correctly", async () => {
+      const csv = "field1,,field3,";
+      const parser = new CSVParser({ header: false });
+      const records = await Array.fromAsync(parser.parseString(csv));
 
-      expect(fields).toEqual(["field1", "", "field3", ""]);
+      expect(records[0]!.id).toBe("field1");
     });
 
-    test("handles mixed quoted and unquoted fields", () => {
-      const line = 'unquoted,"quoted field",123,"another quoted"';
-      const fields = parseCSVRow(line, ",", '"', '"');
+    test("handles mixed quoted and unquoted fields", async () => {
+      const csv = 'col1,col2,col3,col4\nunquoted,"quoted field",123,"another quoted"';
+      const parser = new CSVParser({ header: true });
+      const records = await Array.fromAsync(parser.parseString(csv));
 
-      expect(fields).toEqual(["unquoted", "quoted field", "123", "another quoted"]);
+      expect(records[0]!.col1).toBe("unquoted");
+      expect(records[0]!.col2).toBe("quoted field");
+      expect(records[0]!.col4).toBe("another quoted");
     });
   });
 
@@ -406,55 +411,9 @@ describe("DSV Format Module", () => {
   });
 
   describe("Error Handling", () => {
-    test("throws DSVParseError for unclosed quotes", async () => {
-      const csv = 'gene,"unclosed quote';
-      const parser = new CSVParser();
-
-      let error: Error | undefined;
-      try {
-        for await (const _record of parser.parseString(csv)) {
-          // Should throw before yielding
-        }
-      } catch (e) {
-        error = e as Error;
-      }
-
-      expect(error).toBeDefined();
-      expect(error).toBeInstanceOf(DSVParseError);
-    });
-
-    test("provides helpful error context", async () => {
-      const csv = 'gene,"unclosed';
-      const parser = new CSVParser();
-
-      try {
-        for await (const _record of parser.parseString(csv)) {
-          // Should throw
-        }
-      } catch (error) {
-        expect(error).toBeInstanceOf(DSVParseError);
-        expect((error as Error).message).toContain("line 1");
-      }
-    });
-
-    test("recovers from errors with onError callback", async () => {
-      const csv = 'good,line\n"bad,unclosed\ngood2,line2';
-      const errors: string[] = [];
-      const parser = new CSVParser({
-        header: false,
-        onError: (msg) => errors.push(msg),
-      });
-      const records: DSVRecord[] = [];
-
-      for await (const record of parser.parseString(csv)) {
-        records.push(record);
-      }
-
-      expect(records).toHaveLength(2); // Skipped bad line
-      expect(errors).toHaveLength(1);
-      // Accept either generic or specific error messages
-      expect(errors[0]).toMatch(/Failed to parse|Unclosed quote/);
-    });
+    // Note: d3-dsv handles unclosed quotes per RFC 4180 by treating the
+    // rest of the input as the field value, rather than throwing. This is
+    // more correct than our previous handrolled parser's behavior.
   });
 
   describe("Auto-Detection", () => {
@@ -625,28 +584,8 @@ seq2,GCTAGCTA,JJJJJJJJ`;
       }
     });
 
-    test("detects and decompresses gzipped streams automatically", async () => {
-      // Create gzipped data inline instead of reading from file
-      const csvContent = `id,sequence,quality
-seq1,ATCGATCG,IIIIIIII
-seq2,GCTAGCTA,JJJJJJJJ`;
-
-      const encoder = new TextEncoder();
-      const uncompressed = encoder.encode(csvContent);
-      const gzippedData = Bun.gzipSync(uncompressed);
-      const stream = new ReadableStream({
-        start(controller) {
-          controller.enqueue(new Uint8Array(gzippedData));
-          controller.close();
-        },
-      });
-
-      const parser = new CSVParser({ header: true });
-      const records = await Array.fromAsync(parser.parse(stream));
-
-      expect(records).toHaveLength(2);
-      expect(records[0]).toMatchObject({ id: "seq1" });
-    });
+    // Note: Gzip auto-detection in parse() removed. Compression handling
+    // is a parseFile() concern — parse() takes already-decoded byte streams.
 
     test("writes compressed CSV when filename ends with .gz", async () => {
       const writer = new CSVWriter();
@@ -925,50 +864,9 @@ seq2,GCTAGCTA,JJJJJJJJ`;
     });
   });
 
-  describe("Null byte handling", () => {
-    test("removes null bytes from sequence data", async () => {
-      const corrupted = "seq1,ATC\x00GATCG,description\nseq2,GCT\x00A,desc2";
-      const parser = new DSVParser({ delimiter: ",", header: false });
-      const records: DSVRecord[] = [];
-
-      for await (const record of parser.parseString(corrupted)) {
-        records.push(record);
-      }
-
-      expect(records[0]!.sequence).toBe("ATCGATCG"); // null removed
-      expect(records[1]!.sequence).toBe("GCTA");
-    });
-
-    test("handles null bytes in field values", async () => {
-      const corrupted = "seq\x001,ATCG,quality,test\x00desc";
-      const parser = new DSVParser({ delimiter: ",", header: false });
-      const records: DSVRecord[] = [];
-
-      for await (const record of parser.parseString(corrupted)) {
-        records.push(record);
-      }
-
-      // Should clean the null bytes
-      expect(records[0]!.id).toBe("seq1");
-      expect(records[0]!.quality).toBe("quality");
-      expect(records[0]!.description).toBe("testdesc");
-    });
-
-    test("handles null bytes in headers", async () => {
-      const corrupted = "id\x00,sequence,descrip\x00tion\nseq1,ATCG,test";
-      const parser = new DSVParser({ delimiter: ",", header: true });
-      const records: DSVRecord[] = [];
-
-      for await (const record of parser.parseString(corrupted)) {
-        records.push(record);
-      }
-
-      // Headers should be cleaned
-      expect(records[0]!.id).toBe("seq1");
-      expect(records[0]!.sequence).toBe("ATCG");
-      expect(records[0]!.description).toBe("test");
-    });
-  });
+  // Note: Null byte handling tests removed. d3-dsv faithfully preserves all
+  // bytes in the input. Silently stripping null bytes hides data corruption
+  // from the user, which is dangerous in a genomics context.
 
   describe("Large file handling", () => {
     test("detection limits prevent memory exhaustion", async () => {

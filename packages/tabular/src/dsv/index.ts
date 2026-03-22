@@ -88,13 +88,6 @@ export {
 export { ExcelProtector, protectFromExcel } from "@genotype/tabular/dsv/excel-protection";
 
 export {
-  CSVFieldParser,
-  countUnescapedQuotes,
-  hasBalancedQuotes,
-  parseCSVRow,
-} from "@genotype/tabular/dsv/state-machine";
-
-export {
   COMMENT_PREFIXES,
   DEFAULT_DELIMITERS,
   DEFAULT_ESCAPE,

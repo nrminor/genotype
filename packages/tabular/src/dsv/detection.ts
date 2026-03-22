@@ -5,8 +5,8 @@
  * for CSV, TSV, and other delimiter-separated value formats.
  */
 
+import { dsvFormat } from "d3-dsv";
 import type { CompressionFormat } from "@genotype/core/types";
-import { parseCSVRow } from "@genotype/tabular/dsv/state-machine";
 
 /**
  * Detect the delimiter used in DSV content
@@ -37,7 +37,8 @@ export function detectDelimiter(
 
       let count: number;
       try {
-        count = parseCSVRow(line, delimiter).length - 1;
+        const parsed = dsvFormat(delimiter).parseRows(line);
+        count = (parsed[0]?.length ?? 1) - 1;
       } catch {
         count = line.split(delimiter).length - 1;
       }
@@ -111,8 +112,9 @@ export function detectHeaders(lines: string[], delimiter: string): boolean {
   const secondLine = lines[1];
   if (!firstLine || !secondLine) return false;
 
-  const firstRow = parseCSVRow(firstLine, delimiter);
-  const secondRow = parseCSVRow(secondLine, delimiter);
+  const parser = dsvFormat(delimiter);
+  const firstRow = parser.parseRows(firstLine)[0] ?? [];
+  const secondRow = parser.parseRows(secondLine)[0] ?? [];
 
   // If only single column, default to no headers (likely sequence data)
   if (firstRow.length === 1 && secondRow.length === 1) {

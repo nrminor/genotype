@@ -51,9 +51,7 @@ describe("SeqOps parquet extension methods", () => {
       ];
 
       const path = `${tempDir}/filtered.parquet`;
-      await seqops(toAsync(sequences))
-        .filter({ minLength: 5 })
-        .writeParquet(path);
+      await seqops(toAsync(sequences)).filter({ minLength: 5 }).writeParquet(path);
 
       const recovered = [];
       for await (const seq of SeqOps.fromParquet(path)) {
@@ -86,8 +84,18 @@ describe("SeqOps parquet extension methods", () => {
 
     test("reads FASTQ sequences when quality column present", async () => {
       const sequences = [
-        createFastqRecord({ id: "read1", sequence: "ATCG", quality: "IIII", qualityEncoding: "phred33" }),
-        createFastqRecord({ id: "read2", sequence: "GCTA", quality: "HHHH", qualityEncoding: "phred33" }),
+        createFastqRecord({
+          id: "read1",
+          sequence: "ATCG",
+          quality: "IIII",
+          qualityEncoding: "phred33",
+        }),
+        createFastqRecord({
+          id: "read2",
+          sequence: "GCTA",
+          quality: "HHHH",
+          qualityEncoding: "phred33",
+        }),
       ];
 
       const path = `${tempDir}/fastq.parquet`;
@@ -115,9 +123,7 @@ describe("SeqOps parquet extension methods", () => {
       const path = `${tempDir}/chain.parquet`;
       await seqops(toAsync(sequences)).writeParquet(path);
 
-      const filtered = await SeqOps.fromParquet(path)
-        .filter({ minLength: 4 })
-        .collect();
+      const filtered = await SeqOps.fromParquet(path).filter({ minLength: 4 }).collect();
 
       expect(filtered).toHaveLength(2);
       expect(filtered[0]!.id).toBe("seq1");
@@ -125,9 +131,7 @@ describe("SeqOps parquet extension methods", () => {
     });
 
     test("supports column projection for efficiency", async () => {
-      const sequences = [
-        createFastaRecord({ id: "seq1", sequence: "ATCGATCG" }),
-      ];
+      const sequences = [createFastaRecord({ id: "seq1", sequence: "ATCGATCG" })];
 
       const path = `${tempDir}/projection.parquet`;
       await seqops(toAsync(sequences)).writeParquet(path);
@@ -157,9 +161,7 @@ describe("SeqOps parquet extension methods", () => {
       expect(recovered).toHaveLength(3);
       for (let i = 0; i < original.length; i++) {
         expect(recovered[i]!.id).toBe(original[i]!.id);
-        expect(recovered[i]!.sequence).toEqualSequence(
-          original[i]!.sequence.toString()
-        );
+        expect(recovered[i]!.sequence).toEqualSequence(original[i]!.sequence.toString());
       }
     });
   });

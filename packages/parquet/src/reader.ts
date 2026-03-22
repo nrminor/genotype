@@ -68,9 +68,7 @@ export const readParquetStream = (
   Stream.unwrap(
     Effect.gen(function* () {
       const parquetWasm = yield* initParquetWasm.pipe(
-        Effect.mapError(
-          (e) => new ParquetReadError({ message: e.message, path, cause: e })
-        )
+        Effect.mapError((e) => new ParquetReadError({ message: e.message, path, cause: e }))
       );
 
       const blob = yield* Effect.try({

@@ -10,7 +10,8 @@
 
 import { type } from "arktype";
 import { Effect } from "effect";
-import { BackendService, backendRuntime } from "@genotype/core/backend/service";
+import { BackendService, backendLayer } from "@genotype/core/backend/service";
+import { CustomColumnError } from "@genotype/tabular/errors";
 import {
   convertRecordToSequence,
   createFastaRecord,
@@ -655,6 +656,183 @@ export class TabularOps<Columns extends readonly (ColumnId | string)[]> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Fx2Tab config, state, and extracted helpers
+// ---------------------------------------------------------------------------
+
+/** Mutable state threaded across batch flushes. */
+interface BatchState {
+  sequenceIndex: number;
+  lineNumber: number;
+}
+
+/** Immutable config bundle derived from Fx2TabOptions. */
+interface Fx2TabConfig<Columns extends readonly (ColumnId | string)[]> {
+  effectiveColumns: Columns;
+  customColumns: Fx2TabOptions<Columns>["customColumns"] & {};
+  caseSensitive: boolean;
+  excelSafe: boolean;
+  precision: number;
+  nullValue: string;
+  includeLineNumbers: boolean;
+  delimiter: string;
+  writer: DSVWriter;
+}
+
+/** Build dynamic base_content_X / base_count_X column IDs from options. */
+function buildDynamicColumns(content?: readonly string[], count?: readonly string[]): ColumnId[] {
+  return [
+    ...(content ?? []).map((b) => `base_content_${b}` as ColumnId),
+    ...(count ?? []).map((b) => `base_count_${b}` as ColumnId),
+  ];
+}
+
+/** Derive the display label for a column in the header row. */
+function headerLabel<Columns extends readonly (ColumnId | string)[]>(
+  col: string,
+  customColumns: Fx2TabConfig<Columns>["customColumns"]
+): string {
+  const custom = customColumns[col];
+  if (custom && typeof custom === "object" && custom.name) return custom.name;
+  if (custom) return col;
+  if (DSV_FIELDS.includes(col as (typeof DSV_FIELDS)[number])) return col;
+  return COLUMN_HEADERS[col] || col;
+}
+
+/**
+ * Compute a single column's value for one sequence.
+ *
+ * Handles all built-in column categories (basic, metadata, kernel metric,
+ * TS-computed, dynamic base content/count). Custom columns are NOT handled
+ * here — they require Effect.try and live in flushBatch.
+ *
+ * Returns undefined for custom columns so the caller knows to dispatch
+ * through Effect.try instead.
+ */
+function computeBuiltInColumnValue(
+  col: string,
+  seq: AbstractSequence,
+  metrics: NativeMetricBatch | null,
+  rowIndex: number,
+  state: BatchState,
+  config: Fx2TabConfig<readonly (ColumnId | string)[]>
+): { value: string | number | null } | undefined {
+  if (isKernelMetricColumn(col)) {
+    if (col === "alphabet" && config.caseSensitive) {
+      return { value: sequenceAlphabet(seq.sequence, true) };
+    }
+    return { value: readKernelMetric(col, metrics!, rowIndex) };
+  }
+  if (isBasicColumn(col)) return { value: computeBasicColumn(col, seq, config.nullValue) };
+  if (isMetadataColumn(col)) {
+    return {
+      value: computeMetadataColumn(
+        col,
+        state.sequenceIndex,
+        config.includeLineNumbers ? state.lineNumber : 0
+      ),
+    };
+  }
+  if (isTsComputedColumn(col)) return { value: computeTsColumn(col, seq, config.caseSensitive) };
+  if (col.startsWith("base_content_") || col.startsWith("base_count_")) {
+    return {
+      value: computeDynamicColumn(
+        col as BaseContentColumnId | BaseCountColumnId,
+        seq,
+        config.caseSensitive
+      ),
+    };
+  }
+  return undefined; // Not a built-in column — caller handles custom or null
+}
+
+/**
+ * Flush a batch of sequences into Fx2TabRows.
+ *
+ * Uses BackendService (via computeKernelMetrics) for kernel metrics.
+ * Custom column errors are typed as CustomColumnError.
+ */
+const flushBatch = <Columns extends readonly (ColumnId | string)[]>(
+  sequences: readonly AbstractSequence[],
+  state: BatchState,
+  config: Fx2TabConfig<Columns>
+) =>
+  Effect.gen(function* () {
+    const builtInColumns = config.effectiveColumns.filter(
+      (col): col is ColumnId => !config.customColumns[col]
+    );
+    const { kernel } = partitionColumns(builtInColumns);
+    const hasKernelMetrics = kernel.length > 0;
+
+    const metrics = hasKernelMetrics
+      ? yield* computeKernelMetrics(kernel, sequences, config.caseSensitive)
+      : null;
+
+    const rows: Fx2TabRow<Columns>[] = [];
+    let { sequenceIndex: seqIdx, lineNumber: ln } = state;
+
+    for (let rowIndex = 0; rowIndex < sequences.length; rowIndex++) {
+      const seq = sequences[rowIndex]!;
+      const values: Array<string | number | null> = [];
+      const stringValues: string[] = [];
+
+      for (const col of config.effectiveColumns) {
+        const builtIn = computeBuiltInColumnValue(
+          col,
+          seq,
+          metrics,
+          rowIndex,
+          { sequenceIndex: seqIdx, lineNumber: ln },
+          config as Fx2TabConfig<readonly (ColumnId | string)[]>
+        );
+
+        let value: string | number | null;
+        if (builtIn !== undefined) {
+          value = builtIn.value;
+        } else if (config.customColumns[col]) {
+          const customCol = config.customColumns[col];
+          const computeFn = typeof customCol === "function" ? customCol : customCol!.compute;
+          value = yield* Effect.try({
+            try: () => computeFn(seq),
+            catch: (cause) =>
+              new CustomColumnError({
+                column: String(col),
+                message: cause instanceof Error ? cause.message : String(cause),
+                cause,
+              }),
+          });
+        } else {
+          value = null;
+        }
+
+        values.push(value);
+        stringValues.push(
+          formatColumnValue(value, col, {
+            excelSafe: config.excelSafe,
+            precision: config.precision,
+            nullValue: config.nullValue,
+          })
+        );
+      }
+
+      const rawString = config.writer.formatRow(stringValues);
+      rows.push(
+        createRow(config.effectiveColumns, values, stringValues, rawString, config.delimiter)
+      );
+
+      seqIdx++;
+      const isFastq =
+        "format" in seq && (seq as AbstractSequence & { format?: string }).format === "fastq";
+      ln += isFastq ? 4 : 2;
+    }
+
+    return { rows, state: { sequenceIndex: seqIdx, lineNumber: ln } };
+  });
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
 /**
  * Convert sequences to type-safe tabular rows
  *
@@ -704,133 +882,40 @@ export async function* fx2tab<Columns extends readonly (ColumnId | string)[]>(
     caseSensitive = false,
   } = options;
 
-  // Build dynamic columns from baseContent and baseCount options
-  // These are computed columns that don't affect round-trip conversion
-  const dynamicColumns: ColumnId[] = [];
-  if (baseContentBases) {
-    for (const bases of baseContentBases) {
-      dynamicColumns.push(`base_content_${bases}` as ColumnId);
-    }
-  }
-  if (baseCountBases) {
-    for (const bases of baseCountBases) {
-      dynamicColumns.push(`base_count_${bases}` as ColumnId);
-    }
-  }
-
-  // Merge dynamic columns with specified columns
+  const dynamicColumns = buildDynamicColumns(baseContentBases, baseCountBases);
   const effectiveColumns = [...columns, ...dynamicColumns] as unknown as Columns;
 
-  // Create writer instance with proper configuration
-  const writer = new DSVWriter({
+  const config: Fx2TabConfig<Columns> = {
+    effectiveColumns,
+    customColumns: customColumns as Fx2TabConfig<Columns>["customColumns"],
+    caseSensitive,
+    excelSafe,
+    precision,
+    nullValue,
+    includeLineNumbers,
     delimiter,
-    excelCompatible: excelSafe,
-    quote: '"',
-    escapeChar: '"',
-    header: false, // We handle headers manually
-  });
+    writer: new DSVWriter({
+      delimiter,
+      excelCompatible: excelSafe,
+      quote: '"',
+      escapeChar: '"',
+      header: false,
+    }),
+  };
 
-  let sequenceIndex = 0;
-  let lineNumber = 1;
-  let batch: AbstractSequence[] = [];
-  let batchBytes = 0;
-
-  // Yield header row if requested
+  // Header row
   if (header) {
-    const headerRow = effectiveColumns.map((col) => {
-      const customCol = customColumns[col];
-      if (customCol) {
-        if (typeof customCol === "object" && customCol.name) {
-          return customCol.name;
-        }
-        return col;
-      }
-      // For DSV compatibility, write lowercase field names for standard columns
-      // This ensures DSVParser can read them back correctly
-      if (DSV_FIELDS.includes(col as (typeof DSV_FIELDS)[number])) {
-        return col; // Use lowercase for DSV compatibility
-      }
-
-      // For computed columns, use display headers
-      return COLUMN_HEADERS[col] || col;
-    });
-
-    const headerString = writer.formatRow(headerRow);
-    yield createRow(effectiveColumns, headerRow, headerRow, headerString, delimiter);
+    const labels = effectiveColumns.map((col) => headerLabel(col, config.customColumns));
+    const headerString = config.writer.formatRow(labels);
+    yield createRow(effectiveColumns, labels, labels, headerString, delimiter);
   }
 
-  const flushBatch = async function* (
-    sequences: readonly AbstractSequence[]
-  ): AsyncGenerator<Fx2TabRow<Columns>, void> {
-    // Partition columns by category for dispatch. Custom column names (plain strings
-    // in the customColumns record) are filtered out before partitioning.
-    const builtInColumns = effectiveColumns.filter((col): col is ColumnId => !customColumns[col]);
-    const { kernel } = partitionColumns(builtInColumns);
-    const hasKernelMetrics = kernel.length > 0;
-    const metrics = hasKernelMetrics
-      ? await backendRuntime.runPromise(computeKernelMetrics(kernel, sequences, caseSensitive))
-      : null;
-
-    for (let rowIndex = 0; rowIndex < sequences.length; rowIndex++) {
-      const seq = sequences[rowIndex]!;
-      const values: Array<string | number | null> = [];
-      const stringValues: string[] = [];
-
-      for (const col of effectiveColumns) {
-        // Custom columns take priority and are looked up by plain string key
-        const customCol = customColumns[col];
-        let value: string | number | null;
-        if (customCol) {
-          const computeFn = typeof customCol === "function" ? customCol : customCol.compute;
-          try {
-            value = computeFn(seq);
-          } catch {
-            value = nullValue;
-          }
-        } else if (isKernelMetricColumn(col)) {
-          // Alphabet is a kernel metric when case-insensitive, but the kernel's
-          // bitmask approach can't preserve case — fall back to TS when case-sensitive.
-          if (col === "alphabet" && caseSensitive) {
-            value = sequenceAlphabet(seq.sequence, true);
-          } else {
-            value = readKernelMetric(col, metrics!, rowIndex);
-          }
-        } else if (isBasicColumn(col)) {
-          value = computeBasicColumn(col, seq, nullValue);
-        } else if (isMetadataColumn(col)) {
-          value = computeMetadataColumn(col, sequenceIndex, includeLineNumbers ? lineNumber : 0);
-        } else if (isTsComputedColumn(col)) {
-          value = computeTsColumn(col, seq, caseSensitive);
-        } else if (col.startsWith("base_content_") || col.startsWith("base_count_")) {
-          value = computeDynamicColumn(
-            col as BaseContentColumnId | BaseCountColumnId,
-            seq,
-            caseSensitive
-          );
-        } else {
-          // Unknown column name (e.g. cast from string at runtime) — emit null
-          value = null;
-        }
-
-        values.push(value);
-        stringValues.push(
-          formatColumnValue(value, col, {
-            excelSafe,
-            precision,
-            nullValue,
-          })
-        );
-      }
-
-      const rawString = writer.formatRow(stringValues);
-      yield createRow(effectiveColumns, values, stringValues, rawString, delimiter);
-
-      sequenceIndex++;
-      const isFastq =
-        "format" in seq && (seq as AbstractSequence & { format?: string }).format === "fastq";
-      lineNumber += isFastq ? 4 : 2;
-    }
-  };
+  // Batch sequences and flush through the Effect-native flushBatch.
+  // BackendService flows through flushBatch's R type and is resolved
+  // once per batch via backendRuntime.runPromise.
+  let batch: AbstractSequence[] = [];
+  let batchBytes = 0;
+  let state: BatchState = { sequenceIndex: 0, lineNumber: 1 };
 
   try {
     for await (const seq of source) {
@@ -838,22 +923,30 @@ export async function* fx2tab<Columns extends readonly (ColumnId | string)[]>(
       batchBytes += seq.sequence?.length ?? 0;
 
       if (batchBytes >= BATCH_BYTE_BUDGET) {
-        yield* flushBatch(batch);
+        const result = await Effect.runPromise(
+          flushBatch(batch, state, config).pipe(Effect.provide(backendLayer))
+        );
+        state = result.state;
+        yield* result.rows;
         batch = [];
         batchBytes = 0;
       }
     }
   } catch (error) {
     if (batch.length > 0) {
-      yield* flushBatch(batch);
-      batch = [];
-      batchBytes = 0;
+      const result = await Effect.runPromise(
+        flushBatch(batch, state, config).pipe(Effect.provide(backendLayer))
+      );
+      yield* result.rows;
     }
     throw error;
   }
 
   if (batch.length > 0) {
-    yield* flushBatch(batch);
+    const result = await Effect.runPromise(
+      flushBatch(batch, state, config).pipe(Effect.provide(backendLayer))
+    );
+    yield* result.rows;
   }
 }
 

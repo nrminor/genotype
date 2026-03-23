@@ -13,7 +13,7 @@
 import { Layer, ManagedRuntime } from "effect";
 import type { TransformOp, TranslateBatchOptions, ValidationMode } from "./kernel-types";
 import type { FindPatternBatchOptions, GrepBatchOptions } from "./types";
-import { BackendService, BackendUnavailableError } from "./common";
+import { BackendService } from "./common";
 import { nativeLayer } from "./node-native";
 import { wasmLayer } from "./wasm";
 import { RuntimeEnvLayer } from "@genotype/core/io/layers";
@@ -26,7 +26,7 @@ export {
   type BackendError,
 } from "./common";
 
-const backendLayer: Layer.Layer<BackendService> = nativeLayer.pipe(
+export const backendLayer: Layer.Layer<BackendService> = nativeLayer.pipe(
   Layer.catchTag("NativeAddonNotFoundError", () =>
     wasmLayer.pipe(Layer.catchTag("WasmInitializationError", () => BackendService.NullLayer))
   )

@@ -20,6 +20,7 @@ export {
   BackendService,
   BackendUnavailableError,
   backendRuntime,
+  backendLayer,
   classifyBatch,
   transformBatch,
   grepBatch,

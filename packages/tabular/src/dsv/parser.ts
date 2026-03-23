@@ -13,8 +13,8 @@ import { wrapStream as wrapGzipStream } from "@genotype/core/compression/gzip";
 import { wrapStream as wrapZstdStream } from "@genotype/core/compression/zstd";
 import { Effect, Stream } from "effect";
 import { CompressionError, DSVParseError, FileError, ValidationError } from "@genotype/core/errors";
+import { TabularParseError } from "@genotype/tabular/errors";
 import { createStream, mapPlatformError } from "@genotype/core/io/file-reader";
-import { backendRuntime } from "@genotype/core/backend/service";
 import type { CompressionFormat } from "@genotype/core/types";
 import { AbstractParser } from "@genotype/core/formats/abstract-parser";
 import { DEFAULT_DELIMITERS, DEFAULT_ESCAPE, DEFAULT_QUOTE } from "@genotype/tabular/dsv/constants";
@@ -27,6 +27,7 @@ import {
   removeBOM,
 } from "@genotype/tabular/dsv/utils";
 import { DSVParserOptionsSchema } from "@genotype/tabular/dsv/validation";
+import { IOLayer } from "@genotype/core/io/layers";
 
 /**
  * DSV parser backed by d3-dsv
@@ -98,14 +99,91 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
   }
 
   /**
+   * Internal Effect that parses DSV text into a Stream of records.
+   * Handles BOM removal, comment stripping, delimiter/header detection,
+   * and d3-dsv parsing with typed errors.
+   */
+  private parseTextEffect(data: string): Effect.Effect<DSVRecord[], TabularParseError> {
+    return Effect.gen({ self: this }, function* () {
+      let text = removeBOM(data);
+
+      const commentPrefix = this.options.commentPrefix ?? "#";
+      if (this.options.skipComments) {
+        text = text
+          .split(/\r?\n/)
+          .filter((line) => !line.startsWith(commentPrefix))
+          .join("\n");
+      }
+
+      if ((this.options.autoDetect || this.options.autoDetectDelimiter) && !this.delimiter) {
+        const sampleLines = text.split(/\r?\n/).slice(0, 10);
+        const detected = detectDelimiter(sampleLines);
+        if (detected) {
+          this.delimiter = detected;
+        } else {
+          yield* Effect.logWarning("Could not auto-detect delimiter, defaulting to comma (,)");
+          this.delimiter = ",";
+        }
+      }
+
+      if (
+        (this.options.autoDetect || this.options.autoDetectHeaders) &&
+        this.options.header === undefined
+      ) {
+        const sampleLines = text.split(/\r?\n/).slice(0, 5);
+        const hasHeaders = detectHeaders(sampleLines, this.delimiter);
+        this.options.header = hasHeaders;
+      }
+
+      const parser = dsvFormat(this.delimiter);
+      const records: DSVRecord[] = [];
+
+      if (this.options.header) {
+        const parsed = yield* Effect.try({
+          try: () => parser.parse(text),
+          catch: (cause) =>
+            new TabularParseError({
+              message: `DSV parse failed: ${cause instanceof Error ? cause.message : String(cause)}`,
+              cause,
+            }),
+        });
+        this.headers = parsed.columns;
+
+        for (let i = 0; i < parsed.length; i++) {
+          const row = parsed[i]!;
+          const fields = this.headers.map((col: string) => row[col] ?? "");
+          const record = this.createRecord(fields, i + 2);
+          if (record) records.push(record);
+        }
+      } else {
+        const rows = yield* Effect.try({
+          try: () => parser.parseRows(text),
+          catch: (cause) =>
+            new TabularParseError({
+              message: `DSV parse failed: ${cause instanceof Error ? cause.message : String(cause)}`,
+              cause,
+            }),
+        });
+
+        for (let i = 0; i < rows.length; i++) {
+          const fields = rows[i]!;
+          if (this.options.skipEmptyLines && fields.length === 1 && !fields[0]) continue;
+          const record = this.createRecord(fields, i + 1);
+          if (record) records.push(record);
+        }
+      }
+
+      return records;
+    });
+  }
+
+  /**
    * Parse a DSV file from a path.
    * Automatically handles compression based on file extension.
    */
   async *parseFile(path: string): AsyncIterable<DSVRecord> {
-    const parseStringFn = this.parseString.bind(this);
-
     const stream = Stream.unwrap(
-      Effect.gen(function* () {
+      Effect.gen({ self: this }, function* () {
         const detectionStream = yield* createStream(path, {});
         const detection = yield* Effect.promise(() =>
           CompressionDetector.fromStream(detectionStream)
@@ -126,23 +204,21 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
             ),
         });
 
-        return Stream.fromAsyncIterable(
-          parseStringFn(text),
-          (e) =>
-            new FileError(
-              `Failed to parse DSV file: ${e instanceof Error ? e.message : String(e)}`,
-              path,
-              "read",
-              e
-            )
+        const records = yield* this.parseTextEffect(text).pipe(
+          Effect.catchTag("TabularParseError", (e) =>
+            Effect.fail(new FileError(e.message, path, "read", e.cause))
+          )
         );
+
+        return Stream.fromIterable(records);
       }).pipe(
         mapPlatformError(path, "read"),
         Effect.mapError((e) => new FileError(e.message, path, "read", e.cause))
       )
     );
-
-    yield* await backendRuntime.runPromise(Stream.toAsyncIterableEffect(stream));
+    yield* await Effect.runPromise(
+      Stream.toAsyncIterableEffect(stream).pipe(Effect.provide(IOLayer))
+    );
   }
 
   /**
@@ -157,58 +233,8 @@ export class DSVParser extends AbstractParser<DSVRecord, DSVParserOptions> {
    * Parse DSV data from a string.
    */
   async *parseString(data: string): AsyncIterable<DSVRecord> {
-    let text = removeBOM(data);
-
-    const commentPrefix = this.options.commentPrefix ?? "#";
-    if (this.options.skipComments) {
-      text = text
-        .split(/\r?\n/)
-        .filter((line) => !line.startsWith(commentPrefix))
-        .join("\n");
-    }
-
-    if ((this.options.autoDetect || this.options.autoDetectDelimiter) && !this.delimiter) {
-      const sampleLines = text.split(/\r?\n/).slice(0, 10);
-      const detected = detectDelimiter(sampleLines);
-      if (detected) {
-        this.delimiter = detected;
-      } else {
-        console.warn("Could not auto-detect delimiter, defaulting to comma (,)");
-        this.delimiter = ",";
-      }
-    }
-
-    if (
-      (this.options.autoDetect || this.options.autoDetectHeaders) &&
-      this.options.header === undefined
-    ) {
-      const sampleLines = text.split(/\r?\n/).slice(0, 5);
-      const hasHeaders = detectHeaders(sampleLines, this.delimiter);
-      this.options.header = hasHeaders;
-    }
-
-    const parser = dsvFormat(this.delimiter);
-
-    if (this.options.header) {
-      const parsed = parser.parse(text);
-      this.headers = parsed.columns;
-
-      for (let i = 0; i < parsed.length; i++) {
-        const row = parsed[i]!;
-        const fields = this.headers.map((col) => row[col] ?? "");
-        const record = this.createRecord(fields, i + 2);
-        if (record) yield record;
-      }
-    } else {
-      const rows = parser.parseRows(text);
-
-      for (let i = 0; i < rows.length; i++) {
-        const fields = rows[i]!;
-        if (this.options.skipEmptyLines && fields.length === 1 && !fields[0]) continue;
-        const record = this.createRecord(fields, i + 1);
-        if (record) yield record;
-      }
-    }
+    const records = await Effect.runPromise(this.parseTextEffect(data));
+    yield* records;
   }
 
   /**

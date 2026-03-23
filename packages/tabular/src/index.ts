@@ -41,3 +41,5 @@ export {
   tab2fx,
   type TsComputedColumnId,
 } from "@genotype/tabular/fx2tab";
+
+export { CustomColumnError, Fx2TabError, TabularParseError } from "@genotype/tabular/errors";

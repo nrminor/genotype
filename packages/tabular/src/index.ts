@@ -9,7 +9,7 @@
  * writeJSON, writeJSONL.
  */
 
-import "@genotype/tabular/seqops-ext";
+import "./seqops-ext";
 
 export {
   CSVParser,
@@ -24,7 +24,7 @@ export {
   protectFromExcel,
   TSVParser,
   TSVWriter,
-} from "@genotype/tabular/dsv";
+} from "./dsv";
 
 export {
   type BasicColumnId,
@@ -40,6 +40,6 @@ export {
   TabularOps,
   tab2fx,
   type TsComputedColumnId,
-} from "@genotype/tabular/fx2tab";
+} from "./fx2tab";
 
-export { CustomColumnError, Fx2TabError, TabularParseError } from "@genotype/tabular/errors";
+export { CustomColumnError, Fx2TabError, TabularParseError } from "./errors";

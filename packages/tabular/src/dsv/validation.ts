@@ -10,7 +10,7 @@
 
 import { type } from "arktype";
 import { DSVParseError, ValidationError } from "@genotype/core/errors";
-import { MAX_FIELD_SIZE } from "@genotype/tabular/dsv/constants";
+import { MAX_FIELD_SIZE } from "./constants";
 
 /**
  * Validate that a field doesn't exceed the maximum allowed size

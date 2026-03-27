@@ -6,11 +6,12 @@
  * available on SeqOps.
  */
 
-import { SeqOps } from "@genotype/core/operations";
+import { SeqOps } from "@genotype/core/seqops";
 import { convertRecordToSequence } from "@genotype/core/constructors";
 import type { AbstractSequence } from "@genotype/core/types";
-import { readParquet, type ParquetReadOptions, type ParquetRow } from "@genotype/parquet/reader";
-import { type ParquetWriteOptions } from "@genotype/parquet/writer";
+import "@genotype/tabular/seqops-ext";
+import { readParquet, type ParquetReadOptions, type ParquetRow } from "./reader";
+import { type ParquetWriteOptions } from "./writer";
 
 /**
  * Options for reading parquet files as sequences.
@@ -58,15 +59,7 @@ function rowToSequence(row: ParquetRow, options?: ParquetSequenceReadOptions): A
   );
 }
 
-declare module "@genotype/core/operations" {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace SeqOps {
-    function fromParquet(
-      path: string,
-      options?: ParquetSequenceReadOptions
-    ): SeqOps<AbstractSequence>;
-  }
-
+declare module "@genotype/core/seqops" {
   interface SeqOps<T extends AbstractSequence> {
     writeParquet(
       path: string,
@@ -107,3 +100,5 @@ SeqOps.prototype.writeParquet = async function (
 ): Promise<void> {
   await this.toTabular({ header: false }).writeParquet(path, options);
 };
+
+export const SeqOpsParquetExt = "SeqOpsParquetExt" as const;

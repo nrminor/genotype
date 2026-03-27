@@ -37,8 +37,12 @@
     "lib": ["ES2022", "DOM"],
     "types": ["bun", "node"],
     "paths": {
+      "@genotype/core": ["../core/src/index.ts"],
+      "@genotype/core/seqops": ["../core/src/operations/index.ts"],
       "@genotype/core/*": ["../core/src/*"],
+      "@genotype/tabular": ["../tabular/src/index.ts"],
       "@genotype/tabular/*": ["../tabular/src/*"],
+      "@genotype/parquet": ["./src/index.ts"],
       "@genotype/parquet/*": ["./src/*"],
       "@genotype/wasm-pkg/*": ["../../crates/wasm-adapter/pkg/*"]
     },

@@ -10,8 +10,8 @@ import { Effect, Stream } from "effect";
 import { tableFromIPC } from "apache-arrow";
 import type { Table as ArrowTable } from "apache-arrow";
 import { readFileSync } from "fs";
-import { initParquetWasm } from "@genotype/parquet/wasm-init";
-import { ParquetReadError } from "@genotype/parquet/errors";
+import { initParquetWasm } from "./wasm-init";
+import { ParquetReadError } from "./errors";
 
 /**
  * Options for reading Parquet files

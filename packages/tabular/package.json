@@ -8,17 +8,53 @@
     "url": "https://github.com/nrminor/genotype",
     "directory": "packages/tabular"
   },
+  "files": [
+    "dist",
+    "LICENSE*",
+    "README.md"
+  ],
   "type": "module",
-  "sideEffects": false,
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "sideEffects": [
+    "./dist/index.js",
+    "./dist/seqops-ext.js"
+  ],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./dsv": {
+      "types": "./dist/dsv/index.d.ts",
+      "import": "./dist/dsv/index.js"
+    },
+    "./dsv/*": {
+      "types": "./dist/dsv/*.d.ts",
+      "import": "./dist/dsv/*.js"
+    },
+    "./errors": {
+      "types": "./dist/errors.d.ts",
+      "import": "./dist/errors.js"
+    },
+    "./fx2tab": {
+      "types": "./dist/fx2tab.d.ts",
+      "import": "./dist/fx2tab.js"
+    },
+    "./seqops-ext": {
+      "types": "./dist/seqops-ext.d.ts",
+      "import": "./dist/seqops-ext.js"
+    },
+    "./package.json": "./package.json"
+  },
   "scripts": {
+    "build": "bun scripts/build.mjs",
     "lint": "bunx oxlint",
     "test": "bun test test/",
     "typecheck": "bunx tsgo --noEmit -p tsconfig.test.json"
   },
   "dependencies": {
-    "@genotype/core": "workspace:*",
+    "@genotype/core": "0.1.0",
     "arktype": "^2.2.0",
     "d3-dsv": "^3.0.1",
     "effect": "4.0.0-beta.34"

@@ -9,9 +9,9 @@
 import { Effect } from "effect";
 import { writeBytes } from "@genotype/core/io/file-writer";
 import type { Fx2TabRow, ColumnId } from "@genotype/tabular/fx2tab";
-import { collectColumns, buildArrowTable, arrowTableToIPC } from "@genotype/parquet/arrow";
-import { initParquetWasm } from "@genotype/parquet/wasm-init";
-import { ParquetWriteError } from "@genotype/parquet/errors";
+import { collectColumns, buildArrowTable, arrowTableToIPC } from "./arrow";
+import { initParquetWasm } from "./wasm-init";
+import { ParquetWriteError } from "./errors";
 
 /**
  * Options for writing Parquet files

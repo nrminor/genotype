@@ -11,7 +11,7 @@
 import { type } from "arktype";
 import { Effect } from "effect";
 import { BackendService, backendLayer } from "@genotype/core/backend/service";
-import { CustomColumnError } from "@genotype/tabular/errors";
+import { CustomColumnError } from "./errors";
 import {
   convertRecordToSequence,
   createFastaRecord,
@@ -26,7 +26,7 @@ import {
   detectDelimiter,
   TSVParser,
   TSVWriter,
-} from "@genotype/tabular/dsv";
+} from "./dsv";
 import type { JSONWriteOptions } from "@genotype/core/formats/json";
 import {
   generateCollectionMetadata,

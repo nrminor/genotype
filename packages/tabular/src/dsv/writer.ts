@@ -10,10 +10,10 @@ import { type } from "arktype";
 import { dsvFormat } from "d3-dsv";
 import { ValidationError } from "@genotype/core/errors";
 import { writeString } from "@genotype/core/io/file-writer";
-import { protectFromExcel } from "@genotype/tabular/dsv/excel-protection";
-import type { DSVRecord, DSVWriterOptions } from "@genotype/tabular/dsv/types";
-import { calculateBaseCount, calculateGC } from "@genotype/tabular/dsv/utils";
-import { DSVWriterOptionsSchema } from "@genotype/tabular/dsv/validation";
+import { protectFromExcel } from "./excel-protection";
+import type { DSVRecord, DSVWriterOptions } from "./types";
+import { calculateBaseCount, calculateGC } from "./utils";
+import { DSVWriterOptionsSchema } from "./validation";
 
 /**
  * DSVWriter — CSV/TSV writer backed by d3-dsv

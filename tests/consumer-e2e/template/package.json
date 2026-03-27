@@ -1,0 +1,24 @@
+{
+  "name": "genotype-consumer-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "bunx tsc --noEmit -p tsconfig.json",
+    "runtime:tabular": "bun run runtime-tabular.ts",
+    "runtime:parquet": "bun run runtime-parquet.ts",
+    "check": "bun run typecheck && bun run runtime:tabular && bun run runtime:parquet"
+  },
+  "dependencies": {
+    "@genotype/core": "__CORE_TGZ__",
+    "@genotype/parquet": "__PARQUET_TGZ__",
+    "@genotype/tabular": "__TABULAR_TGZ__"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.1-rc"
+  },
+  "overrides": {
+    "@genotype/core": "__CORE_TGZ__",
+    "@genotype/parquet": "__PARQUET_TGZ__",
+    "@genotype/tabular": "__TABULAR_TGZ__"
+  }
+}

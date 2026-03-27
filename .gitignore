@@ -167,6 +167,15 @@
 !/packages/core/scripts/build.mjs
 !/packages/core/scripts/pack.mjs
 !/packages/core/scripts/publish.mjs
+!/scripts/
+!/scripts/consumer-check.mjs
+
+# === CONSUMER E2E CONTRACT TESTS ===
+!/tests/
+!/tests/consumer-e2e/
+!/tests/consumer-e2e/template/
+!/tests/consumer-e2e/template/*.json
+!/tests/consumer-e2e/template/*.ts
 
 # === GITHUB WORKFLOWS ===
 # CI/CD and automation

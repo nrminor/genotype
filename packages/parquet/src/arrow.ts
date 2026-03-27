@@ -11,7 +11,7 @@ import { Effect } from "effect";
 import { tableFromArrays, tableToIPC } from "apache-arrow";
 import type { Table } from "apache-arrow";
 import type { Fx2TabRow, ColumnId } from "@genotype/tabular/fx2tab";
-import { ParquetWriteError } from "@genotype/parquet/errors";
+import { ParquetWriteError } from "./errors";
 
 /**
  * Infer whether a column holds numeric or string values based on collected data.

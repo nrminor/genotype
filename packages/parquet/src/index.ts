@@ -8,20 +8,11 @@
  * Importing this module augments TabularOps with writeParquet().
  */
 
-import "@genotype/parquet/tabular-ext";
-import "@genotype/parquet/seqops-ext";
+import "./tabular-ext";
+import "./seqops-ext";
 
-export {
-  writeParquet,
-  serializeToParquet,
-  type ParquetWriteOptions,
-} from "@genotype/parquet/writer";
-export {
-  readParquet,
-  readParquetStream,
-  type ParquetReadOptions,
-  type ParquetRow,
-} from "@genotype/parquet/reader";
-export { ParquetWriteError, ParquetReadError } from "@genotype/parquet/errors";
-export { initParquetWasm, ParquetWasmInitError } from "@genotype/parquet/wasm-init";
-export { PARQUET_VERSION } from "@genotype/parquet/version";
+export { writeParquet, serializeToParquet, type ParquetWriteOptions } from "./writer";
+export { readParquet, readParquetStream, type ParquetReadOptions, type ParquetRow } from "./reader";
+export { ParquetWriteError, ParquetReadError } from "./errors";
+export { initParquetWasm, ParquetWasmInitError } from "./wasm-init";
+export { PARQUET_VERSION } from "./version";

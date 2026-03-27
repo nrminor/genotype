@@ -8,18 +8,65 @@
     "url": "https://github.com/nrminor/genotype",
     "directory": "packages/parquet"
   },
+  "files": [
+    "dist",
+    "LICENSE*",
+    "README.md"
+  ],
   "type": "module",
-  "sideEffects": false,
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "sideEffects": [
+    "./dist/index.js",
+    "./dist/seqops-ext.js",
+    "./dist/tabular-ext.js"
+  ],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./seqops-ext": {
+      "types": "./dist/seqops-ext.d.ts",
+      "import": "./dist/seqops-ext.js"
+    },
+    "./tabular-ext": {
+      "types": "./dist/tabular-ext.d.ts",
+      "import": "./dist/tabular-ext.js"
+    },
+    "./reader": {
+      "types": "./dist/reader.d.ts",
+      "import": "./dist/reader.js"
+    },
+    "./writer": {
+      "types": "./dist/writer.d.ts",
+      "import": "./dist/writer.js"
+    },
+    "./arrow": {
+      "types": "./dist/arrow.d.ts",
+      "import": "./dist/arrow.js"
+    },
+    "./wasm-init": {
+      "types": "./dist/wasm-init.d.ts",
+      "import": "./dist/wasm-init.js"
+    },
+    "./errors": {
+      "types": "./dist/errors.d.ts",
+      "import": "./dist/errors.js"
+    },
+    "./version": {
+      "types": "./dist/version.d.ts",
+      "import": "./dist/version.js"
+    },
+    "./package.json": "./package.json"
+  },
   "scripts": {
+    "build": "bun scripts/build.mjs",
     "lint": "bunx oxlint",
     "test": "bun test test/",
     "typecheck": "bunx tsgo --noEmit -p tsconfig.test.json"
   },
   "dependencies": {
-    "@genotype/core": "workspace:*",
-    "@genotype/tabular": "workspace:*",
     "apache-arrow": "^21.1.0",
     "parquet-wasm": "^0.7.1"
   },
@@ -27,6 +74,8 @@
     "@types/bun": "^1.3.10"
   },
   "peerDependencies": {
+    "@genotype/core": "^0.1.0",
+    "@genotype/tabular": "^0.1.0",
     "typescript": ">5.9.3"
   }
 }

@@ -5,13 +5,14 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "bun run --cwd packages/core build",
-    "build:lib": "bun run --cwd packages/core build:lib",
+    "build": "bun run --cwd packages/core build && bun run --cwd packages/tabular build && bun run --cwd packages/parquet build",
+    "build:lib": "bun run --cwd packages/core build:lib && bun run --cwd packages/tabular build && bun run --cwd packages/parquet build",
     "build:native": "bun run --cwd packages/core build:native",
     "build:native:dev": "bun run --cwd packages/core build:native:dev",
     "build:wasm": "bun run --cwd packages/core build:wasm",
     "build:wasm:dev": "bun run --cwd packages/core build:wasm:dev",
     "check": "bun run typecheck && bun run lint && bun run lint:rust && bun run test && bun run build",
+    "check:consumer:external": "bun run scripts/consumer-check.mjs",
     "clean": "rm -rf packages/core/dist && rm -rf crates/wasm-adapter/pkg && cargo clean",
     "clean:rust": "cargo clean",
     "docs": "bun run --cwd packages/core docs",

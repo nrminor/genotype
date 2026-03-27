@@ -1,7 +1,10 @@
 {
   "compilerOptions": {
     "paths": {
+      "@genotype/core": ["./packages/core/src/index.ts"],
+      "@genotype/core/seqops": ["./packages/core/src/operations/index.ts"],
       "@genotype/core/*": ["./packages/core/src/*"],
+      "@genotype/tabular": ["./packages/tabular/src/index.ts"],
       "@genotype/tabular/*": ["./packages/tabular/src/*"],
       "@genotype/parquet/*": ["./packages/parquet/src/*"],
       "@genotype/wasm-pkg/*": ["./crates/wasm-adapter/pkg/*"]

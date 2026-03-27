@@ -13,20 +13,15 @@ import { wrapStream as wrapGzipStream } from "@genotype/core/compression/gzip";
 import { wrapStream as wrapZstdStream } from "@genotype/core/compression/zstd";
 import { Effect, Stream } from "effect";
 import { CompressionError, DSVParseError, FileError, ValidationError } from "@genotype/core/errors";
-import { TabularParseError } from "@genotype/tabular/errors";
+import { TabularParseError } from "../errors";
 import { createStream, mapPlatformError } from "@genotype/core/io/file-reader";
 import type { CompressionFormat } from "@genotype/core/types";
 import { AbstractParser } from "@genotype/core/formats/abstract-parser";
-import { DEFAULT_DELIMITERS, DEFAULT_ESCAPE, DEFAULT_QUOTE } from "@genotype/tabular/dsv/constants";
-import { detectDelimiter, detectHeaders } from "@genotype/tabular/dsv/detection";
-import type { DSVParserOptions, DSVRecord } from "@genotype/tabular/dsv/types";
-import {
-  calculateBaseCount,
-  calculateGC,
-  calculateGCSkew,
-  removeBOM,
-} from "@genotype/tabular/dsv/utils";
-import { DSVParserOptionsSchema } from "@genotype/tabular/dsv/validation";
+import { DEFAULT_DELIMITERS, DEFAULT_ESCAPE, DEFAULT_QUOTE } from "./constants";
+import { detectDelimiter, detectHeaders } from "./detection";
+import type { DSVParserOptions, DSVRecord } from "./types";
+import { calculateBaseCount, calculateGC, calculateGCSkew, removeBOM } from "./utils";
+import { DSVParserOptionsSchema } from "./validation";
 import { IOLayer } from "@genotype/core/io/layers";
 
 /**

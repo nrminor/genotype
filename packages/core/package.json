@@ -24,23 +24,184 @@
   "files": [
     "dist",
     "LICENSE*",
-    "README.md",
-    "src"
+    "README.md"
   ],
   "type": "module",
   "sideEffects": false,
   "main": "dist/index.js",
-  "module": "src/index.ts",
+  "module": "dist/index.js",
   "browser": {
     "./src/backend/node-native.ts": false,
     "./dist/backend/node-native.js": false
   },
-  "types": "src/index.ts",
+  "types": "dist/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "seqops": [
+        "dist/operations/index.d.ts"
+      ],
+      "index": [
+        "dist/index.d.ts"
+      ],
+      "types": [
+        "dist/types.d.ts"
+      ],
+      "errors": [
+        "dist/errors.d.ts"
+      ],
+      "constructors": [
+        "dist/constructors.d.ts"
+      ],
+      "genotype-string": [
+        "dist/genotype-string.d.ts"
+      ],
+      "backend/*": [
+        "dist/backend/*.d.ts"
+      ],
+      "backend": [
+        "dist/backend/index.d.ts"
+      ],
+      "compression": [
+        "dist/compression/index.d.ts"
+      ],
+      "compression/*": [
+        "dist/compression/*.d.ts"
+      ],
+      "formats": [
+        "dist/formats/index.d.ts"
+      ],
+      "formats/json": [
+        "dist/formats/json/index.d.ts"
+      ],
+      "formats/fastq": [
+        "dist/formats/fastq/index.d.ts"
+      ],
+      "formats/gtf": [
+        "dist/formats/gtf/index.d.ts"
+      ],
+      "formats/*": [
+        "dist/formats/*.d.ts"
+      ],
+      "io/*": [
+        "dist/io/*.d.ts"
+      ],
+      "operations": [
+        "dist/operations/index.d.ts"
+      ],
+      "operations/*": [
+        "dist/operations/*.d.ts"
+      ],
+      "operations/core/*": [
+        "dist/operations/core/*.d.ts"
+      ],
+      "operations/core/quality": [
+        "dist/operations/core/quality/index.d.ts"
+      ],
+      "operations/core/quality/*": [
+        "dist/operations/core/quality/*.d.ts"
+      ],
+      "operations/*/*": [
+        "dist/operations/*/*.d.ts"
+      ]
+    }
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./index": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./seqops": {
+      "types": "./dist/operations/index.d.ts",
+      "import": "./dist/operations/index.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.js"
+    },
+    "./errors": {
+      "types": "./dist/errors.d.ts",
+      "import": "./dist/errors.js"
+    },
+    "./constructors": {
+      "types": "./dist/constructors.d.ts",
+      "import": "./dist/constructors.js"
+    },
+    "./genotype-string": {
+      "types": "./dist/genotype-string.d.ts",
+      "import": "./dist/genotype-string.js"
+    },
+    "./backend/*": {
+      "types": "./dist/backend/*.d.ts",
+      "import": "./dist/backend/*.js"
+    },
+    "./backend": {
+      "types": "./dist/backend/index.d.ts",
+      "import": "./dist/backend/index.js"
+    },
+    "./compression": {
+      "types": "./dist/compression/index.d.ts",
+      "import": "./dist/compression/index.js"
+    },
+    "./compression/*": {
+      "types": "./dist/compression/*.d.ts",
+      "import": "./dist/compression/*.js"
+    },
+    "./formats": {
+      "types": "./dist/formats/index.d.ts",
+      "import": "./dist/formats/index.js"
+    },
+    "./formats/json": {
+      "types": "./dist/formats/json/index.d.ts",
+      "import": "./dist/formats/json/index.js"
+    },
+    "./formats/fastq": {
+      "types": "./dist/formats/fastq/index.d.ts",
+      "import": "./dist/formats/fastq/index.js"
+    },
+    "./formats/gtf": {
+      "types": "./dist/formats/gtf/index.d.ts",
+      "import": "./dist/formats/gtf/index.js"
+    },
+    "./formats/*": {
+      "types": "./dist/formats/*.d.ts",
+      "import": "./dist/formats/*.js"
+    },
+    "./io/*": {
+      "types": "./dist/io/*.d.ts",
+      "import": "./dist/io/*.js"
+    },
+    "./operations": {
+      "types": "./dist/operations/index.d.ts",
+      "import": "./dist/operations/index.js"
+    },
+    "./operations/*": {
+      "types": "./dist/operations/*.d.ts",
+      "import": "./dist/operations/*.js"
+    },
+    "./operations/core/*": {
+      "types": "./dist/operations/core/*.d.ts",
+      "import": "./dist/operations/core/*.js"
+    },
+    "./operations/core/quality": {
+      "types": "./dist/operations/core/quality/index.d.ts",
+      "import": "./dist/operations/core/quality/index.js"
+    },
+    "./operations/core/quality/*": {
+      "types": "./dist/operations/core/quality/*.d.ts",
+      "import": "./dist/operations/core/quality/*.js"
+    },
+    "./operations/*/*": {
+      "types": "./dist/operations/*/*.d.ts",
+      "import": "./dist/operations/*/*.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "bun run build:native && bun run build:wasm && bun run build:lib",

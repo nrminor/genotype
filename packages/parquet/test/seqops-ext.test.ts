@@ -11,12 +11,15 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, rmSync } from "fs";
 import "../../core/test/matchers";
 import { createFastaRecord, createFastqRecord } from "@genotype/core/constructors";
-import { SeqOps, seqops } from "@genotype/core/operations";
+import { SeqOps, seqops } from "@genotype/core/seqops";
 import type { FastaSequence, FastqSequence } from "@genotype/core/types";
 import "@genotype/tabular";
 import "@genotype/parquet";
 
 const tempDir = "/tmp/genotype-parquet-seqops-test";
+const SeqOpsWithParquet = SeqOps as typeof SeqOps & {
+  fromParquet: (path: string, options?: unknown) => SeqOps<any>;
+};
 
 beforeEach(() => {
   mkdirSync(tempDir, { recursive: true });
@@ -54,7 +57,7 @@ describe("SeqOps parquet extension methods", () => {
       await seqops(toAsync(sequences)).filter({ minLength: 5 }).writeParquet(path);
 
       const recovered = [];
-      for await (const seq of SeqOps.fromParquet(path)) {
+      for await (const seq of SeqOpsWithParquet.fromParquet(path)) {
         recovered.push(seq);
       }
 
@@ -74,7 +77,7 @@ describe("SeqOps parquet extension methods", () => {
       const path = `${tempDir}/fasta.parquet`;
       await seqops(toAsync(sequences)).writeParquet(path);
 
-      const recovered = await SeqOps.fromParquet(path).collect();
+      const recovered = await SeqOpsWithParquet.fromParquet(path).collect();
 
       expect(recovered).toHaveLength(3);
       expect((recovered[0] as FastaSequence).format).toBe("fasta");
@@ -106,7 +109,7 @@ describe("SeqOps parquet extension methods", () => {
         })
         .writeParquet(path);
 
-      const recovered = await SeqOps.fromParquet(path).collect();
+      const recovered = await SeqOpsWithParquet.fromParquet(path).collect();
 
       expect(recovered).toHaveLength(2);
       expect((recovered[0] as FastqSequence).format).toBe("fastq");
@@ -123,7 +126,7 @@ describe("SeqOps parquet extension methods", () => {
       const path = `${tempDir}/chain.parquet`;
       await seqops(toAsync(sequences)).writeParquet(path);
 
-      const filtered = await SeqOps.fromParquet(path).filter({ minLength: 4 }).collect();
+      const filtered = await SeqOpsWithParquet.fromParquet(path).filter({ minLength: 4 }).collect();
 
       expect(filtered).toHaveLength(2);
       expect(filtered[0]!.id).toBe("seq1");
@@ -136,7 +139,7 @@ describe("SeqOps parquet extension methods", () => {
       const path = `${tempDir}/projection.parquet`;
       await seqops(toAsync(sequences)).writeParquet(path);
 
-      const recovered = await SeqOps.fromParquet(path, {
+      const recovered = await SeqOpsWithParquet.fromParquet(path, {
         columns: ["id", "sequence"],
       }).collect();
 
@@ -156,7 +159,7 @@ describe("SeqOps parquet extension methods", () => {
 
       const path = `${tempDir}/roundtrip.parquet`;
       await seqops(toAsync(original)).writeParquet(path);
-      const recovered = await SeqOps.fromParquet(path).collect();
+      const recovered = await SeqOpsWithParquet.fromParquet(path).collect();
 
       expect(recovered).toHaveLength(3);
       for (let i = 0; i < original.length; i++) {

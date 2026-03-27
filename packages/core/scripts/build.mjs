@@ -123,38 +123,17 @@ if (buildLib) {
   rmSync(distDir, { recursive: true, force: true });
   mkdirSync(distDir, { recursive: true });
 
-  const externalDeps = [
-    ...Object.keys(packageJson.optionalDependencies || {}),
-    ...Object.keys(packageJson.peerDependencies || {}),
-    // The napi-rs generated loader resolves platform-specific .node files
-    // at runtime. The bundler must not try to inline or resolve it.
-    "*/native/index.js",
-  ];
-
-  // Build main entry point
-  spawnSync(
-    "bun",
-    [
-      "build",
-      "--target=bun",
-      "--outdir=dist",
-      ...externalDeps.flatMap((dep) => ["--external", dep]),
-      packageJson.module,
-    ],
-    {
-      cwd: packageRoot,
-      stdio: "inherit",
-    }
-  );
-
-  console.log("Generating TypeScript declarations...");
+  console.log("Compiling TypeScript module tree...");
 
   const tsconfigBuildPath = join(packageRoot, "tsconfig.build.json");
   const tsconfigBuild = {
     extends: "./tsconfig.json",
     compilerOptions: {
+      incremental: false,
+      composite: false,
+      module: "ES2022",
       declaration: true,
-      emitDeclarationOnly: true,
+      emitDeclarationOnly: false,
       outDir: "./dist",
       noEmit: false,
       rootDir: "./src",
@@ -174,17 +153,27 @@ if (buildLib) {
 
   writeFileSync(tsconfigBuildPath, JSON.stringify(tsconfigBuild, null, 2));
 
-  const tscResult = spawnSync("npx", ["tsc", "-p", tsconfigBuildPath], {
+  const tscResult = spawnSync("bunx", ["tsc", "-p", tsconfigBuildPath], {
     cwd: packageRoot,
     stdio: "inherit",
   });
 
   rmSync(tsconfigBuildPath, { force: true });
 
+  if (tscResult.error) {
+    console.error(`Error: Failed to run tsc: ${tscResult.error.message}`);
+    process.exit(1);
+  }
+
   if (tscResult.status !== 0) {
-    console.warn("Warning: TypeScript declaration generation failed");
+    console.warn("Warning: TypeScript compilation failed");
   } else {
-    console.log("TypeScript declarations generated");
+    console.log("TypeScript compilation complete");
+  }
+
+  if (!existsSync(join(distDir, "index.js")) || !existsSync(join(distDir, "index.d.ts"))) {
+    console.error("Error: Core dist outputs missing after TypeScript compilation");
+    process.exit(1);
   }
 
   // Configure exports for multiple entry points
@@ -194,6 +183,117 @@ if (buildLib) {
       require: "./index.js",
       types: "./index.d.ts",
     },
+    "./index": {
+      import: "./index.js",
+      require: "./index.js",
+      types: "./index.d.ts",
+    },
+    "./seqops": {
+      import: "./operations/index.js",
+      require: "./operations/index.js",
+      types: "./operations/index.d.ts",
+    },
+    "./types": {
+      import: "./types.js",
+      require: "./types.js",
+      types: "./types.d.ts",
+    },
+    "./errors": {
+      import: "./errors.js",
+      require: "./errors.js",
+      types: "./errors.d.ts",
+    },
+    "./constructors": {
+      import: "./constructors.js",
+      require: "./constructors.js",
+      types: "./constructors.d.ts",
+    },
+    "./genotype-string": {
+      import: "./genotype-string.js",
+      require: "./genotype-string.js",
+      types: "./genotype-string.d.ts",
+    },
+    "./backend/*": {
+      import: "./backend/*.js",
+      require: "./backend/*.js",
+      types: "./backend/*.d.ts",
+    },
+    "./backend": {
+      import: "./backend/index.js",
+      require: "./backend/index.js",
+      types: "./backend/index.d.ts",
+    },
+    "./compression": {
+      import: "./compression/index.js",
+      require: "./compression/index.js",
+      types: "./compression/index.d.ts",
+    },
+    "./compression/*": {
+      import: "./compression/*.js",
+      require: "./compression/*.js",
+      types: "./compression/*.d.ts",
+    },
+    "./formats": {
+      import: "./formats/index.js",
+      require: "./formats/index.js",
+      types: "./formats/index.d.ts",
+    },
+    "./formats/json": {
+      import: "./formats/json/index.js",
+      require: "./formats/json/index.js",
+      types: "./formats/json/index.d.ts",
+    },
+    "./formats/fastq": {
+      import: "./formats/fastq/index.js",
+      require: "./formats/fastq/index.js",
+      types: "./formats/fastq/index.d.ts",
+    },
+    "./formats/gtf": {
+      import: "./formats/gtf/index.js",
+      require: "./formats/gtf/index.js",
+      types: "./formats/gtf/index.d.ts",
+    },
+    "./formats/*": {
+      import: "./formats/*.js",
+      require: "./formats/*.js",
+      types: "./formats/*.d.ts",
+    },
+    "./io/*": {
+      import: "./io/*.js",
+      require: "./io/*.js",
+      types: "./io/*.d.ts",
+    },
+    "./operations": {
+      import: "./operations/index.js",
+      require: "./operations/index.js",
+      types: "./operations/index.d.ts",
+    },
+    "./operations/*": {
+      import: "./operations/*.js",
+      require: "./operations/*.js",
+      types: "./operations/*.d.ts",
+    },
+    "./operations/core/*": {
+      import: "./operations/core/*.js",
+      require: "./operations/core/*.js",
+      types: "./operations/core/*.d.ts",
+    },
+    "./operations/core/quality": {
+      import: "./operations/core/quality/index.js",
+      require: "./operations/core/quality/index.js",
+      types: "./operations/core/quality/index.d.ts",
+    },
+    "./operations/core/quality/*": {
+      import: "./operations/core/quality/*.js",
+      require: "./operations/core/quality/*.js",
+      types: "./operations/core/quality/*.d.ts",
+    },
+    "./operations/*/*": {
+      import: "./operations/*/*.js",
+      require: "./operations/*/*.js",
+      types: "./operations/*/*.d.ts",
+    },
+    "./package.json": "./package.json",
   };
 
   writeFileSync(

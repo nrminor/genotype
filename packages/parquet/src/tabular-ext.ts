@@ -7,7 +7,7 @@
  */
 
 import { TabularOps } from "@genotype/tabular/fx2tab";
-import { writeParquet, type ParquetWriteOptions } from "@genotype/parquet/writer";
+import { writeParquet, type ParquetWriteOptions } from "./writer";
 
 declare module "@genotype/tabular/fx2tab" {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

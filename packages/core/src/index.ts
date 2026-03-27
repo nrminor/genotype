@@ -80,6 +80,17 @@ export {
   type ValidateOptions,
   type WindowOptions,
 } from "./operations";
+// Alphabet constructors and runtime validators
+export {
+  dna,
+  isDNASequence,
+  isIUPACSequence,
+  isPrimerSequence,
+  isRNASequence,
+  iupac,
+  primer,
+  rna,
+} from "./operations/core/alphabet";
 // Sequence manipulation functions
 export {
   complement,
@@ -119,8 +130,6 @@ export type {
   DecompressorOptions,
   // Alphabet validation types
   DNASequence,
-  // Alphabet validation template literal tags
-  dna,
   FASTXSequence,
   FastaSequence,
   FastqSequence,
@@ -130,21 +139,14 @@ export type {
   FileReaderOptions,
   FormatDetection,
   IUPACSequence,
-  isDNASequence,
-  isIUPACSequence,
-  isPrimerSequence,
-  isRNASequence,
-  iupac,
   KmerSequence,
   LineProcessingResult,
   MotifLocation,
   ParseResult,
   ParserOptions,
   PrimerSequence,
-  primer,
   QualityEncoding,
   RNASequence,
-  rna,
   Strand,
   StreamChunk,
   StreamStats,

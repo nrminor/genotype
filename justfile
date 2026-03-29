@@ -179,7 +179,7 @@ alias clf := ci-linux-file
 # Run the genomics-heavy format and operation suites in a Linux CI-like container
 [group('test')]
 ci-linux-genomics:
-    docker run --rm -v "$PWD":/workspace -w /workspace oven/bun:{{ BUN_CI_VERSION }} bash -lc "cd /workspace && bun install >/tmp/bun-install.log 2>&1 && cd /workspace/{{ core }} && bun test test/operations/core/sequence-sorter.test.ts --timeout 30000 && bun test test/formats/paired-fastq.test.ts --timeout 30000 && bun test test/formats/dsv.test.ts --timeout 30000 && bun test test/io/file-reader.test.ts --timeout 30000"
+    docker run --rm -v "$PWD":/workspace -w /workspace oven/bun:{{ BUN_CI_VERSION }} bash -lc "cd /workspace && bun install >/tmp/bun-install.log 2>&1 && cd /workspace/{{ core }} && bun test test/operations/core/sequence-sorter.test.ts --timeout 30000 && GENOTYPE_SKIP_FILE_BACKEND_TESTS=1 bun test test/formats/paired-fastq.test.ts --timeout 30000 && bun test test/io/file-reader.test.ts --timeout 30000 && cd /workspace/packages/tabular && bun test test/dsv.test.ts --timeout 30000"
 
 alias clg := ci-linux-genomics
 

@@ -174,9 +174,17 @@ describe("SampleProcessor", () => {
       }
 
       // Expect ~1000 sequences (10% of 10000)
-      // Allow ±10% variance for probabilistic sampling (900-1100)
-      expect(results.length).toBeGreaterThanOrEqual(900);
-      expect(results.length).toBeLessThanOrEqual(1100);
+      // Use a 5σ binomial tolerance band to avoid rare cross-platform flakes.
+      // For n=10000, p=0.1: mean=1000, stddev≈30 => bounds [850, 1150].
+      const total = 10000;
+      const p = 0.1;
+      const mean = total * p;
+      const stddev = Math.sqrt(total * p * (1 - p));
+      const lower = Math.floor(mean - 5 * stddev);
+      const upper = Math.ceil(mean + 5 * stddev);
+
+      expect(results.length).toBeGreaterThanOrEqual(lower);
+      expect(results.length).toBeLessThanOrEqual(upper);
     });
 
     test("fraction 1.0 returns all sequences", async () => {

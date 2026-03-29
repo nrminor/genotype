@@ -167,6 +167,10 @@
 !/packages/core/scripts/build.mjs
 !/packages/core/scripts/pack.mjs
 !/packages/core/scripts/publish.mjs
+!/packages/tabular/scripts/
+!/packages/tabular/scripts/build.mjs
+!/packages/parquet/scripts/
+!/packages/parquet/scripts/build.mjs
 !/scripts/
 !/scripts/consumer-check.mjs
 

@@ -36,10 +36,10 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Install dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
 
       - name: Build project
-        run: bun run build
+        run: bun run build:lib
 
       - name: Generate documentation
         run: bun run docs

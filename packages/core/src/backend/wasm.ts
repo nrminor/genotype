@@ -35,7 +35,10 @@ export class WasmInitializationError extends Schema.TaggedErrorClass<WasmInitial
   { message: Schema.String, cause: Schema.optional(Schema.Defect) }
 ) {}
 
-type WasmModule = typeof import("@genotype/wasm-pkg/genotype_wasm.js");
+type WasmModule = {
+  default: () => Promise<unknown> | unknown;
+  [key: string]: any;
+};
 
 function buildFromModule(wasm: WasmModule) {
   return BackendService.of({
@@ -478,7 +481,8 @@ export const wasmLayer: Layer.Layer<BackendService, WasmInitializationError> = L
   Effect.gen(function* () {
     const mod = yield* Effect.tryPromise({
       try: async () => {
-        const m = await import("@genotype/wasm-pkg/genotype_wasm.js");
+        const wasmEntry = "@genotype/wasm-pkg/genotype_wasm.js";
+        const m = (await import(wasmEntry)) as WasmModule;
         await m.default();
         return m;
       },

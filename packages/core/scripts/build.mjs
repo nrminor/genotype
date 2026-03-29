@@ -63,7 +63,7 @@ if (buildNative) {
     nativeDir,
     ...(isDev ? [] : ["--release"]),
   ];
-  const napiBuild = spawnSync("npx", ["napi", ...napiArgs], {
+  const napiBuild = spawnSync("bunx", ["@napi-rs/cli", ...napiArgs], {
     cwd: projectRoot,
     stdio: "inherit",
   });
@@ -166,7 +166,8 @@ if (buildLib) {
   }
 
   if (tscResult.status !== 0) {
-    console.warn("Warning: TypeScript compilation failed");
+    console.error("Error: TypeScript compilation failed");
+    process.exit(tscResult.status ?? 1);
   } else {
     console.log("TypeScript compilation complete");
   }

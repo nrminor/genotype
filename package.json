@@ -31,6 +31,7 @@
     "validate:full": "bun run typecheck && bun run lint && bun run test && bun run test:rust && bun run lint:rust && bun run build"
   },
   "devDependencies": {
+    "@effect/language-service": "^0.80.0",
     "@typescript/native-preview": "^7.0.0-dev.20260307.1",
     "oxfmt": "^0.36.0",
     "oxlint": "^1.51.0",

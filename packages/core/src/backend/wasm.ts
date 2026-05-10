@@ -16,6 +16,7 @@ import { Effect, Layer, Schema } from "effect";
 import { BackendService, BackendUnavailableError } from "./common";
 import type {
   ClassifyResult,
+  PairedReadMergeResult,
   PatternSearchResult,
   SequenceMetricsResult,
   TransformResult,
@@ -277,6 +278,61 @@ function buildFromModule(wasm: WasmModule) {
         catch: (e) =>
           new BackendUnavailableError({
             method: "hashBatch",
+            message: e instanceof Error ? e.message : String(e),
+          }),
+      }),
+    mergePairedReadsBatch: (
+      pairIds,
+      pairIdOffsets,
+      r1Sequences,
+      r1SequenceOffsets,
+      r1Quality,
+      r1QualityOffsets,
+      r2Sequences,
+      r2SequenceOffsets,
+      r2Quality,
+      r2QualityOffsets,
+      options
+    ) =>
+      Effect.try({
+        try: () => {
+          const r = wasm.merge_paired_reads_batch(
+            pairIds,
+            pairIdOffsets,
+            r1Sequences,
+            r1SequenceOffsets,
+            r1Quality,
+            r1QualityOffsets,
+            r2Sequences,
+            r2SequenceOffsets,
+            r2Quality,
+            r2QualityOffsets,
+            options.overlapDiffMax,
+            options.minOverlap,
+            options.diffPercentMax,
+            options.minComparisons,
+            options.overlapTiePolicy,
+            options.mergeTiePolicy,
+            options.maxOutputQual,
+            options.qualityOnly,
+            options.minBaseCorrectionDeltaQ,
+            options.validateOverlap,
+            options.validationPreset,
+            options.correctOverlap
+          );
+          const result: PairedReadMergeResult = {
+            status: r.status,
+            sequenceData: r.sequence_data,
+            sequenceOffsets: r.sequence_offsets,
+            qualityData: r.quality_data,
+            qualityOffsets: r.quality_offsets,
+          };
+          r.free();
+          return result;
+        },
+        catch: (e) =>
+          new BackendUnavailableError({
+            method: "mergePairedReadsBatch",
             message: e instanceof Error ? e.message : String(e),
           }),
       }),

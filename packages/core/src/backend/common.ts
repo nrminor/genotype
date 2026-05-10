@@ -10,6 +10,8 @@ import { Context, Effect, Layer, Schema } from "effect";
 import type {
   ClassifyResult,
   PatternSearchResult,
+  PairedReadMergeOptions,
+  PairedReadMergeResult,
   SequenceMetricsResult,
   TransformResult,
   TranslateBatchOptions,
@@ -156,6 +158,20 @@ export class BackendService extends Context.Service<
       caseInsensitive: boolean
     ): Effect.Effect<Uint8Array, BackendError>;
 
+    mergePairedReadsBatch(
+      pairIds: Uint8Array,
+      pairIdOffsets: Uint32Array,
+      r1Sequences: Uint8Array,
+      r1SequenceOffsets: Uint32Array,
+      r1Quality: Uint8Array,
+      r1QualityOffsets: Uint32Array,
+      r2Sequences: Uint8Array,
+      r2SequenceOffsets: Uint32Array,
+      r2Quality: Uint8Array,
+      r2QualityOffsets: Uint32Array,
+      options: PairedReadMergeOptions
+    ): Effect.Effect<PairedReadMergeResult, BackendError>;
+
     createAlignmentReaderFromPath(path: string): Effect.Effect<AlignmentReaderHandle, BackendError>;
 
     createAlignmentReaderFromBytes(
@@ -200,6 +216,7 @@ export class BackendService extends Context.Service<
       sequenceMetricsBatch: () => unavailable("sequenceMetricsBatch"),
       translateBatch: () => unavailable("translateBatch"),
       hashBatch: () => unavailable("hashBatch"),
+      mergePairedReadsBatch: () => unavailable("mergePairedReadsBatch"),
       createAlignmentReaderFromPath: () => unavailable("createAlignmentReaderFromPath"),
       createAlignmentReaderFromBytes: () => unavailable("createAlignmentReaderFromBytes"),
       createFastqReaderFromPath: () => unavailable("createFastqReaderFromPath"),

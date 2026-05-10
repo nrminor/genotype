@@ -71,6 +71,54 @@ export interface TranslateBatchOptions {
   unknownCodonChar: string;
 }
 
+export interface PairedReadMergeResult {
+  /** 1 when the pair merged, 0 when no acceptable overlap was found. */
+  status: Uint8Array;
+  /** Concatenated merged sequence bytes. No-overlap rows have empty slices. */
+  sequenceData: Uint8Array;
+  /** N+1 offsets into sequenceData. */
+  sequenceOffsets: Uint32Array;
+  /** Concatenated merged FASTQ ASCII quality bytes. No-overlap rows have empty slices. */
+  qualityData: Uint8Array;
+  /** N+1 offsets into qualityData. */
+  qualityOffsets: Uint32Array;
+}
+
+export interface PairedReadMergeOptions {
+  overlapDiffMax: number;
+  minOverlap: number;
+  diffPercentMax: number;
+  minComparisons: number;
+  overlapTiePolicy: PairedReadOverlapTiePolicy;
+  mergeTiePolicy: PairedReadMergeTiePolicy;
+  maxOutputQual: number;
+  qualityOnly: boolean;
+  minBaseCorrectionDeltaQ: number;
+  validateOverlap: boolean;
+  validationPreset: PairedReadValidationPreset;
+  correctOverlap: boolean;
+}
+
+export const enum PairedReadOverlapTiePolicy {
+  Reject = "Reject",
+  PreferFromStart = "PreferFromStart",
+  PreferFromEnd = "PreferFromEnd",
+}
+
+export const enum PairedReadMergeTiePolicy {
+  PreferForward = "PreferForward",
+  PreferReverse = "PreferReverse",
+  EmitAmbiguous = "EmitAmbiguous",
+  RejectDisagreement = "RejectDisagreement",
+  PreferInteriorBase = "PreferInteriorBase",
+}
+
+export const enum PairedReadValidationPreset {
+  Loose = "Loose",
+  Normal = "Normal",
+  Strict = "Strict",
+}
+
 /**
  * Length-preserving byte-level transformations. Each variant maps to a
  * SIMD-accelerated kernel function in the Rust crate.

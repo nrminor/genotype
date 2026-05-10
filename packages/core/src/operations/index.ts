@@ -33,7 +33,14 @@ import { FilterProcessor } from "./filter";
 import { GrepProcessor } from "./grep";
 import { type InterleaveOptions, InterleaveProcessor } from "./interleave";
 import { LocateProcessor } from "./locate";
-import { type PairOptions, PairProcessor } from "./pair";
+import {
+  type FastqPairMergeOptions,
+  type MergePairsOptions,
+  MergePairsProcessor,
+  splitMergePairsOptions,
+} from "./merge-pairs";
+import type { PairOptions } from "./pair";
+import { type ReadPair, PairStreamProcessor } from "./pair-stream";
 import { QualityProcessor } from "./quality";
 import { rename } from "./rename";
 import { replace } from "./replace";
@@ -2529,25 +2536,25 @@ export class SeqOps<T extends AbstractSequence> {
    * const r1 = seqops<FastqSequence>('sample_R1.fastq.gz');
    * const r2 = seqops<FastqSequence>('sample_R2.fastq.gz');
    *
-   * r1.pair(r2).writeFastq('paired.fastq');
+   * r1.interleavePairs(r2).writeFastq('paired.fastq');
    * // Output: R1_001, R2_001, R1_002, R2_002, ...
    *
    * @example
    * // Single-stream mode: Repair pairing within mixed stream
    * seqops<FastqSequence>('shuffled.fastq')
-   *   .pair()
+   *   .interleavePairs()
    *   .writeFastq('repaired.fastq');
    * // Reads with /1 suffix → R1, /2 suffix → R2
    *
    * @example
    * // Custom ID extraction for non-standard naming
-   * r1.pair(r2, {
+   * r1.interleavePairs(r2, {
    *   extractPairId: (id) => id.split('_')[0]  // Custom base ID
    * }).writeFastq('paired.fastq');
    *
    * @example
    * // Strict mode: error on unpaired reads
-   * r1.pair(r2, {
+   * r1.interleavePairs(r2, {
    *   onUnpaired: 'error',     // Throw on unpaired (default: 'warn')
    *   maxBufferSize: 50000     // Smaller buffer limit
    * }).writeFastq('paired.fastq');
@@ -2555,7 +2562,7 @@ export class SeqOps<T extends AbstractSequence> {
    * @example
    * // Skip unpaired reads silently
    * seqops<FastqSequence>('mixed.fastq')
-   *   .pair({ onUnpaired: 'skip' })
+   *   .interleavePairs({ onUnpaired: 'skip' })
    *   .writeFastq('paired_only.fastq');
    *
    * @performance
@@ -2563,30 +2570,67 @@ export class SeqOps<T extends AbstractSequence> {
    * - Average case (partially shuffled): O(k) where k = shuffle distance
    * - Worst case (fully shuffled): O(n) - all reads buffered
    */
-  pair(other: SeqOps<T> | AsyncIterable<T>, options?: PairOptions): SeqOps<T>;
-  pair(options?: PairOptions): SeqOps<T>;
-  pair(
-    otherOrOptions?: SeqOps<T> | AsyncIterable<T> | PairOptions,
-    optionsArg?: PairOptions
-  ): SeqOps<T> {
-    const processor = new PairProcessor();
+  /**
+   * Convert scalar reads into a checked stream of read pairs.
+   *
+   * Single-stream mode pairs mixed or interleaved reads from this pipeline.
+   * Dual-stream mode requires another SeqOps pipeline rather than an arbitrary
+   * AsyncIterable, so pairing stays inside the fluent SeqOps API boundary.
+   */
+  pairs(other: SeqOps<T>, options?: PairOptions): PairSeqOps<T>;
+  pairs(options?: PairOptions): PairSeqOps<T>;
+  pairs(otherOrOptions?: SeqOps<T> | PairOptions, optionsArg?: PairOptions): PairSeqOps<T> {
+    const processor = new PairStreamProcessor();
 
-    if (
-      otherOrOptions === undefined ||
-      (typeof otherOrOptions === "object" &&
-        ("extractPairId" in otherOrOptions ||
-          "maxBufferSize" in otherOrOptions ||
-          "onUnpaired" in otherOrOptions))
-    ) {
-      const options = otherOrOptions;
-      return new SeqOps<T>(processor.process({ mode: "single", source: this.source }, options));
+    if (otherOrOptions instanceof SeqOps) {
+      return new PairSeqOps<T>(
+        processor.process(
+          { mode: "dual", source1: this.source, source2: otherOrOptions.source },
+          optionsArg
+        )
+      );
     }
 
-    const other = otherOrOptions as SeqOps<T> | AsyncIterable<T>;
-    const otherSource = other instanceof SeqOps ? other.source : other;
-    return new SeqOps<T>(
-      processor.process({ mode: "dual", source1: this.source, source2: otherSource }, optionsArg)
-    );
+    return new PairSeqOps<T>(processor.process({ mode: "single", source: this.source }, otherOrOptions));
+  }
+
+  interleavePairs(other: SeqOps<T>, options?: PairOptions): SeqOps<T>;
+  interleavePairs(options?: PairOptions): SeqOps<T>;
+  interleavePairs(otherOrOptions?: SeqOps<T> | PairOptions, optionsArg?: PairOptions): SeqOps<T> {
+    if (otherOrOptions instanceof SeqOps) {
+      return this.pairs(otherOrOptions, optionsArg).interleave();
+    }
+
+    return this.pairs(otherOrOptions).interleave();
+  }
+
+  /**
+   * Merge paired-end FASTQ reads into overlap-aware consensus reads.
+   *
+   * This is the convenience API for `pairs(...).merge(...)`. Options may be
+   * passed in the preferred nested form, `{ pairing, merge }`, or in the flat
+   * compatibility form. By default, pairs without an acceptable overlap are
+   * returned as the original two reads; set `onNoOverlap` or
+   * `merge.onNoOverlap` to choose `keep`, `skip`, or `error` behavior.
+   */
+  mergePairs(
+    this: SeqOps<FastqSequence>,
+    other: SeqOps<FastqSequence>,
+    options?: MergePairsOptions
+  ): SeqOps<FastqSequence>;
+  mergePairs(this: SeqOps<FastqSequence>, options?: MergePairsOptions): SeqOps<FastqSequence>;
+  mergePairs(
+    this: SeqOps<FastqSequence>,
+    otherOrOptions?: SeqOps<FastqSequence> | MergePairsOptions,
+    optionsArg?: MergePairsOptions
+  ): SeqOps<FastqSequence> {
+    if (otherOrOptions instanceof SeqOps) {
+      const options = splitMergePairsOptions(optionsArg);
+      return this.pairs(otherOrOptions, options.pairing).merge(options.merge);
+    }
+
+    const options = splitMergePairsOptions(otherOrOptions);
+    return this.pairs(options.pairing).merge(options.merge);
   }
 
   /**
@@ -2656,7 +2700,7 @@ export class SeqOps<T extends AbstractSequence> {
    * }
    * ```
    */
-  [Symbol.asyncIterator](): AsyncIterator<AbstractSequence> {
+  [Symbol.asyncIterator](): AsyncIterator<T> {
     return this.source[Symbol.asyncIterator]();
   }
 
@@ -2668,6 +2712,35 @@ export class SeqOps<T extends AbstractSequence> {
     seq: AbstractSequence
   ): seq is AbstractSequence & QualityScoreBearing {
     return "quality" in seq && "qualityEncoding" in seq;
+  }
+}
+
+export class PairSeqOps<T extends AbstractSequence> implements AsyncIterable<ReadPair<T>> {
+  constructor(private readonly source: AsyncIterable<ReadPair<T>>) {}
+
+  interleave(): SeqOps<T> {
+    async function* interleavePairs(
+      source: AsyncIterable<ReadPair<T>>
+    ): AsyncIterable<T> {
+      for await (const pair of source) {
+        yield pair.r1;
+        yield pair.r2;
+      }
+    }
+
+    return new SeqOps<T>(interleavePairs(this.source));
+  }
+
+  merge(
+    this: PairSeqOps<FastqSequence>,
+    options?: FastqPairMergeOptions
+  ): SeqOps<FastqSequence> {
+    const processor = new MergePairsProcessor();
+    return new SeqOps<FastqSequence>(processor.process(this.source, options));
+  }
+
+  [Symbol.asyncIterator](): AsyncIterator<ReadPair<T>> {
+    return this.source[Symbol.asyncIterator]();
   }
 }
 
@@ -2703,6 +2776,15 @@ export {
   type FaidxRecord,
 } from "./faidx";
 export type { PairOptions } from "./pair";
+export {
+  MergePairsProcessor,
+  type FastqPairMergeOptions,
+  type MergePairsFlatOptions,
+  type MergePairsOptions,
+  type MergePairsPipelineOptions,
+  type MergePairsValidationPreset,
+} from "./merge-pairs";
+export { type ReadPair, PairStreamProcessor } from "./pair-stream";
 // Export split-specific types
 export { SplitProcessor, type SplitResult, type SplitSummary } from "./split";
 // Re-export types and classes for convenience

@@ -51,6 +51,27 @@ pub struct SequenceMetricsResult {
     pub max_qual: Option<Vec<i32>>,
 }
 
+#[wasm_bindgen(getter_with_clone)]
+pub struct PairedReadMergeResult {
+    pub status: Vec<u8>,
+    pub sequence_data: Vec<u8>,
+    pub sequence_offsets: Vec<u32>,
+    pub quality_data: Vec<u8>,
+    pub quality_offsets: Vec<u32>,
+}
+
+impl From<engine::paired_merge::PairedReadMergeResult> for PairedReadMergeResult {
+    fn from(r: engine::paired_merge::PairedReadMergeResult) -> Self {
+        Self {
+            status: r.status,
+            sequence_data: r.sequence_data,
+            sequence_offsets: r.sequence_offsets,
+            quality_data: r.quality_data,
+            quality_offsets: r.quality_offsets,
+        }
+    }
+}
+
 impl From<engine::metrics::SequenceMetricsResult> for SequenceMetricsResult {
     fn from(r: engine::metrics::SequenceMetricsResult) -> Self {
         Self {
@@ -299,6 +320,107 @@ pub fn hash_batch(
     case_insensitive: bool,
 ) -> Result<Vec<u8>, JsError> {
     engine::hash_batch(sequences, offsets, case_insensitive).map_err(engine_err)
+}
+
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn merge_paired_reads_batch(
+    pair_ids: &[u8],
+    pair_id_offsets: &[u32],
+    r1_sequences: &[u8],
+    r1_sequence_offsets: &[u32],
+    r1_quality: &[u8],
+    r1_quality_offsets: &[u32],
+    r2_sequences: &[u8],
+    r2_sequence_offsets: &[u32],
+    r2_quality: &[u8],
+    r2_quality_offsets: &[u32],
+    overlap_diff_max: u32,
+    min_overlap: u32,
+    diff_percent_max: f32,
+    min_comparisons: u32,
+    overlap_tie_policy: &str,
+    merge_tie_policy: &str,
+    max_output_qual: u8,
+    quality_only: bool,
+    min_base_correction_delta_q: u8,
+    validate_overlap: bool,
+    validation_preset: &str,
+    correct_overlap: bool,
+) -> Result<PairedReadMergeResult, JsError> {
+    let options = engine::paired_merge::PairedReadMergeOptions {
+        overlap_diff_max,
+        min_overlap,
+        diff_percent_max,
+        min_comparisons,
+        overlap_tie_policy: parse_overlap_tie_policy(overlap_tie_policy)?,
+        merge_tie_policy: parse_merge_tie_policy(merge_tie_policy)?,
+        max_output_qual,
+        quality_only,
+        min_base_correction_delta_q,
+        validate_overlap,
+        validation_preset: parse_validation_preset(validation_preset)?,
+        correct_overlap,
+    };
+
+    engine::paired_merge::merge_paired_reads_batch(
+        pair_ids,
+        pair_id_offsets,
+        r1_sequences,
+        r1_sequence_offsets,
+        r1_quality,
+        r1_quality_offsets,
+        r2_sequences,
+        r2_sequence_offsets,
+        r2_quality,
+        r2_quality_offsets,
+        options,
+    )
+    .map(Into::into)
+    .map_err(engine_err)
+}
+
+fn parse_validation_preset(
+    preset: &str,
+) -> Result<engine::paired_merge::PairedReadValidationPreset, JsError> {
+    match preset {
+        "Loose" => Ok(engine::paired_merge::PairedReadValidationPreset::Loose),
+        "Normal" => Ok(engine::paired_merge::PairedReadValidationPreset::Normal),
+        "Strict" => Ok(engine::paired_merge::PairedReadValidationPreset::Strict),
+        _ => Err(JsError::new(&format!(
+            "unknown paired-read validation preset: {preset}"
+        ))),
+    }
+}
+
+fn parse_overlap_tie_policy(
+    policy: &str,
+) -> Result<engine::paired_merge::PairedReadOverlapTiePolicy, JsError> {
+    match policy {
+        "Reject" => Ok(engine::paired_merge::PairedReadOverlapTiePolicy::Reject),
+        "PreferFromStart" => Ok(engine::paired_merge::PairedReadOverlapTiePolicy::PreferFromStart),
+        "PreferFromEnd" => Ok(engine::paired_merge::PairedReadOverlapTiePolicy::PreferFromEnd),
+        _ => Err(JsError::new(&format!(
+            "unknown overlap tie policy: {policy}"
+        ))),
+    }
+}
+
+fn parse_merge_tie_policy(
+    policy: &str,
+) -> Result<engine::paired_merge::PairedReadMergeTiePolicy, JsError> {
+    match policy {
+        "PreferForward" => Ok(engine::paired_merge::PairedReadMergeTiePolicy::PreferForward),
+        "PreferReverse" => Ok(engine::paired_merge::PairedReadMergeTiePolicy::PreferReverse),
+        "EmitAmbiguous" => Ok(engine::paired_merge::PairedReadMergeTiePolicy::EmitAmbiguous),
+        "RejectDisagreement" => {
+            Ok(engine::paired_merge::PairedReadMergeTiePolicy::RejectDisagreement)
+        }
+        "PreferInteriorBase" => {
+            Ok(engine::paired_merge::PairedReadMergeTiePolicy::PreferInteriorBase)
+        }
+        _ => Err(JsError::new(&format!("unknown merge tie policy: {policy}"))),
+    }
 }
 
 fn parse_validation_mode(mode: &str) -> Result<engine::ValidationMode, JsError> {

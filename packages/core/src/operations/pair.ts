@@ -137,15 +137,15 @@ function createStream2Buffer<T>(): Stream2Buffer<T> {
  * @example
  * ```typescript
  * // Basic usage with defaults
- * seqops(r1Stream).pair(r2Stream);
+ * seqops(r1Stream).interleavePairs(r2Stream);
  *
  * // Custom ID extraction for non-standard formats
- * seqops(r1Stream).pair(r2Stream, {
+ * seqops(r1Stream).interleavePairs(r2Stream, {
  *   extractPairId: (id) => id.split('_')[0]
  * });
  *
  * // Strict mode - error on unpaired reads
- * seqops(mixedStream).pair({
+ * seqops(mixedStream).interleavePairs({
  *   onUnpaired: 'error',
  *   maxBufferSize: 50000
  * });

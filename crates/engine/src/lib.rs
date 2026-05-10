@@ -18,6 +18,7 @@ pub mod fastq;
 pub mod grep;
 pub mod hash;
 pub mod metrics;
+pub mod paired_merge;
 pub mod quality;
 pub mod transform;
 pub mod translate;

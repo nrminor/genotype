@@ -11,7 +11,12 @@
  */
 
 import { Layer, ManagedRuntime } from "effect";
-import type { TransformOp, TranslateBatchOptions, ValidationMode } from "./kernel-types";
+import type {
+  PairedReadMergeOptions,
+  TransformOp,
+  TranslateBatchOptions,
+  ValidationMode,
+} from "./kernel-types";
 import type { FindPatternBatchOptions, GrepBatchOptions } from "./types";
 import { BackendService } from "./common";
 import { nativeLayer } from "./node-native";
@@ -173,6 +178,38 @@ export const translateBatch = (
 export const hashBatch = (sequences: Uint8Array, offsets: Uint32Array, caseInsensitive: boolean) =>
   backendRuntime.runPromise(
     BackendService.use((b) => b.hashBatch(sequences, offsets, caseInsensitive))
+  );
+
+/** Merge paired FASTQ reads using overlap-aware consensus assembly. */
+export const mergePairedReadsBatch = (
+  pairIds: Uint8Array,
+  pairIdOffsets: Uint32Array,
+  r1Sequences: Uint8Array,
+  r1SequenceOffsets: Uint32Array,
+  r1Quality: Uint8Array,
+  r1QualityOffsets: Uint32Array,
+  r2Sequences: Uint8Array,
+  r2SequenceOffsets: Uint32Array,
+  r2Quality: Uint8Array,
+  r2QualityOffsets: Uint32Array,
+  options: PairedReadMergeOptions
+) =>
+  backendRuntime.runPromise(
+    BackendService.use((b) =>
+      b.mergePairedReadsBatch(
+        pairIds,
+        pairIdOffsets,
+        r1Sequences,
+        r1SequenceOffsets,
+        r1Quality,
+        r1QualityOffsets,
+        r2Sequences,
+        r2SequenceOffsets,
+        r2Quality,
+        r2QualityOffsets,
+        options
+      )
+    )
   );
 
 /** Open an alignment reader from a file path. */

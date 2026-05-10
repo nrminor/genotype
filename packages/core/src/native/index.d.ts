@@ -88,6 +88,51 @@ export declare function grepBatch(sequences: Uint8Array, offsets: Uint32Array, p
 
 export declare function hashBatch(sequences: Uint8Array, offsets: Uint32Array, caseInsensitive: boolean): Buffer
 
+export declare function mergePairedReadsBatch(pairIds: Uint8Array, pairIdOffsets: Uint32Array, r1Sequences: Uint8Array, r1SequenceOffsets: Uint32Array, r1Quality: Uint8Array, r1QualityOffsets: Uint32Array, r2Sequences: Uint8Array, r2SequenceOffsets: Uint32Array, r2Quality: Uint8Array, r2QualityOffsets: Uint32Array, options: PairedReadMergeOptions): PairedReadMergeResult
+
+export interface PairedReadMergeOptions {
+  overlapDiffMax: number
+  minOverlap: number
+  diffPercentMax: number
+  minComparisons: number
+  overlapTiePolicy: PairedReadOverlapTiePolicy
+  mergeTiePolicy: PairedReadMergeTiePolicy
+  maxOutputQual: number
+  qualityOnly: boolean
+  minBaseCorrectionDeltaQ: number
+  validateOverlap: boolean
+  validationPreset: PairedReadValidationPreset
+  correctOverlap: boolean
+}
+
+export interface PairedReadMergeResult {
+  status: Buffer
+  sequenceData: Buffer
+  sequenceOffsets: Array<number>
+  qualityData: Buffer
+  qualityOffsets: Array<number>
+}
+
+export declare const enum PairedReadMergeTiePolicy {
+  PreferForward = 'PreferForward',
+  PreferReverse = 'PreferReverse',
+  EmitAmbiguous = 'EmitAmbiguous',
+  RejectDisagreement = 'RejectDisagreement',
+  PreferInteriorBase = 'PreferInteriorBase'
+}
+
+export declare const enum PairedReadOverlapTiePolicy {
+  Reject = 'Reject',
+  PreferFromStart = 'PreferFromStart',
+  PreferFromEnd = 'PreferFromEnd'
+}
+
+export declare const enum PairedReadValidationPreset {
+  Loose = 'Loose',
+  Normal = 'Normal',
+  Strict = 'Strict'
+}
+
 export interface PatternSearchResult {
   starts: Array<number>
   ends: Array<number>

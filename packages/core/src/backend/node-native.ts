@@ -23,6 +23,8 @@ import {
 } from "./common";
 import type {
   ClassifyResult,
+  PairedReadMergeOptions,
+  PairedReadMergeResult,
   PatternSearchResult,
   SequenceMetricsResult,
   TransformOp,
@@ -91,6 +93,14 @@ interface NapiSequenceMetricsResult {
   maxQual?: number[];
 }
 
+interface NapiPairedReadMergeResult {
+  status: Buffer;
+  sequenceData: Buffer;
+  sequenceOffsets: number[];
+  qualityData: Buffer;
+  qualityOffsets: number[];
+}
+
 export interface NativeKernel {
   grepBatch(
     sequences: Buffer,
@@ -155,6 +165,19 @@ export interface NativeKernel {
     options: TranslateBatchOptions
   ): NapiTransformResult;
   hashBatch(sequences: Buffer, offsets: Uint32Array, caseInsensitive: boolean): Buffer;
+  mergePairedReadsBatch(
+    pairIds: Buffer,
+    pairIdOffsets: Uint32Array,
+    r1Sequences: Buffer,
+    r1SequenceOffsets: Uint32Array,
+    r1Quality: Buffer,
+    r1QualityOffsets: Uint32Array,
+    r2Sequences: Buffer,
+    r2SequenceOffsets: Uint32Array,
+    r2Quality: Buffer,
+    r2QualityOffsets: Uint32Array,
+    options: PairedReadMergeOptions
+  ): NapiPairedReadMergeResult;
 }
 
 interface NativeAlignmentBatch {
@@ -312,6 +335,16 @@ function wrapSequenceMetricsResult(r: NapiSequenceMetricsResult): SequenceMetric
   if (r.minQual) result.minQual = Int32Array.from(r.minQual);
   if (r.maxQual) result.maxQual = Int32Array.from(r.maxQual);
   return result;
+}
+
+function wrapPairedReadMergeResult(r: NapiPairedReadMergeResult): PairedReadMergeResult {
+  return {
+    status: r.status,
+    sequenceData: r.sequenceData,
+    sequenceOffsets: Uint32Array.from(r.sequenceOffsets),
+    qualityData: r.qualityData,
+    qualityOffsets: Uint32Array.from(r.qualityOffsets),
+  };
 }
 
 function wrapAlignmentReader(reader: NativeAlignmentReader): AlignmentReaderHandle {
@@ -589,6 +622,38 @@ function buildFromKernel(
       Effect.try({
         try: () => k.hashBatch(toBufferView(sequences), offsets, caseInsensitive),
         catch: (e) => classifyEngineError("hashBatch", e),
+      }),
+    mergePairedReadsBatch: (
+      pairIds,
+      pairIdOffsets,
+      r1Sequences,
+      r1SequenceOffsets,
+      r1Quality,
+      r1QualityOffsets,
+      r2Sequences,
+      r2SequenceOffsets,
+      r2Quality,
+      r2QualityOffsets,
+      options
+    ) =>
+      Effect.try({
+        try: () =>
+          wrapPairedReadMergeResult(
+            k.mergePairedReadsBatch(
+              toBufferView(pairIds),
+              pairIdOffsets,
+              toBufferView(r1Sequences),
+              r1SequenceOffsets,
+              toBufferView(r1Quality),
+              r1QualityOffsets,
+              toBufferView(r2Sequences),
+              r2SequenceOffsets,
+              toBufferView(r2Quality),
+              r2QualityOffsets,
+              options
+            )
+          ),
+        catch: (e) => classifyEngineError("mergePairedReadsBatch", e),
       }),
     createAlignmentReaderFromPath: (path) =>
       alignment === undefined

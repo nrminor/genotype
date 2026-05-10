@@ -107,6 +107,122 @@ pub struct SequenceMetricsResult {
     pub max_qual: Option<Vec<i32>>,
 }
 
+#[napi(object)]
+pub struct PairedReadMergeResult {
+    pub status: Buffer,
+    pub sequence_data: Buffer,
+    pub sequence_offsets: Vec<u32>,
+    pub quality_data: Buffer,
+    pub quality_offsets: Vec<u32>,
+}
+
+impl From<engine::paired_merge::PairedReadMergeResult> for PairedReadMergeResult {
+    fn from(r: engine::paired_merge::PairedReadMergeResult) -> Self {
+        Self {
+            status: r.status.into(),
+            sequence_data: r.sequence_data.into(),
+            sequence_offsets: r.sequence_offsets,
+            quality_data: r.quality_data.into(),
+            quality_offsets: r.quality_offsets,
+        }
+    }
+}
+
+#[derive(Clone)]
+#[napi(string_enum)]
+pub enum PairedReadOverlapTiePolicy {
+    Reject,
+    PreferFromStart,
+    PreferFromEnd,
+}
+
+impl From<PairedReadOverlapTiePolicy> for engine::paired_merge::PairedReadOverlapTiePolicy {
+    fn from(policy: PairedReadOverlapTiePolicy) -> Self {
+        match policy {
+            PairedReadOverlapTiePolicy::Reject => Self::Reject,
+            PairedReadOverlapTiePolicy::PreferFromStart => Self::PreferFromStart,
+            PairedReadOverlapTiePolicy::PreferFromEnd => Self::PreferFromEnd,
+        }
+    }
+}
+
+#[derive(Clone)]
+#[napi(string_enum)]
+pub enum PairedReadValidationPreset {
+    Loose,
+    Normal,
+    Strict,
+}
+
+impl From<PairedReadValidationPreset> for engine::paired_merge::PairedReadValidationPreset {
+    fn from(preset: PairedReadValidationPreset) -> Self {
+        match preset {
+            PairedReadValidationPreset::Loose => Self::Loose,
+            PairedReadValidationPreset::Normal => Self::Normal,
+            PairedReadValidationPreset::Strict => Self::Strict,
+        }
+    }
+}
+
+#[derive(Clone)]
+#[napi(string_enum)]
+pub enum PairedReadMergeTiePolicy {
+    PreferForward,
+    PreferReverse,
+    EmitAmbiguous,
+    RejectDisagreement,
+    PreferInteriorBase,
+}
+
+impl From<PairedReadMergeTiePolicy> for engine::paired_merge::PairedReadMergeTiePolicy {
+    fn from(policy: PairedReadMergeTiePolicy) -> Self {
+        match policy {
+            PairedReadMergeTiePolicy::PreferForward => Self::PreferForward,
+            PairedReadMergeTiePolicy::PreferReverse => Self::PreferReverse,
+            PairedReadMergeTiePolicy::EmitAmbiguous => Self::EmitAmbiguous,
+            PairedReadMergeTiePolicy::RejectDisagreement => Self::RejectDisagreement,
+            PairedReadMergeTiePolicy::PreferInteriorBase => Self::PreferInteriorBase,
+        }
+    }
+}
+
+#[derive(Clone)]
+#[napi(object)]
+pub struct PairedReadMergeOptions {
+    pub overlap_diff_max: u32,
+    pub min_overlap: u32,
+    pub diff_percent_max: f64,
+    pub min_comparisons: u32,
+    pub overlap_tie_policy: PairedReadOverlapTiePolicy,
+    pub merge_tie_policy: PairedReadMergeTiePolicy,
+    pub max_output_qual: u8,
+    pub quality_only: bool,
+    pub min_base_correction_delta_q: u8,
+    pub validate_overlap: bool,
+    pub validation_preset: PairedReadValidationPreset,
+    pub correct_overlap: bool,
+}
+
+#[allow(clippy::cast_possible_truncation)]
+impl From<PairedReadMergeOptions> for engine::paired_merge::PairedReadMergeOptions {
+    fn from(options: PairedReadMergeOptions) -> Self {
+        Self {
+            overlap_diff_max: options.overlap_diff_max,
+            min_overlap: options.min_overlap,
+            diff_percent_max: options.diff_percent_max as f32,
+            min_comparisons: options.min_comparisons,
+            overlap_tie_policy: options.overlap_tie_policy.into(),
+            merge_tie_policy: options.merge_tie_policy.into(),
+            max_output_qual: options.max_output_qual,
+            quality_only: options.quality_only,
+            min_base_correction_delta_q: options.min_base_correction_delta_q,
+            validate_overlap: options.validate_overlap,
+            validation_preset: options.validation_preset.into(),
+            correct_overlap: options.correct_overlap,
+        }
+    }
+}
+
 impl From<engine::metrics::SequenceMetricsResult> for SequenceMetricsResult {
     fn from(r: engine::metrics::SequenceMetricsResult) -> Self {
         Self {
@@ -364,4 +480,36 @@ pub fn hash_batch(
     engine::hash_batch(sequences, offsets, case_insensitive)
         .map(Into::into)
         .map_err(engine_err)
+}
+
+#[napi]
+#[allow(clippy::too_many_arguments, clippy::needless_pass_by_value)]
+pub fn merge_paired_reads_batch(
+    pair_ids: &[u8],
+    pair_id_offsets: &[u32],
+    r1_sequences: &[u8],
+    r1_sequence_offsets: &[u32],
+    r1_quality: &[u8],
+    r1_quality_offsets: &[u32],
+    r2_sequences: &[u8],
+    r2_sequence_offsets: &[u32],
+    r2_quality: &[u8],
+    r2_quality_offsets: &[u32],
+    options: PairedReadMergeOptions,
+) -> napi::Result<PairedReadMergeResult> {
+    engine::paired_merge::merge_paired_reads_batch(
+        pair_ids,
+        pair_id_offsets,
+        r1_sequences,
+        r1_sequence_offsets,
+        r1_quality,
+        r1_quality_offsets,
+        r2_sequences,
+        r2_sequence_offsets,
+        r2_quality,
+        r2_quality_offsets,
+        options.into(),
+    )
+    .map(Into::into)
+    .map_err(engine_err)
 }

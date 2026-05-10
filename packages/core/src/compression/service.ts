@@ -14,7 +14,7 @@
  * and `gzip.ts` use internal lazy-loading and can be called directly.
  */
 
-import { Effect, Layer, Schema, ServiceMap } from "effect";
+import { Context, Effect, Layer, Schema } from "effect";
 import { Zstd } from "@hpcc-js/wasm-zstd";
 import type { CompressionFormat } from "@genotype/core/types";
 import {
@@ -135,7 +135,7 @@ const gzipDecompress = Effect.fn("CompressionService.decompress")(function* (
   });
 });
 
-export class CompressionService extends ServiceMap.Service<
+export class CompressionService extends Context.Service<
   CompressionService,
   CompressionServiceShape
 >()("@genotype/CompressionService") {

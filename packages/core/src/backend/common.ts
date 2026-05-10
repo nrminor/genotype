@@ -6,7 +6,7 @@
  * (node-native.ts, wasm.ts) that both need to reference BackendService.
  */
 
-import { Effect, Layer, Schema, ServiceMap } from "effect";
+import { Context, Effect, Layer, Schema } from "effect";
 import type {
   ClassifyResult,
   PatternSearchResult,
@@ -54,7 +54,7 @@ export class BackendValidationError extends Schema.TaggedErrorClass<BackendValid
 export type BackendError = BackendUnavailableError | BackendIOError | BackendValidationError;
 
 /** The full service interface for genotype compute backends. */
-export class BackendService extends ServiceMap.Service<
+export class BackendService extends Context.Service<
   BackendService,
   {
     readonly kind: "node-native" | "wasm" | "none";

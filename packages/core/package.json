@@ -220,11 +220,11 @@
     "typecheck": "bunx tsgo --noEmit -p tsconfig.test.json"
   },
   "dependencies": {
-    "@effect/platform-bun": "4.0.0-beta.34",
-    "@effect/platform-node": "4.0.0-beta.34",
+    "@effect/platform-bun": "4.0.0-beta.65",
+    "@effect/platform-node": "4.0.0-beta.65",
     "@hpcc-js/wasm-zstd": "^1.12.1",
     "arktype": "^2.2.0",
-    "effect": "4.0.0-beta.34",
+    "effect": "4.0.0-beta.65",
     "fflate": "^0.8.2"
   },
   "devDependencies": {

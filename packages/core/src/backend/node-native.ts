@@ -662,7 +662,7 @@ export const nativeLayer: Layer.Layer<BackendService, NativeAddonNotFoundError> 
   BackendService,
   Effect.try({
     try: () => {
-      const mod = require("../native/index.js") as NativeKernel &
+      const mod = require("../native/index.cjs") as NativeKernel &
         NativeAlignmentModule &
         NativeFastqModule &
         NativeFastaModule &
@@ -694,7 +694,7 @@ export const nativeLayer: Layer.Layer<BackendService, NativeAddonNotFoundError> 
  */
 export function getNodeNativeKernelSync(): NativeKernel | undefined {
   try {
-    return require("../native/index.js") as NativeKernel;
+    return require("../native/index.cjs") as NativeKernel;
   } catch {
     return undefined;
   }

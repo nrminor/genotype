@@ -79,6 +79,13 @@ build-wasm-dev:
 
 alias bwd := build-wasm-dev
 
+# Stage publish-time npm package artifacts
+[group('build')]
+build-publish-artifacts:
+    bun run build:publish-artifacts
+
+alias bpa := build-publish-artifacts
+
 # Watch mode for development
 [group('build')]
 watch:

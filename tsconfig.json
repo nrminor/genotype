@@ -7,7 +7,7 @@
       "@genotype/tabular": ["./packages/tabular/src/index.ts"],
       "@genotype/tabular/*": ["./packages/tabular/src/*"],
       "@genotype/parquet/*": ["./packages/parquet/src/*"],
-      "@genotype/wasm-pkg/*": ["./crates/wasm-adapter/pkg/*"]
+      "@genotype/engine-wasm": ["./packages/core/src/backend/engine-wasm.d.ts"]
     }
   },
   "references": [

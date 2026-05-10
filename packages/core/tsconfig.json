@@ -38,7 +38,7 @@
     "types": ["bun", "node"],
     "paths": {
       "@genotype/core/*": ["./src/*"],
-      "@genotype/wasm-pkg/*": ["../../crates/wasm-adapter/pkg/*"]
+      "@genotype/engine-wasm": ["./src/backend/engine-wasm.d.ts"]
     },
     "plugins": [{ "name": "@effect/language-service" }]
   },

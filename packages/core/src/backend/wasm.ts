@@ -481,8 +481,7 @@ export const wasmLayer: Layer.Layer<BackendService, WasmInitializationError> = L
   Effect.gen(function* () {
     const mod = yield* Effect.tryPromise({
       try: async () => {
-        const wasmEntry = "@genotype/wasm-pkg/genotype_wasm.js";
-        const m = (await import(wasmEntry)) as WasmModule;
+        const m = (await import("@genotype/engine-wasm")) as WasmModule;
         await m.default();
         return m;
       },

@@ -59,8 +59,14 @@ if (buildNative) {
     "--platform",
     "--manifest-path",
     napiManifestPath,
+    "--package-json-path",
+    join(packageRoot, "package.json"),
     "--output-dir",
     nativeDir,
+    "--js-package-name",
+    "@genotype/engine",
+    "--js",
+    "index.cjs",
     ...(isDev ? [] : ["--release"]),
   ];
   const napiBuild = spawnSync("bunx", ["@napi-rs/cli", ...napiArgs], {

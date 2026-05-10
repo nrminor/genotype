@@ -44,7 +44,7 @@
       "@genotype/tabular/*": ["../tabular/src/*"],
       "@genotype/parquet": ["./src/index.ts"],
       "@genotype/parquet/*": ["./src/*"],
-      "@genotype/wasm-pkg/*": ["../../crates/wasm-adapter/pkg/*"]
+      "@genotype/engine-wasm": ["../core/src/backend/engine-wasm.d.ts"]
     },
     "plugins": [{ "name": "@effect/language-service" }]
   },

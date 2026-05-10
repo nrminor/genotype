@@ -57,7 +57,8 @@ describe("SortProcessor", () => {
   describe("length-based sorting", () => {
     test("sorts by length ascending", async () => {
       const options: SortOptions = {
-        sortBy: "length-asc",
+        by: "length",
+        order: "asc",
       };
 
       const results: AbstractSequence[] = [];
@@ -75,7 +76,8 @@ describe("SortProcessor", () => {
 
     test("sorts by length descending", async () => {
       const options: SortOptions = {
-        sortBy: "length", // Default is descending (longest first)
+        by: "length",
+        order: "desc",
       };
 
       const results: AbstractSequence[] = [];
@@ -91,7 +93,7 @@ describe("SortProcessor", () => {
   describe("ID-based sorting", () => {
     test("sorts by ID alphabetically", async () => {
       const options: SortOptions = {
-        sortBy: "id",
+        by: "id",
       };
 
       const results: AbstractSequence[] = [];
@@ -107,7 +109,8 @@ describe("SortProcessor", () => {
 
     test("sorts by ID reverse alphabetically", async () => {
       const options: SortOptions = {
-        sortBy: "id-desc",
+        by: "id",
+        order: "desc",
       };
 
       const results: AbstractSequence[] = [];
@@ -125,7 +128,8 @@ describe("SortProcessor", () => {
   describe("GC content sorting", () => {
     test("sorts by GC content ascending", async () => {
       const options: SortOptions = {
-        sortBy: "gc-asc",
+        by: "gc",
+        order: "asc",
       };
 
       const results: AbstractSequence[] = [];
@@ -139,7 +143,8 @@ describe("SortProcessor", () => {
 
     test("sorts by GC content descending", async () => {
       const options: SortOptions = {
-        sortBy: "gc",
+        by: "gc",
+        order: "desc",
       };
 
       const results: AbstractSequence[] = [];
@@ -155,7 +160,8 @@ describe("SortProcessor", () => {
   describe("quality-based sorting", () => {
     test("sorts FASTQ sequences by quality ascending", async () => {
       const options: SortOptions = {
-        sortBy: "quality-asc",
+        by: "quality",
+        order: "asc",
         qualityEncoding: "phred33",
       };
 
@@ -171,7 +177,8 @@ describe("SortProcessor", () => {
 
     test("sorts FASTQ sequences by quality descending", async () => {
       const options: SortOptions = {
-        sortBy: "quality",
+        by: "quality",
+        order: "desc",
         qualityEncoding: "phred33",
       };
 
@@ -192,7 +199,8 @@ describe("SortProcessor", () => {
       ];
 
       const options: SortOptions = {
-        sortBy: "quality",
+        by: "quality",
+        order: "desc",
         qualityEncoding: "phred33",
       };
 
@@ -211,7 +219,7 @@ describe("SortProcessor", () => {
     test("sorts with custom comparison function", async () => {
       // Sort by sequence content alphabetically
       const options: SortOptions = {
-        sortBy: (a: AbstractSequence, b: AbstractSequence) => a.sequence.localeCompare(b.sequence),
+        by: (a: AbstractSequence, b: AbstractSequence) => a.sequence.localeCompare(b.sequence),
       };
 
       const results: AbstractSequence[] = [];
@@ -226,7 +234,7 @@ describe("SortProcessor", () => {
 
     test("custom function works without sort field", async () => {
       const options: SortOptions = {
-        sortBy: (a: AbstractSequence, b: AbstractSequence) => a.id.localeCompare(b.id), // Sort by ID
+        by: (a: AbstractSequence, b: AbstractSequence) => a.id.localeCompare(b.id), // Sort by ID
       };
 
       const results: AbstractSequence[] = [];
@@ -253,7 +261,8 @@ describe("SortProcessor", () => {
       ];
 
       const options: SortOptions = {
-        sortBy: "length", // Longest first for better compression
+        by: "length",
+        order: "desc", // Longest first for better compression
       };
 
       const results: AbstractSequence[] = [];
@@ -276,7 +285,8 @@ describe("SortProcessor", () => {
       ];
 
       const options: SortOptions = {
-        sortBy: "gc-asc",
+        by: "gc",
+        order: "asc",
       };
 
       const results: AbstractSequence[] = [];
@@ -297,30 +307,30 @@ describe("SortProcessor", () => {
   describe("error handling", () => {
     test("throws error for invalid sort field", async () => {
       const options = {
-        sortBy: "invalid_field",
+        by: "invalid_field",
       } as unknown as SortOptions;
 
       await expect(async () => {
         for await (const _seq of processor.process(toAsyncIterable(testSequences), options)) {
           // Validation should throw
         }
-      }).toThrow("sortBy must be");
+      }).toThrow("by must be");
     });
 
     test("throws error for invalid sort order", async () => {
       const options = {
-        sortBy: "invalid_order",
+        order: "invalid_order",
       } as unknown as SortOptions;
 
       await expect(async () => {
         for await (const _seq of processor.process(toAsyncIterable(testSequences), options)) {
           // Validation should throw
         }
-      }).toThrow("sortBy must be");
+      }).toThrow("order must be");
     });
 
     test("handles default sorting gracefully", async () => {
-      const options: SortOptions = {}; // No sortBy - should use core default
+      const options: SortOptions = {}; // No by - should use core default
 
       const results: AbstractSequence[] = [];
       for await (const seq of processor.process(toAsyncIterable(testSequences), options)) {
@@ -333,21 +343,22 @@ describe("SortProcessor", () => {
 
     test("throws error for invalid custom function", async () => {
       const options = {
-        sortBy: "not_a_function",
+        by: "not_a_function",
       } as unknown as SortOptions;
 
       await expect(async () => {
         for await (const _seq of processor.process(toAsyncIterable(testSequences), options)) {
           // Validation should throw
         }
-      }).toThrow("sortBy must be a function");
+      }).toThrow("by must be");
     });
   });
 
   describe("edge cases", () => {
     test("handles empty input", async () => {
       const options: SortOptions = {
-        sortBy: "length-asc",
+        by: "length",
+        order: "asc",
       };
 
       const results: AbstractSequence[] = [];
@@ -361,7 +372,8 @@ describe("SortProcessor", () => {
     test("handles single sequence", async () => {
       const singleSeq = [testSequences[0]!];
       const options: SortOptions = {
-        sortBy: "length",
+        by: "length",
+        order: "desc",
       };
 
       const results: AbstractSequence[] = [];
@@ -381,7 +393,8 @@ describe("SortProcessor", () => {
       ];
 
       const options: SortOptions = {
-        sortBy: "length-asc",
+        by: "length",
+        order: "asc",
       };
 
       const results: AbstractSequence[] = [];
@@ -401,7 +414,8 @@ describe("SortProcessor", () => {
       ];
 
       const options: SortOptions = {
-        sortBy: "length-asc",
+        by: "length",
+        order: "asc",
       };
 
       const results: AbstractSequence[] = [];
@@ -424,7 +438,8 @@ describe("SortProcessor", () => {
       });
 
       const options: SortOptions = {
-        sortBy: "length",
+        by: "length",
+        order: "desc",
       };
 
       const startTime = Date.now();
@@ -447,7 +462,8 @@ describe("SortProcessor", () => {
       // This test simulates the warning for large datasets
       // In practice, external sort would be triggered
       const options: SortOptions = {
-        sortBy: "length-asc",
+        by: "length",
+        order: "asc",
       };
 
       // Should not throw, but would warn in real usage
@@ -469,7 +485,8 @@ describe("SortProcessor", () => {
       ];
 
       const options: SortOptions = {
-        sortBy: "gc-asc",
+        by: "gc",
+        order: "asc",
       };
 
       const results: AbstractSequence[] = [];
@@ -489,7 +506,8 @@ describe("SortProcessor", () => {
       ];
 
       const options: SortOptions = {
-        sortBy: "gc",
+        by: "gc",
+        order: "desc",
       };
 
       const results: AbstractSequence[] = [];

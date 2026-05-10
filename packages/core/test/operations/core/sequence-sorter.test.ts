@@ -79,7 +79,7 @@ describe("SequenceSorter", () => {
     });
 
     test("sorts by length ascending", async () => {
-      const sorter = new SequenceSorter({ sortBy: "length-asc" });
+      const sorter = new SequenceSorter({ by: "length", order: "asc" });
       const sorted: AbstractSequence[] = [];
 
       for await (const record of sorter.sort(createAsyncSequences())) {
@@ -91,7 +91,7 @@ describe("SequenceSorter", () => {
     });
 
     test("sorts by GC content", async () => {
-      const sorter = new SequenceSorter({ sortBy: "gc" });
+      const sorter = new SequenceSorter({ by: "gc", order: "desc" });
       const sorted: AbstractSequence[] = [];
 
       for await (const record of sorter.sort(createAsyncSequences())) {
@@ -103,7 +103,7 @@ describe("SequenceSorter", () => {
     });
 
     test("sorts by ID alphabetically", async () => {
-      const sorter = new SequenceSorter({ sortBy: "id" });
+      const sorter = new SequenceSorter({ by: "id" });
       const sorted: AbstractSequence[] = [];
 
       for await (const record of sorter.sort(createAsyncSequences())) {
@@ -114,7 +114,7 @@ describe("SequenceSorter", () => {
     });
 
     test("sorts by ID reverse alphabetically", async () => {
-      const sorter = new SequenceSorter({ sortBy: "id-desc" });
+      const sorter = new SequenceSorter({ by: "id", order: "desc" });
       const sorted: AbstractSequence[] = [];
 
       for await (const record of sorter.sort(createAsyncSequences())) {
@@ -128,7 +128,8 @@ describe("SequenceSorter", () => {
   describe("FASTQ Quality Sorting", () => {
     test("sorts by average quality score", async () => {
       const sorter = new SequenceSorter({
-        sortBy: "quality",
+        by: "quality",
+        order: "desc",
         qualityEncoding: "phred33",
       });
 
@@ -149,7 +150,7 @@ describe("SequenceSorter", () => {
         yield sequences[1]!;
       }
 
-      const sorter = new SequenceSorter({ sortBy: "quality" });
+      const sorter = new SequenceSorter({ by: "quality", order: "desc" });
       const sorted: AbstractSequence[] = [];
 
       for await (const record of sorter.sort(mixedSequences())) {
@@ -169,7 +170,7 @@ describe("SequenceSorter", () => {
         return a.sequence.localeCompare(b.sequence);
       };
 
-      const sorter = new SequenceSorter({ sortBy: customSort });
+      const sorter = new SequenceSorter({ by: customSort });
       const sorted: AbstractSequence[] = [];
 
       for await (const record of sorter.sort(createAsyncSequences())) {
@@ -183,7 +184,8 @@ describe("SequenceSorter", () => {
   describe("Deduplication", () => {
     test("removes duplicates when unique option is set", async () => {
       const sorter = new SequenceSorter({
-        sortBy: "length",
+        by: "length",
+        order: "desc",
         unique: true,
       });
 
@@ -223,7 +225,7 @@ describe("SequenceSorter", () => {
 
   describe("In-Memory Sorting", () => {
     test("sortInMemory returns array directly", async () => {
-      const sorter = new SequenceSorter({ sortBy: "gc" });
+      const sorter = new SequenceSorter({ by: "gc", order: "desc" });
       const sorted = await sorter.sortInMemory(createAsyncSequences());
 
       expect(Array.isArray(sorted)).toBe(true);
@@ -233,7 +235,8 @@ describe("SequenceSorter", () => {
 
     test("sortInMemory with deduplication", async () => {
       const sorter = new SequenceSorter({
-        sortBy: "length",
+        by: "length",
+        order: "desc",
         unique: true,
       });
 
@@ -244,7 +247,7 @@ describe("SequenceSorter", () => {
 
   describe("Top-N Selection", () => {
     test("getTopN returns only N sequences", async () => {
-      const sorter = new SequenceSorter({ sortBy: "length" });
+      const sorter = new SequenceSorter({ by: "length", order: "desc" });
       const top3: AbstractSequence[] = [];
 
       for await (const s of sorter.getTopN(createAsyncSequences(), 3)) {
@@ -266,7 +269,7 @@ describe("SequenceSorter", () => {
         }
       }
 
-      const sorter = new SequenceSorter({ sortBy: "length" });
+      const sorter = new SequenceSorter({ by: "length", order: "desc" });
       const top10: AbstractSequence[] = [];
 
       for await (const s of sorter.getTopN(largeStream(), 10)) {
@@ -303,9 +306,9 @@ describe("SequenceSorter", () => {
       }
 
       const sorter = new SequenceSorter({
-        sortBy: "id",
+        by: "id",
         tempDir,
-        chunkSize: 1000, // Small chunk to force external sorting
+        memoryBudget: 1000, // Small budget to force external sorting
       });
 
       const sorted: AbstractSequence[] = [];
@@ -338,7 +341,7 @@ describe("SequenceSorter", () => {
     });
 
     test("correctly serializes FASTQ sequences", async () => {
-      const sorter = new SequenceSorter({ sortBy: "quality" });
+      const sorter = new SequenceSorter({ by: "quality", order: "desc" });
       const sorted: FastqSequence[] = [];
 
       for await (const record of sorter.sort(createAsyncFastq())) {
@@ -374,7 +377,8 @@ describe("SequenceSorter", () => {
   describe("Convenience Functions", () => {
     test("sortSequences returns sorted array", async () => {
       const sorted = await sortSequences(createAsyncSequences(), {
-        sortBy: "gc",
+        by: "gc",
+        order: "desc",
       });
 
       expect(Array.isArray(sorted)).toBe(true);
@@ -391,7 +395,7 @@ describe("SequenceSorter", () => {
 
     test("convenience functions accept all options", async () => {
       const sorted = await sortSequences(createAsyncSequences(), {
-        sortBy: "id",
+        by: "id",
         unique: true,
       });
 
@@ -421,7 +425,7 @@ describe("SequenceSorter", () => {
         yield sequences[0]!;
       }
 
-      const sorter = new SequenceSorter({ sortBy: "length" });
+      const sorter = new SequenceSorter({ by: "length", order: "desc" });
       const sorted: AbstractSequence[] = [];
 
       for await (const s of sorter.sort(singleSeq())) {
@@ -439,7 +443,7 @@ describe("SequenceSorter", () => {
         for (const s of testSeqs) yield s;
       }
 
-      const sorter = new SequenceSorter({ sortBy: "length" });
+      const sorter = new SequenceSorter({ by: "length", order: "desc" });
       const sorted: AbstractSequence[] = [];
 
       for await (const s of sorter.sort(testStream())) {

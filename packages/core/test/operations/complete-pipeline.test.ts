@@ -44,7 +44,7 @@ describe("Complete SeqOps Pipeline Integration", () => {
       .sample({ n: 6, strategy: "systematic" })
 
       // Step 3: Sort by length for compression optimization
-      .sort({ sortBy: "length" })
+      .sort({ by: "length", order: "desc" })
 
       // Step 4: Remove duplicates
       .rmdup({ by: "sequence", exact: true })
@@ -92,7 +92,7 @@ describe("Complete SeqOps Pipeline Integration", () => {
       .rmdup({ by: "sequence" })
 
       // Sort for optimal compression
-      .sort({ sortBy: "gc-asc" })
+      .sort({ by: "gc", order: "asc" })
 
       .collect();
 
@@ -134,7 +134,7 @@ describe("Complete SeqOps Pipeline Integration", () => {
       .sample({ n: 10, strategy: "reservoir", seed: 42 })
 
       // Sort by ID for consistent ordering
-      .sort({ sortBy: "id" })
+      .sort({ by: "id" })
 
       // Remove any remaining duplicates
       .rmdup({ by: "both" })
@@ -173,7 +173,7 @@ describe("Complete SeqOps Pipeline Integration", () => {
     const results = await seqops(toAsync(performanceDataset))
       .grep({ pattern: /^seq_/, target: "id" }) // All sequences match
       .sample({ n: 100, strategy: "reservoir" }) // Sample down
-      .sort({ sortBy: "length" }) // Sort by length
+      .sort({ by: "length", order: "desc" }) // Sort by length
       .rmdup({ by: "sequence" }) // Remove duplicates
       .collect();
 

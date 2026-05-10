@@ -65,14 +65,10 @@ import { calculateAverageQuality } from "./quality";
  * Sorting strategy for sequences.
  *
  * Built-in strategies:
- * - 'length': By sequence length (longest first)
- * - 'length-asc': By sequence length (shortest first)
- * - 'gc': By GC content percentage (highest first)
- * - 'gc-asc': By GC content percentage (lowest first)
- * - 'quality': By average quality score for FASTQ (highest first)
- * - 'quality-asc': By average quality score (lowest first)
- * - 'id': Alphabetically by sequence ID (A-Z)
- * - 'id-desc': Reverse alphabetically by ID (Z-A)
+ * - 'length': By sequence length
+ * - 'gc': By GC content percentage
+ * - 'quality': By average quality score for FASTQ
+ * - 'id': Alphabetically by sequence ID
  * - Custom function: (a, b) => number for custom comparison
  *
  * @typedef {string | Function} SortBy
@@ -88,15 +84,22 @@ import { calculateAverageQuality } from "./quality";
  * ```
  */
 export type SortBy =
-  | "length" // Sort by sequence length (default: longest first)
-  | "length-asc" // Sort by sequence length (shortest first)
-  | "gc" // Sort by GC content (highest first)
-  | "gc-asc" // Sort by GC content (lowest first)
-  | "id" // Sort alphabetically by ID
-  | "id-desc" // Sort reverse alphabetically by ID
-  | "quality" // Sort by average quality (FASTQ only, highest first)
-  | "quality-asc" // Sort by average quality (FASTQ only, lowest first)
+  | "length"
+  | "gc"
+  | "id"
+  | "quality"
   | ((a: AbstractSequence, b: AbstractSequence) => number); // Custom comparison function
+
+export type SortOrder = "asc" | "desc";
+
+interface NormalizedSortOptions {
+  by: SortBy;
+  order: SortOrder;
+  tempDir?: string | undefined;
+  memoryBudget: number;
+  unique: boolean;
+  qualityEncoding: "phred33" | "phred64";
+}
 
 /**
  * Configuration options for sequence sorting.
@@ -106,10 +109,11 @@ export type SortBy =
  * @example
  * ```typescript
  * const options: SortOptions = {
- *   sortBy: 'gc',
+ *   by: 'gc',
+ *   order: 'desc',
  *   unique: true,
  *   tempDir: '/tmp/sort',
- *   chunkSize: 500_000_000, // 500MB chunks
+ *   memoryBudget: 500_000_000,
  *   qualityEncoding: 'phred33'
  * };
  * ```
@@ -117,9 +121,16 @@ export type SortBy =
 export interface SortOptions {
   /**
    * Sorting strategy to use.
-   * @default 'length' (sort by sequence length, longest first)
+   * @default 'length'
    */
-  sortBy?: SortBy;
+  by?: SortBy;
+
+  /**
+   * Direction for built-in sorting strategies.
+   * Custom comparison functions define their own direction.
+   * @default 'asc'
+   */
+  order?: SortOrder;
 
   /**
    * Directory for temporary files during external sorting.
@@ -129,12 +140,11 @@ export interface SortOptions {
   tempDir?: string;
 
   /**
-   * Maximum memory to use before switching to external sort.
-   * Larger chunks improve performance but use more memory.
+   * Maximum memory to use before spilling sorted runs.
    * @default 104857600 (100MB)
    * @minimum 1048576 (1MB)
    */
-  chunkSize?: number;
+  memoryBudget?: number;
 
   /**
    * Remove duplicate sequences during sort.
@@ -145,10 +155,11 @@ export interface SortOptions {
 
   /**
    * Quality score encoding for FASTQ sorting.
-   * Required when sortBy is 'quality' or 'quality-asc'.
+   * Used when by is 'quality'.
    * @default 'phred33'
    */
   qualityEncoding?: "phred33" | "phred64";
+
 }
 
 /**
@@ -209,8 +220,9 @@ export interface SortOptions {
  * ```typescript
  * // Sort 100GB FASTQ dataset using external algorithm
  * const largeSorter = new SequenceSorter({
- *   sortBy: 'length',
- *   chunkSize: 500_000_000, // 500MB chunks
+ *   by: 'length',
+ *   order: 'desc',
+ *   memoryBudget: 500_000_000,
  *   unique: true // Remove duplicates during sort
  * });
  *
@@ -224,8 +236,8 @@ export interface SortOptions {
  * ```typescript
  * // Prepare sequences for maximum compression
  * const archiveSorter = new SequenceSorter({
- *   sortBy: 'gc', // Group by GC content for better compression
- *   chunkSize: 1_000_000_000 // 1GB chunks for large datasets
+ *   by: 'gc', // Group by GC content for better compression
+ *   memoryBudget: 1_000_000_000
  * });
  *
  * const sortedForCompression = archiveSorter.sort(genomicDatabase);
@@ -235,7 +247,7 @@ export interface SortOptions {
  * @example Top-N analysis without full sort
  * ```typescript
  * // Find longest sequences without sorting entire dataset
- * const topSorter = new SequenceSorter({ sortBy: 'length' });
+ * const topSorter = new SequenceSorter({ by: 'length', order: 'desc' });
  * const longest100 = await topSorter.getTopN(billionSequences, 100);
  * // O(n log k) complexity instead of O(n log n)
  * ```
@@ -244,7 +256,8 @@ export interface SortOptions {
  * ```typescript
  * // Sort FASTQ reads by quality for quality control
  * const qcSorter = new SequenceSorter({
- *   sortBy: 'quality',
+ *   by: 'quality',
+ *   order: 'desc',
  *   qualityEncoding: 'phred33'
  * });
  *
@@ -259,7 +272,7 @@ export interface SortOptions {
  * @see {@link https://en.wikipedia.org/wiki/External_sorting} External Sorting Algorithms (Wikipedia)
  * @see {@link https://link.springer.com/article/10.1007/s10586-018-2860-1} Big Data External Sorting (Cluster Computing)
  * const customSorter = new SequenceSorter({
- *   sortBy: (a, b) => {
+ *   by: (a, b) => {
  *     const atA = (a.sequence.match(/[AT]/g) || []).length;
  *     const atB = (b.sequence.match(/[AT]/g) || []).length;
  *     return atB - atA;
@@ -269,24 +282,25 @@ export interface SortOptions {
  *
  * @remarks
  * The sorter automatically chooses between in-memory and external sorting
- * based on the data size. For datasets smaller than chunkSize, sorting
+ * based on the data size. For datasets smaller than memoryBudget, sorting
  * happens entirely in memory. Larger datasets use disk-based merge sort.
  */
 export class SequenceSorter {
   private readonly compareFn: (a: AbstractSequence, b: AbstractSequence) => number;
-  private readonly options: Required<SortOptions>;
+  private readonly options: NormalizedSortOptions;
   private readonly seenIds?: Set<string>;
 
   constructor(options: SortOptions = {}) {
     this.options = {
-      sortBy: options.sortBy ?? "length",
+      by: options.by ?? "length",
+      order: options.order ?? defaultOrderFor(options.by ?? "length"),
       tempDir: options.tempDir ?? "/tmp",
-      chunkSize: options.chunkSize ?? 100_000_000, // 100MB
+      memoryBudget: options.memoryBudget ?? 100_000_000,
       unique: options.unique ?? false,
       qualityEncoding: options.qualityEncoding ?? "phred33",
     };
 
-    this.compareFn = this.getCompareFn(this.options.sortBy);
+    this.compareFn = this.getCompareFn(this.options.by, this.options.order);
 
     if (this.options.unique) {
       this.seenIds = new Set<string>();
@@ -310,8 +324,8 @@ export class SequenceSorter {
    * ```
    *
    * @remarks
-   * Memory usage is bounded by chunkSize option. For datasets larger than
-   * chunkSize, temporary files are created in tempDir.
+    * Memory usage is bounded by memoryBudget. For larger datasets,
+    * temporary files are created in tempDir.
    */
   async *sort(sequences: AsyncIterable<AbstractSequence>): AsyncGenerator<AbstractSequence> {
     // If deduplication is requested, filter first
@@ -319,7 +333,7 @@ export class SequenceSorter {
 
     // Create external sorter with sequence-specific serialization
     const sorter = new ExternalSorter<AbstractSequence>(
-      this.options.chunkSize,
+      this.options.memoryBudget,
       this.options.tempDir,
       this.serializeSequence.bind(this),
       this.deserializeSequence.bind(this)
@@ -419,39 +433,29 @@ export class SequenceSorter {
 
   // Private helper methods
 
-  private getCompareFn(sortBy: SortBy): (a: AbstractSequence, b: AbstractSequence) => number {
-    if (typeof sortBy === "function") {
-      return sortBy;
+  private getCompareFn(by: SortBy, order: SortOrder): (a: AbstractSequence, b: AbstractSequence) => number {
+    if (typeof by === "function") {
+      return by;
     }
 
-    switch (sortBy) {
-      case "length":
-        return (a, b) => b.sequence.length - a.sequence.length;
+    const direction = order === "asc" ? 1 : -1;
 
-      case "length-asc":
-        return (a, b) => a.sequence.length - b.sequence.length;
+    switch (by) {
+      case "length":
+        return (a, b) => direction * (a.sequence.length - b.sequence.length);
 
       case "gc":
-        return (a, b) => this.getGCContent(b) - this.getGCContent(a);
-
-      case "gc-asc":
-        return (a, b) => this.getGCContent(a) - this.getGCContent(b);
+        return (a, b) => direction * (this.getGCContent(a) - this.getGCContent(b));
 
       case "id":
-        return (a, b) => a.id.localeCompare(b.id);
-
-      case "id-desc":
-        return (a, b) => b.id.localeCompare(a.id);
+        return (a, b) => direction * a.id.localeCompare(b.id);
 
       case "quality":
-        return (a, b) => this.getAverageQuality(b) - this.getAverageQuality(a);
-
-      case "quality-asc":
-        return (a, b) => this.getAverageQuality(a) - this.getAverageQuality(b);
+        return (a, b) => direction * (this.getAverageQuality(a) - this.getAverageQuality(b));
 
       default:
         // Default to length sorting
-        return (a, b) => b.sequence.length - a.sequence.length;
+        return (a, b) => direction * (a.sequence.length - b.sequence.length);
     }
   }
 
@@ -568,7 +572,7 @@ export async function sortSequences(
  *
  * @param sequences - Async iterable of sequences to process
  * @param n - Number of top sequences to return
- * @param sortBy - Sorting strategy (default: 'length')
+ * @param by - Sorting strategy (default: 'length')
  * @returns Promise resolving to array of top N sequences
  *
  * @example
@@ -584,9 +588,9 @@ export async function sortSequences(
 export async function getTopSequences(
   sequences: AsyncIterable<AbstractSequence>,
   n: number,
-  sortBy: SortBy = "length"
+  by: SortBy = "length"
 ): Promise<AbstractSequence[]> {
-  const sorter = new SequenceSorter({ sortBy });
+  const sorter = new SequenceSorter({ by });
   const result: AbstractSequence[] = [];
 
   for await (const seq of sorter.getTopN(sequences, n)) {
@@ -710,6 +714,11 @@ class MinHeap<T> {
   }
 }
 
+function defaultOrderFor(by: SortBy): SortOrder {
+  if (typeof by === "function") return "asc";
+  return by === "length" || by === "gc" || by === "quality" ? "desc" : "asc";
+}
+
 /**
  * Sort sequences without creating a SequenceSorter instance.
  *
@@ -722,7 +731,7 @@ class MinHeap<T> {
  *
  * @example
  * ```typescript
- * const sorted = await sortSequences(sequences, { sortBy: 'gc' });
+ * const sorted = await sortSequences(sequences, { by: 'gc', order: 'desc' });
  * console.log(`Highest GC: ${sorted[0].id}`);
  * ```
  */

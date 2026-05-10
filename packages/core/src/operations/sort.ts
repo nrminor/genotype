@@ -26,15 +26,14 @@ import { type SortOptions as CoreSortOptions, SequenceSorter } from "./core/sequ
  * - Declarative string-based sort strategies
  */
 const SortOptionsSchema = type({
-  "sortBy?":
-    "'length' | 'length-asc' | 'gc' | 'gc-asc' | 'quality' | 'quality-asc' | 'id' | 'id-desc' | Function",
+  "by?": "'length' | 'gc' | 'quality' | 'id' | 'sequence' | Function",
+  "order?": "'asc' | 'desc'",
   "tempDir?": "string",
-  "chunkSize?": "number>=1048576", // Minimum 1MB chunks
+  "memoryBudget?": "number>=1048576",
   "unique?": "boolean",
   "qualityEncoding?": "'phred33' | 'phred64'",
 }).narrow((options, ctx) => {
-  // Quality sorting requires quality encoding specification
-  if (options.sortBy === "quality" || options.sortBy === "quality-asc") {
+  if (options.by === "quality") {
     if (!options.qualityEncoding) {
       return ctx.reject({
         expected: "qualityEncoding required for quality-based sorting",
@@ -44,14 +43,12 @@ const SortOptionsSchema = type({
     }
   }
 
-  // Validate chunk size is reasonable for genomic data
-  if (options.chunkSize && options.chunkSize > 2147483648) {
-    // 2GB max
+  if (options.memoryBudget && options.memoryBudget > 2147483648) {
     return ctx.reject({
-      expected: "chunk size <= 2GB",
-      actual: `${Math.round(options.chunkSize / 1024 / 1024)}MB`,
-      path: ["chunkSize"],
-      description: "Large chunks may cause memory issues",
+      expected: "memory budget <= 2GB",
+      actual: `${Math.round(options.memoryBudget / 1024 / 1024)}MB`,
+      path: ["memoryBudget"],
+      description: "Large memory budgets may cause memory issues",
     });
   }
 
@@ -70,9 +67,10 @@ const SortOptionsSchema = type({
  * // Declarative sorting with automatic memory management
  * const processor = new SortProcessor();
  * const sorted = processor.process(sequences, {
- *   sortBy: 'gc',           // GC content, highest first
+ *   by: 'gc',               // GC content
+ *   order: 'desc',
  *   unique: true,           // Remove duplicates during sort
- *   chunkSize: 100_000_000  // 100MB chunks for external sort
+ *   memoryBudget: 100_000_000
  * });
  * ```
  */
@@ -96,10 +94,10 @@ export class SortProcessor {
     const validationResult = SortOptionsSchema(options);
     if (validationResult instanceof type.errors) {
       throw new ValidationError(
-        `Invalid sort configuration: ${validationResult.summary}`,
-        undefined,
-        "Check sortBy strategy, chunkSize, and qualityEncoding requirements"
-      );
+          `Invalid sort configuration: ${validationResult.summary}`,
+          undefined,
+          "Check by strategy, memoryBudget, and qualityEncoding requirements"
+        );
     }
 
     // Create memory-safe sorter with validated options

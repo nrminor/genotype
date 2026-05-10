@@ -1064,9 +1064,7 @@ export class SeqOps<T extends AbstractSequence> {
    *
    * // Custom sorting for specialized genomic criteria
    * seqops(sequences)
-   *   .sort({
-   *     custom: (a, b) => a.sequence.localeCompare(b.sequence)
-   *   })
+   *   .sort({ by: (a, b) => a.sequence.localeCompare(b.sequence) })
    * ```
    */
   sort(options: SortOptions): SeqOps<T> {
@@ -1088,7 +1086,7 @@ export class SeqOps<T extends AbstractSequence> {
    * ```
    */
   sortByLength(order: "asc" | "desc" = "asc"): SeqOps<T> {
-    return this.sort({ sortBy: order === "asc" ? "length-asc" : "length" });
+    return this.sort({ by: "length", order });
   }
 
   /**
@@ -1098,7 +1096,7 @@ export class SeqOps<T extends AbstractSequence> {
    * @returns New SeqOps instance for chaining
    */
   sortById(order: "asc" | "desc" = "asc"): SeqOps<T> {
-    return this.sort({ sortBy: order === "asc" ? "id" : "id-desc" });
+    return this.sort({ by: "id", order });
   }
 
   /**
@@ -1108,7 +1106,7 @@ export class SeqOps<T extends AbstractSequence> {
    * @returns New SeqOps instance for chaining
    */
   sortByGC(order: "asc" | "desc" = "asc"): SeqOps<T> {
-    return this.sort({ sortBy: order === "asc" ? "gc-asc" : "gc" });
+    return this.sort({ by: "gc", order });
   }
 
   /**

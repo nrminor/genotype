@@ -22,6 +22,8 @@ import type {
   AlignmentReaderHandle,
   FastaReaderHandle,
   FastaWriterHandle,
+  FastqSequenceSortOptions,
+  FastqSequenceSorterHandle,
   FastqReaderHandle,
   FastqWriterHandle,
   FindPatternBatchOptions,
@@ -196,6 +198,10 @@ export class BackendService extends Context.Service<
       compress: boolean,
       lineWidth: number
     ): Effect.Effect<FastaWriterHandle, BackendError>;
+
+    createFastqSequenceSorter(
+      options: FastqSequenceSortOptions
+    ): Effect.Effect<FastqSequenceSorterHandle, BackendError>;
   }
 >()("@genotype/BackendService") {
   static readonly NullLayer: Layer.Layer<BackendService> = Layer.succeed(
@@ -225,6 +231,7 @@ export class BackendService extends Context.Service<
       createFastaReaderFromBytes: () => unavailable("createFastaReaderFromBytes"),
       createFastqWriter: () => unavailable("createFastqWriter"),
       createFastaWriter: () => unavailable("createFastaWriter"),
+      createFastqSequenceSorter: () => unavailable("createFastqSequenceSorter"),
     })
   );
 }

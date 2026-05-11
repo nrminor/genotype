@@ -56,10 +56,15 @@
  */
 
 import { createFastaRecord, createFastqRecord } from "@genotype/core/constructors";
+import { createFastqSequenceSorter } from "@genotype/core/backend/service";
+import { packFastqBatch, unpackFastqBatch } from "@genotype/core/formats/fastq/batch";
 import { Bases } from "@genotype/core/genotype-string";
 import type { AbstractSequence, FastqSequence, QualityEncoding } from "@genotype/core/types";
 import { ExternalSorter } from "./memory";
 import { calculateAverageQuality } from "./quality";
+
+const NATIVE_SORT_BATCH_BYTE_BUDGET = 4 * 1024 * 1024;
+const NATIVE_SORT_OUTPUT_RECORDS = 8192;
 
 /**
  * Sorting strategy for sequences.
@@ -88,6 +93,7 @@ export type SortBy =
   | "gc"
   | "id"
   | "quality"
+  | "sequence"
   | ((a: AbstractSequence, b: AbstractSequence) => number); // Custom comparison function
 
 export type SortOrder = "asc" | "desc";
@@ -328,6 +334,11 @@ export class SequenceSorter {
     * temporary files are created in tempDir.
    */
   async *sort(sequences: AsyncIterable<AbstractSequence>): AsyncGenerator<AbstractSequence> {
+    if (this.options.by === "sequence") {
+      yield* this.sortFastqBySequence(sequences);
+      return;
+    }
+
     // If deduplication is requested, filter first
     const input = this.options.unique ? this.deduplicate(sequences) : sequences;
 
@@ -453,6 +464,9 @@ export class SequenceSorter {
       case "quality":
         return (a, b) => direction * (this.getAverageQuality(a) - this.getAverageQuality(b));
 
+      case "sequence":
+        return (a, b) => direction * a.sequence.toString().localeCompare(b.sequence.toString());
+
       default:
         // Default to length sorting
         return (a, b) => direction * (a.sequence.length - b.sequence.length);
@@ -542,6 +556,57 @@ export class SequenceSorter {
     // Use both ID and sequence for uniqueness
     return `${seq.id}:${seq.sequence}`;
   }
+
+  private async *sortFastqBySequence(
+    sequences: AsyncIterable<AbstractSequence>
+  ): AsyncGenerator<FastqSequence> {
+    if (this.options.unique) {
+      throw new Error("sort({ by: 'sequence', unique: true }) is not supported by the native sorter");
+    }
+
+    const sorter = await createFastqSequenceSorter({
+      order: this.options.order,
+      memoryBudget: this.options.memoryBudget,
+      tempDir: this.options.tempDir,
+    });
+
+    let batch: FastqSequence[] = [];
+    let batchBytes = 0;
+
+    for await (const sequence of sequences) {
+      if (!isFastqSequence(sequence)) {
+        throw new Error("sort({ by: 'sequence' }) currently requires FASTQ records");
+      }
+
+      batch.push(sequence);
+      batchBytes += sequence.id.length + (sequence.description?.length ?? 0);
+      batchBytes += sequence.sequence.length + sequence.quality.length;
+
+      if (batchBytes >= NATIVE_SORT_BATCH_BYTE_BUDGET) {
+        await sorter.pushBatch(packFastqBatch(batch));
+        batch = [];
+        batchBytes = 0;
+      }
+    }
+
+    if (batch.length > 0) {
+      await sorter.pushBatch(packFastqBatch(batch));
+    }
+
+    await sorter.finishInput();
+
+    for (;;) {
+      const sortedBatch = await sorter.readBatch(NATIVE_SORT_OUTPUT_RECORDS);
+      if (sortedBatch === null) break;
+      for (const record of unpackFastqBatch(sortedBatch, this.options.qualityEncoding)) {
+        yield record;
+      }
+    }
+  }
+}
+
+function isFastqSequence(sequence: AbstractSequence): sequence is FastqSequence {
+  return "quality" in sequence && sequence.quality !== undefined;
 }
 
 /**

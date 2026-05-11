@@ -8,9 +8,12 @@ description = "Presentation-agnostic compute kernels for genotype bioinformatics
 crate-type = ["rlib"]
 
 [dependencies]
+dryice-bio = { version = "0.1.2", optional = true }
 rayon = "1.11"
 sassy = { version = "0.2.1", default-features = false }
 smallvec = "1.15"
+spillover = { version = "0.1.2", optional = true }
+spillover-bio = { version = "0.1.2", optional = true }
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
 flate2 = "1.1"
 libpairassembly = { version = "0.1.2", default-features = false }
@@ -22,6 +25,7 @@ noodles-sam = "0.83"
 
 [features]
 default = []
+native-sequence-sort = ["dep:dryice-bio", "dep:spillover", "dep:spillover-bio"]
 # Silence ensure_simd's AVX/NEON-only compile-time guard for wasm32 targets.
 # Does not disable SIMD — wide selects wasm simd128 intrinsics independently
 # via #[cfg(target_feature="simd128")], controlled by rustflags in .cargo/config.toml.

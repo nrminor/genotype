@@ -8,6 +8,8 @@
 export type {
   AlignmentBatch,
   AlignmentReaderHandle,
+  FastqSequenceSortOptions,
+  FastqSequenceSorterHandle,
   FindPatternBatchOptions,
   GrepBatchOptions,
   ReferenceSequenceInfo,
@@ -37,4 +39,5 @@ export {
   hashBatch,
   createAlignmentReaderFromPath,
   createAlignmentReaderFromBytes,
+  createFastqSequenceSorter,
 } from "./service";

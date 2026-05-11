@@ -39,6 +39,8 @@ import type {
   FastaReaderHandle,
   FastaWriterHandle,
   FastqBatch,
+  FastqSequenceSortOptions,
+  FastqSequenceSorterHandle,
   FastqReaderHandle,
   FastqWriterHandle,
   ReferenceSequenceInfo,
@@ -277,6 +279,28 @@ interface NativeFastqWriter {
   finish(): Buffer | null;
 }
 
+interface NativeFastqSequenceSorter {
+  pushBatch(
+    nameData: Uint8Array,
+    nameOffsets: Uint32Array,
+    descriptionData: Uint8Array,
+    descriptionOffsets: Uint32Array,
+    sequenceData: Uint8Array,
+    sequenceOffsets: Uint32Array,
+    qualityData: Uint8Array,
+    qualityOffsets: Uint32Array,
+    count: number
+  ): void;
+  finishInput(): void;
+  readBatch(maxRecords: number): NativeFastqBatch | null;
+}
+
+interface NativeFastqSequenceSorterModule {
+  FastqSequenceSorter: {
+    create(order: string, memoryBudget: number, tempDir?: string | null): NativeFastqSequenceSorter;
+  };
+}
+
 interface NativeFastaWriterModule {
   FastaWriter: {
     open(path: string, compress: boolean, lineWidth: number): NativeFastaWriter;
@@ -445,6 +469,43 @@ function wrapFastqWriter(writer: NativeFastqWriter): FastqWriterHandle {
   };
 }
 
+function wrapFastqSequenceSorter(sorter: NativeFastqSequenceSorter): FastqSequenceSorterHandle {
+  return {
+    async pushBatch(batch: FastqBatch): Promise<void> {
+      sorter.pushBatch(
+        batch.nameData,
+        batch.nameOffsets,
+        batch.descriptionData,
+        batch.descriptionOffsets,
+        batch.sequenceData,
+        batch.sequenceOffsets,
+        batch.qualityData,
+        batch.qualityOffsets,
+        batch.count
+      );
+    },
+    async finishInput(): Promise<void> {
+      sorter.finishInput();
+    },
+    async readBatch(maxRecords: number): Promise<FastqBatch | null> {
+      const batch = sorter.readBatch(maxRecords);
+      if (batch === null) return null;
+      return {
+        count: batch.count,
+        nameData: batch.nameData,
+        nameOffsets: Uint32Array.from(batch.nameOffsets),
+        descriptionData: batch.descriptionData,
+        descriptionOffsets: Uint32Array.from(batch.descriptionOffsets),
+        sequenceData: batch.sequenceData,
+        sequenceOffsets: Uint32Array.from(batch.sequenceOffsets),
+        qualityData: batch.qualityData,
+        qualityOffsets: Uint32Array.from(batch.qualityOffsets),
+      };
+    },
+    close() {},
+  };
+}
+
 function wrapFastaWriter(writer: NativeFastaWriter): FastaWriterHandle {
   return {
     async writeBatch(batch: FastaBatch): Promise<void> {
@@ -470,7 +531,8 @@ function buildFromKernel(
   fastqMod: NativeFastqModule | undefined,
   fastaMod: NativeFastaModule | undefined,
   fastqWriterMod: NativeFastqWriterModule | undefined,
-  fastaWriterMod: NativeFastaWriterModule | undefined
+  fastaWriterMod: NativeFastaWriterModule | undefined,
+  fastqSequenceSorterMod: NativeFastqSequenceSorterModule | undefined
 ) {
   const unavailable = (method: string) =>
     Effect.fail(
@@ -718,6 +780,20 @@ function buildFromKernel(
                 : wrapFastaWriter(fastaWriterMod.FastaWriter.openBytes(compress, lineWidth)),
             catch: (e) => classifyEngineError("createFastaWriter", e),
           }),
+    createFastqSequenceSorter: (options: FastqSequenceSortOptions) =>
+      fastqSequenceSorterMod === undefined
+        ? unavailable("createFastqSequenceSorter")
+        : Effect.try({
+            try: () =>
+              wrapFastqSequenceSorter(
+                fastqSequenceSorterMod.FastqSequenceSorter.create(
+                  options.order,
+                  options.memoryBudget,
+                  options.tempDir
+                )
+              ),
+            catch: (e) => classifyEngineError("createFastqSequenceSorter", e),
+          }),
   });
 }
 
@@ -732,14 +808,25 @@ export const nativeLayer: Layer.Layer<BackendService, NativeAddonNotFoundError> 
         NativeFastqModule &
         NativeFastaModule &
         NativeFastqWriterModule &
-        NativeFastaWriterModule;
+        NativeFastaWriterModule &
+        NativeFastqSequenceSorterModule;
       const kernel = mod as NativeKernel;
       const alignment = "AlignmentReader" in mod ? (mod as NativeAlignmentModule) : undefined;
       const fastqMod = "FastqReader" in mod ? (mod as NativeFastqModule) : undefined;
       const fastaMod = "FastaReader" in mod ? (mod as NativeFastaModule) : undefined;
       const fastqWriterMod = "FastqWriter" in mod ? (mod as NativeFastqWriterModule) : undefined;
       const fastaWriterMod = "FastaWriter" in mod ? (mod as NativeFastaWriterModule) : undefined;
-      return buildFromKernel(kernel, alignment, fastqMod, fastaMod, fastqWriterMod, fastaWriterMod);
+      const fastqSequenceSorterMod =
+        "FastqSequenceSorter" in mod ? (mod as NativeFastqSequenceSorterModule) : undefined;
+      return buildFromKernel(
+        kernel,
+        alignment,
+        fastqMod,
+        fastaMod,
+        fastqWriterMod,
+        fastaWriterMod,
+        fastqSequenceSorterMod
+      );
     },
     catch: (cause) =>
       new NativeAddonNotFoundError({

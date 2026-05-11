@@ -14,16 +14,15 @@
 import { Effect, Option, Stream } from "effect";
 import { createFastqRecord } from "@genotype/core/constructors";
 import { FileError, ParseError } from "@genotype/core/errors";
-import { GenotypeString } from "@genotype/core/genotype-string";
-import type { FastqBatch, FastqReaderHandle } from "@genotype/core/backend/types";
+import type { FastqReaderHandle } from "@genotype/core/backend/types";
 import { BackendService, backendRuntime } from "@genotype/core/backend/service";
 import { detectEncoding } from "@genotype/core/operations/core/quality";
 import type { FastqSequence, QualityEncoding } from "@genotype/core/types";
 import { AbstractParser } from "@genotype/core/formats/abstract-parser";
 import type { FastqParserOptions } from "./types";
+import { unpackFastqBatch } from "./batch";
 
 const DEFAULT_BATCH_SIZE = 4096;
-const utf8_decoder = new TextDecoder();
 
 function fastqRecords(
   acquire: Effect.Effect<FastqReaderHandle, FileError | ParseError, BackendService>,
@@ -60,7 +59,7 @@ function fastqRecords(
               }
             }
 
-            const records = [...unpackFastqBatch(batch, recordIndex, detectedEncoding)];
+            const records = [...unpackFastqBatch(batch, detectedEncoding)];
             return [records, Option.some(recordIndex + records.length)] as const;
           },
           catch: (e) =>
@@ -235,38 +234,5 @@ export async function* parseFastPath(
     const description = header.includes(" ") ? header.slice(header.indexOf(" ") + 1) : undefined;
 
     yield createFastqRecord({ id, sequence, quality, description, qualityEncoding: "phred33" });
-  }
-}
-
-function* unpackFastqBatch(
-  batch: FastqBatch,
-  _startIndex: number,
-  encoding: QualityEncoding
-): Iterable<FastqSequence> {
-  for (let i = 0; i < batch.count; i++) {
-    const nameStart = batch.nameOffsets[i]!;
-    const nameEnd = batch.nameOffsets[i + 1]!;
-    const descStart = batch.descriptionOffsets[i]!;
-    const descEnd = batch.descriptionOffsets[i + 1]!;
-    const seqStart = batch.sequenceOffsets[i]!;
-    const seqEnd = batch.sequenceOffsets[i + 1]!;
-    const qualStart = batch.qualityOffsets[i]!;
-    const qualEnd = batch.qualityOffsets[i + 1]!;
-
-    const id = utf8_decoder.decode(batch.nameData.subarray(nameStart, nameEnd));
-    const description =
-      descEnd > descStart
-        ? utf8_decoder.decode(batch.descriptionData.subarray(descStart, descEnd))
-        : undefined;
-    const sequence = GenotypeString.fromBytes(batch.sequenceData.subarray(seqStart, seqEnd));
-    const quality = GenotypeString.fromBytes(batch.qualityData.subarray(qualStart, qualEnd));
-
-    yield createFastqRecord({
-      id,
-      sequence: sequence.toString(),
-      quality: quality.toString(),
-      qualityEncoding: encoding,
-      description,
-    });
   }
 }

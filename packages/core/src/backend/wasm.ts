@@ -529,6 +529,13 @@ function buildFromModule(wasm: WasmModule) {
             message: e instanceof Error ? e.message : String(e),
           }),
       }),
+    createFastqSequenceSorter: () =>
+      Effect.fail(
+        new BackendUnavailableError({
+          method: "createFastqSequenceSorter",
+          message: "wasm backend does not support native FASTQ sequence sorting",
+        })
+      ),
   });
 }
 

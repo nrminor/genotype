@@ -128,6 +128,25 @@ export interface FastqWriterHandle {
 }
 
 /**
+ * Options for the native FASTQ sequence sorter.
+ */
+export interface FastqSequenceSortOptions {
+  order: "asc" | "desc";
+  memoryBudget: number;
+  tempDir?: string | undefined;
+}
+
+/**
+ * Stateful handle for globally sorting FASTQ records by sequence.
+ */
+export interface FastqSequenceSorterHandle {
+  pushBatch(batch: FastqBatch): Promise<void>;
+  finishInput(): Promise<void>;
+  readBatch(maxRecords: number): Promise<FastqBatch | null>;
+  close(): void;
+}
+
+/**
  * Stateful handle for writing FASTA records in batches.
  * Accepts the same batch layout that FastaReaderHandle produces.
  */
@@ -240,6 +259,10 @@ export interface GenotypeBackend {
     offsets: Uint32Array,
     caseInsensitive: boolean
   ): Promise<Uint8Array>;
+
+  createFastqSequenceSorter?(
+    options: FastqSequenceSortOptions
+  ): Promise<FastqSequenceSorterHandle>;
 
   // ── stateful readers ──────────────────────────────────────────
 

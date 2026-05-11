@@ -20,6 +20,8 @@ pub mod hash;
 pub mod metrics;
 pub mod paired_merge;
 pub mod quality;
+#[cfg(feature = "native-sequence-sort")]
+pub mod sequence_sort;
 pub mod transform;
 pub mod translate;
 

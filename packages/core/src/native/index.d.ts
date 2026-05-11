@@ -27,6 +27,13 @@ export declare class FastqReader {
   readBatch(maxRecords: number): FastqBatch | null
 }
 
+export declare class FastqSequenceSorter {
+  static create(order: string, memoryBudget: number, tempDir?: string | undefined | null): FastqSequenceSorter
+  pushBatch(nameData: Uint8Array, nameOffsets: Uint32Array, descriptionData: Uint8Array, descriptionOffsets: Uint32Array, sequenceData: Uint8Array, sequenceOffsets: Uint32Array, qualityData: Uint8Array, qualityOffsets: Uint32Array, count: number): void
+  finishInput(): void
+  readBatch(maxRecords: number): FastqBatch | null
+}
+
 export declare class FastqWriter {
   static open(path: string, compress: boolean): FastqWriter
   static openBytes(compress: boolean): FastqWriter

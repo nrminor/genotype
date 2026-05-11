@@ -8,7 +8,7 @@ description = "Node.js/Bun napi-rs adapter for genotype compute engine"
 crate-type = ["cdylib"]
 
 [dependencies]
-genotype-engine = { path = "../engine" }
+genotype-engine = { path = "../engine", features = ["native-sequence-sort"] }
 napi = { version = "3", features = ["napi8"] }
 napi-derive = "3"
 

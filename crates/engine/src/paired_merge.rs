@@ -337,14 +337,15 @@ fn process_pair_with_options<R>(
 where
     R: SeqRecordView,
 {
-    assembler.on_pair(pair)?.find_overlap()?.and_then_found(|overlap| {
-        match (validate_overlap, correct_overlap) {
+    assembler
+        .on_pair(pair)?
+        .find_overlap()?
+        .and_then_found(|overlap| match (validate_overlap, correct_overlap) {
             (true, true) => overlap.validate()?.merge()?.correct()?.into_owned_read(),
             (true, false) => overlap.validate()?.merge()?.into_owned_read(),
             (false, true) => overlap.merge()?.correct()?.into_owned_read(),
             (false, false) => overlap.merge()?.into_owned_read(),
-        }
-    })
+        })
 }
 
 fn pairassembly_err(err: &libpairassembly::Error) -> EngineError {

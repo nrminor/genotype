@@ -17,7 +17,7 @@ import type {
   TranslateBatchOptions,
   ValidationMode,
 } from "./kernel-types";
-import type { FindPatternBatchOptions, GrepBatchOptions } from "./types";
+import type { FastqSequenceSortOptions, FindPatternBatchOptions, GrepBatchOptions } from "./types";
 import { BackendService } from "./common";
 import { nativeLayer } from "./node-native";
 import { wasmLayer } from "./wasm";
@@ -235,3 +235,7 @@ export const createFastaReaderFromPath = (path: string) =>
 /** Open a FASTA reader from in-memory bytes. */
 export const createFastaReaderFromBytes = (bytes: Uint8Array) =>
   backendRuntime.runPromise(BackendService.use((b) => b.createFastaReaderFromBytes(bytes)));
+
+/** Create a native FASTQ sequence sorter. */
+export const createFastqSequenceSorter = (options: FastqSequenceSortOptions) =>
+  backendRuntime.runPromise(BackendService.use((b) => b.createFastqSequenceSorter(options)));

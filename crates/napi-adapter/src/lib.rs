@@ -10,6 +10,7 @@
 mod alignment;
 mod fasta;
 mod fastq;
+mod sequence_sort;
 
 use genotype_engine as engine;
 use napi::bindgen_prelude::*;

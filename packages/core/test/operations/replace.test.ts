@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import "../matchers";
 import {
   createFastaRecord,
@@ -562,9 +562,9 @@ describe("Replace operation", () => {
         kvFile: "test/fixtures/invalid-kv.tsv",
       });
 
-      await expect(async () => {
+      await expect((async () => {
         await Array.fromAsync(iterator);
-      }).toThrow("Invalid key-value file format");
+      })()).rejects.toThrow("Invalid key-value file format");
     });
 
     test("mutual exclusivity: TypeScript prevents both kvMap and kvFile", () => {
@@ -646,9 +646,9 @@ describe("Replace operation", () => {
         bySeq: true,
       });
 
-      await expect(async () => {
+      await expect((async () => {
         await Array.fromAsync(iterator);
-      }).toThrow("Sequence replacement (bySeq option) is only supported for FASTA format");
+      })()).rejects.toThrow("Sequence replacement (bySeq option) is only supported for FASTA format");
     });
 
     test("remove gaps pattern (first occurrence only)", async () => {

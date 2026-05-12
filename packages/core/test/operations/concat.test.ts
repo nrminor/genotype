@@ -8,7 +8,7 @@
  * comprehensive coverage for production genomic data processing workflows.
  */
 
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "vitest";
 import "../matchers";
 import { promises as fs } from "fs";
 import { tmpdir } from "os";
@@ -176,14 +176,14 @@ describe("ConcatProcessor", () => {
 
       const baseSequences = [createSequence("unique_id", "AAAAAAA")];
 
-      await expect(async () => {
+      await expect((async () => {
         await collect(
           processor.process(createSource(baseSequences), {
             sources: [file1, file2],
             idConflictResolution: "error",
           })
         );
-      }).toThrow(ConcatError);
+      })()).rejects.toThrow(ConcatError);
     });
 
     test("renames conflicting IDs with suffix strategy", async () => {
@@ -318,14 +318,14 @@ describe("ConcatProcessor", () => {
       const fastaFile = await createTempFasta(fastaSequences);
       const fastqFile = await createTempFastq(fastqSequences);
 
-      await expect(async () => {
+      await expect((async () => {
         await collect(
           processor.process(createSource([]), {
             sources: [fastaFile, fastqFile],
             validateFormats: true,
           })
         );
-      }).toThrow(ConcatError);
+      })()).rejects.toThrow(ConcatError);
     });
 
     test("skips format validation when disabled", async () => {
@@ -441,23 +441,23 @@ describe("ConcatProcessor", () => {
     test("throws error for non-existent files", async () => {
       const nonExistentFile = createNonExistentPath();
 
-      await expect(async () => {
+      await expect((async () => {
         await collect(
           processor.process(createSource([]), {
             sources: [nonExistentFile],
           })
         );
-      }).toThrow(ConcatError);
+      })()).rejects.toThrow(ConcatError);
     });
 
     test("throws error for empty sources array", async () => {
-      await expect(async () => {
+      await expect((async () => {
         await collect(
           processor.process(createSource([]), {
             sources: [],
           })
         );
-      }).toThrow(ConcatError);
+      })()).rejects.toThrow(ConcatError);
     });
 
     test("handles malformed FASTA files gracefully", async () => {
@@ -465,14 +465,14 @@ describe("ConcatProcessor", () => {
       await fs.writeFile(malformedFile, "This is not a valid FASTA file\n>incomplete", "utf-8");
       tempFiles.push(malformedFile);
 
-      await expect(async () => {
+      await expect((async () => {
         await collect(
           processor.process(createSource([]), {
             sources: [malformedFile],
             validateFormats: true,
           })
         );
-      }).toThrow();
+      })()).rejects.toThrow();
     });
 
     test("handles permission errors", async () => {
@@ -484,13 +484,13 @@ describe("ConcatProcessor", () => {
         await fs.chmod(restrictedFile, 0o000); // Remove all permissions
         tempFiles.push(restrictedFile);
 
-        await expect(async () => {
+        await expect((async () => {
           await collect(
             processor.process(createSource([]), {
               sources: [restrictedFile],
             })
           );
-        }).toThrow();
+        })()).rejects.toThrow();
       } finally {
         // Restore permissions for cleanup
         try {

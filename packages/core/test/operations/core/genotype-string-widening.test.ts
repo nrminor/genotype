@@ -6,7 +6,7 @@
  * bytes-backed), and that overloaded functions return the correct type.
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { GenotypeString } from "@genotype/core/genotype-string";
 import { ValidationError } from "@genotype/core/errors";
 import {

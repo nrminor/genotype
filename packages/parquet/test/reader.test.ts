@@ -5,7 +5,7 @@
  * including column projection, batch sizing, and cancellation.
  */
 
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { mkdirSync, rmSync } from "fs";
 import { createFastaRecord } from "@genotype/core/constructors";
 import { fx2tab } from "@genotype/tabular/fx2tab";

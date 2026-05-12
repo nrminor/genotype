@@ -16,6 +16,11 @@ default:
 help:
     @just --list
 
+# Interactively choose your recipe with a fuzzy finder
+[group('help')]
+choose:
+    @just --choose
+
 # ===== CRITICAL: Validation (MUST PASS) =====
 
 # 🚨 MANDATORY before ANY commit - Run full validation
@@ -121,30 +126,28 @@ BUN_CI_VERSION := "1.3.10"
 # Run all tests
 [group('test')]
 test:
-    cd {{ core }} && bun test test/
-    cd {{ tabular }} && bun test test/
-    cd {{ parquet }} && bun test test/
+    bun run test
 
 alias t := test
 
 # Run specific test file (path relative to packages/core)
 [group('test')]
 test-file file:
-    cd {{ core }} && bun test {{ file }}
+    cd {{ core }} && bunx vitest run --config ../../vitest.config.ts {{ file }}
 
 alias tf := test-file
 
 # Run tests in watch mode
 [group('test')]
 test-watch:
-    cd {{ core }} && bun test --watch
+    bun run test:watch
 
 alias tw := test-watch
 
 # Run tests with coverage
 [group('test')]
 test-coverage:
-    cd {{ core }} && bun test --coverage
+    bun run test:coverage
 
 alias tc := test-coverage
 

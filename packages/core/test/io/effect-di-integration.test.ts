@@ -8,7 +8,7 @@
  * - Compression format detection with layers
  */
 
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { existsSync, unlinkSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";

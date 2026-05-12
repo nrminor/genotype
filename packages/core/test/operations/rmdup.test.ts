@@ -5,7 +5,7 @@
  * existing Bloom filter and exact deduplication infrastructure.
  */
 
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "vitest";
 import "../matchers";
 import { createFastaRecord } from "@genotype/core/constructors";
 import { RmdupProcessor } from "@genotype/core/operations/rmdup";
@@ -214,11 +214,11 @@ describe("RmdupProcessor", () => {
         by: "invalid",
       } as unknown as RmdupOptions;
 
-      await expect(async () => {
+      await expect((async () => {
         for await (const _seq of processor.process(toAsync(testSequences), options)) {
           // Validation should throw
         }
-      }).toThrow('by must be "both", "id" or "sequence"');
+      })()).rejects.toThrow('by must be "both", "id" or "sequence"');
     });
 
     test("throws error for invalid expected unique count", async () => {
@@ -227,11 +227,11 @@ describe("RmdupProcessor", () => {
         expectedUnique: -100,
       };
 
-      await expect(async () => {
+      await expect((async () => {
         for await (const _seq of processor.process(toAsync(testSequences), options)) {
           // Validation should throw
         }
-      }).toThrow("expectedUnique must be positive");
+      })()).rejects.toThrow("expectedUnique must be positive");
     });
 
     test("throws error for invalid false positive rate", async () => {
@@ -240,11 +240,11 @@ describe("RmdupProcessor", () => {
         falsePositiveRate: 0.5, // Too high
       };
 
-      await expect(async () => {
+      await expect((async () => {
         for await (const _seq of processor.process(toAsync(testSequences), options)) {
           // Validation should throw
         }
-      }).toThrow("falsePositiveRate must be at most 0.1");
+      })()).rejects.toThrow("falsePositiveRate must be at most 0.1");
     });
   });
 

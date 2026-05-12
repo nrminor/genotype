@@ -17,7 +17,7 @@
  * Following AGENTS.md principle: "Respect existing code - understand why it exists before changing"
  */
 
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "vitest";
 import { GenotypeError } from "@genotype/core/errors";
 import { GtfParser, GtfUtils, GtfWriter, type GtfFeature } from "@genotype/core/formats/gtf";
 import { GtfQueryBuilder } from "@genotype/core/formats/gtf/parser";

@@ -7,7 +7,7 @@
  *   sequences → seqops().writeParquet() → SeqOps.fromParquet() → sequences
  */
 
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { existsSync, mkdirSync, rmSync } from "fs";
 import "../../core/test/matchers";
 import { createFastaRecord, createFastqRecord } from "@genotype/core/constructors";

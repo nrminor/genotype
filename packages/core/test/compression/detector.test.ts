@@ -5,7 +5,7 @@
  * approaches for genomic file compression formats.
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { CompressionDetector } from "@genotype/core/compression/detector";
 import type { CompressionFormat } from "@genotype/core/types";
 

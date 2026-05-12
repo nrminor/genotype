@@ -9,7 +9,7 @@
  * - Legacy data processing workflows
  */
 
-import { beforeAll, describe, expect, spyOn, test } from "bun:test";
+import { beforeAll, describe, expect, test, vi } from "vitest";
 import "../matchers";
 import { createFastaRecord, createFastqRecord } from "@genotype/core/constructors";
 import { ValidationError } from "@genotype/core/errors";
@@ -166,14 +166,14 @@ describe("ConvertProcessor", () => {
     test("validates options with ArkType schema", async () => {
       const seq = createFastqSequence("test", "ATCG", "!!!!", "phred33");
 
-      await expect(async () => {
+      await expect((async () => {
         for await (const _ of processor.process(singleSequence(seq), {
           // @ts-expect-error Testing invalid input
           targetEncoding: "invalid",
         })) {
           // Should throw ValidationError
         }
-      }).toThrow(ValidationError);
+      })()).rejects.toThrow(ValidationError);
     });
 
     test("converts Phred+33 to Solexa using non-linear mathematics", async () => {
@@ -363,9 +363,9 @@ describe("ConvertProcessor", () => {
         "phred33"
       );
 
-      // Capture console warnings using Bun's spyOn
+      // Capture console warnings.
       let warningCalled = false;
-      const warnSpy = spyOn(console, "warn").mockImplementation(() => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {
         warningCalled = true;
       });
 
@@ -391,9 +391,9 @@ describe("ConvertProcessor", () => {
         "@PPPP" // ASCII 64-80, range 16 - triggers overlap zone detection
       );
 
-      // Capture console warnings using Bun's spyOn
+      // Capture console warnings.
       let warningMessage = "";
-      const warnSpy = spyOn(console, "warn").mockImplementation((message: string) => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation((message: string) => {
         warningMessage = message;
       });
 
@@ -423,7 +423,7 @@ describe("ConvertProcessor", () => {
       );
 
       let warningMessage = "";
-      const warnSpy = spyOn(console, "warn").mockImplementation((message: string) => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation((message: string) => {
         warningMessage = message;
       });
 
@@ -446,7 +446,7 @@ describe("ConvertProcessor", () => {
       const ambiguousSeq = createFastqSequence("explicit", "ATCG", "@@@@", "phred64");
 
       let warningCalled = false;
-      const warnSpy = spyOn(console, "warn").mockImplementation(() => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {
         warningCalled = true;
       });
 

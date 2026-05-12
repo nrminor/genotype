@@ -4,7 +4,7 @@
  * Tests the semantic transform() method that modifies sequence content.
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import "../../matchers";
 import { createFastaRecord } from "../../../src/constructors";
 import { TransformProcessor } from "../../../src/operations/transform";

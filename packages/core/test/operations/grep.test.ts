@@ -5,7 +5,7 @@
  * regex support, fuzzy matching, and error handling.
  */
 
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "vitest";
 import { createFastaRecord } from "@genotype/core/constructors";
 import { ValidationError } from "@genotype/core/errors";
 import { GrepProcessor } from "@genotype/core/operations/grep";
@@ -207,12 +207,12 @@ describe("GrepProcessor", () => {
         target: "sequence",
       } as GrepOptions;
 
-      await expect(async () => {
+      await expect((async () => {
         // Need to consume the generator to trigger validation
         for await (const _ of processor.process(toAsync(testSequences), options)) {
           // Validation should throw before yielding
         }
-      }).toThrow(ValidationError);
+      })()).rejects.toThrow(ValidationError);
     });
 
     test("throws error for invalid target", async () => {
@@ -221,11 +221,11 @@ describe("GrepProcessor", () => {
         target: "invalid",
       } as unknown as GrepOptions;
 
-      await expect(async () => {
+      await expect((async () => {
         for await (const _ of processor.process(toAsync(testSequences), options)) {
           // Validation should throw before yielding
         }
-      }).toThrow(ValidationError);
+      })()).rejects.toThrow(ValidationError);
     });
 
     test("throws error for negative mismatches", async () => {
@@ -235,11 +235,11 @@ describe("GrepProcessor", () => {
         allowMismatches: -1,
       };
 
-      await expect(async () => {
+      await expect((async () => {
         for await (const _ of processor.process(toAsync(testSequences), options)) {
           // Validation should throw before yielding
         }
-      }).toThrow(ValidationError);
+      })()).rejects.toThrow(ValidationError);
     });
 
     test("throws error for mismatches on non-sequence target", async () => {
@@ -249,11 +249,11 @@ describe("GrepProcessor", () => {
         allowMismatches: 1,
       };
 
-      await expect(async () => {
+      await expect((async () => {
         for await (const _ of processor.process(toAsync(testSequences), options)) {
           // Validation should throw before yielding
         }
-      }).toThrow(ValidationError);
+      })()).rejects.toThrow(ValidationError);
     });
   });
 

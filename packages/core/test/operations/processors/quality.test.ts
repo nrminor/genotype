@@ -5,7 +5,7 @@
  * and quality score binning operations.
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import "../../matchers";
 import { createFastqRecord } from "../../../src/constructors";
 import { QualityProcessor } from "../../../src/operations/quality";
@@ -165,7 +165,7 @@ describe("QualityProcessor", () => {
     test("throws error for invalid preset", async () => {
       const sequences = [createFastqSequence("seq1", "ATCG", "IIII")];
 
-      await expect(async () => {
+      await expect((async () => {
         await collect(
           processor.process(createSource(sequences), {
             bins: 3,
@@ -173,7 +173,7 @@ describe("QualityProcessor", () => {
             preset: "invalid",
           })
         );
-      }).toThrow(/No preset found/);
+      })()).rejects.toThrow(/No preset found/);
     });
 
     test("throws error on invalid binning preset", async () => {

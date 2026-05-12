@@ -5,7 +5,7 @@
  * the @hpcc-js/wasm-zstd WASM implementation.
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import {
   compress,
   createCompressionStream,

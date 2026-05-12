@@ -2,7 +2,7 @@
  * Tests for file writing with compression support
  */
 
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { existsSync, mkdirSync, readFileSync, rmSync } from "fs";
 import { join } from "path";
 import { readToStringPromise } from "@genotype/core/io/file-reader";

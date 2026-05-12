@@ -5,7 +5,7 @@
  * different sampling strategies, reproducibility, and error handling.
  */
 
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "vitest";
 import { createFastaRecord } from "@genotype/core/constructors";
 import { seqops } from "@genotype/core/operations/index";
 import { SampleProcessor } from "@genotype/core/operations/sample";
@@ -301,11 +301,11 @@ describe("SampleProcessor", () => {
     test("throws error when neither n nor fraction specified", async () => {
       const options = {} as SampleOptions;
 
-      await expect(async () => {
+      await expect((async () => {
         for await (const _ of processor.process(toAsync(testSequences), options)) {
           // Validation should throw
         }
-      }).toThrow("either n or fraction must be specified");
+      })()).rejects.toThrow("either n or fraction must be specified");
     });
 
     test("throws error when both n and fraction specified", async () => {
@@ -314,11 +314,11 @@ describe("SampleProcessor", () => {
         fraction: 0.5,
       };
 
-      await expect(async () => {
+      await expect((async () => {
         for await (const _ of processor.process(toAsync(testSequences), options)) {
           // Validation should throw
         }
-      }).toThrow("cannot specify both n and fraction");
+      })()).rejects.toThrow("cannot specify both n and fraction");
     });
 
     test("throws error for negative sample count", async () => {
@@ -326,11 +326,11 @@ describe("SampleProcessor", () => {
         n: -5,
       };
 
-      await expect(async () => {
+      await expect((async () => {
         for await (const _ of processor.process(toAsync(testSequences), options)) {
           // Validation should throw
         }
-      }).toThrow("n must be positive");
+      })()).rejects.toThrow("n must be positive");
     });
 
     test("throws error for zero sample count", async () => {
@@ -338,11 +338,11 @@ describe("SampleProcessor", () => {
         n: 0,
       };
 
-      await expect(async () => {
+      await expect((async () => {
         for await (const _ of processor.process(toAsync(testSequences), options)) {
           // Validation should throw
         }
-      }).toThrow("n must be positive");
+      })()).rejects.toThrow("n must be positive");
     });
 
     test("throws error for invalid fraction", async () => {
@@ -350,11 +350,11 @@ describe("SampleProcessor", () => {
         fraction: 1.5, // > 1.0
       };
 
-      await expect(async () => {
+      await expect((async () => {
         for await (const _ of processor.process(toAsync(testSequences), options)) {
           // Validation should throw
         }
-      }).toThrow("fraction must be at most 1");
+      })()).rejects.toThrow("fraction must be at most 1");
     });
   });
 

@@ -11,7 +11,7 @@
  * - Error conditions
  */
 
-import { beforeAll, describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, test } from "vitest";
 import { createFastaRecord } from "@genotype/core/constructors";
 import { ValidationError } from "@genotype/core/errors";
 import { GeneticCode } from "@genotype/core/operations/core/genetic-codes";
@@ -437,9 +437,9 @@ describe("TranslateProcessor", () => {
       const seq = createTestSequence("error1", "ATGGGATCC");
       const source = singleSequence(seq);
 
-      await expect(async () => {
+      await expect((async () => {
         await collectResults(processor.process(source, { geneticCode: 999 }));
-      }).toThrow("geneticCode must be");
+      })()).rejects.toThrow("geneticCode must be");
     });
 
     // Note: Invalid frame values like [4] are prevented at compile time by TypeScript.
@@ -449,36 +449,36 @@ describe("TranslateProcessor", () => {
       const seq = createTestSequence("error3", "ATGGGATCC");
       const source = singleSequence(seq);
 
-      await expect(async () => {
+      await expect((async () => {
         await collectResults(processor.process(source, { frames: [] }));
-      }).toThrow("at least one reading frame");
+      })()).rejects.toThrow("at least one reading frame");
     });
 
     test("throws error for invalid minimum ORF length", async () => {
       const seq = createTestSequence("error4", "ATGGGATCC");
       const source = singleSequence(seq);
 
-      await expect(async () => {
+      await expect((async () => {
         await collectResults(processor.process(source, { minOrfLength: -1 }));
-      }).toThrow(ValidationError);
+      })()).rejects.toThrow(ValidationError);
     });
 
     test("throws error for multi-character stop codon replacement", async () => {
       const seq = createTestSequence("error5", "ATGGGATCC");
       const source = singleSequence(seq);
 
-      await expect(async () => {
+      await expect((async () => {
         await collectResults(processor.process(source, { stopCodonChar: "XX" }));
-      }).toThrow("single character for stop codon replacement");
+      })()).rejects.toThrow("single character for stop codon replacement");
     });
 
     test("throws error for multi-character unknown codon replacement", async () => {
       const seq = createTestSequence("error6", "ATGGGATCC");
       const source = singleSequence(seq);
 
-      await expect(async () => {
+      await expect((async () => {
         await collectResults(processor.process(source, { unknownCodonChar: "XX" }));
-      }).toThrow("single character for unknown codon replacement");
+      })()).rejects.toThrow("single character for unknown codon replacement");
     });
   });
 

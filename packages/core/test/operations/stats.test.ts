@@ -2,7 +2,7 @@
  * Tests for SequenceStatsCalculator - statistics calculation
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { createFastaRecord, createFastqRecord } from "@genotype/core/constructors";
 import { SequenceStatsCalculator } from "@genotype/core/operations/stats";
 import type { AbstractSequence, FastqSequence } from "@genotype/core/types";
@@ -348,9 +348,9 @@ describe("SequenceStatsCalculator", () => {
 
       const calculator = new SequenceStatsCalculator();
 
-      await expect(async () => {
+      await expect((async () => {
         await calculator.calculateStats(errorGenerator());
-      }).toThrow("Statistics calculation failed");
+      })()).rejects.toThrow("Statistics calculation failed");
     });
 
     test("provides context in error messages", async () => {

@@ -4,7 +4,7 @@
  * Tests streaming capabilities, rich match objects, and various algorithms
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import {
   findPattern,
   hasPattern,

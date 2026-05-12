@@ -1,9 +1,19 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import "../matchers";
 import { mkdtempSync, rmSync } from "node:fs";
+import { access, readFile, stat as statFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { FaiBuilder, Faidx } from "@genotype/core/operations/faidx";
+
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 describe("FaiBuilder", () => {
   let tempDir: string;
@@ -22,7 +32,7 @@ TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
 GGGGGGGGGGGGGGGG
 `;
 
-    await Bun.write(testFastaPath, testFasta);
+    await writeFile(testFastaPath, testFasta);
   });
 
   afterEach(() => {
@@ -121,7 +131,7 @@ GGGGGGGGGGGGGGGG
       const faiPath = join(tempDir, "test.fasta.fai");
       await index.write(faiPath);
 
-      const exists = await Bun.file(faiPath).exists();
+      const exists = await fileExists(faiPath);
       expect(exists).toBe(true);
     });
 
@@ -132,7 +142,7 @@ GGGGGGGGGGGGGGGG
       const faiPath = join(tempDir, "test.fasta.fai");
       await index.write(faiPath);
 
-      const content = await Bun.file(faiPath).text();
+      const content = await readFile(faiPath, "utf8");
       const lines = content.trim().split("\n");
 
       expect(lines).toHaveLength(3);
@@ -149,7 +159,7 @@ GGGGGGGGGGGGGGGG
       const faiPath = join(tempDir, "test.fasta.fai");
       await index.write(faiPath);
 
-      const content = await Bun.file(faiPath).text();
+      const content = await readFile(faiPath, "utf8");
       const lines = content.trim().split("\n");
 
       for (const line of lines) {
@@ -282,7 +292,7 @@ GGGGGGGGGGGGGGGG
 
     test("throws error for invalid format", async () => {
       const invalidFaiPath = join(tempDir, "invalid.fai");
-      await Bun.write(invalidFaiPath, "chr1\t100\t50\n");
+      await writeFile(invalidFaiPath, "chr1\t100\t50\n");
 
       const index = new FaiBuilder(testFastaPath);
 
@@ -296,7 +306,7 @@ GGGGGGGGGGGGGGGG
       expect(index.size()).toBe(3);
 
       const faiPath = join(tempDir, "single.fai");
-      await Bun.write(faiPath, "chr1\t64\t23\t32\t33\n");
+      await writeFile(faiPath, "chr1\t64\t23\t32\t33\n");
 
       await index.load(faiPath);
 
@@ -312,7 +322,7 @@ GGGGGGGGGGGGGGGG
       const faiPath = join(testDir, "test.fasta.fai");
 
       // Create .fai with whitespace-only name that will fail the "name || ''" check
-      await Bun.write(faiPath, "\t64\t6\t32\t33\n");
+      await writeFile(faiPath, "\t64\t6\t32\t33\n");
 
       const index = new FaiBuilder("test.fasta");
       // This will fail at column count check (tab creates empty string which is 4 columns)
@@ -324,7 +334,7 @@ GGGGGGGGGGGGGGGG
       const faiPath = join(testDir, "test.fasta.fai");
 
       // Create .fai with zero length
-      await Bun.write(faiPath, "chr1\t0\t6\t32\t33\n");
+      await writeFile(faiPath, "chr1\t0\t6\t32\t33\n");
 
       const index = new FaiBuilder("test.fasta");
       await expect(index.load(faiPath)).rejects.toThrow(/Invalid .fai record/);
@@ -335,7 +345,7 @@ GGGGGGGGGGGGGGGG
       const faiPath = join(testDir, "test.fasta.fai");
 
       // Create .fai with negative offset
-      await Bun.write(faiPath, "chr1\t64\t-1\t32\t33\n");
+      await writeFile(faiPath, "chr1\t64\t-1\t32\t33\n");
 
       const index = new FaiBuilder("test.fasta");
       await expect(index.load(faiPath)).rejects.toThrow(/Invalid .fai record/);
@@ -346,7 +356,7 @@ GGGGGGGGGGGGGGGG
       const faiPath = join(testDir, "test.fasta.fai");
 
       // Create .fai with zero linebases
-      await Bun.write(faiPath, "chr1\t64\t6\t0\t33\n");
+      await writeFile(faiPath, "chr1\t64\t6\t0\t33\n");
 
       const index = new FaiBuilder("test.fasta");
       await expect(index.load(faiPath)).rejects.toThrow(/Invalid .fai record/);
@@ -357,7 +367,7 @@ GGGGGGGGGGGGGGGG
       const faiPath = join(testDir, "test.fasta.fai");
 
       // Create .fai with linewidth (30) < linebases (32)
-      await Bun.write(faiPath, "chr1\t64\t6\t32\t30\n");
+      await writeFile(faiPath, "chr1\t64\t6\t32\t30\n");
 
       const index = new FaiBuilder("test.fasta");
       await expect(index.load(faiPath)).rejects.toThrow(/linewidth >= linebases/);
@@ -368,7 +378,7 @@ GGGGGGGGGGGGGGGG
       const faiPath = join(testDir, "test.fasta.fai");
 
       // Create .fai with non-numeric length
-      await Bun.write(faiPath, "chr1\tabc\t6\t32\t33\n");
+      await writeFile(faiPath, "chr1\tabc\t6\t32\t33\n");
 
       const index = new FaiBuilder("test.fasta");
       await expect(index.load(faiPath)).rejects.toThrow(/Invalid numeric values/);
@@ -379,7 +389,7 @@ GGGGGGGGGGGGGGGG
       const faiPath = join(testDir, "test.fasta.fai");
 
       // Create .fai with only 3 fields
-      await Bun.write(faiPath, "chr1\t64\t6\n");
+      await writeFile(faiPath, "chr1\t64\t6\n");
 
       const index = new FaiBuilder("test.fasta");
       await expect(index.load(faiPath)).rejects.toThrow(/expected 5 columns, got 3/);
@@ -390,7 +400,7 @@ GGGGGGGGGGGGGGGG
       const faiPath = join(testDir, "test.fasta.fai");
 
       // Create valid .fai
-      await Bun.write(faiPath, "chr1\t64\t6\t32\t33\n");
+      await writeFile(faiPath, "chr1\t64\t6\t32\t33\n");
 
       const index = new FaiBuilder("test.fasta");
       await index.load(faiPath);
@@ -423,7 +433,7 @@ TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
 GGGGGGGGGGGGGGGG
 `;
 
-    await Bun.write(testFastaPath, testFasta);
+    await writeFile(testFastaPath, testFasta);
   });
 
   afterEach(() => {
@@ -436,7 +446,7 @@ GGGGGGGGGGGGGGGG
       await faidx.init();
 
       const faiPath = join(tempDir, "test.fasta.fai");
-      const exists = await Bun.file(faiPath).exists();
+      const exists = await fileExists(faiPath);
       expect(exists).toBe(true);
     });
 
@@ -458,14 +468,14 @@ GGGGGGGGGGGGGGGG
       const faiPath = join(tempDir, "test.fasta.fai");
       await builder.write(faiPath);
 
-      const originalStats = await Bun.file(faiPath).stat();
+      const originalStats = await statFile(faiPath);
 
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       const faidx = new Faidx(testFastaPath, { updateIndex: true });
       await faidx.init();
 
-      const newStats = await Bun.file(faiPath).stat();
+      const newStats = await statFile(faiPath);
       expect(newStats.mtime.getTime()).toBeGreaterThanOrEqual(originalStats.mtime.getTime());
     });
 
@@ -474,7 +484,7 @@ GGGGGGGGGGGGGGGG
       await faidx.init();
 
       const seqkitFaiPath = join(tempDir, "test.fasta.seqkit.fai");
-      const exists = await Bun.file(seqkitFaiPath).exists();
+      const exists = await fileExists(seqkitFaiPath);
       expect(exists).toBe(true);
     });
 
@@ -483,7 +493,7 @@ GGGGGGGGGGGGGGGG
       await faidx.init();
 
       const faiPath = join(tempDir, "test.fasta.fai");
-      const exists = await Bun.file(faiPath).exists();
+      const exists = await fileExists(faiPath);
       expect(exists).toBe(true);
     });
   });
@@ -742,11 +752,11 @@ GGGGGGGGGGGGGGGG
 
       const regions = ["chr1:1-10", "invalid_chromosome", "chr2:1-10"];
 
-      await expect(async () => {
+      await expect((async () => {
         for await (const _ of faidx.extractMany(regions)) {
           // Should throw on second region
         }
-      }).toThrow(/Sequence "invalid_chromosome" not found/);
+      })()).rejects.toThrow(/Sequence "invalid_chromosome" not found/);
     });
 
     test("skips invalid regions when onError='skip'", async () => {
@@ -891,7 +901,7 @@ GGGGGGGGGGGGGGGG
       const gzPath = join(tempDir, "test.fasta.gz");
 
       // Create a fake .gz file (just needs the extension for this test)
-      await Bun.write(gzPath, new Uint8Array([0x1f, 0x8b, 0x08])); // gzip magic bytes
+      await writeFile(gzPath, new Uint8Array([0x1f, 0x8b, 0x08])); // gzip magic bytes
 
       const faidx = new Faidx(gzPath);
       await expect(faidx.init()).rejects.toThrow(/compressed.*gzip/i);
@@ -903,7 +913,7 @@ GGGGGGGGGGGGGGGG
       const gzPath = join(tempDir, "test.fasta.gz");
 
       // Extension-based detection (CompressionDetector.hybrid)
-      await Bun.write(gzPath, new Uint8Array([0x1f, 0x8b, 0x08, 0x00]));
+      await writeFile(gzPath, new Uint8Array([0x1f, 0x8b, 0x08, 0x00]));
 
       const faidx = new Faidx(gzPath);
       await expect(faidx.init()).rejects.toThrow(/compressed.*gzip/i);
@@ -914,7 +924,7 @@ GGGGGGGGGGGGGGGG
       const zstPath = join(tempDir, "test.fasta.zst");
 
       // Create file with zstd magic bytes
-      await Bun.write(zstPath, new Uint8Array([0x28, 0xb5, 0x2f, 0xfd]));
+      await writeFile(zstPath, new Uint8Array([0x28, 0xb5, 0x2f, 0xfd]));
 
       const faidx = new Faidx(zstPath);
       await expect(faidx.init()).rejects.toThrow(/compressed.*zstd/i);
@@ -925,7 +935,7 @@ GGGGGGGGGGGGGGGG
       const emptyPath = join(tempDir, "empty.fasta");
 
       // Create empty file
-      await Bun.write(emptyPath, "");
+      await writeFile(emptyPath, "");
 
       const faidx = new Faidx(emptyPath);
       await faidx.init();

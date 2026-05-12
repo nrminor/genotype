@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { createKmerRecord } from "@genotype/core/constructors";
 import { KmerSet } from "@genotype/core/operations/types";
 import type { KmerSequence } from "@genotype/core/types";

@@ -8,22 +8,28 @@
 
 import { Effect } from "effect";
 import { Schema } from "effect";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import * as wasmModule from "parquet-wasm/esm";
+
+const resolveParquetWasm = createRequire(import.meta.url).resolve;
 
 export class ParquetWasmInitError extends Schema.TaggedErrorClass<ParquetWasmInitError>()(
   "ParquetWasmInitError",
   { message: Schema.String, cause: Schema.optional(Schema.Defect) }
 ) {}
 
-export type ParquetWasmModule = typeof import("parquet-wasm");
+export type ParquetWasmModule = typeof wasmModule;
 
 let cachedModule: ParquetWasmModule | undefined;
 
 export const initParquetWasm: Effect.Effect<ParquetWasmModule, ParquetWasmInitError> = Effect.try({
   try: () => {
     if (cachedModule) return cachedModule;
-    // Node/Bun build self-initializes; no async init needed
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    cachedModule = require("parquet-wasm") as ParquetWasmModule;
+    const wasmPath = resolveParquetWasm("parquet-wasm/esm/parquet_wasm_bg.wasm");
+    const wasmBytes = readFileSync(wasmPath);
+    wasmModule.initSync({ module: wasmBytes });
+    cachedModule = wasmModule;
     return cachedModule;
   },
   catch: (cause) =>

@@ -9,7 +9,7 @@
  * - Error handling
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import "../matchers";
 import { createFastaRecord, createFastqRecord } from "@genotype/core/constructors";
 import { binQuality } from "@genotype/core/operations/quality";
@@ -273,7 +273,7 @@ describe("binQuality - Error Handling", () => {
   test("throws error for invalid preset", async () => {
     const sequences = [createFastqSequence("seq1", "ATCG", "!!!!")];
 
-    await expect(async () => {
+    await expect((async () => {
       await collectSequences(
         binQuality(toAsyncIterable(sequences), {
           bins: 3,
@@ -281,13 +281,13 @@ describe("binQuality - Error Handling", () => {
           preset: "invalid",
         })
       );
-    }).toThrow();
+    })()).rejects.toThrow();
   });
 
   test("throws error for invalid bins count", async () => {
     const sequences = [createFastqSequence("seq1", "ATCG", "!!!!")];
 
-    await expect(async () => {
+    await expect((async () => {
       await collectSequences(
         binQuality(toAsyncIterable(sequences), {
           // @ts-expect-error Testing invalid bins count error
@@ -295,7 +295,7 @@ describe("binQuality - Error Handling", () => {
           preset: "illumina",
         })
       );
-    }).toThrow();
+    })()).rejects.toThrow();
   });
 
   test("provides helpful error message with sequence context", async () => {

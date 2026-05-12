@@ -5,7 +5,7 @@
  * for collapsing quality scores into 2, 3, or 5 bins for improved compression.
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import {
   type BinningStrategy,
   binQualityString,

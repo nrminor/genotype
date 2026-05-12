@@ -5,7 +5,7 @@
  * Morph/serialization tests and tabular write tests have moved to @genotype/tabular.
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import "../matchers";
 import { ParseError } from "@genotype/core/errors";
 import { JSONLParser, JSONParser } from "@genotype/core/formats/json";
@@ -122,11 +122,11 @@ describe("JSON Format - JSONParser", () => {
 
       const parser = new JSONParser();
 
-      await expect(async () => {
+      await expect((async () => {
         for await (const _ of parser.parseString(invalidJson)) {
           // Should throw before yielding
         }
-      }).toThrow(ParseError);
+      })()).rejects.toThrow(ParseError);
     });
 
     test("throws ParseError when required id field missing", async () => {
@@ -134,11 +134,11 @@ describe("JSON Format - JSONParser", () => {
 
       const parser = new JSONParser();
 
-      await expect(async () => {
+      await expect((async () => {
         for await (const _ of parser.parseString(json)) {
           // Should throw on validation
         }
-      }).toThrow(ParseError);
+      })()).rejects.toThrow(ParseError);
     });
 
     test("handles empty array", async () => {

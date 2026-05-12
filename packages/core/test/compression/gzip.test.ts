@@ -5,7 +5,7 @@
  * optimizations and proper error handling.
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { gzipSync } from "fflate";
 import { GzipDecompressor } from "@genotype/core/compression/gzip";
 import { CompressionError } from "@genotype/core/errors";

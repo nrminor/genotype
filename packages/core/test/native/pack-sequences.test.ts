@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { createFastaRecord } from "@genotype/core/constructors";
 import { packSequences } from "@genotype/core/backend/batch";
 

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { createFastaRecord } from "@genotype/core/constructors";
 import { seqops } from "@genotype/core/operations";
 import { KmerSet, SequenceSet } from "@genotype/core/operations/types";

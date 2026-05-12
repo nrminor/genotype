@@ -1,4 +1,4 @@
-import { expect } from "bun:test";
+import { expect } from "vitest";
 import { GenotypeString } from "@genotype/core/genotype-string";
 
 function describeValue(value: unknown): string {
@@ -44,8 +44,8 @@ expect.extend({
   },
 });
 
-declare module "bun:test" {
-  // eslint-disable-next-line no-unused-vars -- T must match bun:test's Matchers<T> declaration
+declare module "vitest" {
+  // eslint-disable-next-line no-unused-vars -- T must match Vitest's Matchers<T> declaration
   interface Matchers<T> {
     toEqualSequence(expected: GenotypeString | string): void;
   }

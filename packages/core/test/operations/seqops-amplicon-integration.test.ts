@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "vitest";
+import "../matchers";
 import { createFastaRecord } from "@genotype/core/constructors";
 import { primer } from "@genotype/core/operations/core/alphabet";
 import { SeqOps } from "@genotype/core/operations/index";

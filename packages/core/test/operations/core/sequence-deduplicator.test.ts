@@ -4,7 +4,7 @@
  * Tests deduplication strategies, statistics, and memory efficiency
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import {
   deduplicateSequences,
   ExactDeduplicator,

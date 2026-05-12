@@ -26,6 +26,8 @@
     "lint:types": "bun run --cwd packages/core lint:types",
     "prepare": "effect-language-service patch",
     "test": "bun run --cwd packages/core test && bun run --cwd packages/tabular test && bun run --cwd packages/parquet test",
+    "test:coverage": "cd packages/core && vitest run --config ../../vitest.config.ts --coverage test/",
+    "test:watch": "cd packages/core && vitest --config ../../vitest.config.ts --watch test/",
     "test:rust": "cargo test",
     "typecheck": "bun run --cwd packages/core typecheck && bun run --cwd packages/tabular typecheck && bun run --cwd packages/parquet typecheck",
     "validate": "bun run check",
@@ -41,6 +43,7 @@
     "typedoc": "^0.28.17",
     "typescript": "^6.0.3",
     "typescript-language-server": "^5.1.3",
+    "vitest": "4.1.6",
     "vscode-langservers-extracted": "4.10.0"
   }
 }

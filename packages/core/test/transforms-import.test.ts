@@ -7,7 +7,7 @@
  * 2. Grouped object import for convenience
  */
 
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 // Test pattern 1: Import individual functions (tree-shakeable)
 // Test pattern 2: Import the grouped object
 import {

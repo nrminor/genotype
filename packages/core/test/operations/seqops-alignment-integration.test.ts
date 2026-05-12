@@ -9,7 +9,7 @@
  */
 
 import { join } from "path";
-import { beforeAll, describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, test } from "vitest";
 import { createFastaRecord } from "@genotype/core/constructors";
 import { AlignmentParser } from "@genotype/core/formats/alignment";
 import { seqops } from "@genotype/core/operations";

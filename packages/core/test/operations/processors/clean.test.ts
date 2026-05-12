@@ -4,7 +4,7 @@
  * Tests the semantic clean() method that sanitizes sequences.
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import "../../matchers";
 import { createFastaRecord } from "../../../src/constructors";
 import { CleanProcessor } from "../../../src/operations/clean";
@@ -208,14 +208,14 @@ describe("CleanProcessor", () => {
         yield input;
       };
 
-      await expect(async () => {
+      await expect((async () => {
         for await (const _ of processor.process(source(), {
           replaceAmbiguous: true,
           replaceChar: "NN",
         })) {
           // Should throw before yielding
         }
-      }).toThrow(ValidationError);
+      })()).rejects.toThrow(ValidationError);
     });
 
     test("rejects replaceChar that is not a valid nucleotide when replaceAmbiguous is true", async () => {
@@ -224,14 +224,14 @@ describe("CleanProcessor", () => {
         yield input;
       };
 
-      await expect(async () => {
+      await expect((async () => {
         for await (const _ of processor.process(source(), {
           replaceAmbiguous: true,
           replaceChar: "X",
         })) {
           // Should throw before yielding
         }
-      }).toThrow(ValidationError);
+      })()).rejects.toThrow(ValidationError);
     });
 
     test("accepts valid nucleotide characters for replaceChar", async () => {
@@ -259,14 +259,14 @@ describe("CleanProcessor", () => {
         yield input;
       };
 
-      await expect(async () => {
+      await expect((async () => {
         for await (const _ of processor.process(source(), {
           removeGaps: true,
           gapChars: "",
         })) {
           // Should throw before yielding
         }
-      }).toThrow(ValidationError);
+      })()).rejects.toThrow(ValidationError);
     });
   });
 });

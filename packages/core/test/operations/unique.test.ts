@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import "../matchers";
 import { createFastaRecord, createFastqRecord } from "@genotype/core/constructors";
 import { seqops } from "@genotype/core/operations";

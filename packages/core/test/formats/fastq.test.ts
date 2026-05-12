@@ -2,7 +2,7 @@
  * Tests for FASTQ format parsing and writing
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import "../matchers";
 import { FastqParser, type FastqSequence } from "@genotype/core/index";
 import {
@@ -83,11 +83,11 @@ IIIIIIIIIIII`;
 
       const parser = new FastqParser();
 
-      await expect(async () => {
+      await expect((async () => {
         for await (const _seq of parser.parseString(multiLineFastq)) {
           // Should not parse multi-line as a single record
         }
-      }).toThrow();
+      })()).rejects.toThrow();
     });
 
     test("should handle multi-line quality contaminated with @ marker", async () => {
@@ -256,11 +256,11 @@ ATCGATCG
 
       const parser = new FastqParser();
 
-      await expect(async () => {
+      await expect((async () => {
         for await (const _seq of parser.parseString(truncatedFastq)) {
           // Should fail on truncated record
         }
-      }).toThrow();
+      })()).rejects.toThrow();
     });
 
     test("should reject sequence-quality length mismatches", async () => {
@@ -272,11 +272,11 @@ III`; // Quality too short (3 vs 12 bases)
 
       const parser = new FastqParser();
 
-      await expect(async () => {
+      await expect((async () => {
         for await (const _seq of parser.parseString(mismatchedLengths)) {
           // Should fail on length mismatch
         }
-      }).toThrow();
+      })()).rejects.toThrow();
     });
 
     test("should handle invalid ASCII characters in quality gracefully", async () => {
@@ -302,11 +302,11 @@ IIIIIIII`; // Missing @ prefix
 
       const parser = new FastqParser();
 
-      await expect(async () => {
+      await expect((async () => {
         for await (const _seq of parser.parseString(malformedHeader)) {
           // Should fail on malformed header
         }
-      }).toThrow();
+      })()).rejects.toThrow();
     });
 
     test("should handle compressed file corruption patterns", async () => {
@@ -322,11 +322,11 @@ IIII`; // Binary corruption in sequence
 
       const parser = new FastqParser();
 
-      await expect(async () => {
+      await expect((async () => {
         for await (const _seq of parser.parseString(corruptedData)) {
           // Should handle or fail gracefully on corruption
         }
-      }).toThrow();
+      })()).rejects.toThrow();
     });
   });
 
@@ -489,41 +489,41 @@ IIIIIIII`;
   test("should validate sequence and quality length match", async () => {
     const fastq = "@read1\nATCG\n+\nII"; // Quality too short
 
-    await expect(async () => {
+    await expect((async () => {
       for await (const _seq of parser.parseString(fastq)) {
         // Should not reach here
       }
-    }).toThrow();
+    })()).rejects.toThrow();
   });
 
   test("should throw error for invalid header", async () => {
     const fastq = "read1\nATCG\n+\nIIII"; // Missing @
 
-    await expect(async () => {
+    await expect((async () => {
       for await (const _seq of parser.parseString(fastq)) {
         // Should not reach here
       }
-    }).toThrow();
+    })()).rejects.toThrow();
   });
 
   test("should throw error for invalid separator", async () => {
     const fastq = "@read1\nATCG\n-\nIIII"; // Wrong separator
 
-    await expect(async () => {
+    await expect((async () => {
       for await (const _seq of parser.parseString(fastq)) {
         // Should not reach here
       }
-    }).toThrow();
+    })()).rejects.toThrow();
   });
 
   test("should handle incomplete record", async () => {
     const fastq = "@read1\nATCG\n+"; // Missing quality line
 
-    await expect(async () => {
+    await expect((async () => {
       for await (const _seq of parser.parseString(fastq)) {
         // Should not reach here
       }
-    }).toThrow();
+    })()).rejects.toThrow();
   });
 
   test("should skip validation when requested", async () => {

@@ -2,7 +2,7 @@
  * Tests for NCBI Genetic Code Tables
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import {
   findORFs,
   GeneticCode,

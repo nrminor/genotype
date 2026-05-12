@@ -5,7 +5,7 @@
  * comprehensive edge case coverage, error handling, and integration testing.
  */
 
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "fs";
 import { join } from "path";
 import { createFastaRecord } from "@genotype/core/constructors";

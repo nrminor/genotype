@@ -5,7 +5,7 @@
  * based on various criteria.
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { FilterProcessor } from "../../../src/operations/filter";
 import { createFastaRecord } from "../../../src/constructors";
 import type { AbstractSequence } from "../../../src/types";

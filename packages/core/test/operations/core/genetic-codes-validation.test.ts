@@ -5,7 +5,7 @@
  * These tests ensure scientific correctness of genetic code implementations
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import {
   findORFs,
   GeneticCode,

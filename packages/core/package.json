@@ -216,7 +216,7 @@
     "lint:fix": "bunx oxlint --fix",
     "lint:types": "bunx oxlint --type-aware",
     "prepublishOnly": "bun run clean && bun run build",
-    "test": "bun test test/",
+    "test": "vitest run --config ../../vitest.config.ts test/",
     "typecheck": "bunx tsgo --noEmit -p tsconfig.test.json"
   },
   "dependencies": {

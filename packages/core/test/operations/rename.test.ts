@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import "../matchers";
 import { createFastaRecord, createFastqRecord } from "@genotype/core/constructors";
 import { ValidationError } from "@genotype/core/errors";
@@ -178,9 +178,9 @@ describe("rename operation", () => {
   test("validation: rejects empty separator", async () => {
     const input: FastaSequence[] = [createFasta("seq1", "ATCG")];
 
-    await expect(async () => {
+    await expect((async () => {
       await Array.fromAsync(rename(toAsyncIterable(input), { separator: "" }));
-    }).toThrow(ValidationError);
+    })()).rejects.toThrow(ValidationError);
   });
 
   test("validation: empty separator error message is helpful", async () => {
@@ -199,9 +199,9 @@ describe("rename operation", () => {
   test("validation: rejects negative startNum", async () => {
     const input: FastaSequence[] = [createFasta("seq1", "ATCG")];
 
-    await expect(async () => {
+    await expect((async () => {
       await Array.fromAsync(rename(toAsyncIterable(input), { startNum: -1 }));
-    }).toThrow(ValidationError);
+    })()).rejects.toThrow(ValidationError);
   });
 
   test("validation: negative startNum error message is helpful", async () => {

@@ -2,7 +2,7 @@
  * Tests for paired-end FASTQ parsing
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import "../matchers";
 import { PairSyncError } from "@genotype/core/errors";
 import { defaultExtractPairId, PairedFastqParser } from "@genotype/core/formats/fastq/paired";
@@ -239,12 +239,12 @@ describe("PairedFastqParser", () => {
       const r1 = "@read1/1\nATCG\n+\nIIII"; // 1 read
       const r2 = "@read1/2\nCGAT\n+\nIIII\n@read2/2\nTTTT\n+\nIIII"; // 2 reads
 
-      await expect(async () => {
+      await expect((async () => {
         const pairs: PairedFastqRead[] = [];
         for await (const pair of parser.parseStrings(r1, r2)) {
           pairs.push(pair);
         }
-      }).toThrow("R1 exhausted first");
+      })()).rejects.toThrow("R1 exhausted first");
     });
 
     test("detects R2 exhausted before R1", async () => {
@@ -252,12 +252,12 @@ describe("PairedFastqParser", () => {
       const r1 = "@read1/1\nATCG\n+\nIIII\n@read2/1\nTTTT\n+\nIIII"; // 2 reads
       const r2 = "@read1/2\nCGAT\n+\nIIII"; // 1 read
 
-      await expect(async () => {
+      await expect((async () => {
         const pairs: PairedFastqRead[] = [];
         for await (const pair of parser.parseStrings(r1, r2)) {
           pairs.push(pair);
         }
-      }).toThrow("R2 exhausted first");
+      })()).rejects.toThrow("R2 exhausted first");
     });
 
     test("includes pair index in length mismatch error", async () => {
@@ -438,12 +438,12 @@ describe("PairedFastqParser", () => {
       const r1 = "@read1/1\nATCG\n+\nIIII";
       const r2 = "@read2/2\nCGAT\n+\nIIII"; // Different base ID
 
-      await expect(async () => {
+      await expect((async () => {
         const pairs: PairedFastqRead[] = [];
         for await (const pair of parser.parseStrings(r1, r2)) {
           pairs.push(pair);
         }
-      }).toThrow("Read ID mismatch");
+      })()).rejects.toThrow("Read ID mismatch");
     });
 
     test("mismatched IDs warn with onMismatch='warn'", async () => {
@@ -564,12 +564,12 @@ describe("PairedFastqParser", () => {
       const r1 = "@read1/1\nATCG\n+\nIIII\n@read2/1\nATCG\n+\nIIII\n@read3/1\nATCG\n+\nIIII";
       const r2 = "@read1/2\nCGAT\n+\nIIII\n@readX/2\nCGAT\n+\nIIII\n@read3/2\nCGAT\n+\nIIII";
 
-      await expect(async () => {
+      await expect((async () => {
         const pairs: PairedFastqRead[] = [];
         for await (const pair of parser.parseStrings(r1, r2)) {
           pairs.push(pair);
         }
-      }).toThrow(PairSyncError);
+      })()).rejects.toThrow(PairSyncError);
     });
 
     test("warn mode: continues iteration after mismatch with warning", async () => {
@@ -638,11 +638,11 @@ describe("PairedFastqParser", () => {
       const r2 = "@match1/2\nCGAT\n+\nIIII\n@different/2\nCGAT\n+\nIIII\n@match2/2\nCGAT\n+\nIIII";
 
       const pairs: PairedFastqRead[] = [];
-      await expect(async () => {
+      await expect((async () => {
         for await (const pair of parser.parseStrings(r1, r2)) {
           pairs.push(pair);
         }
-      }).toThrow(PairSyncError);
+      })()).rejects.toThrow(PairSyncError);
 
       expect(pairs).toHaveLength(1);
       expect(pairs[0]!.pairId).toBe("match1");
@@ -710,7 +710,7 @@ describe("PairedFastqParser", () => {
     test("detects length mismatch in files", async () => {
       const parser = new PairedFastqParser();
 
-      await expect(async () => {
+      await expect((async () => {
         const pairs: PairedFastqRead[] = [];
         for await (const pair of parser.parseFiles(
           "test/fixtures/paired-r1-mismatch.fastq",
@@ -718,7 +718,7 @@ describe("PairedFastqParser", () => {
         )) {
           pairs.push(pair);
         }
-      }).toThrow(PairSyncError);
+      })()).rejects.toThrow(PairSyncError);
     });
 
     test("preserves sequence data from files", async () => {
@@ -995,11 +995,11 @@ describe("PairedFastqParser", () => {
       const r1 = "@read1/1\nATCG\nATCG\nATCG\n+\nIIII\nIIII\nIIII";
       const r2 = "@read1/2\nCGAT\nCGAT\nCGAT\n+\nIIII\nIIII\nIIII";
 
-      await expect(async () => {
+      await expect((async () => {
         for await (const _pair of parser.parseStrings(r1, r2)) {
           // Should not parse multi-line as single records
         }
-      }).toThrow();
+      })()).rejects.toThrow();
     });
 
     test("quality encoding options inherited from FastqParser", async () => {

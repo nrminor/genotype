@@ -11,7 +11,7 @@
  * Follows established test patterns with Bun test framework.
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import "../matchers";
 import { createFastaRecord, createFastqRecord } from "@genotype/core/constructors";
 import { MemoryError, PairSyncError } from "@genotype/core/errors";
@@ -237,11 +237,11 @@ describe("PairProcessor", () => {
       ]);
       const r2 = toAsyncIterable([createFastq("read3/2", "CCCC", "IIII")]);
 
-      await expect(async () => {
+      await expect((async () => {
         await Array.fromAsync(
           processor.process({ mode: "dual", source1: r1, source2: r2 }, { maxBufferSize: 1 })
         );
-      }).toThrow(MemoryError);
+      })()).rejects.toThrow(MemoryError);
     });
 
     test("warns at 80% buffer threshold", async () => {
@@ -299,11 +299,11 @@ describe("PairProcessor", () => {
       const r1 = toAsyncIterable([createFastq("orphan/1", "AAAA", "IIII")]);
       const r2 = toAsyncIterable([createFastq("other/2", "TTTT", "IIII")]);
 
-      await expect(async () => {
+      await expect((async () => {
         await Array.fromAsync(
           processor.process({ mode: "dual", source1: r1, source2: r2 }, { onUnpaired: "error" })
         );
-      }).toThrow(PairSyncError);
+      })()).rejects.toThrow(PairSyncError);
     });
   });
 });
@@ -596,9 +596,9 @@ describe("SeqOps.interleavePairs() integration", () => {
       const r1 = new SeqOps(toAsyncIterable(r1Data));
       const r2 = new SeqOps(toAsyncIterable(r2Data));
 
-      await expect(async () => {
+      await expect((async () => {
         await Array.fromAsync(r1.interleavePairs(r2, { maxBufferSize: 0 }));
-      }).toThrow(MemoryError);
+      })()).rejects.toThrow(MemoryError);
     });
 
     test("handles negative maxBufferSize by treating as invalid", async () => {
@@ -608,9 +608,9 @@ describe("SeqOps.interleavePairs() integration", () => {
       const r1 = new SeqOps(toAsyncIterable(r1Data));
       const r2 = new SeqOps(toAsyncIterable(r2Data));
 
-      await expect(async () => {
+      await expect((async () => {
         await Array.fromAsync(r1.interleavePairs(r2, { maxBufferSize: -1 }));
-      }).toThrow(MemoryError);
+      })()).rejects.toThrow(MemoryError);
     });
 
     test("validates onUnpaired mode at runtime", async () => {

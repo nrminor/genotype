@@ -5,7 +5,9 @@
  * and that the package can be imported.
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
+import { Effect } from "effect";
+import { initParquetWasm } from "@genotype/parquet/wasm-init";
 import { PARQUET_VERSION } from "@genotype/parquet/version";
 
 describe("@genotype/parquet smoke tests", () => {
@@ -20,8 +22,8 @@ describe("@genotype/parquet smoke tests", () => {
     expect(arrow.Field).toBeDefined();
   });
 
-  test("parquet-wasm can be imported", async () => {
-    const parquet = await import("parquet-wasm");
+  test("parquet-wasm can be loaded", () => {
+    const parquet = Effect.runSync(initParquetWasm);
     expect(parquet).toBeDefined();
   });
 });

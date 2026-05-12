@@ -63,7 +63,7 @@
   "scripts": {
     "build": "bun scripts/build.mjs",
     "lint": "bunx oxlint",
-    "test": "bun test test/",
+    "test": "vitest run --config ../../vitest.config.ts test/",
     "typecheck": "bunx tsgo --noEmit -p tsconfig.test.json"
   },
   "dependencies": {

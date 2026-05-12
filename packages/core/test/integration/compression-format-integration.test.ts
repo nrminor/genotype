@@ -8,7 +8,7 @@
  * These tests are part of the permanent test suite to prevent regressions.
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { CompressionDetector } from "@genotype/core/compression/detector";
 // fflate implementation is now in gzip.ts
 import { GzipDecompressor } from "@genotype/core/compression/gzip";

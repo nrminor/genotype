@@ -10,7 +10,7 @@
 
 import { readFileSync } from "fs";
 import { join } from "path";
-import { beforeAll, describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, test } from "vitest";
 import { AlignmentParser } from "@genotype/core/formats/alignment";
 import type { AlignmentRecord } from "@genotype/core/types";
 
@@ -158,11 +158,11 @@ describe("AlignmentParser", () => {
   describe("edge cases", () => {
     test("should throw for nonexistent file", async () => {
       const parser = new AlignmentParser();
-      await expect(async () => {
+      await expect((async () => {
         for await (const _record of parser.parseFile("/nonexistent/path.bam")) {
           // should not reach here
         }
-      }).toThrow();
+      })()).rejects.toThrow();
     });
 
     test("should produce zero records for a headers-only SAM file", async () => {

@@ -6,7 +6,7 @@
  * "Respect existing code - understand why it exists before changing"
  */
 
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "vitest";
 import { BedError } from "@genotype/core/errors";
 import { BedParser, BedUtils, BedWriter } from "@genotype/core/formats/bed";
 import type { BedInterval } from "@genotype/core/types";
@@ -131,11 +131,11 @@ describe("BED Large Coordinate Edge Cases", () => {
     // Coordinates exceeding bedtools capability (>2.5GB) should error with helpful guidance
     const largeCoordinateData = "scaffold_1\t3000000001\t3250000000\tlarge_region";
 
-    await expect(async () => {
+    await expect((async () => {
       for await (const _ of parser.parseString(largeCoordinateData)) {
         // Should throw with tool compatibility guidance
       }
-    }).toThrow(/coordinate.*large.*2\.5GB/i);
+    })()).rejects.toThrow(/coordinate.*large.*2\.5GB/i);
   });
 
   /**
@@ -165,11 +165,11 @@ describe("BED Large Coordinate Edge Cases", () => {
   test("rejects negative coordinates with helpful biological error", async () => {
     const negativeData = "chr1\t-100\t1000\tinvalid_negative";
 
-    await expect(async () => {
+    await expect((async () => {
       for await (const _ of parser.parseString(negativeData)) {
         // Should throw before yielding
       }
-    }).toThrow(/negative.*biologically.*impossible/i);
+    })()).rejects.toThrow(/negative.*biologically.*impossible/i);
   });
 
   /**
@@ -182,11 +182,11 @@ describe("BED Large Coordinate Edge Cases", () => {
   test("rejects inverted coordinates with coordinate system guidance", async () => {
     const invertedData = "chr1\t2000\t1000\tinverted_coords";
 
-    await expect(async () => {
+    await expect((async () => {
       for await (const _ of parser.parseString(invertedData)) {
         // Should throw before yielding
       }
-    }).toThrow();
+    })()).rejects.toThrow();
   });
 
   /**
@@ -360,11 +360,11 @@ describe("BED12 Block Structure Validation (UCSC Specification)", () => {
     // Invalid: first blockStart = 100 (should be 0)
     const invalidFirstBlock = "chr1\t1000\t2000\tgene1\t0\t+\t1000\t2000\t0\t2\t500,500\t100,600";
 
-    await expect(async () => {
+    await expect((async () => {
       for await (const _ of parser.parseString(invalidFirstBlock)) {
         // Should throw UCSC specification violation
       }
-    }).toThrow(/first.*blockStart.*must.*be.*0/i);
+    })()).rejects.toThrow(/first.*blockStart.*must.*be.*0/i);
   });
 
   /**
@@ -378,11 +378,11 @@ describe("BED12 Block Structure Validation (UCSC Specification)", () => {
     // Invalid: final block ends at 500+600=1100, but feature length = 2000-1000=1000
     const invalidFinalBlock = "chr1\t1000\t2000\tgene1\t0\t+\t1000\t2000\t0\t2\t500,600\t0,500";
 
-    await expect(async () => {
+    await expect((async () => {
       for await (const _ of parser.parseString(invalidFinalBlock)) {
         // Should throw final boundary violation
       }
-    }).toThrow(/final.*block.*feature.*boundary/i);
+    })()).rejects.toThrow(/final.*block.*feature.*boundary/i);
   });
 
   /**
@@ -397,11 +397,11 @@ describe("BED12 Block Structure Validation (UCSC Specification)", () => {
     const overlappingBlocks =
       "chr1\t1000\t2000\tgene1\t0\t+\t1000\t2000\t0\t3\t400,400,300\t0,300,700";
 
-    await expect(async () => {
+    await expect((async () => {
       for await (const _ of parser.parseString(overlappingBlocks)) {
         // Should throw overlap violation
       }
-    }).toThrow(/blocks.*cannot.*overlap/i);
+    })()).rejects.toThrow(/blocks.*cannot.*overlap/i);
   });
 
   /**
@@ -415,11 +415,11 @@ describe("BED12 Block Structure Validation (UCSC Specification)", () => {
     // Invalid: blockCount=3 but only 2 blockSizes
     const mismatchedArrays = "chr1\t1000\t2000\tgene1\t0\t+\t1000\t2000\t0\t3\t300,400\t0,500,700";
 
-    await expect(async () => {
+    await expect((async () => {
       for await (const _ of parser.parseString(mismatchedArrays)) {
         // Should throw array consistency violation
       }
-    }).toThrow(/Block.*sizes.*count.*block.*count/i);
+    })()).rejects.toThrow(/Block.*sizes.*count.*block.*count/i);
   });
 
   /**
@@ -901,11 +901,11 @@ describe("Real-World Edge Cases (Industry Problem Prevention)", () => {
     // BED7 is undefined (between BED6 and BED9)
     const undefinedBed7 = "chr1\t1000\t2000\tfeature\t100\t+\textra_field";
 
-    await expect(async () => {
+    await expect((async () => {
       for await (const _ of parser.parseString(undefinedBed7)) {
         // Should reject undefined format
       }
-    }).toThrow(/Unsupported.*BED.*variant.*valid.*BED3.*BED4.*BED5.*BED6.*BED9.*BED12/);
+    })()).rejects.toThrow(/Unsupported.*BED.*variant.*valid.*BED3.*BED4.*BED5.*BED6.*BED9.*BED12/);
   });
 
   /**

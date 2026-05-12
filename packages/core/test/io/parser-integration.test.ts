@@ -2,7 +2,7 @@
  * Integration tests for file I/O with genomics parsers
  */
 
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import "../matchers";
 import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";

@@ -5,7 +5,7 @@
  * tabular write methods (toTabular, writeTSV, writeCSV, etc.)
  */
 
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { existsSync, mkdirSync, readFileSync, rmSync } from "fs";
 import "../../core/test/matchers";
 import { createFastaRecord } from "@genotype/core/constructors";

@@ -13,7 +13,7 @@
  * - Integration with utility functions
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { createFastaRecord } from "@genotype/core/constructors";
 import { SubseqExtractor } from "@genotype/core/operations/subseq";
 import type { AbstractSequence } from "@genotype/core/types";
@@ -557,14 +557,14 @@ describe("SubseqExtractor", () => {
       const sequences = [createSequence("seq1", "ATCGATCG")];
       const extractor = new SubseqExtractor();
 
-      await expect(async () => {
+      await expect((async () => {
         await collectResults(
           extractor.extract(arrayToAsync(sequences), {
             region: "1:5",
             gtfFeatures: [{ seqname: "seq1", start: 1, end: 5, feature: "exon" }],
           })
         );
-      }).toThrow("only one region specification method");
+      })()).rejects.toThrow("only one region specification method");
     });
   });
 
@@ -573,40 +573,40 @@ describe("SubseqExtractor", () => {
       const sequences = [createSequence("seq1", "ATCGATCG")];
       const extractor = new SubseqExtractor();
 
-      await expect(async () => {
+      await expect((async () => {
         await collectResults(
           extractor.extract(arrayToAsync(sequences), {
             region: "invalid",
           })
         );
-      }).toThrow("Invalid region format");
+      })()).rejects.toThrow("Invalid region format");
     });
 
     test("throws on out of bounds region", async () => {
       const sequences = [createSequence("seq1", "ATCGATCG")];
       const extractor = new SubseqExtractor();
 
-      await expect(async () => {
+      await expect((async () => {
         await collectResults(
           extractor.extract(arrayToAsync(sequences), {
             region: "10:20",
           })
         );
-      }).toThrow("Invalid coordinates");
+      })()).rejects.toThrow("Invalid coordinates");
     });
 
     test("throws on invalid start/end positions", async () => {
       const sequences = [createSequence("seq1", "ATCGATCG")];
       const extractor = new SubseqExtractor();
 
-      await expect(async () => {
+      await expect((async () => {
         await collectResults(
           extractor.extract(arrayToAsync(sequences), {
             start: 5,
             end: 3,
           })
         );
-      }).toThrow("start < end");
+      })()).rejects.toThrow("start < end");
     });
 
     test("handles empty input gracefully", async () => {
@@ -627,51 +627,51 @@ describe("SubseqExtractor", () => {
       const sequences = [createSequence("seq1", "ATCGATCG")];
       const extractor = new SubseqExtractor();
 
-      await expect(async () => {
+      await expect((async () => {
         await collectResults(extractor.extract(arrayToAsync(sequences), {}));
-      }).toThrow("at least one region specification method");
+      })()).rejects.toThrow("at least one region specification method");
     });
 
     test("validates mutually exclusive options", async () => {
       const sequences = [createSequence("seq1", "ATCGATCG")];
       const extractor = new SubseqExtractor();
 
-      await expect(async () => {
+      await expect((async () => {
         await collectResults(
           extractor.extract(arrayToAsync(sequences), {
             region: "1:5",
             bedRegions: [{ chromosome: "seq1", chromStart: 1, chromEnd: 5 }],
           })
         );
-      }).toThrow("only one region specification method");
+      })()).rejects.toThrow("only one region specification method");
     });
 
     test("validates upstream/downstream requirements", async () => {
       const sequences = [createSequence("seq1", "ATCGATCG")];
       const extractor = new SubseqExtractor();
 
-      await expect(async () => {
+      await expect((async () => {
         await collectResults(
           extractor.extract(arrayToAsync(sequences), {
             region: "1:5",
             upstream: -1,
           })
         );
-      }).toThrow("upstream must be non-negative");
+      })()).rejects.toThrow("upstream must be non-negative");
     });
 
     test("validates onlyFlank option requirements", async () => {
       const sequences = [createSequence("seq1", "ATCGATCG")];
       const extractor = new SubseqExtractor();
 
-      await expect(async () => {
+      await expect((async () => {
         await collectResults(
           extractor.extract(arrayToAsync(sequences), {
             region: "1:5",
             onlyFlank: true,
           })
         );
-      }).toThrow("upstream or downstream required with onlyFlank");
+      })()).rejects.toThrow("upstream or downstream required with onlyFlank");
     });
   });
 

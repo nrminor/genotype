@@ -9,7 +9,9 @@
  * - Performance characteristics
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
+import { unlink, writeFile } from "node:fs/promises";
+import { gzipSync } from "node:zlib";
 import {
   CSVParser,
   CSVWriter,
@@ -410,11 +412,9 @@ describe("DSV Format Module", () => {
     });
   });
 
-  describe("Error Handling", () => {
-    // Note: d3-dsv handles unclosed quotes per RFC 4180 by treating the
-    // rest of the input as the field value, rather than throwing. This is
-    // more correct than our previous handrolled parser's behavior.
-  });
+  // Note: d3-dsv handles unclosed quotes per RFC 4180 by treating the rest of
+  // the input as the field value, rather than throwing. This is more correct
+  // than our previous handrolled parser's behavior.
 
   describe("Auto-Detection", () => {
     test("CSV parser handles comma-delimited data correctly", async () => {
@@ -551,14 +551,14 @@ describe("DSV Format Module", () => {
 seq1,ATCGATCG,IIIIIIII
 seq2,GCTAGCTA,JJJJJJJJ`;
 
-      // Compress the data using Bun's gzip
+      // Compress the data using the standard Node-compatible gzip helper.
       const encoder = new TextEncoder();
       const uncompressed = encoder.encode(csvContent);
-      const compressed = Bun.gzipSync(uncompressed);
+      const compressed = gzipSync(uncompressed);
 
       // Write to temp file
       const tempPath = `test/fixtures/temp-${Date.now()}.csv.gz`;
-      await Bun.write(tempPath, compressed);
+      await writeFile(tempPath, compressed);
 
       try {
         const parser = new CSVParser({ header: true });
@@ -577,8 +577,7 @@ seq2,GCTAGCTA,JJJJJJJJ`;
         });
       } finally {
         // Clean up temp file
-        const fs = await import("fs/promises");
-        await fs.unlink(tempPath).catch(() => {
+        await unlink(tempPath).catch(() => {
           /* ignore */
         });
       }
@@ -720,20 +719,20 @@ seq2,GCTAGCTA,JJJJJJJJ`;
         0xef,
       ]);
 
-      await Bun.write(corruptedGzipPath, corruptedData);
+      await writeFile(corruptedGzipPath, corruptedData);
 
       const parser = new DSVParser({ autoDetect: true });
 
       // Should throw CompressionError for corrupted data
-      await expect(async () => {
+      await expect((async () => {
         const records: DSVRecord[] = [];
         for await (const record of parser.parseFile(corruptedGzipPath)) {
           records.push(record);
         }
-      }).toThrow("invalid block type");
+      })()).rejects.toThrow("invalid block type");
 
       // Clean up
-      await import("node:fs").then((fs) => fs.promises.unlink(corruptedGzipPath));
+      await unlink(corruptedGzipPath);
     });
   });
 
@@ -812,7 +811,6 @@ seq2,GCTAGCTA,JJJJJJJJ`;
 
     test("sniff on compressed data", async () => {
       // Create actual gzipped content
-      const { gzipSync } = await import("bun");
       const csvContent = "id,sequence,quality\nseq1,ATCG,IIII";
       const compressed = gzipSync(csvContent);
 

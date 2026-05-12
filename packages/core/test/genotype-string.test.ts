@@ -1,4 +1,5 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
+import { inspect } from "node:util";
 import {
   GenotypeString,
   genotypeStringInternal,
@@ -419,14 +420,14 @@ describe("GenotypeString", () => {
   describe("custom inspect", () => {
     test("shows type name and length for short sequences", () => {
       const gs = GenotypeString.fromString("ATCG");
-      const result = Bun.inspect(gs);
+      const result = inspect(gs);
       expect(result).toBe('GenotypeString(4) "ATCG"');
     });
 
     test("truncates long sequences with ellipsis", () => {
       const long = "A".repeat(100);
       const gs = GenotypeString.fromString(long);
-      const result = Bun.inspect(gs);
+      const result = inspect(gs);
       expect(result).toContain("GenotypeString(100)");
       expect(result).toContain("...");
       expect(result.length).toBeLessThan(100);

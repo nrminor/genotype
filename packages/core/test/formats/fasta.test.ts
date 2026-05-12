@@ -2,7 +2,7 @@
  * Tests for FASTA format parsing
  */
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import "../matchers";
 import { FastaParser, type FastaSequence } from "@genotype/core/index";
 

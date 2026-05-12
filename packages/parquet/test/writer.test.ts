@@ -5,12 +5,14 @@
  * and read back correctly via parquet-wasm.
  */
 
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { existsSync, mkdirSync, readFileSync, rmSync } from "fs";
+import { Effect } from "effect";
 import { createFastaRecord } from "@genotype/core/constructors";
 import { fx2tab, TabularOps } from "@genotype/tabular/fx2tab";
 import "@genotype/tabular";
 import "@genotype/parquet";
+import { initParquetWasm } from "@genotype/parquet/wasm-init";
 import { writeParquet } from "@genotype/parquet/writer";
 import { tableFromIPC } from "apache-arrow";
 
@@ -66,9 +68,7 @@ describe("writeParquet", () => {
 
     await writeParquet(rows, path);
 
-    // Read back with parquet-wasm
-    // Node/Bun build self-initializes; no init() call needed
-    const parquetWasm = await import("parquet-wasm");
+    const parquetWasm = Effect.runSync(initParquetWasm);
 
     const bytes = new Uint8Array(readFileSync(path));
     const wasmTable = parquetWasm.readParquet(bytes);
@@ -102,8 +102,7 @@ describe("writeParquet", () => {
 
     await writeParquet(rows, path);
 
-    // Node/Bun build self-initializes; no init() call needed
-    const parquetWasm = await import("parquet-wasm");
+    const parquetWasm = Effect.runSync(initParquetWasm);
 
     const bytes = new Uint8Array(readFileSync(path));
     const wasmTable = parquetWasm.readParquet(bytes);

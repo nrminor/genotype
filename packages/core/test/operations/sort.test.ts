@@ -310,11 +310,13 @@ describe("SortProcessor", () => {
         by: "invalid_field",
       } as unknown as SortOptions;
 
-      await expect((async () => {
-        for await (const _seq of processor.process(toAsyncIterable(testSequences), options)) {
-          // Validation should throw
-        }
-      })()).rejects.toThrow("by must be");
+      await expect(
+        (async () => {
+          for await (const _seq of processor.process(toAsyncIterable(testSequences), options)) {
+            // Validation should throw
+          }
+        })()
+      ).rejects.toThrow("by must be");
     });
 
     test("throws error for invalid sort order", async () => {
@@ -322,11 +324,13 @@ describe("SortProcessor", () => {
         order: "invalid_order",
       } as unknown as SortOptions;
 
-      await expect((async () => {
-        for await (const _seq of processor.process(toAsyncIterable(testSequences), options)) {
-          // Validation should throw
-        }
-      })()).rejects.toThrow("order must be");
+      await expect(
+        (async () => {
+          for await (const _seq of processor.process(toAsyncIterable(testSequences), options)) {
+            // Validation should throw
+          }
+        })()
+      ).rejects.toThrow("order must be");
     });
 
     test("handles default sorting gracefully", async () => {
@@ -346,11 +350,13 @@ describe("SortProcessor", () => {
         by: "not_a_function",
       } as unknown as SortOptions;
 
-      await expect((async () => {
-        for await (const _seq of processor.process(toAsyncIterable(testSequences), options)) {
-          // Validation should throw
-        }
-      })()).rejects.toThrow("by must be");
+      await expect(
+        (async () => {
+          for await (const _seq of processor.process(toAsyncIterable(testSequences), options)) {
+            // Validation should throw
+          }
+        })()
+      ).rejects.toThrow("by must be");
     });
   });
 

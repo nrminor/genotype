@@ -77,11 +77,13 @@ describe("AmpliconProcessor", () => {
 
       const sequences = [createFasta("test", "ATCGATCG")];
 
-      await expect((async () => {
-        for await (const _ of processor.process(toAsyncIterable(sequences), invalidOptions)) {
-          // Should throw before yielding
-        }
-      })()).rejects.toThrow("forwardPrimer must be at least length 10");
+      await expect(
+        (async () => {
+          for await (const _ of processor.process(toAsyncIterable(sequences), invalidOptions)) {
+            // Should throw before yielding
+          }
+        })()
+      ).rejects.toThrow("forwardPrimer must be at least length 10");
     });
 
     test("rejects invalid characters with educational error", async () => {
@@ -92,17 +94,21 @@ describe("AmpliconProcessor", () => {
 
       const sequences = [createFasta("test", "ATCGATCG")];
 
-      await expect((async () => {
-        for await (const _ of processor.process(toAsyncIterable(sequences), invalidOptions)) {
-          // Should throw before yielding
-        }
-      })()).rejects.toThrow("Invalid primer");
+      await expect(
+        (async () => {
+          for await (const _ of processor.process(toAsyncIterable(sequences), invalidOptions)) {
+            // Should throw before yielding
+          }
+        })()
+      ).rejects.toThrow("Invalid primer");
 
-      await expect((async () => {
-        for await (const _ of processor.process(toAsyncIterable(sequences), invalidOptions)) {
-          // Should throw before yielding
-        }
-      })()).rejects.toThrow("Valid characters: ACGTRYSWKMBDHVN");
+      await expect(
+        (async () => {
+          for await (const _ of processor.process(toAsyncIterable(sequences), invalidOptions)) {
+            // Should throw before yielding
+          }
+        })()
+      ).rejects.toThrow("Valid characters: ACGTRYSWKMBDHVN");
     });
 
     test("validates region format correctly", async () => {
@@ -113,11 +119,16 @@ describe("AmpliconProcessor", () => {
 
       const sequences = [createFasta("test", "ATCGATCG")];
 
-      await expect((async () => {
-        for await (const _ of processor.process(toAsyncIterable(sequences), invalidRegionOptions)) {
-          // Should throw before yielding
-        }
-      })()).rejects.toThrow("region must be non-empty");
+      await expect(
+        (async () => {
+          for await (const _ of processor.process(
+            toAsyncIterable(sequences),
+            invalidRegionOptions
+          )) {
+            // Should throw before yielding
+          }
+        })()
+      ).rejects.toThrow("region must be non-empty");
     });
 
     test("validates biological constraints (too many mismatches)", async () => {
@@ -128,14 +139,16 @@ describe("AmpliconProcessor", () => {
 
       const sequences = [createFasta("test", "ATCGATCG")];
 
-      await expect((async () => {
-        for await (const _ of processor.process(
-          toAsyncIterable(sequences),
-          tooManyMismatchesOptions
-        )) {
-          // Should throw before yielding
-        }
-      })()).rejects.toThrow("would compromise specificity");
+      await expect(
+        (async () => {
+          for await (const _ of processor.process(
+            toAsyncIterable(sequences),
+            tooManyMismatchesOptions
+          )) {
+            // Should throw before yielding
+          }
+        })()
+      ).rejects.toThrow("would compromise specificity");
     });
   });
 
@@ -255,11 +268,13 @@ describe("AmpliconProcessor", () => {
       const sequences = [createFasta("error_test", "ATCG")];
 
       // Should throw ValidationError with clear message
-      await expect((async () => {
-        for await (const _ of processor.process(toAsyncIterable(sequences), invalidOptions)) {
-          // Should throw before yielding
-        }
-      })()).rejects.toThrow("Invalid amplicon options");
+      await expect(
+        (async () => {
+          for await (const _ of processor.process(toAsyncIterable(sequences), invalidOptions)) {
+            // Should throw before yielding
+          }
+        })()
+      ).rejects.toThrow("Invalid amplicon options");
     });
   });
 
@@ -382,11 +397,16 @@ describe("AmpliconProcessor", () => {
 
       const sequences = [createFasta("test", "ATCGATCG")];
 
-      await expect((async () => {
-        for await (const _ of processor.process(toAsyncIterable(sequences), invalidWindowOptions)) {
-          // Should throw before yielding
-        }
-      })()).rejects.toThrow("Forward search window (10bp) smaller than primer (16bp)");
+      await expect(
+        (async () => {
+          for await (const _ of processor.process(
+            toAsyncIterable(sequences),
+            invalidWindowOptions
+          )) {
+            // Should throw before yielding
+          }
+        })()
+      ).rejects.toThrow("Forward search window (10bp) smaller than primer (16bp)");
     });
 
     test("windowed search finds primers in correct regions", async () => {

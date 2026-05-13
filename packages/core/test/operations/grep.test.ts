@@ -207,12 +207,14 @@ describe("GrepProcessor", () => {
         target: "sequence",
       } as GrepOptions;
 
-      await expect((async () => {
-        // Need to consume the generator to trigger validation
-        for await (const _ of processor.process(toAsync(testSequences), options)) {
-          // Validation should throw before yielding
-        }
-      })()).rejects.toThrow(ValidationError);
+      await expect(
+        (async () => {
+          // Need to consume the generator to trigger validation
+          for await (const _ of processor.process(toAsync(testSequences), options)) {
+            // Validation should throw before yielding
+          }
+        })()
+      ).rejects.toThrow(ValidationError);
     });
 
     test("throws error for invalid target", async () => {
@@ -221,11 +223,13 @@ describe("GrepProcessor", () => {
         target: "invalid",
       } as unknown as GrepOptions;
 
-      await expect((async () => {
-        for await (const _ of processor.process(toAsync(testSequences), options)) {
-          // Validation should throw before yielding
-        }
-      })()).rejects.toThrow(ValidationError);
+      await expect(
+        (async () => {
+          for await (const _ of processor.process(toAsync(testSequences), options)) {
+            // Validation should throw before yielding
+          }
+        })()
+      ).rejects.toThrow(ValidationError);
     });
 
     test("throws error for negative mismatches", async () => {
@@ -235,11 +239,13 @@ describe("GrepProcessor", () => {
         allowMismatches: -1,
       };
 
-      await expect((async () => {
-        for await (const _ of processor.process(toAsync(testSequences), options)) {
-          // Validation should throw before yielding
-        }
-      })()).rejects.toThrow(ValidationError);
+      await expect(
+        (async () => {
+          for await (const _ of processor.process(toAsync(testSequences), options)) {
+            // Validation should throw before yielding
+          }
+        })()
+      ).rejects.toThrow(ValidationError);
     });
 
     test("throws error for mismatches on non-sequence target", async () => {
@@ -249,11 +255,13 @@ describe("GrepProcessor", () => {
         allowMismatches: 1,
       };
 
-      await expect((async () => {
-        for await (const _ of processor.process(toAsync(testSequences), options)) {
-          // Validation should throw before yielding
-        }
-      })()).rejects.toThrow(ValidationError);
+      await expect(
+        (async () => {
+          for await (const _ of processor.process(toAsync(testSequences), options)) {
+            // Validation should throw before yielding
+          }
+        })()
+      ).rejects.toThrow(ValidationError);
     });
   });
 

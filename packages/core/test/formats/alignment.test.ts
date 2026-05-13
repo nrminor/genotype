@@ -158,11 +158,13 @@ describe("AlignmentParser", () => {
   describe("edge cases", () => {
     test("should throw for nonexistent file", async () => {
       const parser = new AlignmentParser();
-      await expect((async () => {
-        for await (const _record of parser.parseFile("/nonexistent/path.bam")) {
-          // should not reach here
-        }
-      })()).rejects.toThrow();
+      await expect(
+        (async () => {
+          for await (const _record of parser.parseFile("/nonexistent/path.bam")) {
+            // should not reach here
+          }
+        })()
+      ).rejects.toThrow();
     });
 
     test("should produce zero records for a headers-only SAM file", async () => {

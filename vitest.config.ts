@@ -10,7 +10,10 @@ export default defineConfig({
     alias: [
       { find: /^effect$/, replacement: `${root}packages/core/node_modules/effect/dist/index.js` },
       { find: /^@genotype\/core$/, replacement: `${root}packages/core/src/index.ts` },
-      { find: /^@genotype\/core\/seqops$/, replacement: `${root}packages/core/src/operations/index.ts` },
+      {
+        find: /^@genotype\/core\/seqops$/,
+        replacement: `${root}packages/core/src/operations/index.ts`,
+      },
       { find: /^@genotype\/core\/(.+)$/, replacement: `${root}packages/core/src/$1` },
       { find: /^@genotype\/tabular$/, replacement: `${root}packages/tabular/src/index.ts` },
       { find: /^@genotype\/tabular\/(.+)$/, replacement: `${root}packages/tabular/src/$1` },

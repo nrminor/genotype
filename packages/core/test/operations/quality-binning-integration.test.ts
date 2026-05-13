@@ -273,29 +273,33 @@ describe("binQuality - Error Handling", () => {
   test("throws error for invalid preset", async () => {
     const sequences = [createFastqSequence("seq1", "ATCG", "!!!!")];
 
-    await expect((async () => {
-      await collectSequences(
-        binQuality(toAsyncIterable(sequences), {
-          bins: 3,
-          // @ts-expect-error Testing invalid preset error
-          preset: "invalid",
-        })
-      );
-    })()).rejects.toThrow();
+    await expect(
+      (async () => {
+        await collectSequences(
+          binQuality(toAsyncIterable(sequences), {
+            bins: 3,
+            // @ts-expect-error Testing invalid preset error
+            preset: "invalid",
+          })
+        );
+      })()
+    ).rejects.toThrow();
   });
 
   test("throws error for invalid bins count", async () => {
     const sequences = [createFastqSequence("seq1", "ATCG", "!!!!")];
 
-    await expect((async () => {
-      await collectSequences(
-        binQuality(toAsyncIterable(sequences), {
-          // @ts-expect-error Testing invalid bins count error
-          bins: 4, // Invalid - not 2, 3, or 5
-          preset: "illumina",
-        })
-      );
-    })()).rejects.toThrow();
+    await expect(
+      (async () => {
+        await collectSequences(
+          binQuality(toAsyncIterable(sequences), {
+            // @ts-expect-error Testing invalid bins count error
+            bins: 4, // Invalid - not 2, 3, or 5
+            preset: "illumina",
+          })
+        );
+      })()
+    ).rejects.toThrow();
   });
 
   test("provides helpful error message with sequence context", async () => {

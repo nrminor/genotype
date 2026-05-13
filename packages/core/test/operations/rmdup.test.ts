@@ -214,11 +214,13 @@ describe("RmdupProcessor", () => {
         by: "invalid",
       } as unknown as RmdupOptions;
 
-      await expect((async () => {
-        for await (const _seq of processor.process(toAsync(testSequences), options)) {
-          // Validation should throw
-        }
-      })()).rejects.toThrow('by must be "both", "id" or "sequence"');
+      await expect(
+        (async () => {
+          for await (const _seq of processor.process(toAsync(testSequences), options)) {
+            // Validation should throw
+          }
+        })()
+      ).rejects.toThrow('by must be "both", "id" or "sequence"');
     });
 
     test("throws error for invalid expected unique count", async () => {
@@ -227,11 +229,13 @@ describe("RmdupProcessor", () => {
         expectedUnique: -100,
       };
 
-      await expect((async () => {
-        for await (const _seq of processor.process(toAsync(testSequences), options)) {
-          // Validation should throw
-        }
-      })()).rejects.toThrow("expectedUnique must be positive");
+      await expect(
+        (async () => {
+          for await (const _seq of processor.process(toAsync(testSequences), options)) {
+            // Validation should throw
+          }
+        })()
+      ).rejects.toThrow("expectedUnique must be positive");
     });
 
     test("throws error for invalid false positive rate", async () => {
@@ -240,11 +244,13 @@ describe("RmdupProcessor", () => {
         falsePositiveRate: 0.5, // Too high
       };
 
-      await expect((async () => {
-        for await (const _seq of processor.process(toAsync(testSequences), options)) {
-          // Validation should throw
-        }
-      })()).rejects.toThrow("falsePositiveRate must be at most 0.1");
+      await expect(
+        (async () => {
+          for await (const _seq of processor.process(toAsync(testSequences), options)) {
+            // Validation should throw
+          }
+        })()
+      ).rejects.toThrow("falsePositiveRate must be at most 0.1");
     });
   });
 

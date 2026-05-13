@@ -724,12 +724,14 @@ seq2,GCTAGCTA,JJJJJJJJ`;
       const parser = new DSVParser({ autoDetect: true });
 
       // Should throw CompressionError for corrupted data
-      await expect((async () => {
-        const records: DSVRecord[] = [];
-        for await (const record of parser.parseFile(corruptedGzipPath)) {
-          records.push(record);
-        }
-      })()).rejects.toThrow("invalid block type");
+      await expect(
+        (async () => {
+          const records: DSVRecord[] = [];
+          for await (const record of parser.parseFile(corruptedGzipPath)) {
+            records.push(record);
+          }
+        })()
+      ).rejects.toThrow("invalid block type");
 
       // Clean up
       await unlink(corruptedGzipPath);

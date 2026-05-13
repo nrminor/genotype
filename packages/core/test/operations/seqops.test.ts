@@ -161,13 +161,15 @@ describe("SeqOps", () => {
     test("propagates errors from filter predicate", async () => {
       const sequences = [createSequence("seq1", "ATCG")];
 
-      await expect((async () => {
-        await seqops(toAsync(sequences))
-          .filter(() => {
-            throw new Error("Filter error");
-          })
-          .collect();
-      })()).rejects.toThrow("Filter error");
+      await expect(
+        (async () => {
+          await seqops(toAsync(sequences))
+            .filter(() => {
+              throw new Error("Filter error");
+            })
+            .collect();
+        })()
+      ).rejects.toThrow("Filter error");
     });
   });
 
@@ -618,13 +620,15 @@ describe("SeqOps", () => {
     test("propagates errors from mapping function", async () => {
       const sequences = [createSequence("seq1", "ATCG")];
 
-      await expect((async () => {
-        await seqops(toAsync(sequences))
-          .map(() => {
-            throw new Error("Mapping error");
-          })
-          .collect();
-      })()).rejects.toThrow("Mapping error");
+      await expect(
+        (async () => {
+          await seqops(toAsync(sequences))
+            .map(() => {
+              throw new Error("Mapping error");
+            })
+            .collect();
+        })()
+      ).rejects.toThrow("Mapping error");
     });
   });
 
@@ -1013,13 +1017,15 @@ describe("SeqOps", () => {
         { id: "seq2", sequence: "GCTA" },
       ];
 
-      await expect((async () => {
-        await seqops(fastaToAsync(sequences)).forEach((seq) => {
-          if (seq.id === "seq2") {
-            throw new Error("Test error");
-          }
-        });
-      })()).rejects.toThrow("Test error");
+      await expect(
+        (async () => {
+          await seqops(fastaToAsync(sequences)).forEach((seq) => {
+            if (seq.id === "seq2") {
+              throw new Error("Test error");
+            }
+          });
+        })()
+      ).rejects.toThrow("Test error");
     });
 
     test("works with progress tracking using index", async () => {
@@ -1148,14 +1154,16 @@ describe("SeqOps", () => {
         { id: "seq2", sequence: "GCTA" },
       ];
 
-      await expect((async () => {
-        await seqops(fastaToAsync(sequences)).reduce((acc, seq) => {
-          if (seq.id === "seq2") {
-            throw new Error("Test error");
-          }
-          return seq;
-        });
-      })()).rejects.toThrow("Test error");
+      await expect(
+        (async () => {
+          await seqops(fastaToAsync(sequences)).reduce((acc, seq) => {
+            if (seq.id === "seq2") {
+              throw new Error("Test error");
+            }
+            return seq;
+          });
+        })()
+      ).rejects.toThrow("Test error");
     });
 
     test("uses index from enumerate correctly", async () => {
@@ -1299,14 +1307,16 @@ describe("SeqOps", () => {
         { id: "seq2", sequence: "GCTA" },
       ];
 
-      await expect((async () => {
-        await seqops(fastaToAsync(sequences)).fold((sum, seq) => {
-          if (seq.id === "seq2") {
-            throw new Error("Test error");
-          }
-          return sum + seq.length;
-        }, 0);
-      })()).rejects.toThrow("Test error");
+      await expect(
+        (async () => {
+          await seqops(fastaToAsync(sequences)).fold((sum, seq) => {
+            if (seq.id === "seq2") {
+              throw new Error("Test error");
+            }
+            return sum + seq.length;
+          }, 0);
+        })()
+      ).rejects.toThrow("Test error");
     });
 
     test("accumulates complex object with position tracking", async () => {
@@ -1522,13 +1532,15 @@ describe("SeqOps", () => {
       const stream1 = [{ id: "seq1", sequence: "ATCG" }];
       const stream2 = [{ id: "rev1", sequence: "TTAA" }];
 
-      await expect((async () => {
-        await seqops(fastaToAsync(stream1))
-          .zipWith(seqops(fastaToAsync(stream2)), (_a, _b) => {
-            throw new Error("Test error");
-          })
-          .collect();
-      })()).rejects.toThrow("Test error");
+      await expect(
+        (async () => {
+          await seqops(fastaToAsync(stream1))
+            .zipWith(seqops(fastaToAsync(stream2)), (_a, _b) => {
+              throw new Error("Test error");
+            })
+            .collect();
+        })()
+      ).rejects.toThrow("Test error");
     });
   });
 
@@ -1807,20 +1819,24 @@ describe("SeqOps", () => {
     test("handles errors in forEach", async () => {
       const sequences = [createSequence("seq1", "ATCG")];
 
-      await expect((async () => {
-        await seqops(toAsync(sequences)).forEach(() => {
-          throw new Error("Test error");
-        });
-      })()).rejects.toThrow("Test error");
+      await expect(
+        (async () => {
+          await seqops(toAsync(sequences)).forEach(() => {
+            throw new Error("Test error");
+          });
+        })()
+      ).rejects.toThrow("Test error");
     });
 
     test("handles write errors gracefully", async () => {
       const sequences = [createSequence("seq1", "ATCG")];
       const invalidPath = "/invalid/path/file.fasta";
 
-      await expect((async () => {
-        await seqops(toAsync(sequences)).writeFasta(invalidPath);
-      })()).rejects.toThrow();
+      await expect(
+        (async () => {
+          await seqops(toAsync(sequences)).writeFasta(invalidPath);
+        })()
+      ).rejects.toThrow();
     });
   });
 
@@ -1860,9 +1876,11 @@ describe("SeqOps", () => {
           createSequence("R5", "TTT"),
         ];
 
-        await expect((async () => {
-          await seqops(toAsync(left)).interleave(toAsync(right)).collect();
-        })()).rejects.toThrow(/left stream exhausted.*right stream continues/);
+        await expect(
+          (async () => {
+            await seqops(toAsync(left)).interleave(toAsync(right)).collect();
+          })()
+        ).rejects.toThrow(/left stream exhausted.*right stream continues/);
       });
 
       test("strict mode throws when left stream is longer", async () => {
@@ -1873,9 +1891,11 @@ describe("SeqOps", () => {
         ];
         const right = [createSequence("R1", "TTT"), createSequence("R2", "AAA")];
 
-        await expect((async () => {
-          await seqops(toAsync(left)).interleave(toAsync(right), { mode: "strict" }).collect();
-        })()).rejects.toThrow(/right stream exhausted.*left stream continues/);
+        await expect(
+          (async () => {
+            await seqops(toAsync(left)).interleave(toAsync(right), { mode: "strict" }).collect();
+          })()
+        ).rejects.toThrow(/right stream exhausted.*left stream continues/);
       });
 
       test("strict mode throws when right stream is longer", async () => {
@@ -1886,9 +1906,11 @@ describe("SeqOps", () => {
           createSequence("R3", "GGG"),
         ];
 
-        await expect((async () => {
-          await seqops(toAsync(left)).interleave(toAsync(right), { mode: "strict" }).collect();
-        })()).rejects.toThrow(/left stream exhausted.*right stream continues/);
+        await expect(
+          (async () => {
+            await seqops(toAsync(left)).interleave(toAsync(right), { mode: "strict" }).collect();
+          })()
+        ).rejects.toThrow(/left stream exhausted.*right stream continues/);
       });
 
       test("strict mode succeeds when lengths match exactly", async () => {
@@ -2033,9 +2055,11 @@ describe("SeqOps", () => {
         createSequence("read_999", "GGG"), // Mismatched ID
       ];
 
-      await expect((async () => {
-        await seqops(toAsync(left)).interleave(toAsync(right), { validateIds: true }).collect();
-      })()).rejects.toThrow('ID mismatch at position 1: left="read_002", right="read_999"');
+      await expect(
+        (async () => {
+          await seqops(toAsync(left)).interleave(toAsync(right), { validateIds: true }).collect();
+        })()
+      ).rejects.toThrow('ID mismatch at position 1: left="read_002", right="read_999"');
     });
 
     test("works without validation by default", async () => {
@@ -2138,9 +2162,11 @@ describe("SeqOps", () => {
       ];
 
       // Strict mode should throw
-      await expect((async () => {
-        await seqops(toAsync(left)).interleave(toAsync(right)).collect();
-      })()).rejects.toThrow(/left stream exhausted.*right stream continues/);
+      await expect(
+        (async () => {
+          await seqops(toAsync(left)).interleave(toAsync(right)).collect();
+        })()
+      ).rejects.toThrow(/left stream exhausted.*right stream continues/);
 
       // Lossless mode should preserve all right sequences
       const result = await seqops(toAsync(left))
@@ -2160,9 +2186,11 @@ describe("SeqOps", () => {
       const right: AbstractSequence[] = [];
 
       // Strict mode should throw
-      await expect((async () => {
-        await seqops(toAsync(left)).interleave(toAsync(right)).collect();
-      })()).rejects.toThrow(/right stream exhausted.*left stream continues/);
+      await expect(
+        (async () => {
+          await seqops(toAsync(left)).interleave(toAsync(right)).collect();
+        })()
+      ).rejects.toThrow(/right stream exhausted.*left stream continues/);
 
       // Lossless mode should preserve all left sequences
       const result = await seqops(toAsync(left))
@@ -2219,12 +2247,14 @@ describe("SeqOps", () => {
       // Left after filter: L2 (length 6)
       // Right after filter: R1 (length 6), R2 (length 4)
       // Strict mode should throw because streams have different lengths (1 vs 2)
-      await expect((async () => {
-        await seqops(toAsync(left))
-          .filter((seq) => seq.length > 3)
-          .interleave(seqops(toAsync(right)).filter((seq) => seq.length > 3))
-          .collect();
-      })()).rejects.toThrow(/left stream exhausted.*right stream continues/);
+      await expect(
+        (async () => {
+          await seqops(toAsync(left))
+            .filter((seq) => seq.length > 3)
+            .interleave(seqops(toAsync(right)).filter((seq) => seq.length > 3))
+            .collect();
+        })()
+      ).rejects.toThrow(/left stream exhausted.*right stream continues/);
     });
 
     test("lossless mode with filter before interleaving preserves all sequences", async () => {

@@ -176,14 +176,16 @@ describe("ConcatProcessor", () => {
 
       const baseSequences = [createSequence("unique_id", "AAAAAAA")];
 
-      await expect((async () => {
-        await collect(
-          processor.process(createSource(baseSequences), {
-            sources: [file1, file2],
-            idConflictResolution: "error",
-          })
-        );
-      })()).rejects.toThrow(ConcatError);
+      await expect(
+        (async () => {
+          await collect(
+            processor.process(createSource(baseSequences), {
+              sources: [file1, file2],
+              idConflictResolution: "error",
+            })
+          );
+        })()
+      ).rejects.toThrow(ConcatError);
     });
 
     test("renames conflicting IDs with suffix strategy", async () => {
@@ -318,14 +320,16 @@ describe("ConcatProcessor", () => {
       const fastaFile = await createTempFasta(fastaSequences);
       const fastqFile = await createTempFastq(fastqSequences);
 
-      await expect((async () => {
-        await collect(
-          processor.process(createSource([]), {
-            sources: [fastaFile, fastqFile],
-            validateFormats: true,
-          })
-        );
-      })()).rejects.toThrow(ConcatError);
+      await expect(
+        (async () => {
+          await collect(
+            processor.process(createSource([]), {
+              sources: [fastaFile, fastqFile],
+              validateFormats: true,
+            })
+          );
+        })()
+      ).rejects.toThrow(ConcatError);
     });
 
     test("skips format validation when disabled", async () => {
@@ -441,23 +445,27 @@ describe("ConcatProcessor", () => {
     test("throws error for non-existent files", async () => {
       const nonExistentFile = createNonExistentPath();
 
-      await expect((async () => {
-        await collect(
-          processor.process(createSource([]), {
-            sources: [nonExistentFile],
-          })
-        );
-      })()).rejects.toThrow(ConcatError);
+      await expect(
+        (async () => {
+          await collect(
+            processor.process(createSource([]), {
+              sources: [nonExistentFile],
+            })
+          );
+        })()
+      ).rejects.toThrow(ConcatError);
     });
 
     test("throws error for empty sources array", async () => {
-      await expect((async () => {
-        await collect(
-          processor.process(createSource([]), {
-            sources: [],
-          })
-        );
-      })()).rejects.toThrow(ConcatError);
+      await expect(
+        (async () => {
+          await collect(
+            processor.process(createSource([]), {
+              sources: [],
+            })
+          );
+        })()
+      ).rejects.toThrow(ConcatError);
     });
 
     test("handles malformed FASTA files gracefully", async () => {
@@ -465,14 +473,16 @@ describe("ConcatProcessor", () => {
       await fs.writeFile(malformedFile, "This is not a valid FASTA file\n>incomplete", "utf-8");
       tempFiles.push(malformedFile);
 
-      await expect((async () => {
-        await collect(
-          processor.process(createSource([]), {
-            sources: [malformedFile],
-            validateFormats: true,
-          })
-        );
-      })()).rejects.toThrow();
+      await expect(
+        (async () => {
+          await collect(
+            processor.process(createSource([]), {
+              sources: [malformedFile],
+              validateFormats: true,
+            })
+          );
+        })()
+      ).rejects.toThrow();
     });
 
     test("handles permission errors", async () => {
@@ -484,13 +494,15 @@ describe("ConcatProcessor", () => {
         await fs.chmod(restrictedFile, 0o000); // Remove all permissions
         tempFiles.push(restrictedFile);
 
-        await expect((async () => {
-          await collect(
-            processor.process(createSource([]), {
-              sources: [restrictedFile],
-            })
-          );
-        })()).rejects.toThrow();
+        await expect(
+          (async () => {
+            await collect(
+              processor.process(createSource([]), {
+                sources: [restrictedFile],
+              })
+            );
+          })()
+        ).rejects.toThrow();
       } finally {
         // Restore permissions for cleanup
         try {

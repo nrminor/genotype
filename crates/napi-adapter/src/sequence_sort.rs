@@ -21,7 +21,11 @@ fn engine_err(e: engine::EngineError) -> napi::Error {
 impl FastqSequenceSorter {
     #[napi(factory)]
     #[allow(clippy::needless_pass_by_value)]
-    pub fn create(order: String, memory_budget: u32, temp_dir: Option<String>) -> napi::Result<Self> {
+    pub fn create(
+        order: String,
+        memory_budget: u32,
+        temp_dir: Option<String>,
+    ) -> napi::Result<Self> {
         let descending = match order.as_str() {
             "asc" => false,
             "desc" => true,

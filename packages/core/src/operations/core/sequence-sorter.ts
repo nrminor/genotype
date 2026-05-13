@@ -165,7 +165,6 @@ export interface SortOptions {
    * @default 'phred33'
    */
   qualityEncoding?: "phred33" | "phred64";
-
 }
 
 /**
@@ -330,8 +329,8 @@ export class SequenceSorter {
    * ```
    *
    * @remarks
-    * Memory usage is bounded by memoryBudget. For larger datasets,
-    * temporary files are created in tempDir.
+   * Memory usage is bounded by memoryBudget. For larger datasets,
+   * temporary files are created in tempDir.
    */
   async *sort(sequences: AsyncIterable<AbstractSequence>): AsyncGenerator<AbstractSequence> {
     if (this.options.by === "sequence") {
@@ -444,7 +443,10 @@ export class SequenceSorter {
 
   // Private helper methods
 
-  private getCompareFn(by: SortBy, order: SortOrder): (a: AbstractSequence, b: AbstractSequence) => number {
+  private getCompareFn(
+    by: SortBy,
+    order: SortOrder
+  ): (a: AbstractSequence, b: AbstractSequence) => number {
     if (typeof by === "function") {
       return by;
     }
@@ -561,7 +563,9 @@ export class SequenceSorter {
     sequences: AsyncIterable<AbstractSequence>
   ): AsyncGenerator<FastqSequence> {
     if (this.options.unique) {
-      throw new Error("sort({ by: 'sequence', unique: true }) is not supported by the native sorter");
+      throw new Error(
+        "sort({ by: 'sequence', unique: true }) is not supported by the native sorter"
+      );
     }
 
     const sorter = await createFastqSequenceSorter({

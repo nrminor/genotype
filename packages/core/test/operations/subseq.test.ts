@@ -557,14 +557,16 @@ describe("SubseqExtractor", () => {
       const sequences = [createSequence("seq1", "ATCGATCG")];
       const extractor = new SubseqExtractor();
 
-      await expect((async () => {
-        await collectResults(
-          extractor.extract(arrayToAsync(sequences), {
-            region: "1:5",
-            gtfFeatures: [{ seqname: "seq1", start: 1, end: 5, feature: "exon" }],
-          })
-        );
-      })()).rejects.toThrow("only one region specification method");
+      await expect(
+        (async () => {
+          await collectResults(
+            extractor.extract(arrayToAsync(sequences), {
+              region: "1:5",
+              gtfFeatures: [{ seqname: "seq1", start: 1, end: 5, feature: "exon" }],
+            })
+          );
+        })()
+      ).rejects.toThrow("only one region specification method");
     });
   });
 
@@ -573,40 +575,46 @@ describe("SubseqExtractor", () => {
       const sequences = [createSequence("seq1", "ATCGATCG")];
       const extractor = new SubseqExtractor();
 
-      await expect((async () => {
-        await collectResults(
-          extractor.extract(arrayToAsync(sequences), {
-            region: "invalid",
-          })
-        );
-      })()).rejects.toThrow("Invalid region format");
+      await expect(
+        (async () => {
+          await collectResults(
+            extractor.extract(arrayToAsync(sequences), {
+              region: "invalid",
+            })
+          );
+        })()
+      ).rejects.toThrow("Invalid region format");
     });
 
     test("throws on out of bounds region", async () => {
       const sequences = [createSequence("seq1", "ATCGATCG")];
       const extractor = new SubseqExtractor();
 
-      await expect((async () => {
-        await collectResults(
-          extractor.extract(arrayToAsync(sequences), {
-            region: "10:20",
-          })
-        );
-      })()).rejects.toThrow("Invalid coordinates");
+      await expect(
+        (async () => {
+          await collectResults(
+            extractor.extract(arrayToAsync(sequences), {
+              region: "10:20",
+            })
+          );
+        })()
+      ).rejects.toThrow("Invalid coordinates");
     });
 
     test("throws on invalid start/end positions", async () => {
       const sequences = [createSequence("seq1", "ATCGATCG")];
       const extractor = new SubseqExtractor();
 
-      await expect((async () => {
-        await collectResults(
-          extractor.extract(arrayToAsync(sequences), {
-            start: 5,
-            end: 3,
-          })
-        );
-      })()).rejects.toThrow("start < end");
+      await expect(
+        (async () => {
+          await collectResults(
+            extractor.extract(arrayToAsync(sequences), {
+              start: 5,
+              end: 3,
+            })
+          );
+        })()
+      ).rejects.toThrow("start < end");
     });
 
     test("handles empty input gracefully", async () => {
@@ -627,51 +635,59 @@ describe("SubseqExtractor", () => {
       const sequences = [createSequence("seq1", "ATCGATCG")];
       const extractor = new SubseqExtractor();
 
-      await expect((async () => {
-        await collectResults(extractor.extract(arrayToAsync(sequences), {}));
-      })()).rejects.toThrow("at least one region specification method");
+      await expect(
+        (async () => {
+          await collectResults(extractor.extract(arrayToAsync(sequences), {}));
+        })()
+      ).rejects.toThrow("at least one region specification method");
     });
 
     test("validates mutually exclusive options", async () => {
       const sequences = [createSequence("seq1", "ATCGATCG")];
       const extractor = new SubseqExtractor();
 
-      await expect((async () => {
-        await collectResults(
-          extractor.extract(arrayToAsync(sequences), {
-            region: "1:5",
-            bedRegions: [{ chromosome: "seq1", chromStart: 1, chromEnd: 5 }],
-          })
-        );
-      })()).rejects.toThrow("only one region specification method");
+      await expect(
+        (async () => {
+          await collectResults(
+            extractor.extract(arrayToAsync(sequences), {
+              region: "1:5",
+              bedRegions: [{ chromosome: "seq1", chromStart: 1, chromEnd: 5 }],
+            })
+          );
+        })()
+      ).rejects.toThrow("only one region specification method");
     });
 
     test("validates upstream/downstream requirements", async () => {
       const sequences = [createSequence("seq1", "ATCGATCG")];
       const extractor = new SubseqExtractor();
 
-      await expect((async () => {
-        await collectResults(
-          extractor.extract(arrayToAsync(sequences), {
-            region: "1:5",
-            upstream: -1,
-          })
-        );
-      })()).rejects.toThrow("upstream must be non-negative");
+      await expect(
+        (async () => {
+          await collectResults(
+            extractor.extract(arrayToAsync(sequences), {
+              region: "1:5",
+              upstream: -1,
+            })
+          );
+        })()
+      ).rejects.toThrow("upstream must be non-negative");
     });
 
     test("validates onlyFlank option requirements", async () => {
       const sequences = [createSequence("seq1", "ATCGATCG")];
       const extractor = new SubseqExtractor();
 
-      await expect((async () => {
-        await collectResults(
-          extractor.extract(arrayToAsync(sequences), {
-            region: "1:5",
-            onlyFlank: true,
-          })
-        );
-      })()).rejects.toThrow("upstream or downstream required with onlyFlank");
+      await expect(
+        (async () => {
+          await collectResults(
+            extractor.extract(arrayToAsync(sequences), {
+              region: "1:5",
+              onlyFlank: true,
+            })
+          );
+        })()
+      ).rejects.toThrow("upstream or downstream required with onlyFlank");
     });
   });
 

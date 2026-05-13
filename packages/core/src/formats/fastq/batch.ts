@@ -22,7 +22,9 @@ export function packFastqBatch(sequences: readonly FastqSequence[]): FastqBatch 
     nameOffsets.push(nameOffsets[nameOffsets.length - 1]! + name.length);
 
     const description =
-      sequence.description === undefined ? new Uint8Array(0) : utf8Encoder.encode(sequence.description);
+      sequence.description === undefined
+        ? new Uint8Array(0)
+        : utf8Encoder.encode(sequence.description);
     descriptionChunks.push(description);
     descriptionOffsets.push(
       descriptionOffsets[descriptionOffsets.length - 1]! + description.length

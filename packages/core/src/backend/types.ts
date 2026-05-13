@@ -260,9 +260,7 @@ export interface GenotypeBackend {
     caseInsensitive: boolean
   ): Promise<Uint8Array>;
 
-  createFastqSequenceSorter?(
-    options: FastqSequenceSortOptions
-  ): Promise<FastqSequenceSorterHandle>;
+  createFastqSequenceSorter?(options: FastqSequenceSortOptions): Promise<FastqSequenceSorterHandle>;
 
   // ── stateful readers ──────────────────────────────────────────
 

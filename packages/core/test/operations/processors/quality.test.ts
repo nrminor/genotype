@@ -165,15 +165,17 @@ describe("QualityProcessor", () => {
     test("throws error for invalid preset", async () => {
       const sequences = [createFastqSequence("seq1", "ATCG", "IIII")];
 
-      await expect((async () => {
-        await collect(
-          processor.process(createSource(sequences), {
-            bins: 3,
-            // @ts-expect-error Testing invalid preset
-            preset: "invalid",
-          })
-        );
-      })()).rejects.toThrow(/No preset found/);
+      await expect(
+        (async () => {
+          await collect(
+            processor.process(createSource(sequences), {
+              bins: 3,
+              // @ts-expect-error Testing invalid preset
+              preset: "invalid",
+            })
+          );
+        })()
+      ).rejects.toThrow(/No preset found/);
     });
 
     test("throws error on invalid binning preset", async () => {

@@ -1,4 +1,12 @@
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -44,12 +52,17 @@ const copyPackageDist = (packageKey, mutatePackageJson = (pkg) => pkg) => {
   const destination = join(publishRoot, packageKey);
 
   if (!existsSync(join(distDir, "package.json"))) {
-    throw new Error(`Missing built package at ${distDir}. Run the package build before staging publish artifacts.`);
+    throw new Error(
+      `Missing built package at ${distDir}. Run the package build before staging publish artifacts.`
+    );
   }
 
   mkdirSync(destination, { recursive: true });
   cpSync(distDir, destination, { recursive: true });
-  writeJson(join(destination, "package.json"), mutatePackageJson(readJson(join(destination, "package.json"))));
+  writeJson(
+    join(destination, "package.json"),
+    mutatePackageJson(readJson(join(destination, "package.json")))
+  );
   return destination;
 };
 
@@ -107,7 +120,9 @@ const stageWasmEngine = () => {
 
   for (const file of requiredFiles) {
     if (!existsSync(join(wasmPkgDir, file))) {
-      throw new Error(`Missing wasm artifact ${file}. Run the wasm build before staging publish artifacts.`);
+      throw new Error(
+        `Missing wasm artifact ${file}. Run the wasm build before staging publish artifacts.`
+      );
     }
   }
 
@@ -175,7 +190,10 @@ mkdirSync(publishRoot, { recursive: true });
 const wasmEngine = stageWasmEngine();
 const nativeEngines = stageNativeEngines();
 const optionalDependencies = Object.fromEntries(
-  [wasmEngine, ...nativeEngines].map((pkg) => [pkg.name, readJson(join(pkg.dir, "package.json")).version])
+  [wasmEngine, ...nativeEngines].map((pkg) => [
+    pkg.name,
+    readJson(join(pkg.dir, "package.json")).version,
+  ])
 );
 
 const coreDir = copyPackageDist("core", (pkg) => ({
@@ -184,17 +202,28 @@ const coreDir = copyPackageDist("core", (pkg) => ({
 }));
 const nativeLoader = join(packageRoots.core, "src", "native", "index.cjs");
 if (!existsSync(nativeLoader)) {
-  throw new Error("Missing generated native loader. Run the native build before staging publish artifacts.");
+  throw new Error(
+    "Missing generated native loader. Run the native build before staging publish artifacts."
+  );
 }
 mkdirSync(join(coreDir, "native"), { recursive: true });
 cpSync(nativeLoader, join(coreDir, "native", "index.cjs"));
-copyIfExists(join(packageRoots.core, "src", "native", "index.d.ts"), join(coreDir, "native", "index.d.ts"));
+copyIfExists(
+  join(packageRoots.core, "src", "native", "index.d.ts"),
+  join(coreDir, "native", "index.d.ts")
+);
 
 copyPackageDist("tabular");
 copyPackageDist("parquet");
 assertNoForbiddenPackageNames();
 
-const stagedPackages = ["core", "tabular", "parquet", basename(wasmEngine.dir), ...nativeEngines.map((pkg) => basename(pkg.dir))];
+const stagedPackages = [
+  "core",
+  "tabular",
+  "parquet",
+  basename(wasmEngine.dir),
+  ...nativeEngines.map((pkg) => basename(pkg.dir)),
+];
 console.log(`Staged publish packages in ${publishRoot}:`);
 for (const packageDirName of stagedPackages) {
   console.log(`- ${packageDirName}`);

@@ -2589,7 +2589,9 @@ export class SeqOps<T extends AbstractSequence> {
       );
     }
 
-    return new PairSeqOps<T>(processor.process({ mode: "single", source: this.source }, otherOrOptions));
+    return new PairSeqOps<T>(
+      processor.process({ mode: "single", source: this.source }, otherOrOptions)
+    );
   }
 
   interleavePairs(other: SeqOps<T>, options?: PairOptions): SeqOps<T>;
@@ -2717,9 +2719,7 @@ export class PairSeqOps<T extends AbstractSequence> implements AsyncIterable<Rea
   constructor(private readonly source: AsyncIterable<ReadPair<T>>) {}
 
   interleave(): SeqOps<T> {
-    async function* interleavePairs(
-      source: AsyncIterable<ReadPair<T>>
-    ): AsyncIterable<T> {
+    async function* interleavePairs(source: AsyncIterable<ReadPair<T>>): AsyncIterable<T> {
       for await (const pair of source) {
         yield pair.r1;
         yield pair.r2;
@@ -2729,10 +2729,7 @@ export class PairSeqOps<T extends AbstractSequence> implements AsyncIterable<Rea
     return new SeqOps<T>(interleavePairs(this.source));
   }
 
-  merge(
-    this: PairSeqOps<FastqSequence>,
-    options?: FastqPairMergeOptions
-  ): SeqOps<FastqSequence> {
+  merge(this: PairSeqOps<FastqSequence>, options?: FastqPairMergeOptions): SeqOps<FastqSequence> {
     const processor = new MergePairsProcessor();
     return new SeqOps<FastqSequence>(processor.process(this.source, options));
   }

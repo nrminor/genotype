@@ -94,10 +94,10 @@ export class SortProcessor {
     const validationResult = SortOptionsSchema(options);
     if (validationResult instanceof type.errors) {
       throw new ValidationError(
-          `Invalid sort configuration: ${validationResult.summary}`,
-          undefined,
-          "Check by strategy, memoryBudget, and qualityEncoding requirements"
-        );
+        `Invalid sort configuration: ${validationResult.summary}`,
+        undefined,
+        "Check by strategy, memoryBudget, and qualityEncoding requirements"
+      );
     }
 
     // Create memory-safe sorter with validated options

@@ -562,9 +562,11 @@ describe("Replace operation", () => {
         kvFile: "test/fixtures/invalid-kv.tsv",
       });
 
-      await expect((async () => {
-        await Array.fromAsync(iterator);
-      })()).rejects.toThrow("Invalid key-value file format");
+      await expect(
+        (async () => {
+          await Array.fromAsync(iterator);
+        })()
+      ).rejects.toThrow("Invalid key-value file format");
     });
 
     test("mutual exclusivity: TypeScript prevents both kvMap and kvFile", () => {
@@ -646,9 +648,11 @@ describe("Replace operation", () => {
         bySeq: true,
       });
 
-      await expect((async () => {
-        await Array.fromAsync(iterator);
-      })()).rejects.toThrow("Sequence replacement (bySeq option) is only supported for FASTA format");
+      await expect(
+        (async () => {
+          await Array.fromAsync(iterator);
+        })()
+      ).rejects.toThrow("Sequence replacement (bySeq option) is only supported for FASTA format");
     });
 
     test("remove gaps pattern (first occurrence only)", async () => {

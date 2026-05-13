@@ -166,14 +166,16 @@ describe("ConvertProcessor", () => {
     test("validates options with ArkType schema", async () => {
       const seq = createFastqSequence("test", "ATCG", "!!!!", "phred33");
 
-      await expect((async () => {
-        for await (const _ of processor.process(singleSequence(seq), {
-          // @ts-expect-error Testing invalid input
-          targetEncoding: "invalid",
-        })) {
-          // Should throw ValidationError
-        }
-      })()).rejects.toThrow(ValidationError);
+      await expect(
+        (async () => {
+          for await (const _ of processor.process(singleSequence(seq), {
+            // @ts-expect-error Testing invalid input
+            targetEncoding: "invalid",
+          })) {
+            // Should throw ValidationError
+          }
+        })()
+      ).rejects.toThrow(ValidationError);
     });
 
     test("converts Phred+33 to Solexa using non-linear mathematics", async () => {

@@ -348,9 +348,11 @@ describe("SequenceStatsCalculator", () => {
 
       const calculator = new SequenceStatsCalculator();
 
-      await expect((async () => {
-        await calculator.calculateStats(errorGenerator());
-      })()).rejects.toThrow("Statistics calculation failed");
+      await expect(
+        (async () => {
+          await calculator.calculateStats(errorGenerator());
+        })()
+      ).rejects.toThrow("Statistics calculation failed");
     });
 
     test("provides context in error messages", async () => {

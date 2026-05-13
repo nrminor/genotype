@@ -471,11 +471,13 @@ describe("LocateProcessor", () => {
     test("throws error for missing pattern", async () => {
       const options = {} as LocateOptions;
 
-      await expect((async () => {
-        for await (const _ of processor.locate(toAsyncIterable(testSequences), options)) {
-          // Validation should throw before yielding
-        }
-      })()).rejects.toThrow(ValidationError);
+      await expect(
+        (async () => {
+          for await (const _ of processor.locate(toAsyncIterable(testSequences), options)) {
+            // Validation should throw before yielding
+          }
+        })()
+      ).rejects.toThrow(ValidationError);
     });
 
     test("throws error for empty pattern", async () => {
@@ -483,11 +485,13 @@ describe("LocateProcessor", () => {
         pattern: "",
       };
 
-      await expect((async () => {
-        for await (const _ of processor.locate(toAsyncIterable(testSequences), options)) {
-          // Validation should throw before yielding
-        }
-      })()).rejects.toThrow(ValidationError);
+      await expect(
+        (async () => {
+          for await (const _ of processor.locate(toAsyncIterable(testSequences), options)) {
+            // Validation should throw before yielding
+          }
+        })()
+      ).rejects.toThrow(ValidationError);
     });
 
     test("throws error for negative mismatches", async () => {
@@ -496,11 +500,13 @@ describe("LocateProcessor", () => {
         allowMismatches: -1,
       };
 
-      await expect((async () => {
-        for await (const _ of processor.locate(toAsyncIterable(testSequences), options)) {
-          // Validation should throw before yielding
-        }
-      })()).rejects.toThrow(ValidationError);
+      await expect(
+        (async () => {
+          for await (const _ of processor.locate(toAsyncIterable(testSequences), options)) {
+            // Validation should throw before yielding
+          }
+        })()
+      ).rejects.toThrow(ValidationError);
     });
 
     test("throws error for regex with mismatches", async () => {
@@ -509,11 +515,13 @@ describe("LocateProcessor", () => {
         allowMismatches: 1,
       };
 
-      await expect((async () => {
-        for await (const _ of processor.locate(toAsyncIterable(testSequences), options)) {
-          // Validation should throw before yielding
-        }
-      })()).rejects.toThrow(ValidationError);
+      await expect(
+        (async () => {
+          for await (const _ of processor.locate(toAsyncIterable(testSequences), options)) {
+            // Validation should throw before yielding
+          }
+        })()
+      ).rejects.toThrow(ValidationError);
     });
 
     test("throws error for invalid max matches", async () => {
@@ -522,11 +530,13 @@ describe("LocateProcessor", () => {
         maxMatches: 0,
       };
 
-      await expect((async () => {
-        for await (const _ of processor.locate(toAsyncIterable(testSequences), options)) {
-          // Validation should throw before yielding
-        }
-      })()).rejects.toThrow(ValidationError);
+      await expect(
+        (async () => {
+          for await (const _ of processor.locate(toAsyncIterable(testSequences), options)) {
+            // Validation should throw before yielding
+          }
+        })()
+      ).rejects.toThrow(ValidationError);
     });
 
     test("throws error for invalid min length", async () => {
@@ -535,11 +545,13 @@ describe("LocateProcessor", () => {
         minLength: 0,
       };
 
-      await expect((async () => {
-        for await (const _ of processor.locate(toAsyncIterable(testSequences), options)) {
-          // Validation should throw before yielding
-        }
-      })()).rejects.toThrow(ValidationError);
+      await expect(
+        (async () => {
+          for await (const _ of processor.locate(toAsyncIterable(testSequences), options)) {
+            // Validation should throw before yielding
+          }
+        })()
+      ).rejects.toThrow(ValidationError);
     });
 
     test("throws error for invalid output format", async () => {
@@ -548,11 +560,13 @@ describe("LocateProcessor", () => {
         outputFormat: "invalid",
       } as unknown as LocateOptions;
 
-      await expect((async () => {
-        for await (const _ of processor.locate(toAsyncIterable(testSequences), options)) {
-          // Validation should throw before yielding
-        }
-      })()).rejects.toThrow(ValidationError);
+      await expect(
+        (async () => {
+          for await (const _ of processor.locate(toAsyncIterable(testSequences), options)) {
+            // Validation should throw before yielding
+          }
+        })()
+      ).rejects.toThrow(ValidationError);
     });
   });
 

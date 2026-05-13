@@ -752,11 +752,13 @@ GGGGGGGGGGGGGGGG
 
       const regions = ["chr1:1-10", "invalid_chromosome", "chr2:1-10"];
 
-      await expect((async () => {
-        for await (const _ of faidx.extractMany(regions)) {
-          // Should throw on second region
-        }
-      })()).rejects.toThrow(/Sequence "invalid_chromosome" not found/);
+      await expect(
+        (async () => {
+          for await (const _ of faidx.extractMany(regions)) {
+            // Should throw on second region
+          }
+        })()
+      ).rejects.toThrow(/Sequence "invalid_chromosome" not found/);
     });
 
     test("skips invalid regions when onError='skip'", async () => {

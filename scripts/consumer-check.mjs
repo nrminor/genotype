@@ -94,13 +94,13 @@ runConsumer("wasm", {}, ["check", "runtime:engine-wasm"]);
 
 const nativePackageName = currentNativePackageName();
 if (nativePackageName && packageTarballs.has(nativePackageName)) {
-  runConsumer(
-    "native",
-    { [nativePackageName]: `file:${requireTarball(nativePackageName)}` },
-    ["runtime:engine-native"]
-  );
+  runConsumer("native", { [nativePackageName]: `file:${requireTarball(nativePackageName)}` }, [
+    "runtime:engine-native",
+  ]);
 } else {
-  console.warn(`Skipping native consumer check: no tarball for ${nativePackageName ?? process.platform}`);
+  console.warn(
+    `Skipping native consumer check: no tarball for ${nativePackageName ?? process.platform}`
+  );
 }
 
 console.log("✅ External consumer checks passed");

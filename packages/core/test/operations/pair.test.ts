@@ -237,11 +237,13 @@ describe("PairProcessor", () => {
       ]);
       const r2 = toAsyncIterable([createFastq("read3/2", "CCCC", "IIII")]);
 
-      await expect((async () => {
-        await Array.fromAsync(
-          processor.process({ mode: "dual", source1: r1, source2: r2 }, { maxBufferSize: 1 })
-        );
-      })()).rejects.toThrow(MemoryError);
+      await expect(
+        (async () => {
+          await Array.fromAsync(
+            processor.process({ mode: "dual", source1: r1, source2: r2 }, { maxBufferSize: 1 })
+          );
+        })()
+      ).rejects.toThrow(MemoryError);
     });
 
     test("warns at 80% buffer threshold", async () => {
@@ -299,11 +301,13 @@ describe("PairProcessor", () => {
       const r1 = toAsyncIterable([createFastq("orphan/1", "AAAA", "IIII")]);
       const r2 = toAsyncIterable([createFastq("other/2", "TTTT", "IIII")]);
 
-      await expect((async () => {
-        await Array.fromAsync(
-          processor.process({ mode: "dual", source1: r1, source2: r2 }, { onUnpaired: "error" })
-        );
-      })()).rejects.toThrow(PairSyncError);
+      await expect(
+        (async () => {
+          await Array.fromAsync(
+            processor.process({ mode: "dual", source1: r1, source2: r2 }, { onUnpaired: "error" })
+          );
+        })()
+      ).rejects.toThrow(PairSyncError);
     });
   });
 });
@@ -565,7 +569,9 @@ describe("SeqOps.interleavePairs() integration", () => {
       const r1 = new SeqOps(toAsyncIterable(r1Data));
       const r2 = new SeqOps(toAsyncIterable(r2Data));
 
-      const results = await Array.fromAsync(r1.interleavePairs(r2, { extractPairId: extractNoSuffix }));
+      const results = await Array.fromAsync(
+        r1.interleavePairs(r2, { extractPairId: extractNoSuffix })
+      );
 
       expect(results).toHaveLength(2);
       expect(results[0]!.sequence).toEqualSequence("AAAA");
@@ -596,9 +602,11 @@ describe("SeqOps.interleavePairs() integration", () => {
       const r1 = new SeqOps(toAsyncIterable(r1Data));
       const r2 = new SeqOps(toAsyncIterable(r2Data));
 
-      await expect((async () => {
-        await Array.fromAsync(r1.interleavePairs(r2, { maxBufferSize: 0 }));
-      })()).rejects.toThrow(MemoryError);
+      await expect(
+        (async () => {
+          await Array.fromAsync(r1.interleavePairs(r2, { maxBufferSize: 0 }));
+        })()
+      ).rejects.toThrow(MemoryError);
     });
 
     test("handles negative maxBufferSize by treating as invalid", async () => {
@@ -608,9 +616,11 @@ describe("SeqOps.interleavePairs() integration", () => {
       const r1 = new SeqOps(toAsyncIterable(r1Data));
       const r2 = new SeqOps(toAsyncIterable(r2Data));
 
-      await expect((async () => {
-        await Array.fromAsync(r1.interleavePairs(r2, { maxBufferSize: -1 }));
-      })()).rejects.toThrow(MemoryError);
+      await expect(
+        (async () => {
+          await Array.fromAsync(r1.interleavePairs(r2, { maxBufferSize: -1 }));
+        })()
+      ).rejects.toThrow(MemoryError);
     });
 
     test("validates onUnpaired mode at runtime", async () => {
@@ -620,7 +630,9 @@ describe("SeqOps.interleavePairs() integration", () => {
       const r1 = new SeqOps(toAsyncIterable(r1Data));
       const r2 = new SeqOps(toAsyncIterable(r2Data));
 
-      const results = await Array.fromAsync(r1.interleavePairs(r2, { onUnpaired: "warn" as const }));
+      const results = await Array.fromAsync(
+        r1.interleavePairs(r2, { onUnpaired: "warn" as const })
+      );
 
       expect(results).toHaveLength(2);
     });

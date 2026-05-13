@@ -208,14 +208,16 @@ describe("CleanProcessor", () => {
         yield input;
       };
 
-      await expect((async () => {
-        for await (const _ of processor.process(source(), {
-          replaceAmbiguous: true,
-          replaceChar: "NN",
-        })) {
-          // Should throw before yielding
-        }
-      })()).rejects.toThrow(ValidationError);
+      await expect(
+        (async () => {
+          for await (const _ of processor.process(source(), {
+            replaceAmbiguous: true,
+            replaceChar: "NN",
+          })) {
+            // Should throw before yielding
+          }
+        })()
+      ).rejects.toThrow(ValidationError);
     });
 
     test("rejects replaceChar that is not a valid nucleotide when replaceAmbiguous is true", async () => {
@@ -224,14 +226,16 @@ describe("CleanProcessor", () => {
         yield input;
       };
 
-      await expect((async () => {
-        for await (const _ of processor.process(source(), {
-          replaceAmbiguous: true,
-          replaceChar: "X",
-        })) {
-          // Should throw before yielding
-        }
-      })()).rejects.toThrow(ValidationError);
+      await expect(
+        (async () => {
+          for await (const _ of processor.process(source(), {
+            replaceAmbiguous: true,
+            replaceChar: "X",
+          })) {
+            // Should throw before yielding
+          }
+        })()
+      ).rejects.toThrow(ValidationError);
     });
 
     test("accepts valid nucleotide characters for replaceChar", async () => {
@@ -259,14 +263,16 @@ describe("CleanProcessor", () => {
         yield input;
       };
 
-      await expect((async () => {
-        for await (const _ of processor.process(source(), {
-          removeGaps: true,
-          gapChars: "",
-        })) {
-          // Should throw before yielding
-        }
-      })()).rejects.toThrow(ValidationError);
+      await expect(
+        (async () => {
+          for await (const _ of processor.process(source(), {
+            removeGaps: true,
+            gapChars: "",
+          })) {
+            // Should throw before yielding
+          }
+        })()
+      ).rejects.toThrow(ValidationError);
     });
   });
 });

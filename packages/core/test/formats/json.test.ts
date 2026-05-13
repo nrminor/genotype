@@ -122,11 +122,13 @@ describe("JSON Format - JSONParser", () => {
 
       const parser = new JSONParser();
 
-      await expect((async () => {
-        for await (const _ of parser.parseString(invalidJson)) {
-          // Should throw before yielding
-        }
-      })()).rejects.toThrow(ParseError);
+      await expect(
+        (async () => {
+          for await (const _ of parser.parseString(invalidJson)) {
+            // Should throw before yielding
+          }
+        })()
+      ).rejects.toThrow(ParseError);
     });
 
     test("throws ParseError when required id field missing", async () => {
@@ -134,11 +136,13 @@ describe("JSON Format - JSONParser", () => {
 
       const parser = new JSONParser();
 
-      await expect((async () => {
-        for await (const _ of parser.parseString(json)) {
-          // Should throw on validation
-        }
-      })()).rejects.toThrow(ParseError);
+      await expect(
+        (async () => {
+          for await (const _ of parser.parseString(json)) {
+            // Should throw on validation
+          }
+        })()
+      ).rejects.toThrow(ParseError);
     });
 
     test("handles empty array", async () => {

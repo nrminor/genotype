@@ -25,7 +25,8 @@ use crate::{fastq::FastqBatch, validate_offsets, EngineError};
 type SortCodec = DryIceCodec<TwoBitExactCodec, RawQualityCodec, RawNameCodec>;
 type SortError = MergeError<dryice::DryIceError>;
 
-type AscSorter = Sorter<SeqRecord, SequenceQualityKey, SortCodec, Natural, Identity, Sequential, Basic>;
+type AscSorter =
+    Sorter<SeqRecord, SequenceQualityKey, SortCodec, Natural, Identity, Sequential, Basic>;
 type DescSorter = Sorter<
     SeqRecord,
     SequenceQualityKey,
@@ -379,7 +380,11 @@ fn append_record(batch: &mut FastqBatch, record: &SeqRecord) -> Result<(), Engin
     )?;
 
     batch.quality_data.extend_from_slice(record.quality());
-    push_offset(&mut batch.quality_offsets, batch.quality_data.len(), "quality")?;
+    push_offset(
+        &mut batch.quality_offsets,
+        batch.quality_data.len(),
+        "quality",
+    )?;
 
     batch.count += 1;
     Ok(())
@@ -443,8 +448,8 @@ mod tests {
         while let Some(batch) = sorter.read_batch(2).unwrap() {
             for index in 0..batch.count as usize {
                 names.push(
-                    batch.name_data
-                        [batch.name_offsets[index] as usize..batch.name_offsets[index + 1] as usize]
+                    batch.name_data[batch.name_offsets[index] as usize
+                        ..batch.name_offsets[index + 1] as usize]
                         .to_vec(),
                 );
             }
@@ -483,7 +488,10 @@ mod tests {
             temp_dir: None,
         });
 
-        push_records(&mut sorter, &[(b"a", b"AAAA", b"!!!!"), (b"c", b"CCCC", b"!!!!")]);
+        push_records(
+            &mut sorter,
+            &[(b"a", b"AAAA", b"!!!!"), (b"c", b"CCCC", b"!!!!")],
+        );
 
         assert_eq!(collect_names(sorter), vec![b"c".to_vec(), b"a".to_vec()]);
     }

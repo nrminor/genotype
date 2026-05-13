@@ -1,3 +1,4 @@
+import { collectAsync } from "../utils/iterables";
 import { describe, expect, test } from "vitest";
 import "../matchers";
 import {
@@ -26,7 +27,7 @@ describe("Replace operation", () => {
     test("simple pattern replacement", async () => {
       const input: FastaRecordInput[] = [{ id: "seq1", sequence: "ATCG" }];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "seq",
           replacement: "sample",
@@ -43,7 +44,7 @@ describe("Replace operation", () => {
         { id: "ENSG00000012048.12", sequence: "GCTA" },
       ];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "\\.\\d+$",
           replacement: "",
@@ -60,7 +61,7 @@ describe("Replace operation", () => {
         { id: "seq2", sequence: "GCTA" },
       ];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "^",
           replacement: "sample_",
@@ -77,7 +78,7 @@ describe("Replace operation", () => {
         { id: "gene2", sequence: "GCTA" },
       ];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "$",
           replacement: "_v1",
@@ -94,7 +95,7 @@ describe("Replace operation", () => {
         { id: "sample_002_tissue_B", sequence: "GCTA" },
       ];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "_",
           replacement: "-",
@@ -108,7 +109,7 @@ describe("Replace operation", () => {
     test("empty replacement (deletion)", async () => {
       const input: FastaRecordInput[] = [{ id: "chr1:100-200", sequence: "ATCG" }];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "chr",
           replacement: "",
@@ -123,7 +124,7 @@ describe("Replace operation", () => {
     test("single capture group", async () => {
       const input: FastaRecordInput[] = [{ id: "gene123", sequence: "ATCG" }];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "^([a-z]+)\\d+$",
           replacement: "$1_X",
@@ -136,7 +137,7 @@ describe("Replace operation", () => {
     test("multiple capture groups (reorder)", async () => {
       const input: FastaRecordInput[] = [{ id: "gene123", sequence: "ATCG" }];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "^([a-z]+)(\\d+)$",
           replacement: "$2_$1",
@@ -149,7 +150,7 @@ describe("Replace operation", () => {
     test("three capture groups (restructure database IDs)", async () => {
       const input: FastaRecordInput[] = [{ id: "ENSG00000139618.15", sequence: "ATCG" }];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "^(ENSG)(\\d+)\\.(\\d+)$",
           replacement: "$1-$2_v$3",
@@ -162,7 +163,7 @@ describe("Replace operation", () => {
     test("capture with surrounding text preserved", async () => {
       const input: FastaRecordInput[] = [{ id: "patient_001_sample_A", sequence: "ATCG" }];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "patient_(\\d+)",
           replacement: "subject_$1",
@@ -175,14 +176,14 @@ describe("Replace operation", () => {
     test("both $N and ${N} syntax work identically", async () => {
       const input: FastaRecordInput[] = [{ id: "gene123", sequence: "ATCG" }];
 
-      const result1 = await Array.fromAsync(
+      const result1 = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "^([a-z]+)(\\d+)$",
           replacement: "$1_$2",
         })
       );
 
-      const result2 = await Array.fromAsync(
+      const result2 = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "^([a-z]+)(\\d+)$",
           replacement: "${1}_${2}",
@@ -202,7 +203,7 @@ describe("Replace operation", () => {
         { id: "Gene789", sequence: "TTAA" },
       ];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "gene",
           replacement: "transcript",
@@ -221,7 +222,7 @@ describe("Replace operation", () => {
         { id: "gene456", sequence: "GCTA" },
       ];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "gene",
           replacement: "transcript",
@@ -237,7 +238,7 @@ describe("Replace operation", () => {
     test("handles empty sequence stream", async () => {
       const input: FastaRecordInput[] = [];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "test",
           replacement: "replacement",
@@ -250,7 +251,7 @@ describe("Replace operation", () => {
     test("preserves sequences when pattern doesn't match", async () => {
       const input: FastaRecordInput[] = [{ id: "seq1", sequence: "ATCG" }];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "NOMATCH",
           replacement: "replaced",
@@ -265,7 +266,7 @@ describe("Replace operation", () => {
         { id: "seq1", description: "important metadata", sequence: "ATCGATCGATCG" },
       ];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "seq",
           replacement: "sample",
@@ -282,7 +283,7 @@ describe("Replace operation", () => {
     test("handles special regex characters in pattern", async () => {
       const input: FastaRecordInput[] = [{ id: "seq.1", sequence: "ATCG" }];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "\\.",
           replacement: "_",
@@ -295,7 +296,7 @@ describe("Replace operation", () => {
     test("replaces only first occurrence (non-global)", async () => {
       const input: FastaRecordInput[] = [{ id: "chr1|chr2|chr3", sequence: "ATCG" }];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "chr",
           replacement: "chromosome",
@@ -314,7 +315,7 @@ describe("Replace operation", () => {
         { id: "seq3", sequence: "TTAA" },
       ];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "seq\\d+",
           replacement: "sample_{nr}",
@@ -333,7 +334,7 @@ describe("Replace operation", () => {
         { id: "seq10", sequence: "TTAA" },
       ];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "seq\\d+",
           replacement: "sample_{nr}",
@@ -352,7 +353,7 @@ describe("Replace operation", () => {
         { id: "seq2", sequence: "GCTA" },
       ];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "^seq",
           replacement: "{fbn}_{fbne}",
@@ -369,7 +370,7 @@ describe("Replace operation", () => {
     test("dollar sign escaping ($$)", async () => {
       const input: FastaRecordInput[] = [{ id: "seq1", sequence: "ATCG" }];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "seq",
           replacement: "price_$$100",
@@ -396,7 +397,7 @@ describe("Replace operation", () => {
         EGFR: "epidermal_growth_factor_receptor",
       };
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "gene_(\\w+)",
           replacement: "{kv}",
@@ -419,7 +420,7 @@ describe("Replace operation", () => {
         BRCA1: "breast_cancer_1",
       };
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "gene_(\\w+)",
           replacement: "{kv}",
@@ -442,7 +443,7 @@ describe("Replace operation", () => {
         BRCA1: "breast_cancer_1",
       };
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "gene_(\\w+)",
           replacement: "{kv}",
@@ -465,7 +466,7 @@ describe("Replace operation", () => {
         BRCA1: "breast_cancer_1",
       };
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "gene_(\\w+)",
           replacement: "{kv}",
@@ -488,7 +489,7 @@ describe("Replace operation", () => {
         BRCA1: "breast_cancer_1",
       };
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "gene_(\\w+)",
           replacement: "{kv}",
@@ -507,7 +508,7 @@ describe("Replace operation", () => {
         v1: "version_one",
       };
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "gene_(\\w+)_(\\w+)",
           replacement: "$1_{kv}",
@@ -524,7 +525,7 @@ describe("Replace operation", () => {
 
       const kvMap = new Map([["BRCA1", "breast_cancer_1"]]);
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "gene_(\\w+)",
           replacement: "{kv}",
@@ -541,7 +542,7 @@ describe("Replace operation", () => {
         { id: "gene_TP53", sequence: "GCTA" },
       ];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "gene_(\\w+)",
           replacement: "{kv}",
@@ -564,7 +565,7 @@ describe("Replace operation", () => {
 
       await expect(
         (async () => {
-          await Array.fromAsync(iterator);
+          await collectAsync(iterator);
         })()
       ).rejects.toThrow("Invalid key-value file format");
     });
@@ -623,7 +624,7 @@ describe("Replace operation", () => {
         { id: "seq2", sequence: "GCTA-GCTA" },
       ];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "-",
           replacement: "",
@@ -650,7 +651,7 @@ describe("Replace operation", () => {
 
       await expect(
         (async () => {
-          await Array.fromAsync(iterator);
+          await collectAsync(iterator);
         })()
       ).rejects.toThrow("Sequence replacement (bySeq option) is only supported for FASTA format");
     });
@@ -658,7 +659,7 @@ describe("Replace operation", () => {
     test("remove gaps pattern (first occurrence only)", async () => {
       const input: FastaRecordInput[] = [{ id: "seq1", sequence: "ATCG-AT CG.ATCG" }];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "[-. ]",
           replacement: "",
@@ -673,7 +674,7 @@ describe("Replace operation", () => {
     test("add space to first base (first occurrence only)", async () => {
       const input: FastaRecordInput[] = [{ id: "seq1", sequence: "ATCG" }];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "(.)",
           replacement: "$1 ",
@@ -690,7 +691,7 @@ describe("Replace operation", () => {
         { id: "seq1", description: "important metadata", sequence: "ATCG-ATCG" },
       ];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "-",
           replacement: "",
@@ -707,7 +708,7 @@ describe("Replace operation", () => {
     test("bySeq with capture groups in sequences", async () => {
       const input: FastaRecordInput[] = [{ id: "seq1", sequence: "ATCGATCG" }];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "(ATC)(G)",
           replacement: "$2$1",
@@ -728,7 +729,7 @@ describe("Replace operation", () => {
         { id: "control_001", sequence: "TTAA" },
       ];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "^gene",
           replacement: "sample",
@@ -748,7 +749,7 @@ describe("Replace operation", () => {
         { id: "seqABC", sequence: "TTAA" },
       ];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "seq",
           replacement: "sample",
@@ -769,7 +770,7 @@ describe("Replace operation", () => {
         { id: "control_003", sequence: "TTAA" },
       ];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "^([a-z]+)",
           replacement: "test",
@@ -790,7 +791,7 @@ describe("Replace operation", () => {
         { id: "seq3", sequence: "TTAATTAA" },
       ];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "seq",
           replacement: "sample",
@@ -811,7 +812,7 @@ describe("Replace operation", () => {
         { id: "seq3", sequence: "TTAA" },
       ];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "seq",
           replacement: "sample",
@@ -832,7 +833,7 @@ describe("Replace operation", () => {
         { id: "Gene_003", sequence: "TTAA" },
       ];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "^[A-Za-z]+",
           replacement: "sample",
@@ -854,7 +855,7 @@ describe("Replace operation", () => {
         { id: "control_001", sequence: "TTAA" },
       ];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "^[a-z]+",
           replacement: "sample",
@@ -874,7 +875,7 @@ describe("Replace operation", () => {
         { id: "Control_003", sequence: "TTAA" },
       ];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "^[A-Za-z]+",
           replacement: "test",
@@ -896,7 +897,7 @@ describe("Replace operation", () => {
         { id: "seq2", sequence: "GCTA" },
       ];
 
-      const result = await Array.fromAsync(
+      const result = await collectAsync(
         replace(fastaToAsync(input), {
           pattern: "seq",
           replacement: "sample",

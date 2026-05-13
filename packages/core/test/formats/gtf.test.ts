@@ -17,6 +17,7 @@
  * Following AGENTS.md principle: "Respect existing code - understand why it exists before changing"
  */
 
+import { collectAsync } from "../utils/iterables";
 import { beforeEach, describe, expect, test } from "vitest";
 import { GenotypeError } from "@genotype/core/errors";
 import { GtfParser, GtfUtils, GtfWriter, type GtfFeature } from "@genotype/core/formats/gtf";
@@ -31,7 +32,7 @@ describe("GTF Format - Current Implementation Behavior", () => {
 
   test("parses standard GTF feature", async () => {
     const gtfData = `chr1\tHAVANA\tgene\t1000\t2000\t.\t+\t.\tgene_id "ENSG001"; gene_type "protein_coding";`;
-    const [feature] = await Array.fromAsync(parser.parseString(gtfData));
+    const [feature] = await collectAsync(parser.parseString(gtfData));
 
     expect(feature!.seqname).toBe("chr1");
     expect(feature!.source).toBe("HAVANA");
@@ -45,7 +46,7 @@ describe("GTF Format - Current Implementation Behavior", () => {
 
   test("parses CDS with frame", async () => {
     const cdsData = `chr1\tHAVANA\tCDS\t1000\t2000\t100.5\t+\t0\tgene_id "ENSG001"; transcript_id "ENST001";`;
-    const [feature] = await Array.fromAsync(parser.parseString(cdsData));
+    const [feature] = await collectAsync(parser.parseString(cdsData));
 
     expect(feature!.feature).toBe("CDS");
     expect(feature!.score).toBe(100.5);
@@ -58,7 +59,7 @@ chr1\tHAVANA\tgene\t1000\t2000\t.\t+\t.\tgene_id "ENSG001";
 
 chr2\tHAVANA\tgene\t3000\t4000\t.\t-\t.\tgene_id "ENSG002";`;
 
-    const features = await Array.fromAsync(parser.parseString(dataWithComments));
+    const features = await collectAsync(parser.parseString(dataWithComments));
     expect(features).toHaveLength(2);
   });
 
@@ -103,7 +104,7 @@ describe("GTF Database Format Variations", () => {
       // Real GENCODE pattern: embedded version numbers, extensive metadata
       const gencodeGene = `chr19\tHAVANA\tgene\t405438\t409170\t.\t-\t.\tgene_id "ENSG00000183186.7"; gene_type "protein_coding"; gene_name "C2CD4C"; level 2; havana_gene "OTTHUMG00000180534.3";`;
 
-      const [feature] = await Array.fromAsync(parser.parseString(gencodeGene));
+      const [feature] = await collectAsync(parser.parseString(gencodeGene));
 
       expect(feature!.seqname).toBe("chr19");
       expect(feature!.source).toBe("HAVANA");
@@ -124,7 +125,7 @@ describe("GTF Database Format Variations", () => {
       // Real GENCODE pattern: multiple tag attributes requiring aggregation
       const multiTagExon = `chr19\tHAVANA\texon\t405438\t405620\t.\t-\t.\tgene_id "ENSG00000183186.7"; transcript_id "ENST00000332235.7"; exon_number 2; exon_id "ENSE00001290344.6"; tag "basic"; tag "appris_principal_1"; tag "CCDS"; ccdsid "CCDS45890.1";`;
 
-      const [feature] = await Array.fromAsync(parser.parseString(multiTagExon));
+      const [feature] = await collectAsync(parser.parseString(multiTagExon));
 
       // Document current behavior with multiple same-key attributes
       expect(feature!.attributes.gene_id).toBe("ENSG00000183186.7");
@@ -141,7 +142,7 @@ describe("GTF Database Format Variations", () => {
       // Real GENCODE pattern: transcript support levels and APPRIS annotations
       const gencodeTranscript = `chr19\tHAVANA\ttranscript\t405438\t409170\t.\t-\t.\tgene_id "ENSG00000183186.7"; transcript_id "ENST00000332235.7"; transcript_type "protein_coding"; transcript_name "C2CD4C-001"; transcript_support_level "2"; tag "basic"; tag "appris_principal_1";`;
 
-      const [feature] = await Array.fromAsync(parser.parseString(gencodeTranscript));
+      const [feature] = await collectAsync(parser.parseString(gencodeTranscript));
 
       expect(feature!.feature).toBe("transcript");
       expect(feature!.attributes.transcript_type).toBe("protein_coding");
@@ -160,7 +161,7 @@ describe("GTF Database Format Variations", () => {
       // Real Ensembl pattern: gene_biotype instead of gene_type, separate versions
       const ensemblGene = `1\ttranscribed_unprocessed_pseudogene\tgene\t11869\t14409\t.\t+\t.\tgene_id "ENSG00000223972"; gene_name "DDX11L1"; gene_source "havana"; gene_biotype "transcribed_unprocessed_pseudogene"; gene_version "5";`;
 
-      const [feature] = await Array.fromAsync(parser.parseString(ensemblGene));
+      const [feature] = await collectAsync(parser.parseString(ensemblGene));
 
       expect(feature!.seqname).toBe("1"); // Chromosome without "chr" prefix
       expect(feature!.source).toBe("transcribed_unprocessed_pseudogene");
@@ -177,7 +178,7 @@ describe("GTF Database Format Variations", () => {
       // Ensembl transcript with transcript_biotype attribute
       const ensemblTranscript = `1\tprotein_coding\ttranscript\t65419\t71585\t.\t+\t.\tgene_id "ENSG00000186092"; transcript_id "ENST00000641515"; gene_name "OR4F5"; gene_source "ensembl"; gene_biotype "protein_coding"; transcript_name "OR4F5-202"; transcript_source "ensembl"; transcript_biotype "protein_coding"; transcript_version "2";`;
 
-      const [feature] = await Array.fromAsync(parser.parseString(ensemblTranscript));
+      const [feature] = await collectAsync(parser.parseString(ensemblTranscript));
 
       expect(feature!.feature).toBe("transcript");
       expect(feature!.attributes.gene_biotype).toBe("protein_coding");
@@ -189,8 +190,8 @@ describe("GTF Database Format Variations", () => {
       const gencodeData = `chr1\tGENCODE\tgene\t1000\t2000\t.\t+\t.\tgene_id "ENSG001.1"; gene_type "protein_coding"; level "2";`;
       const ensemblData = `chr1\tEnsembl\tgene\t1000\t2000\t.\t+\t.\tgene_id "ENSG001"; gene_biotype "protein_coding"; gene_version "1";`;
 
-      const gencodeFeature = (await Array.fromAsync(parser.parseString(gencodeData)))[0];
-      const ensemblFeature = (await Array.fromAsync(parser.parseString(ensemblData)))[0];
+      const gencodeFeature = (await collectAsync(parser.parseString(gencodeData)))[0];
+      const ensemblFeature = (await collectAsync(parser.parseString(ensemblData)))[0];
 
       // Document different attribute naming patterns
       expect(gencodeFeature!.attributes.gene_type).toBe("protein_coding");
@@ -209,7 +210,7 @@ describe("GTF Database Format Variations", () => {
       // RefSeq converted to GTF format with different naming conventions
       const refseqGene = `NC_000001.11\tRefSeq\tgene\t11869\t14409\t.\t+\t.\tgene_id "LOC100287102"; gene_name "DDX11L1"; gene_biotype "transcribed_unprocessed_pseudogene"; Dbxref "GeneID:100287102";`;
 
-      const [feature] = await Array.fromAsync(parser.parseString(refseqGene));
+      const [feature] = await collectAsync(parser.parseString(refseqGene));
 
       expect(feature!.seqname).toBe("NC_000001.11"); // RefSeq accession
       expect(feature!.source).toBe("RefSeq");
@@ -231,7 +232,7 @@ describe("GTF Database Format Variations", () => {
       };
 
       for (const [format, gtfData] of Object.entries(formats)) {
-        const [feature] = await Array.fromAsync(parser.parseString(gtfData));
+        const [feature] = await collectAsync(parser.parseString(gtfData));
 
         // Document that all formats parse successfully
         expect(feature!.seqname).toMatch(/^(chr1|1|NC_000001\.11)$/);
@@ -270,7 +271,7 @@ describe("GTF Real-World Edge Cases and Recovery", () => {
 
       // Document current behavior - may parse successfully or throw helpful error
       try {
-        const [feature] = await Array.fromAsync(parser.parseString(missingQuotesData));
+        const [feature] = await collectAsync(parser.parseString(missingQuotesData));
 
         // If parsing succeeds, verify reasonable attribute extraction
         expect(feature!.seqname).toBe("chr1");
@@ -288,7 +289,7 @@ describe("GTF Real-World Edge Cases and Recovery", () => {
       const emptyValuesData = `chr1\tHAVANA\tgene\t1000\t2000\t.\t+\t.\tgene_id ""; gene_name ""; transcript_id "ENST001";`;
 
       try {
-        const [feature] = await Array.fromAsync(parser.parseString(emptyValuesData));
+        const [feature] = await collectAsync(parser.parseString(emptyValuesData));
 
         // Empty values should be preserved or handled gracefully
         expect(feature!.seqname).toBe("chr1");
@@ -306,7 +307,7 @@ describe("GTF Real-World Edge Cases and Recovery", () => {
       // Common formatting inconsistency: extra whitespace around values
       const whitespaceData = `chr1\tHAVANA\tgene\t1000\t2000\t.\t+\t.\tgene_id  "ENSG00000123456"  ;  gene_name   "TEST_GENE"  ;`;
 
-      const [feature] = await Array.fromAsync(parser.parseString(whitespaceData));
+      const [feature] = await collectAsync(parser.parseString(whitespaceData));
 
       // Whitespace should be trimmed properly
       expect(feature!.attributes.gene_id).toBe("ENSG00000123456");
@@ -317,7 +318,7 @@ describe("GTF Real-World Edge Cases and Recovery", () => {
       // Parsing nightmare: missing semicolon separators
       const missingSemicolonsData = `chr1\tHAVANA\tgene\t1000\t2000\t.\t+\t.\tgene_id "ENSG00000123456" gene_name "TEST" transcript_id "ENST001"`;
 
-      const [feature] = await Array.fromAsync(parser.parseString(missingSemicolonsData));
+      const [feature] = await collectAsync(parser.parseString(missingSemicolonsData));
 
       // Current implementation treats whole string as single attribute value
       // This documents the actual behavior - the regex matches the first key-value pair
@@ -331,7 +332,7 @@ describe("GTF Real-World Edge Cases and Recovery", () => {
       // Real gene names with hyphens, periods, and numbers
       const specialCharsData = `chr1\tHAVANA\tgene\t1000\t2000\t.\t+\t.\tgene_id "ENSG00000123456.7"; gene_name "LINC-PINT"; transcript_name "AC016738.7-201";`;
 
-      const [feature] = await Array.fromAsync(parser.parseString(specialCharsData));
+      const [feature] = await collectAsync(parser.parseString(specialCharsData));
 
       expect(feature!.attributes.gene_id).toBe("ENSG00000123456.7");
       expect(feature!.attributes.gene_name).toBe("LINC-PINT");
@@ -357,7 +358,7 @@ describe("GTF Real-World Edge Cases and Recovery", () => {
       for (const testCase of malformedTests) {
         // Document current behavior - don't assume it should fail
         try {
-          const [feature] = await Array.fromAsync(parser.parseString(testCase.data));
+          const [feature] = await collectAsync(parser.parseString(testCase.data));
           expect(feature).toBeDefined();
           expect(feature!.attributes.gene_id).toBeDefined();
         } catch (error) {
@@ -377,7 +378,7 @@ describe("GTF Real-World Edge Cases and Recovery", () => {
       // Real GENCODE pattern: multiple tag values that should be collected
       const multipleTagsData = `chr1\tHAVANA\texon\t1000\t2000\t.\t+\t.\tgene_id "ENSG00000123456"; tag "basic"; tag "MANE_Select"; tag "appris_principal_1"; tag "CCDS";`;
 
-      const [feature] = await Array.fromAsync(parser.parseString(multipleTagsData));
+      const [feature] = await collectAsync(parser.parseString(multipleTagsData));
 
       // Document current tag handling behavior
       expect(feature!.attributes.gene_id).toBe("ENSG00000123456");
@@ -398,7 +399,7 @@ describe("GTF Real-World Edge Cases and Recovery", () => {
     test("handles complex multi-tag attributes from GENCODE", async () => {
       const multiTagData = `chr1\tGENCODE\texon\t1000\t2000\t.\t+\t.\tgene_id "ENSG001"; tag "basic"; tag "MANE_Select"; tag "appris_principal_1";`;
 
-      const [feature] = await Array.fromAsync(parser.parseString(multiTagData));
+      const [feature] = await collectAsync(parser.parseString(multiTagData));
 
       // Current implementation behavior with multiple same-key attributes
       expect(feature!.attributes.gene_id).toBe("ENSG001");
@@ -409,7 +410,7 @@ describe("GTF Real-World Edge Cases and Recovery", () => {
       // Mix of single-value and multi-value attributes
       const mixedAttributesData = `chr1\tHAVANA\texon\t1000\t2000\t.\t+\t.\tgene_id "ENSG001"; transcript_id "ENST001"; tag "basic"; exon_number "1"; tag "canonical";`;
 
-      const [feature] = await Array.fromAsync(parser.parseString(mixedAttributesData));
+      const [feature] = await collectAsync(parser.parseString(mixedAttributesData));
 
       expect(feature!.attributes.gene_id).toBe("ENSG001");
       expect(feature!.attributes.transcript_id).toBe("ENST001");
@@ -423,7 +424,7 @@ describe("GTF Real-World Edge Cases and Recovery", () => {
 
     // GTF parser should handle or reject GFF3-style attributes
     try {
-      const [feature] = await Array.fromAsync(parser.parseString(gff3LikeData));
+      const [feature] = await collectAsync(parser.parseString(gff3LikeData));
       // If it parses, verify what it produces
       expect(feature!.seqname).toBe("chr1");
     } catch (error) {
@@ -456,7 +457,7 @@ chr1\tHAVANA\tCDS\t1800\t1900\t.\t+\t2\tgene_id "ENSG00000001"; transcript_id "E
 chr1\tHAVANA\tstart_codon\t1100\t1102\t.\t+\t0\tgene_id "ENSG00000001"; transcript_id "ENST00000001";
 chr1\tHAVANA\tstop_codon\t1898\t1900\t.\t+\t0\tgene_id "ENSG00000001"; transcript_id "ENST00000001";`;
 
-      const features = await Array.fromAsync(parser.parseString(completeGeneModel));
+      const features = await collectAsync(parser.parseString(completeGeneModel));
       expect(features).toHaveLength(8);
 
       // Verify feature types and hierarchy
@@ -490,7 +491,7 @@ chr1\tHAVANA\ttranscript\t10000\t15000\t.\t-\t.\tgene_id "ENSG00000002"; transcr
 chr1\tHAVANA\texon\t10000\t11000\t.\t-\t.\tgene_id "ENSG00000002"; transcript_id "ENST00000002"; exon_number "1";
 chr1\tHAVANA\texon\t12000\t15000\t.\t-\t.\tgene_id "ENSG00000002"; transcript_id "ENST00000002"; exon_number "2";`;
 
-      const features = await Array.fromAsync(parser.parseString(lncRNAModel));
+      const features = await collectAsync(parser.parseString(lncRNAModel));
       expect(features).toHaveLength(4);
 
       const gene = features.find((f) => f.feature === "gene");
@@ -510,7 +511,7 @@ chr1\tHAVANA\texon\t12000\t15000\t.\t-\t.\tgene_id "ENSG00000002"; transcript_id
 chr1\tHAVANA\ttranscript\t20000\t25000\t.\t+\t.\tgene_id "ENSG00000003"; transcript_id "ENST00000003"; transcript_type "processed_pseudogene";
 chr1\tHAVANA\tgene\t30000\t35000\t.\t-\t.\tgene_id "ENSG00000004"; gene_type "unprocessed_pseudogene"; gene_name "PSEUDOGENE2";`;
 
-      const features = await Array.fromAsync(parser.parseString(pseudogeneModels));
+      const features = await collectAsync(parser.parseString(pseudogeneModels));
       expect(features).toHaveLength(3);
 
       const processedPseudogene = features.find(
@@ -528,7 +529,7 @@ chr1\tHAVANA\ttranscript\t1000\t5000\t.\t+\t.\tgene_id "ENSG001"; transcript_id 
 chr1\tHAVANA\texon\t1000\t1200\t.\t+\t.\tgene_id "ENSG001"; transcript_id "ENST001"; exon_number "1";
 chr1\tHAVANA\tCDS\t1100\t1180\t.\t+\t0\tgene_id "ENSG001"; transcript_id "ENST001";`;
 
-      const features = await Array.fromAsync(parser.parseString(hierarchyData));
+      const features = await collectAsync(parser.parseString(hierarchyData));
 
       expect(features).toHaveLength(4);
 
@@ -561,7 +562,7 @@ chr1\tHAVANA\tCDS\t1100\t1180\t.\t+\t0\tgene_id "ENSG001"; transcript_id "ENST00
 chr1\tHAVANA\ttranscript\t1200\t4800\t.\t+\t.\tgene_id "ENSG001"; transcript_id "ENST001";
 chr1\tHAVANA\texon\t1200\t1400\t.\t+\t.\tgene_id "ENSG001"; transcript_id "ENST001"; exon_number "1";`;
 
-      const features = await Array.fromAsync(parser.parseString(hierarchyData));
+      const features = await collectAsync(parser.parseString(hierarchyData));
 
       const gene = features.find((f) => f.feature === "gene");
       const transcript = features.find((f) => f.feature === "transcript");
@@ -589,7 +590,7 @@ chr1\tHAVANA\ttranscript\t3000\t10000\t.\t+\t.\tgene_id "ENSG001"; transcript_id
 chr1\tHAVANA\texon\t1000\t1200\t.\t+\t.\tgene_id "ENSG001"; transcript_id "ENST001"; exon_number "1";
 chr1\tHAVANA\texon\t3000\t3200\t.\t+\t.\tgene_id "ENSG001"; transcript_id "ENST002"; exon_number "1";`;
 
-      const features = await Array.fromAsync(parser.parseString(multiTranscriptData));
+      const features = await collectAsync(parser.parseString(multiTranscriptData));
 
       // Group features by transcript_id
       const transcript1Features = features.filter((f) => f.attributes.transcript_id === "ENST001");
@@ -634,7 +635,7 @@ describe("GTF Coordinate System Validation", () => {
       // Valid: 1-based coordinates (start position 1)
       const oneBased = `chr1\tHAVANA\tgene\t1\t1000\t.\t+\t.\tgene_id "ENSG001";`;
 
-      const [feature] = await Array.fromAsync(parser.parseString(oneBased));
+      const [feature] = await collectAsync(parser.parseString(oneBased));
       expect(feature!.start).toBe(1);
       expect(feature!.end).toBe(1000);
       expect(feature!.length).toBe(1000); // Inclusive coordinates
@@ -644,7 +645,7 @@ describe("GTF Coordinate System Validation", () => {
       // Valid in GTF: single-base feature where start == end
       const singleBase = `chr1\tdbSNP\tSNP\t1000\t1000\t.\t+\t.\tgene_id "rs123456";`;
 
-      const [feature] = await Array.fromAsync(parser.parseString(singleBase));
+      const [feature] = await collectAsync(parser.parseString(singleBase));
       expect(feature!.start).toBe(1000);
       expect(feature!.end).toBe(1000);
       expect(feature!.length).toBe(1); // Single base
@@ -673,7 +674,7 @@ describe("GTF Coordinate System Validation", () => {
       // Realistic large coordinates from human chromosome 1
       const largeCoordsData = `chr1\tHAVANA\tgene\t247900000\t248000000\t.\t+\t.\tgene_id "ENSG00000185085"; gene_name "TRIM58";`;
 
-      const [feature] = await Array.fromAsync(parser.parseString(largeCoordsData));
+      const [feature] = await collectAsync(parser.parseString(largeCoordsData));
       expect(feature!.start).toBe(247900000);
       expect(feature!.end).toBe(248000000);
       expect(feature!.length).toBe(100001); // Inclusive
@@ -683,7 +684,7 @@ describe("GTF Coordinate System Validation", () => {
       // Test coordinates near but within the 300MB chromosome limit
       const largeCoordData = `chr1\tHAVANA\tgene\t299000000\t299999999\t.\t+\t.\tgene_id "ENSG999";`;
 
-      const [feature] = await Array.fromAsync(parser.parseString(largeCoordData));
+      const [feature] = await collectAsync(parser.parseString(largeCoordData));
       expect(feature!.start).toBe(299000000);
       expect(feature!.end).toBe(299999999);
     });
@@ -692,7 +693,7 @@ describe("GTF Coordinate System Validation", () => {
       // Test that large but valid coordinates are accepted (current implementation behavior)
       const largeCoordinates = `chr1\tHAVANA\tgene\t350000000\t350001000\t.\t+\t.\tgene_id "ENSG999";`;
 
-      const [feature] = await Array.fromAsync(parser.parseString(largeCoordinates));
+      const [feature] = await collectAsync(parser.parseString(largeCoordinates));
 
       expect(feature!.start).toBe(350000000);
       expect(feature!.end).toBe(350001000);
@@ -716,7 +717,7 @@ describe("GTF Coordinate System Validation", () => {
       ];
 
       for (const gtfLine of chromosomeFormats) {
-        const [feature] = await Array.fromAsync(parser.parseString(gtfLine));
+        const [feature] = await collectAsync(parser.parseString(gtfLine));
         expect(feature!.seqname).toMatch(/^(chr\d+|chr[XYM]|chrMT|\d+|NC_\d+\.\d+)$/);
         expect(feature!.start).toBe(1000);
         expect(feature!.end).toBe(2000);
@@ -960,7 +961,7 @@ describe("GTF Error Handling and Recovery", () => {
       const missingGeneId = `chr1\tHAVANA\tgene\t1000\t2000\t.\t+\t.\tgene_type "protein_coding";`;
 
       try {
-        const [feature] = await Array.fromAsync(parser.parseString(missingGeneId));
+        const [feature] = await collectAsync(parser.parseString(missingGeneId));
 
         // If parsing succeeds, document that gene_id is optional
         expect(feature!.seqname).toBe("chr1");
@@ -1030,7 +1031,7 @@ chr2\tHAVANA\tgene\t3000\t2000\t.\t+\t.\tgene_id "ENSG002";`;
       // Test if skipValidation option exists and works
       try {
         const relaxedParser = new GtfParser({ skipValidation: true });
-        const [feature] = await Array.fromAsync(relaxedParser.parseString(invalidData));
+        const [feature] = await collectAsync(relaxedParser.parseString(invalidData));
 
         // Should parse despite invalid coordinates
         expect(feature!.seqname).toBe("chr1");
@@ -1046,7 +1047,7 @@ chr2\tHAVANA\tgene\t3000\t2000\t.\t+\t.\tgene_id "ENSG002";`;
 
       try {
         const relaxedParser = new GtfParser({ skipValidation: true });
-        const [feature] = await Array.fromAsync(relaxedParser.parseString(malformedData));
+        const [feature] = await collectAsync(relaxedParser.parseString(malformedData));
 
         // Should extract whatever attributes possible
         expect(feature!.seqname).toBe("chr1");
@@ -1270,7 +1271,7 @@ describe("GTF Query API - Advanced Feature Testing", () => {
       // StringTie requires gene_id and transcript_id for -G -e options
       const stringTieCompatible = `chr1\tHAVANA\ttranscript\t1000\t2000\t.\t+\t.\tgene_id "ENSG001"; transcript_id "ENST001"; gene_name "ABC1";`;
 
-      const [feature] = await Array.fromAsync(parser.parseString(stringTieCompatible));
+      const [feature] = await collectAsync(parser.parseString(stringTieCompatible));
       expect(feature!.attributes.gene_id).toBe("ENSG001");
       expect(feature!.attributes.transcript_id).toBe("ENST001");
       expect(feature!.attributes.gene_name).toBe("ABC1");
@@ -1280,7 +1281,7 @@ describe("GTF Query API - Advanced Feature Testing", () => {
       // Cell Ranger requires gene_id, gene_name, transcript_id as critical tags
       const cellRangerGene = `chr1\tensembl\tgene\t11869\t14409\t.\t+\t.\tgene_id "ENSG00000223972"; gene_name "DDX11L1"; gene_biotype "transcribed_unprocessed_pseudogene";`;
 
-      const [feature] = await Array.fromAsync(parser.parseString(cellRangerGene));
+      const [feature] = await collectAsync(parser.parseString(cellRangerGene));
       expect(feature!.attributes.gene_id).toBe("ENSG00000223972");
       expect(feature!.attributes.gene_name).toBe("DDX11L1");
       expect(feature!.attributes.gene_biotype).toBe("transcribed_unprocessed_pseudogene");
@@ -1290,7 +1291,7 @@ describe("GTF Query API - Advanced Feature Testing", () => {
       // Industry issue: Even GENCODE files violate spec with missing transcript_id in gene lines
       const geneWithoutTranscriptId = `chr1\tHAVANA\tgene\t11869\t14409\t.\t+\t.\tgene_id "ENSG00000223972"; gene_name "DDX11L1"; gene_biotype "transcribed_unprocessed_pseudogene";`;
 
-      const [feature] = await Array.fromAsync(parser.parseString(geneWithoutTranscriptId));
+      const [feature] = await collectAsync(parser.parseString(geneWithoutTranscriptId));
       expect(feature!.feature).toBe("gene");
       expect(feature!.attributes.gene_id).toBe("ENSG00000223972");
       // transcript_id absence should be acceptable for gene lines (one-to-many relationship)
@@ -1309,7 +1310,7 @@ describe("GTF Query API - Advanced Feature Testing", () => {
         `chr1\tHAVANA\texon\t1000\t1200\t.\t+\t.\tgene_id "ENSG001"; transcript_id "ENST002"; exon_number "1";`, // Shared exon
       ].join("\n");
 
-      const features = await Array.fromAsync(parser.parseString(alternativeSplicing));
+      const features = await collectAsync(parser.parseString(alternativeSplicing));
       expect(features).toHaveLength(5);
 
       // Verify gene-transcript relationships maintained
@@ -1327,7 +1328,7 @@ describe("GTF Query API - Advanced Feature Testing", () => {
       const missingQuotes = `chr1\tHAVANA\tgene\t1000\t2000\t.\t+\t.\tgene_id ENSG00000123456; gene_name ABC1;`;
 
       try {
-        const [feature] = await Array.fromAsync(parser.parseString(missingQuotes));
+        const [feature] = await collectAsync(parser.parseString(missingQuotes));
         // Document current behavior: may parse successfully or error with helpful message
         expect(feature!.seqname).toBe("chr1");
       } catch (error) {
@@ -1342,7 +1343,7 @@ describe("GTF Query API - Advanced Feature Testing", () => {
       const emptyGeneId = `chr1\tHAVANA\tgene\t1000\t2000\t.\t+\t.\tgene_id ""; gene_name "ValidName";`;
 
       try {
-        const [feature] = await Array.fromAsync(parser.parseString(emptyGeneId));
+        const [feature] = await collectAsync(parser.parseString(emptyGeneId));
         // May parse with empty ID or provide helpful error
         expect(feature!.attributes.gene_name).toBe("ValidName");
       } catch (error) {

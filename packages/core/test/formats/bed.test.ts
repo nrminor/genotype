@@ -6,6 +6,7 @@
  * "Respect existing code - understand why it exists before changing"
  */
 
+import { collectAsync } from "../utils/iterables";
 import { beforeEach, describe, expect, test } from "vitest";
 import { BedError } from "@genotype/core/errors";
 import { BedParser, BedUtils, BedWriter } from "@genotype/core/formats/bed";
@@ -20,7 +21,7 @@ describe("BED Format - Current Implementation Behavior", () => {
 
   test("parses minimal BED3 format", async () => {
     const bed3Data = "chr1\t1000\t2000\n";
-    const [interval] = await Array.fromAsync(parser.parseString(bed3Data));
+    const [interval] = await collectAsync(parser.parseString(bed3Data));
 
     expect(interval!.chromosome).toBe("chr1");
     expect(interval!.start).toBe(1000);
@@ -30,7 +31,7 @@ describe("BED Format - Current Implementation Behavior", () => {
 
   test("parses BED6 with all basic fields", async () => {
     const bed6Data = "chr1\t1000\t2000\tfeature1\t100\t+\n";
-    const [interval] = await Array.fromAsync(parser.parseString(bed6Data));
+    const [interval] = await collectAsync(parser.parseString(bed6Data));
 
     expect(interval!.name).toBe("feature1");
     expect(interval!.score).toBe(100);
@@ -61,7 +62,7 @@ chr1\t1000\t2000
 chr2\t3000\t4000
     `.trim();
 
-    const intervals = await Array.fromAsync(parser.parseString(dataWithComments));
+    const intervals = await collectAsync(parser.parseString(dataWithComments));
     expect(intervals).toHaveLength(2);
   });
 
@@ -150,7 +151,7 @@ describe("BED Large Coordinate Edge Cases", () => {
   test("accepts zero-length intervals for biological insertion sites", async () => {
     const insertionSite = "chr1\t1000\t1000\tinsertion_site";
 
-    const [interval] = await Array.fromAsync(parser.parseString(insertionSite));
+    const [interval] = await collectAsync(parser.parseString(insertionSite));
 
     expect(interval!.start).toBe(1000);
     expect(interval!.end).toBe(1000);
@@ -205,7 +206,7 @@ describe("BED Large Coordinate Edge Cases", () => {
   test("accepts legitimate large genome coordinates (barley case)", async () => {
     const barleyChromosome = "chr1H\t750000000\t750001000\tbarley_gene";
 
-    const [interval] = await Array.fromAsync(parser.parseString(barleyChromosome));
+    const [interval] = await collectAsync(parser.parseString(barleyChromosome));
 
     expect(interval!.chromosome).toBe("chr1H"); // Barley chromosome naming
     expect(interval!.start).toBe(750000000); // ~750M coordinate (legitimate)
@@ -228,7 +229,7 @@ describe("BED Large Coordinate Edge Cases", () => {
 
     // Should either pass with warning or fail with helpful tool compatibility message
     try {
-      const [interval] = await Array.fromAsync(parser.parseString(bedtoolsFailureCase));
+      const [interval] = await collectAsync(parser.parseString(bedtoolsFailureCase));
       // If it parses, should have appropriate coordinates
       expect(interval!.chromosome).toBe("LIB18989");
     } catch (error) {
@@ -250,7 +251,7 @@ describe("BED Large Coordinate Edge Cases", () => {
       "scaffold_1\t500000000\t500001000\tlarge_scaffold", // Large but valid
     ].join("\n");
 
-    const intervals = await Array.fromAsync(parser.parseString(mixedData));
+    const intervals = await collectAsync(parser.parseString(mixedData));
 
     expect(intervals).toHaveLength(2);
     expect(intervals[0]!.chromosome).toBe("chr1");
@@ -269,7 +270,7 @@ describe("BED Large Coordinate Edge Cases", () => {
     const boundaryCoordinate = "scaffold\t2499999000\t2500000000\tboundary_test";
 
     // Just under 2.5GB limit - should be accepted
-    const [interval] = await Array.fromAsync(parser.parseString(boundaryCoordinate));
+    const [interval] = await collectAsync(parser.parseString(boundaryCoordinate));
 
     expect(interval!.start).toBe(2499999000);
     expect(interval!.end).toBe(2500000000);
@@ -290,7 +291,7 @@ describe("BED Large Coordinate Edge Cases", () => {
     // Paris japonica scale coordinate (~1GB range, but within our 2.5GB limit)
     const plantGenomeCoordinate = "scaffold_paris\t1000000000\t1000001000\tplant_gene";
 
-    const [interval] = await Array.fromAsync(parser.parseString(plantGenomeCoordinate));
+    const [interval] = await collectAsync(parser.parseString(plantGenomeCoordinate));
 
     expect(interval!.chromosome).toBe("scaffold_paris");
     expect(interval!.start).toBe(1000000000); // 1GB coordinate (legitimate for giant plants)
@@ -312,7 +313,7 @@ describe("BED Large Coordinate Edge Cases", () => {
       "chr1\t3000\t3000\tmethylation_site", // Methylation position
     ].join("\n");
 
-    const intervals = await Array.fromAsync(parser.parseString(precisionCases));
+    const intervals = await collectAsync(parser.parseString(precisionCases));
 
     expect(intervals).toHaveLength(3);
     expect(intervals[0]!.length).toBe(0); // Zero-length CRISPR cut site
@@ -344,7 +345,7 @@ describe("BED12 Block Structure Validation (UCSC Specification)", () => {
     // Math: block1=1000-1200, gap, block2=1400-1600, gap, block3=1800-2000 (no overlaps)
     const validBed12 = "chr1\t1000\t2000\tgene1\t0\t+\t1000\t2000\t0\t3\t200,200,200\t0,400,800";
 
-    const [interval] = await Array.fromAsync(parser.parseString(validBed12));
+    const [interval] = await collectAsync(parser.parseString(validBed12));
 
     expect(interval!.chromosome).toBe("chr1");
     expect(interval!.blockCount).toBe(3);
@@ -448,7 +449,7 @@ describe("BED12 Block Structure Validation (UCSC Specification)", () => {
     const complexGene =
       "chr17\t43044295\t43125483\tBRCA1-201\t1000\t-\t43044295\t43125483\t0\t5\t185,105,184,146,85\t0,10138,20123,30045,81103";
 
-    const [interval] = await Array.fromAsync(parser.parseString(complexGene));
+    const [interval] = await collectAsync(parser.parseString(complexGene));
 
     expect(interval!.chromosome).toBe("chr17");
     expect(interval!.name).toBe("BRCA1-201"); // Transcript identifier
@@ -484,7 +485,7 @@ describe("ENCODE Format Compatibility (Real-World ChIP-seq Data)", () => {
     // ENCODE narrowPeak as BED6 (core fields) - full format would need parser extension
     const narrowPeakData = "chr1\t777491\t778262\tneuroGM23338_macs3_rep1_peak_1\t34\t.";
 
-    const [peak] = await Array.fromAsync(parser.parseString(narrowPeakData));
+    const [peak] = await collectAsync(parser.parseString(narrowPeakData));
 
     expect(peak!.chromosome).toBe("chr1");
     expect(peak!.start).toBe(777491);
@@ -508,7 +509,7 @@ describe("ENCODE Format Compatibility (Real-World ChIP-seq Data)", () => {
     // broadPeak format as BED6 (core fields) - histone modification context
     const broadPeakData = "chr1\t1000000\t1002000\tH3K4me3_peak_1\t1000\t.";
 
-    const [peak] = await Array.fromAsync(parser.parseString(broadPeakData));
+    const [peak] = await collectAsync(parser.parseString(broadPeakData));
 
     expect(peak!.chromosome).toBe("chr1");
     expect(peak!.name).toBe("H3K4me3_peak_1"); // Histone mark naming
@@ -533,7 +534,7 @@ describe("ENCODE Format Compatibility (Real-World ChIP-seq Data)", () => {
       "chr2\t200000\t201000\tpeak2\t.\t.", // Mixed placeholder usage
     ].join("\n");
 
-    const intervals = await Array.fromAsync(parser.parseString(nonCompliantEncode));
+    const intervals = await collectAsync(parser.parseString(nonCompliantEncode));
 
     expect(intervals).toHaveLength(2);
     expect(intervals[0]!.name).toBe("."); // Should preserve dot placeholders
@@ -552,7 +553,7 @@ describe("ENCODE Format Compatibility (Real-World ChIP-seq Data)", () => {
     // ENCODE cryptic naming: ENCFF591RMN.bed.gz style identifiers
     const encodeStyleData = "chr1\t500000\t501000\tENCFF591RMN_peak_1\t100\t+";
 
-    const [interval] = await Array.fromAsync(parser.parseString(encodeStyleData));
+    const [interval] = await collectAsync(parser.parseString(encodeStyleData));
 
     expect(interval!.name).toBe("ENCFF591RMN_peak_1"); // ENCODE identifier format
     expect(interval!.chromosome).toBe("chr1");
@@ -575,7 +576,7 @@ describe("ENCODE Format Compatibility (Real-World ChIP-seq Data)", () => {
       "chr1\t300000\t300100\tpeak_threshold\t30\t+", // Threshold score
     ].join("\n");
 
-    const peaks = await Array.fromAsync(parser.parseString(chipseqPeaks));
+    const peaks = await collectAsync(parser.parseString(chipseqPeaks));
 
     expect(peaks).toHaveLength(3);
     expect(peaks[0]!.score).toBe(150); // High significance peak
@@ -615,7 +616,7 @@ describe("Tool Ecosystem Compatibility (Cross-Tool Interoperability)", () => {
       "chrM\t1000\t2000\tfeature_mitochondrial", // Mitochondrial
     ].join("\n");
 
-    const intervals = await Array.fromAsync(parser.parseString(chromosomeNamingVariants));
+    const intervals = await collectAsync(parser.parseString(chromosomeNamingVariants));
 
     expect(intervals).toHaveLength(4);
     expect(intervals[0]!.chromosome).toBe("chr1"); // UCSC style preserved
@@ -639,7 +640,7 @@ describe("Tool Ecosystem Compatibility (Cross-Tool Interoperability)", () => {
       "chr10\t1000\t2000\tfeature3", // chr10 after chr1 (lexicographic)
     ].join("\n");
 
-    const intervals = await Array.fromAsync(parser.parseString(bedopsSortedData));
+    const intervals = await collectAsync(parser.parseString(bedopsSortedData));
 
     expect(intervals).toHaveLength(3);
     // Verify BEDOPS-compatible ordering is maintained
@@ -662,7 +663,7 @@ describe("Tool Ecosystem Compatibility (Cross-Tool Interoperability)", () => {
   test("generates output compatible with deepTools 6-column requirements", async () => {
     const deepToolsCompatible = "chr1\t1000\t2000\tfeature1\t100\t+";
 
-    const [interval] = await Array.fromAsync(parser.parseString(deepToolsCompatible));
+    const [interval] = await collectAsync(parser.parseString(deepToolsCompatible));
 
     // Verify all 6 required fields are present and properly typed
     expect(interval!.chromosome).toBe("chr1"); // Required field 1
@@ -688,8 +689,8 @@ describe("Tool Ecosystem Compatibility (Cross-Tool Interoperability)", () => {
     const unixEndings = "chr1\t1000\t2000\tunix_feature\nchr2\t3000\t4000\tunix_feature2";
     const dosEndings = "chr1\t1000\t2000\tdos_feature\r\nchr2\t3000\t4000\tdos_feature2";
 
-    const unixIntervals = await Array.fromAsync(parser.parseString(unixEndings));
-    const dosIntervals = await Array.fromAsync(parser.parseString(dosEndings));
+    const unixIntervals = await collectAsync(parser.parseString(unixEndings));
+    const dosIntervals = await collectAsync(parser.parseString(dosEndings));
 
     expect(unixIntervals).toHaveLength(2);
     expect(dosIntervals).toHaveLength(2);
@@ -715,11 +716,11 @@ describe("Tool Ecosystem Compatibility (Cross-Tool Interoperability)", () => {
     const spaceDelimited = "chr1 1000 2000 space_feature"; // Non-compliant
 
     // Tab delimited should parse correctly
-    const [tabInterval] = await Array.fromAsync(parser.parseString(tabDelimited));
+    const [tabInterval] = await collectAsync(parser.parseString(tabDelimited));
     expect(tabInterval!.name).toBe("tab_feature");
 
     // Space delimited should parse (our parser handles whitespace generally)
-    const [spaceInterval] = await Array.fromAsync(parser.parseString(spaceDelimited));
+    const [spaceInterval] = await collectAsync(parser.parseString(spaceDelimited));
     expect(spaceInterval!.name).toBe("space_feature"); // Flexible parsing
   });
 });
@@ -746,7 +747,7 @@ describe("Biological Workflow Use Cases (Real Genomics Applications)", () => {
       "chr2\t2156748\t2159248\tpeak2\t89\t+", // Broad domain peak
     ].join("\n");
 
-    const peaks = await Array.fromAsync(parser.parseString(chipseqPeaks));
+    const peaks = await collectAsync(parser.parseString(chipseqPeaks));
 
     expect(peaks).toHaveLength(2);
     expect(peaks[0]!.name).toBe("peak1");
@@ -767,7 +768,7 @@ describe("Biological Workflow Use Cases (Real Genomics Applications)", () => {
     const rnaseqTranscript =
       "chr1\t1000\t5000\ttranscript_1\t1000\t+\t1200\t4800\t0\t4\t200,300,250,300\t0,800,2200,3700";
 
-    const [transcript] = await Array.fromAsync(parser.parseString(rnaseqTranscript));
+    const [transcript] = await collectAsync(parser.parseString(rnaseqTranscript));
 
     expect(transcript!.blockCount).toBe(4); // 4 exons
     expect(transcript!.thickStart).toBe(1200); // CDS start
@@ -789,7 +790,7 @@ describe("Biological Workflow Use Cases (Real Genomics Applications)", () => {
       "chr1\t3000\t3050\tDEL_variant", // Deletion (50bp)
     ].join("\n");
 
-    const variants = await Array.fromAsync(parser.parseString(variantData));
+    const variants = await collectAsync(parser.parseString(variantData));
 
     expect(variants).toHaveLength(3);
     expect(variants[0]!.length).toBe(0); // Insertion site (zero-length)
@@ -818,7 +819,7 @@ describe("Error Recovery and Data Corruption Handling", () => {
       "chr1\t3000\t4000\tfeature\t100\t+", // BED6 (different count)
     ].join("\n");
 
-    const intervals = await Array.fromAsync(parser.parseString(mixedFieldCounts));
+    const intervals = await collectAsync(parser.parseString(mixedFieldCounts));
     expect(intervals).toHaveLength(2); // Flexible parsing allows mixed formats
   });
 
@@ -833,7 +834,7 @@ describe("Error Recovery and Data Corruption Handling", () => {
     const incompleteData = "chr1\t1000\t2000\tcomplete_feature\nchr2\t3000"; // Incomplete
 
     try {
-      const intervals = await Array.fromAsync(parser.parseString(incompleteData));
+      const intervals = await collectAsync(parser.parseString(incompleteData));
       expect(intervals).toHaveLength(1); // Only complete line parsed
     } catch (error) {
       expect((error as Error).message).toMatch(/field|incomplete|format/i);
@@ -857,7 +858,7 @@ describe("Error Recovery and Data Corruption Handling", () => {
       "chr1\t3000\t4000\tfeature2",
     ].join("\n");
 
-    const intervals = await Array.fromAsync(parser.parseString(mixedContent));
+    const intervals = await collectAsync(parser.parseString(mixedContent));
 
     expect(intervals).toHaveLength(2); // Only data lines parsed, metadata skipped
     expect(intervals[0]!.name).toBe("feature1");
@@ -893,7 +894,7 @@ describe("Real-World Edge Cases (Industry Problem Prevention)", () => {
       "chr1\t1000\t2000\tfeature\t100\t+\t1000\t2000\t0\t1\t1000\t0", // BED12 (+ blocks)
     ].join("\n");
 
-    const intervals = await Array.fromAsync(parser.parseString(validFormats));
+    const intervals = await collectAsync(parser.parseString(validFormats));
     expect(intervals).toHaveLength(6);
 
     // Verify format detection for each variant
@@ -946,7 +947,7 @@ describe("Real-World Edge Cases (Industry Problem Prevention)", () => {
       "contig_456\t1000\t2000\tunanchored_contig", // Unanchored contig
     ].join("\n");
 
-    const intervals = await Array.fromAsync(parser.parseString(chromosomeVariations));
+    const intervals = await collectAsync(parser.parseString(chromosomeVariations));
 
     expect(intervals).toHaveLength(7);
     expect(intervals[0]!.chromosome).toBe("chr1"); // UCSC preserved
@@ -972,7 +973,7 @@ describe("Real-World Edge Cases (Industry Problem Prevention)", () => {
       "chr1\t1000\t2000\tfeature3\t1000", // Maximum valid score
     ].join("\n");
 
-    const intervals = await Array.fromAsync(parser.parseString(scoreVariations));
+    const intervals = await collectAsync(parser.parseString(scoreVariations));
 
     expect(intervals).toHaveLength(3);
     expect(intervals[0]!.score).toBe(0); // Minimum boundary
@@ -996,7 +997,7 @@ describe("Real-World Edge Cases (Industry Problem Prevention)", () => {
       "chr1\t1000\t2000\tunknown_strand\t100\t.", // Unknown/irrelevant
     ].join("\n");
 
-    const intervals = await Array.fromAsync(parser.parseString(strandVariations));
+    const intervals = await collectAsync(parser.parseString(strandVariations));
 
     expect(intervals).toHaveLength(3);
     expect(intervals[0]!.strand).toBe("+"); // Forward strand gene
@@ -1020,7 +1021,7 @@ describe("Real-World Edge Cases (Industry Problem Prevention)", () => {
       "chr1\t5000\t6000\tdefault_feature\t100\t+\t5000\t6000\t0", // BED9: Default color
     ].join("\n");
 
-    const intervals = await Array.fromAsync(parser.parseString(colorSpecifications));
+    const intervals = await collectAsync(parser.parseString(colorSpecifications));
 
     expect(intervals).toHaveLength(3);
     expect(intervals[0]!.itemRgb).toBe("255,0,0"); // Red color preserved
@@ -1048,7 +1049,7 @@ describe("Real-World Edge Cases (Industry Problem Prevention)", () => {
 
     // Should handle whitespace gracefully without breaking parsing
     try {
-      const intervals = await Array.fromAsync(parser.parseString(whitespaceVariations));
+      const intervals = await collectAsync(parser.parseString(whitespaceVariations));
       expect(intervals.length).toBeGreaterThanOrEqual(1); // At least some should parse
     } catch (error) {
       // If errors occur, should provide helpful context about field formatting
@@ -1080,7 +1081,7 @@ describe("BED Format Variant Comprehensive Testing (BED3-BED12 Exhaustive)", () 
       "scaffold_1\t999\t1000", // Single-base precision interval
     ].join("\n");
 
-    const intervals = await Array.fromAsync(parser.parseString(bed3Examples));
+    const intervals = await collectAsync(parser.parseString(bed3Examples));
 
     expect(intervals).toHaveLength(3);
     expect(intervals[0]!.start).toBe(0); // Zero-based coordinate system
@@ -1110,7 +1111,7 @@ describe("BED Format Variant Comprehensive Testing (BED3-BED12 Exhaustive)", () 
       "chrM\t100\t200\tmitochondrial_tRNA", // Mitochondrial feature
     ].join("\n");
 
-    const intervals = await Array.fromAsync(parser.parseString(bed4Examples));
+    const intervals = await collectAsync(parser.parseString(bed4Examples));
 
     expect(intervals).toHaveLength(3);
     expect(intervals[0]!.name).toBe("gene_ABC1");
@@ -1138,7 +1139,7 @@ describe("BED Format Variant Comprehensive Testing (BED3-BED12 Exhaustive)", () 
       "chr1\t3000\t4000\thigh_peak\t1000", // Maximum score (strong signal)
     ].join("\n");
 
-    const intervals = await Array.fromAsync(parser.parseString(bed5Examples));
+    const intervals = await collectAsync(parser.parseString(bed5Examples));
 
     expect(intervals).toHaveLength(3);
     expect(intervals[0]!.score).toBe(0); // Minimum valid score
@@ -1165,7 +1166,7 @@ describe("BED Format Variant Comprehensive Testing (BED3-BED12 Exhaustive)", () 
       "chr1\t5000\t6000\tneutral_feature\t400\t.", // Strand-independent feature
     ].join("\n");
 
-    const intervals = await Array.fromAsync(parser.parseString(bed6Examples));
+    const intervals = await collectAsync(parser.parseString(bed6Examples));
 
     expect(intervals).toHaveLength(3);
     expect(intervals[0]!.strand).toBe("+"); // Forward transcription
@@ -1193,7 +1194,7 @@ describe("BED Format Variant Comprehensive Testing (BED3-BED12 Exhaustive)", () 
       "chr2\t2000\t6000\tnon_coding\t600\t-\t2000\t2000\t0,255,0", // Non-coding (thick=0)
     ].join("\n");
 
-    const intervals = await Array.fromAsync(parser.parseString(bed9Examples));
+    const intervals = await collectAsync(parser.parseString(bed9Examples));
 
     expect(intervals).toHaveLength(2);
     expect(intervals[0]!.thickStart).toBe(1500); // CDS start within transcript
@@ -1234,7 +1235,7 @@ describe("Biological Context Testing (Gene Models and Regulatory Elements)", () 
       "chr1\t1000\t4000\tGENE1-isoform2\t800\t+\t1200\t3800\t0,255,0\t2\t200,400\t0,2600",
     ].join("\n");
 
-    const isoforms = await Array.fromAsync(parser.parseString(alternativeSplicing));
+    const isoforms = await collectAsync(parser.parseString(alternativeSplicing));
 
     expect(isoforms).toHaveLength(2);
     expect(isoforms[0]!.blockCount).toBe(3); // Long isoform (3 exons)
@@ -1264,7 +1265,7 @@ describe("Biological Context Testing (Gene Models and Regulatory Elements)", () 
       "chr1\t20000\t20200\tinsulator_CTCF\t800\t.", // Chromatin insulator
     ].join("\n");
 
-    const elements = await Array.fromAsync(parser.parseString(regulatoryElements));
+    const elements = await collectAsync(parser.parseString(regulatoryElements));
 
     expect(elements).toHaveLength(4);
     expect(elements[0]!.name).toBe("promoter_GENE1");
@@ -1289,7 +1290,7 @@ describe("Biological Context Testing (Gene Models and Regulatory Elements)", () 
       "chrY_random\t10000\t50000\theterochromatin\t50\t.", // Heterochromatic region
     ].join("\n");
 
-    const features = await Array.fromAsync(parser.parseString(assemblyFeatures));
+    const features = await collectAsync(parser.parseString(assemblyFeatures));
 
     expect(features).toHaveLength(4);
     expect(features[0]!.length).toBe(100000); // Large centromeric region
@@ -1315,7 +1316,7 @@ describe("Biological Context Testing (Gene Models and Regulatory Elements)", () 
       "chr1\t60000\t61000\tH3K4me1_poised_enhancer\t500\t+", // Poised enhancer
     ].join("\n");
 
-    const marks = await Array.fromAsync(parser.parseString(histoneMarks));
+    const marks = await collectAsync(parser.parseString(histoneMarks));
 
     expect(marks).toHaveLength(4);
     expect(marks[0]!.length).toBe(1000); // Sharp promoter peak (~1KB)
@@ -1348,7 +1349,7 @@ describe("Advanced Error Recovery Testing (Malformed Data Resilience)", () => {
 
     // Should either parse with validation warning or error with helpful guidance
     try {
-      const [interval] = await Array.fromAsync(parser.parseString(invalidScoreData));
+      const [interval] = await collectAsync(parser.parseString(invalidScoreData));
       // If parsed, score should be handled appropriately
       expect(interval!.score).toBeDefined();
     } catch (error) {
@@ -1367,7 +1368,7 @@ describe("Advanced Error Recovery Testing (Malformed Data Resilience)", () => {
   test("rejects invalid strand values with biological explanation", async () => {
     const invalidStrandData = "chr1\t1000\t2000\tfeature\t100\tX"; // Invalid strand 'X'
 
-    const intervals = await Array.fromAsync(parser.parseString(invalidStrandData));
+    const intervals = await collectAsync(parser.parseString(invalidStrandData));
 
     // Should either skip invalid strand or preserve for flexibility
     expect(intervals).toHaveLength(1);
@@ -1391,7 +1392,7 @@ describe("Advanced Error Recovery Testing (Malformed Data Resilience)", () => {
     // Should handle malformed coordinates gracefully with biological guidance
     let _errorCount = 0;
     try {
-      const intervals = await Array.fromAsync(parser.parseString(malformedCoordinates));
+      const intervals = await collectAsync(parser.parseString(malformedCoordinates));
       // Some might parse successfully with intelligent handling
       expect(intervals.length).toBeLessThan(3); // At least some should fail
     } catch (error) {
@@ -1418,7 +1419,7 @@ describe("Advanced Error Recovery Testing (Malformed Data Resilience)", () => {
     // Should handle empty fields gracefully or error with biological guidance
     let parseableLines = 0;
     try {
-      const intervals = await Array.fromAsync(parser.parseString(emptyFieldData));
+      const intervals = await collectAsync(parser.parseString(emptyFieldData));
       parseableLines = intervals.length;
       expect(parseableLines).toBeLessThan(3); // Some should fail validation
     } catch (error) {
@@ -1441,7 +1442,7 @@ describe("Advanced Error Recovery Testing (Malformed Data Resilience)", () => {
       "chrM\t16569\t16570\tmitochondrial_boundary", // Human mitochondrial genome end
     ].join("\n");
 
-    const intervals = await Array.fromAsync(parser.parseString(boundaryConditions));
+    const intervals = await collectAsync(parser.parseString(boundaryConditions));
 
     expect(intervals).toHaveLength(3);
     expect(intervals[0]!.length).toBe(249000000); // Chromosome-scale interval

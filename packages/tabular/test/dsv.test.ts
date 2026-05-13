@@ -9,6 +9,7 @@
  * - Performance characteristics
  */
 
+import { collectAsync } from "./utils/iterables";
 import { beforeAll, describe, expect, test } from "vitest";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
@@ -124,7 +125,7 @@ describe("DSV Format Module", () => {
     test("parses fields with embedded commas", async () => {
       const csv = 'col1,col2,col3\ngene1,"expression, normalized",5.23';
       const parser = new CSVParser({ header: true });
-      const records = await Array.fromAsync(parser.parseString(csv));
+      const records = await collectAsync(parser.parseString(csv));
 
       expect(records[0]!.col2).toBe("expression, normalized");
     });
@@ -132,7 +133,7 @@ describe("DSV Format Module", () => {
     test("parses fields with embedded newlines", async () => {
       const csv = 'col1,col2,col3\ngene1,"multi\nline\nfield",value';
       const parser = new CSVParser({ header: true });
-      const records = await Array.fromAsync(parser.parseString(csv));
+      const records = await collectAsync(parser.parseString(csv));
 
       expect(records[0]!.col2).toBe("multi\nline\nfield");
     });
@@ -140,7 +141,7 @@ describe("DSV Format Module", () => {
     test("handles escaped quotes (doubled)", async () => {
       const csv = 'col1,col2,col3\ngene1,"She said ""Hello""",value';
       const parser = new CSVParser({ header: true });
-      const records = await Array.fromAsync(parser.parseString(csv));
+      const records = await collectAsync(parser.parseString(csv));
 
       expect(records[0]!.col2).toBe('She said "Hello"');
     });
@@ -148,7 +149,7 @@ describe("DSV Format Module", () => {
     test("handles empty fields correctly", async () => {
       const csv = "field1,,field3,";
       const parser = new CSVParser({ header: false });
-      const records = await Array.fromAsync(parser.parseString(csv));
+      const records = await collectAsync(parser.parseString(csv));
 
       expect(records[0]!.id).toBe("field1");
     });
@@ -156,7 +157,7 @@ describe("DSV Format Module", () => {
     test("handles mixed quoted and unquoted fields", async () => {
       const csv = 'col1,col2,col3,col4\nunquoted,"quoted field",123,"another quoted"';
       const parser = new CSVParser({ header: true });
-      const records = await Array.fromAsync(parser.parseString(csv));
+      const records = await collectAsync(parser.parseString(csv));
 
       expect(records[0]!.col1).toBe("unquoted");
       expect(records[0]!.col2).toBe("quoted field");
@@ -454,7 +455,7 @@ describe("DSV Format Module", () => {
       const parser = new DSVParser({ autoDetect: true });
 
       // Should fall back to comma and parse as single column
-      const records = await Array.fromAsync(parser.parseString(ambiguous));
+      const records = await collectAsync(parser.parseString(ambiguous));
 
       expect(records).toHaveLength(3);
       expect(records[0]!.id).toBe("no delimiters here");
@@ -466,7 +467,7 @@ describe("DSV Format Module", () => {
       const csv = "gene,expression,pvalue\nBRCA1,5.2,0.001\nTP53,3.8,0.005";
       const parser = new DSVParser({ autoDetect: true });
 
-      const records = await Array.fromAsync(parser.parseString(csv));
+      const records = await collectAsync(parser.parseString(csv));
 
       expect(records).toHaveLength(2);
       expect(records[0]).toMatchObject({ gene: "BRCA1", expression: "5.2", pvalue: "0.001" });
@@ -477,7 +478,7 @@ describe("DSV Format Module", () => {
       const csv = "1,2,3\n4,5,6\n7,8,9";
       const parser = new DSVParser({ autoDetect: true });
 
-      const records = await Array.fromAsync(parser.parseString(csv));
+      const records = await collectAsync(parser.parseString(csv));
 
       // With proper header detection, all-numeric data should NOT be treated as headers
       expect(records).toHaveLength(3);
@@ -492,7 +493,7 @@ describe("DSV Format Module", () => {
         "gene\tname\tdescription\nGene1\tProtein A\tInvolved in process X, Y\nGene2\tProtein B\tRegulates A, B, and C";
       const parser = new DSVParser({ autoDetect: true });
 
-      const records = await Array.fromAsync(parser.parseString(tsv));
+      const records = await collectAsync(parser.parseString(tsv));
 
       expect(records).toHaveLength(2);
       expect(records[0]!.gene).toBe("Gene1");
@@ -504,7 +505,7 @@ describe("DSV Format Module", () => {
       const genomicCsv = "chr,pos,ref,alt,qual\nchr1,12345,A,T,30\nchr2,67890,G,C,25";
       const parser = new DSVParser({ autoDetect: true });
 
-      const records = await Array.fromAsync(parser.parseString(genomicCsv));
+      const records = await collectAsync(parser.parseString(genomicCsv));
 
       expect(records[0]).toMatchObject({
         chr: "chr1",
@@ -520,7 +521,7 @@ describe("DSV Format Module", () => {
       // With improved header detection, common header keywords are recognized even with single data row
       const parser = new DSVParser({ autoDetect: true });
 
-      const records = await Array.fromAsync(parser.parseString(csv));
+      const records = await collectAsync(parser.parseString(csv));
 
       // Headers are correctly detected due to keyword matching
       expect(records).toHaveLength(1);
@@ -541,7 +542,7 @@ describe("DSV Format Module", () => {
       });
 
       const parser = new DSVParser({ autoDetect: true });
-      const records = await Array.fromAsync(parser.parse(stream));
+      const records = await collectAsync(parser.parse(stream));
 
       expect(records).toHaveLength(2);
       expect(records[0]).toMatchObject({ id: "read1", seq: "ATCG", quality: "IIII" });
@@ -566,7 +567,7 @@ seq2,GCTAGCTA,JJJJJJJJ`;
 
       try {
         const parser = new CSVParser({ header: true });
-        const records = await Array.fromAsync(parser.parseFile(tempPath));
+        const records = await collectAsync(parser.parseFile(tempPath));
 
         expect(records).toHaveLength(2);
         expect(records[0]).toMatchObject({
@@ -644,7 +645,7 @@ seq2,GCTAGCTA,JJJJJJJJ`;
 
       // Read back compressed
       const parser = new CSVParser({ header: true });
-      const readData = await Array.fromAsync(parser.parseFile(testPath));
+      const readData = await collectAsync(parser.parseFile(testPath));
 
       // Verify data matches
       expect(readData).toHaveLength(3);
@@ -756,7 +757,7 @@ seq2,GCTAGCTA,JJJJJJJJ`;
 
       // Parse with auto-detection
       const parser = new DSVParser({ autoDetect: true });
-      const records = await Array.fromAsync(parser.parseFile(testPath));
+      const records = await collectAsync(parser.parseFile(testPath));
 
       expect(records).toHaveLength(2);
       expect(records[0]).toMatchObject({ gene: "BRCA1", expression: "5.2" });
@@ -770,20 +771,20 @@ seq2,GCTAGCTA,JJJJJJJJ`;
       // Test TSV with headers
       const tsv = "gene\texpression\tpvalue\nBRCA1\t5.2\t0.001\nTP53\t3.8\t0.005";
       const tsvParser = new DSVParser({ autoDetect: true });
-      const tsvRecords = await Array.fromAsync(tsvParser.parseString(tsv));
+      const tsvRecords = await collectAsync(tsvParser.parseString(tsv));
       expect(tsvRecords).toHaveLength(2);
 
       // Test pipe-delimited without headers
       const psv = "seq1|ATCG|HIGH\nseq2|GCTA|LOW";
       const psvParser = new DSVParser({ autoDetectDelimiter: true, header: false });
-      const psvRecords = await Array.fromAsync(psvParser.parseString(psv));
+      const psvRecords = await collectAsync(psvParser.parseString(psv));
       expect(psvRecords).toHaveLength(2);
       expect(psvRecords[0]!.id).toBe("seq1");
 
       // Test semicolon-delimited with mixed content
       const ssv = "id;sequence;quality\nread_1;ATCGATCG;30\nread_2;GCTAGCTA;25";
       const ssvParser = new DSVParser({ autoDetect: true });
-      const ssvRecords = await Array.fromAsync(ssvParser.parseString(ssv));
+      const ssvRecords = await collectAsync(ssvParser.parseString(ssv));
       expect(ssvRecords).toHaveLength(2);
     });
 
@@ -793,7 +794,7 @@ seq2,GCTAGCTA,JJJJJJJJ`;
       const parser = new DSVParser({ autoDetect: true });
 
       // Should fall back to comma and detect no headers for single-column sequence data
-      const records = await Array.fromAsync(parser.parseString(ambiguousData));
+      const records = await collectAsync(parser.parseString(ambiguousData));
 
       // With header detection, it should correctly identify these as NOT headers
       expect(records).toHaveLength(3);
@@ -811,7 +812,7 @@ seq2,GCTAGCTA,JJJJJJJJ`;
         },
       });
 
-      const records = await Array.fromAsync(parser.parseString(malformed));
+      const records = await collectAsync(parser.parseString(malformed));
       expect(records.length).toBeGreaterThan(0);
     });
 
@@ -909,7 +910,7 @@ seq2,GCTAGCTA,JJJJJJJJ`;
       const csv = `id,sequence\nlongread,${longSeq}`;
 
       const parser = new DSVParser({ delimiter: ",", header: true });
-      const records = await Array.fromAsync(parser.parseString(csv));
+      const records = await collectAsync(parser.parseString(csv));
 
       expect(records[0]?.sequence?.length).toBe(100000);
     });
@@ -925,7 +926,7 @@ seq2,GCTAGCTA,JJJJJJJJ`;
       const parser = new DSVParser({ delimiter: ",", header: true });
       const startTime = performance.now();
 
-      const records = await Array.fromAsync(parser.parseString(csv));
+      const records = await collectAsync(parser.parseString(csv));
 
       const elapsed = performance.now() - startTime;
       const throughput = csv.length / 1024 / 1024 / (elapsed / 1000); // MB/s

@@ -1,3 +1,4 @@
+import { collectAsync } from "../utils/iterables";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import "../matchers";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -715,7 +716,7 @@ GGGGGGGGGGGGGGGG
       await faidx.init();
 
       const regions = ["chr1:1-8", "chr2:1-10", "chrM:1-5"];
-      const sequences = await Array.fromAsync(faidx.extractMany(regions));
+      const sequences = await collectAsync(faidx.extractMany(regions));
 
       expect(sequences).toHaveLength(3);
       expect(sequences[0]!.id).toBe("chr1:1-8");
@@ -731,7 +732,7 @@ GGGGGGGGGGGGGGGG
       await faidx.init();
 
       const regions = ["chr2", "chr1:1-4", "chrM"];
-      const sequences = await Array.fromAsync(faidx.extractMany(regions));
+      const sequences = await collectAsync(faidx.extractMany(regions));
 
       expect(sequences[0]!.id).toBe("chr2");
       expect(sequences[1]!.id).toBe("chr1:1-4");
@@ -742,7 +743,7 @@ GGGGGGGGGGGGGGGG
       const faidx = new Faidx(testFastaPath);
       await faidx.init();
 
-      const sequences = await Array.fromAsync(faidx.extractMany([]));
+      const sequences = await collectAsync(faidx.extractMany([]));
       expect(sequences).toHaveLength(0);
     });
 
@@ -766,7 +767,7 @@ GGGGGGGGGGGGGGGG
       await faidx.init();
 
       const regions = ["chr1:1-8", "invalid", "chr2:1-10"];
-      const sequences = await Array.fromAsync(faidx.extractMany(regions, { onError: "skip" }));
+      const sequences = await collectAsync(faidx.extractMany(regions, { onError: "skip" }));
 
       // Should get only the valid sequences
       expect(sequences).toHaveLength(2);
@@ -779,7 +780,7 @@ GGGGGGGGGGGGGGGG
       await faidx.init();
 
       const regions = ["chr1:1-5", "nonexistent", "chr2:1-3", "chr99:1-10", "chrM:1-2"];
-      const sequences = await Array.fromAsync(faidx.extractMany(regions, { onError: "skip" }));
+      const sequences = await collectAsync(faidx.extractMany(regions, { onError: "skip" }));
 
       expect(sequences).toHaveLength(3);
       expect(sequences[0]!.id).toBe("chr1:1-5");
@@ -801,7 +802,7 @@ GGGGGGGGGGGGGGGG
         "chr1:10-5", // Reverse complement
       ];
 
-      const sequences = await Array.fromAsync(faidx.extractMany(regions));
+      const sequences = await collectAsync(faidx.extractMany(regions));
       expect(sequences).toHaveLength(7);
 
       // Verify each syntax works
@@ -822,7 +823,7 @@ GGGGGGGGGGGGGGGG
       await faidx.init();
 
       // Match chr1 and chr2 (not chrM)
-      const sequences = await Array.fromAsync(faidx.extractByPattern(/^chr[12]$/));
+      const sequences = await collectAsync(faidx.extractByPattern(/^chr[12]$/));
 
       expect(sequences).toHaveLength(2);
       expect(sequences[0]!.id).toBe("chr1");
@@ -834,7 +835,7 @@ GGGGGGGGGGGGGGGG
       await faidx.init();
 
       // Match sequences containing 'M'
-      const sequences = await Array.fromAsync(faidx.extractByPattern("M"));
+      const sequences = await collectAsync(faidx.extractByPattern("M"));
 
       expect(sequences).toHaveLength(1);
       expect(sequences[0]!.id).toBe("chrM");
@@ -846,7 +847,7 @@ GGGGGGGGGGGGGGGG
 
       // Match all sequences starting with 'chr'
       const pattern = /^chr/;
-      const sequences = await Array.fromAsync(faidx.extractByPattern(pattern));
+      const sequences = await collectAsync(faidx.extractByPattern(pattern));
 
       expect(sequences).toHaveLength(3);
     });
@@ -856,7 +857,7 @@ GGGGGGGGGGGGGGGG
       await faidx.init();
 
       // Pattern is lowercase, but IDs are mixed case
-      const sequences = await Array.fromAsync(
+      const sequences = await collectAsync(
         faidx.extractByPattern("CHR", { caseInsensitive: true })
       );
 
@@ -868,7 +869,7 @@ GGGGGGGGGGGGGGGG
       const faidx = new Faidx(testFastaPath);
       await faidx.init();
 
-      const sequences = await Array.fromAsync(faidx.extractByPattern(/^scaffold/));
+      const sequences = await collectAsync(faidx.extractByPattern(/^scaffold/));
 
       expect(sequences).toHaveLength(0);
     });
@@ -878,7 +879,7 @@ GGGGGGGGGGGGGGGG
       await faidx.init();
 
       // Match all sequences (any character)
-      const sequences = await Array.fromAsync(faidx.extractByPattern(/./));
+      const sequences = await collectAsync(faidx.extractByPattern(/./));
 
       expect(sequences).toHaveLength(3);
       expect(sequences.map((s) => s.id)).toEqual(["chr1", "chr2", "chrM"]);
@@ -889,7 +890,7 @@ GGGGGGGGGGGGGGGG
       await faidx.init();
 
       // Match sequences ending with a digit
-      const sequences = await Array.fromAsync(faidx.extractByPattern(/\d$/));
+      const sequences = await collectAsync(faidx.extractByPattern(/\d$/));
 
       expect(sequences).toHaveLength(2);
       expect(sequences[0]!.id).toBe("chr1");

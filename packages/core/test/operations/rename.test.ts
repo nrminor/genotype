@@ -1,3 +1,4 @@
+import { collectAsync } from "../utils/iterables";
 import { describe, expect, test } from "vitest";
 import "../matchers";
 import { createFastaRecord, createFastqRecord } from "@genotype/core/constructors";
@@ -29,7 +30,7 @@ describe("rename operation", () => {
   test("appends suffix to duplicate IDs", async () => {
     const input: FastaSequence[] = [createFasta("seq1", "ATCG"), createFasta("seq1", "GCTA")];
 
-    const result = await Array.fromAsync(rename(toAsyncIterable(input)));
+    const result = await collectAsync(rename(toAsyncIterable(input)));
 
     expect(result[0]!.id).toBe("seq1");
     expect(result[1]!.id).toBe("seq1_2");
@@ -38,7 +39,7 @@ describe("rename operation", () => {
   test("handles no duplicates", async () => {
     const input: FastaSequence[] = [createFasta("seq1", "ATCG"), createFasta("seq2", "GCTA")];
 
-    const result = await Array.fromAsync(rename(toAsyncIterable(input)));
+    const result = await collectAsync(rename(toAsyncIterable(input)));
 
     expect(result[0]!.id).toBe("seq1");
     expect(result[1]!.id).toBe("seq2");
@@ -47,7 +48,7 @@ describe("rename operation", () => {
   test("handles empty input", async () => {
     const input: FastaSequence[] = [];
 
-    const result = await Array.fromAsync(rename(toAsyncIterable(input)));
+    const result = await collectAsync(rename(toAsyncIterable(input)));
 
     expect(result).toHaveLength(0);
   });
@@ -58,7 +59,7 @@ describe("rename operation", () => {
       createFasta("seq1", "GCTA", "comment2"),
     ];
 
-    const result = await Array.fromAsync(rename(toAsyncIterable(input), { byName: false }));
+    const result = await collectAsync(rename(toAsyncIterable(input), { byName: false }));
 
     expect(result[0]!.id).toBe("seq1");
     expect(result[1]!.id).toBe("seq1_2");
@@ -70,7 +71,7 @@ describe("rename operation", () => {
       createFasta("seq1", "GCTA", "comment2"),
     ];
 
-    const result = await Array.fromAsync(rename(toAsyncIterable(input), { byName: true }));
+    const result = await collectAsync(rename(toAsyncIterable(input), { byName: true }));
 
     expect(result[0]!.id).toBe("seq1");
     expect(result[1]!.id).toBe("seq1");
@@ -82,7 +83,7 @@ describe("rename operation", () => {
       createFasta("seq1", "GCTA", "comment"),
     ];
 
-    const result = await Array.fromAsync(rename(toAsyncIterable(input), { byName: true }));
+    const result = await collectAsync(rename(toAsyncIterable(input), { byName: true }));
 
     expect(result[0]!.id).toBe("seq1");
     expect(result[1]!.id).toBe("seq1_2");
@@ -91,7 +92,7 @@ describe("rename operation", () => {
   test("custom separator: dot", async () => {
     const input: FastaSequence[] = [createFasta("seq1", "ATCG"), createFasta("seq1", "GCTA")];
 
-    const result = await Array.fromAsync(rename(toAsyncIterable(input), { separator: "." }));
+    const result = await collectAsync(rename(toAsyncIterable(input), { separator: "." }));
 
     expect(result[0]!.id).toBe("seq1");
     expect(result[1]!.id).toBe("seq1.2");
@@ -100,7 +101,7 @@ describe("rename operation", () => {
   test("custom separator: hyphen", async () => {
     const input: FastaSequence[] = [createFasta("seq1", "ATCG"), createFasta("seq1", "GCTA")];
 
-    const result = await Array.fromAsync(rename(toAsyncIterable(input), { separator: "-" }));
+    const result = await collectAsync(rename(toAsyncIterable(input), { separator: "-" }));
 
     expect(result[0]!.id).toBe("seq1");
     expect(result[1]!.id).toBe("seq1-2");
@@ -113,7 +114,7 @@ describe("rename operation", () => {
       createFasta("seq1", "TGAC"),
     ];
 
-    const result = await Array.fromAsync(rename(toAsyncIterable(input), { startNum: 0 }));
+    const result = await collectAsync(rename(toAsyncIterable(input), { startNum: 0 }));
 
     expect(result[0]!.id).toBe("seq1");
     expect(result[1]!.id).toBe("seq1_0");
@@ -123,7 +124,7 @@ describe("rename operation", () => {
   test("custom startNum: 100", async () => {
     const input: FastaSequence[] = [createFasta("seq1", "ATCG"), createFasta("seq1", "GCTA")];
 
-    const result = await Array.fromAsync(rename(toAsyncIterable(input), { startNum: 100 }));
+    const result = await collectAsync(rename(toAsyncIterable(input), { startNum: 100 }));
 
     expect(result[0]!.id).toBe("seq1");
     expect(result[1]!.id).toBe("seq1_100");
@@ -136,7 +137,7 @@ describe("rename operation", () => {
       createFasta("seq1", "TGAC"),
     ];
 
-    const result = await Array.fromAsync(rename(toAsyncIterable(input), { renameFirst: true }));
+    const result = await collectAsync(rename(toAsyncIterable(input), { renameFirst: true }));
 
     expect(result[0]!.id).toBe("seq1_2");
     expect(result[1]!.id).toBe("seq1_3");
@@ -150,7 +151,7 @@ describe("rename operation", () => {
       createFasta("seq1", "TGAC"),
     ];
 
-    const result = await Array.fromAsync(
+    const result = await collectAsync(
       rename(toAsyncIterable(input), { renameFirst: true, startNum: 1 })
     );
 
@@ -167,7 +168,7 @@ describe("rename operation", () => {
       createFasta("seq1", "CGAT"),
     ];
 
-    const result = await Array.fromAsync(rename(toAsyncIterable(input)));
+    const result = await collectAsync(rename(toAsyncIterable(input)));
 
     expect(result[0]!.id).toBe("seq1");
     expect(result[1]!.id).toBe("seq1_2");
@@ -180,7 +181,7 @@ describe("rename operation", () => {
 
     await expect(
       (async () => {
-        await Array.fromAsync(rename(toAsyncIterable(input), { separator: "" }));
+        await collectAsync(rename(toAsyncIterable(input), { separator: "" }));
       })()
     ).rejects.toThrow(ValidationError);
   });
@@ -189,7 +190,7 @@ describe("rename operation", () => {
     const input: FastaSequence[] = [createFasta("seq1", "ATCG")];
 
     try {
-      await Array.fromAsync(rename(toAsyncIterable(input), { separator: "" }));
+      await collectAsync(rename(toAsyncIterable(input), { separator: "" }));
       expect(true).toBe(false); // Should not reach here
     } catch (error) {
       expect(error).toBeInstanceOf(ValidationError);
@@ -203,7 +204,7 @@ describe("rename operation", () => {
 
     await expect(
       (async () => {
-        await Array.fromAsync(rename(toAsyncIterable(input), { startNum: -1 }));
+        await collectAsync(rename(toAsyncIterable(input), { startNum: -1 }));
       })()
     ).rejects.toThrow(ValidationError);
   });
@@ -212,7 +213,7 @@ describe("rename operation", () => {
     const input: FastaSequence[] = [createFasta("seq1", "ATCG")];
 
     try {
-      await Array.fromAsync(rename(toAsyncIterable(input), { startNum: -1 }));
+      await collectAsync(rename(toAsyncIterable(input), { startNum: -1 }));
       expect(true).toBe(false); // Should not reach here
     } catch (error) {
       expect(error).toBeInstanceOf(ValidationError);
@@ -244,7 +245,7 @@ describe("rename operation", () => {
       createFastq("seq1", "GCTA", "JJJJ"),
     ];
 
-    const result = await Array.fromAsync(rename(toAsyncIterable(input)));
+    const result = await collectAsync(rename(toAsyncIterable(input)));
 
     expect(result[0]!.id).toBe("seq1");
     expect(result[0]!.quality).toEqualSequence("IIII");
@@ -258,7 +259,7 @@ describe("rename operation", () => {
       createFasta("seq1", "GCTA", "another comment"),
     ];
 
-    const result = await Array.fromAsync(rename(toAsyncIterable(input)));
+    const result = await collectAsync(rename(toAsyncIterable(input)));
 
     expect(result[0]!.description).toBe("original comment");
     expect(result[1]!.description).toBe("another comment");
@@ -272,7 +273,7 @@ describe("rename operation", () => {
       input.push(createFasta(`seq${i}`, "ATCG"));
     }
 
-    const result = await Array.fromAsync(rename(toAsyncIterable(input)));
+    const result = await collectAsync(rename(toAsyncIterable(input)));
 
     expect(result).toHaveLength(1000);
     expect(result[0]!.id).toBe("seq0");

@@ -5,6 +5,7 @@
  * Morph/serialization tests and tabular write tests have moved to @genotype/tabular.
  */
 
+import { collectAsync } from "../utils/iterables";
 import { describe, expect, test } from "vitest";
 import "../matchers";
 import { ParseError } from "@genotype/core/errors";
@@ -20,7 +21,7 @@ describe("JSON Format - JSONParser", () => {
       ]);
 
       const parser = new JSONParser();
-      const sequences = await Array.fromAsync(parser.parseString(json));
+      const sequences = await collectAsync(parser.parseString(json));
 
       expect(sequences).toHaveLength(2);
       const seq1 = sequences[0] as FastaSequence;
@@ -49,7 +50,7 @@ describe("JSON Format - JSONParser", () => {
       });
 
       const parser = new JSONParser();
-      const sequences = await Array.fromAsync(parser.parseString(json));
+      const sequences = await collectAsync(parser.parseString(json));
 
       expect(sequences).toHaveLength(2);
       expect(sequences[0]!.id).toBe("seq1");
@@ -68,7 +69,7 @@ describe("JSON Format - JSONParser", () => {
       ]);
 
       const parser = new JSONParser();
-      const sequences = await Array.fromAsync(parser.parseString(json));
+      const sequences = await collectAsync(parser.parseString(json));
 
       expect(sequences).toHaveLength(1);
       const seq = sequences[0] as FastqSequence;
@@ -88,7 +89,7 @@ describe("JSON Format - JSONParser", () => {
       ]);
 
       const parser = new JSONParser();
-      const sequences = await Array.fromAsync(parser.parseString(json));
+      const sequences = await collectAsync(parser.parseString(json));
 
       expect(sequences).toHaveLength(1);
       expect((sequences[0] as FastaSequence & { description?: string }).description).toBe(
@@ -100,7 +101,7 @@ describe("JSON Format - JSONParser", () => {
       const json = JSON.stringify([{ id: "seq1", sequence: "ATCGATCG" }]);
 
       const parser = new JSONParser();
-      const sequences = await Array.fromAsync(parser.parseString(json));
+      const sequences = await collectAsync(parser.parseString(json));
 
       expect(sequences).toHaveLength(1);
       expect(sequences[0]!.length).toBe(8);
@@ -110,7 +111,7 @@ describe("JSON Format - JSONParser", () => {
       const json = JSON.stringify([{ id: "seq1", sequence: "ATCG", quality: "IIII" }]);
 
       const parser = new JSONParser();
-      const sequences = await Array.fromAsync(parser.parseString(json, { format: "fasta" }));
+      const sequences = await collectAsync(parser.parseString(json, { format: "fasta" }));
 
       expect(sequences).toHaveLength(1);
       const seq = sequences[0] as FastaSequence;
@@ -149,7 +150,7 @@ describe("JSON Format - JSONParser", () => {
       const json = JSON.stringify([]);
 
       const parser = new JSONParser();
-      const sequences = await Array.fromAsync(parser.parseString(json));
+      const sequences = await collectAsync(parser.parseString(json));
 
       expect(sequences).toHaveLength(0);
     });
@@ -158,7 +159,7 @@ describe("JSON Format - JSONParser", () => {
   describe("parseFile()", () => {
     test("parses JSON file with FASTA sequences", async () => {
       const parser = new JSONParser();
-      const sequences = await Array.fromAsync(parser.parseFile("test/fixtures/sequences.json"));
+      const sequences = await collectAsync(parser.parseFile("test/fixtures/sequences.json"));
 
       expect(sequences).toHaveLength(3);
       expect(sequences[0]!.id).toBe("seq1");
@@ -169,7 +170,7 @@ describe("JSON Format - JSONParser", () => {
 
     test("parses JSON file with wrapped format", async () => {
       const parser = new JSONParser();
-      const sequences = await Array.fromAsync(
+      const sequences = await collectAsync(
         parser.parseFile("test/fixtures/sequences-wrapped.json")
       );
 
@@ -180,9 +181,7 @@ describe("JSON Format - JSONParser", () => {
 
     test("parses JSON file with FASTQ sequences", async () => {
       const parser = new JSONParser();
-      const sequences = await Array.fromAsync(
-        parser.parseFile("test/fixtures/sequences-fastq.json")
-      );
+      const sequences = await collectAsync(parser.parseFile("test/fixtures/sequences-fastq.json"));
 
       expect(sequences).toHaveLength(2);
       const seq = sequences[0] as FastqSequence;
@@ -196,7 +195,7 @@ describe("JSON Format - JSONLParser", () => {
   describe("parseFile()", () => {
     test("parses JSONL file with FASTA sequences", async () => {
       const parser = new JSONLParser();
-      const sequences = await Array.fromAsync(parser.parseFile("test/fixtures/sequences.jsonl"));
+      const sequences = await collectAsync(parser.parseFile("test/fixtures/sequences.jsonl"));
 
       expect(sequences).toHaveLength(4);
       expect(sequences[0]!.id).toBe("seq1");
@@ -208,9 +207,7 @@ describe("JSON Format - JSONLParser", () => {
 
     test("parses JSONL file with FASTQ sequences", async () => {
       const parser = new JSONLParser();
-      const sequences = await Array.fromAsync(
-        parser.parseFile("test/fixtures/sequences-fastq.jsonl")
-      );
+      const sequences = await collectAsync(parser.parseFile("test/fixtures/sequences-fastq.jsonl"));
 
       expect(sequences).toHaveLength(3);
       const seq = sequences[0] as FastqSequence;
@@ -247,7 +244,7 @@ describe("JSON Format - JSONLParser", () => {
   describe("error handling", () => {
     test("skips empty lines in JSONL", async () => {
       const parser = new JSONLParser();
-      const sequences = await Array.fromAsync(parser.parseFile("test/fixtures/sequences.jsonl"));
+      const sequences = await collectAsync(parser.parseFile("test/fixtures/sequences.jsonl"));
 
       expect(sequences).toHaveLength(4);
     });

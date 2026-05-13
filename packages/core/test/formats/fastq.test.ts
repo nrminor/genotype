@@ -2,6 +2,7 @@
  * Tests for FASTQ format parsing and writing
  */
 
+import { collectAsync } from "../utils/iterables";
 import { describe, expect, test } from "vitest";
 import "../matchers";
 import { FastqParser, type FastqSequence } from "@genotype/core/index";
@@ -139,7 +140,7 @@ ATCGATCG
 @ABCDEFG`; // ASCII 64-70 (could be either encoding)
 
       const parser = new FastqParser();
-      const sequences = await Array.fromAsync(parser.parseString(overlapZoneFastq));
+      const sequences = await collectAsync(parser.parseString(overlapZoneFastq));
 
       expect(sequences).toHaveLength(1);
       expect(sequences[0]!.qualityEncoding).toBe("phred64"); // Should detect as Phred+64
@@ -154,7 +155,7 @@ ATCGATCG
 IIIIIIII`; // ASCII 73 = Q40, modern high quality
 
       const parser = new FastqParser();
-      const sequences = await Array.fromAsync(parser.parseString(modernHighQuality));
+      const sequences = await collectAsync(parser.parseString(modernHighQuality));
 
       expect(sequences).toHaveLength(1);
       expect(sequences[0]!.qualityEncoding).toBe("phred33");
@@ -169,7 +170,7 @@ ATCGATCG
 ;;;;;;;;`; // ASCII 59, Solexa-specific range (8 chars to match sequence)
 
       const parser = new FastqParser();
-      const sequences = await Array.fromAsync(parser.parseString(solexaPattern));
+      const sequences = await collectAsync(parser.parseString(solexaPattern));
 
       expect(sequences).toHaveLength(1);
       expect(sequences[0]!.qualityEncoding).toBe("solexa");
@@ -199,7 +200,7 @@ ATCGATCGATCGATCGATCGATCGATCG
 ????????????????????????????`; // ASCII 63 = Q30, typical NovaSeq quality (28 chars)
 
       const parser = new FastqParser();
-      const sequences = await Array.fromAsync(parser.parseString(novaSeqQuality));
+      const sequences = await collectAsync(parser.parseString(novaSeqQuality));
 
       expect(sequences).toHaveLength(1);
       expect(sequences[0]!.qualityEncoding).toBe("solexa"); // Algorithm detects as Solexa based on pattern
@@ -214,7 +215,7 @@ ATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCG
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@`; // ASCII 64 = Q31 in Phred+33 (64 chars)
 
       const parser = new FastqParser();
-      const sequences = await Array.fromAsync(parser.parseString(pacBioQuality));
+      const sequences = await collectAsync(parser.parseString(pacBioQuality));
 
       expect(sequences).toHaveLength(1);
       expect(sequences[0]!.qualityEncoding).toBe("phred64"); // Algorithm detects as Phred+64 due to @ characters
@@ -229,7 +230,7 @@ ATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCG
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++`; // ASCII 43 = Q10, typical Nanopore (76 chars)
 
       const parser = new FastqParser();
-      const sequences = await Array.fromAsync(parser.parseString(nanoporeQuality));
+      const sequences = await collectAsync(parser.parseString(nanoporeQuality));
 
       expect(sequences).toHaveLength(1);
       expect(sequences[0]!.qualityEncoding).toBe("phred33");
@@ -293,7 +294,7 @@ ATCGATCG
 III\x00III\x01`; // Non-printable characters in quality
 
       const parser = new FastqParser();
-      const sequences = await Array.fromAsync(parser.parseString(invalidQualityChars));
+      const sequences = await collectAsync(parser.parseString(invalidQualityChars));
 
       // Noodles accepts these — the parser doesn't reject non-printable quality bytes
       expect(sequences).toHaveLength(1);
@@ -349,7 +350,7 @@ ATCGATCG
 IIIIIIII`;
 
       const parser = new FastqParser();
-      const sequences = await Array.fromAsync(parser.parseString(casavaHeader));
+      const sequences = await collectAsync(parser.parseString(casavaHeader));
 
       expect(sequences).toHaveLength(1);
       expect(sequences[0]!.id).toBe("EAS139:136:FC706VJ:2:2104:15343:197393");
@@ -368,7 +369,7 @@ CGATCGAT
 IIIIIIII`;
 
       const parser = new FastqParser();
-      const sequences = await Array.fromAsync(parser.parseString(legacyPairedEnd));
+      const sequences = await collectAsync(parser.parseString(legacyPairedEnd));
 
       expect(sequences).toHaveLength(2);
       expect(sequences[0]!.id).toBe("read_name/1");
@@ -385,7 +386,7 @@ ATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCG
 IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII`;
 
       const parser = new FastqParser();
-      const sequences = await Array.fromAsync(parser.parseString(sraFormat));
+      const sequences = await collectAsync(parser.parseString(sraFormat));
 
       expect(sequences).toHaveLength(1);
       expect(sequences[0]!.id).toBe("SRR123456.1");
@@ -401,7 +402,7 @@ ATCGATCG
 IIIIIIII`;
 
       const parser = new FastqParser();
-      const sequences = await Array.fromAsync(parser.parseString(minimalSeparator));
+      const sequences = await collectAsync(parser.parseString(minimalSeparator));
 
       expect(sequences).toHaveLength(1);
       expect(sequences[0]!.id).toBe("minimal_separator_test");

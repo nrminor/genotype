@@ -161,6 +161,8 @@
 # Tests
 !/packages/tabular/test/
 !/packages/tabular/test/*.test.ts
+!/packages/tabular/test/utils/
+!/packages/tabular/test/utils/*.ts
 
 # === PARQUET PACKAGE ===
 # Source

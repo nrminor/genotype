@@ -6,6 +6,7 @@
       "@genotype/core/*": ["./packages/core/src/*"],
       "@genotype/tabular": ["./packages/tabular/src/index.ts"],
       "@genotype/tabular/*": ["./packages/tabular/src/*"],
+      "@genotype/parquet": ["./packages/parquet/src/index.ts"],
       "@genotype/parquet/*": ["./packages/parquet/src/*"],
       "@genotype/engine-wasm": ["./packages/core/src/backend/engine-wasm.d.ts"]
     }

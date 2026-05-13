@@ -1,0 +1,24 @@
+@read_good_full_length instrument:demo:lane1
+ACGTACGTACGTACGT
++
+IIIIIIIIIIIIIIII
+@read_low_quality_tail instrument:demo:lane1
+GATTACAGATTACA
++
+IIIIIIII!!!!!!
+@read_too_short_after_qc instrument:demo:lane1
+ACGTAC
++
+IIIIII
+@read_ambiguous instrument:demo:lane1
+ACGTNNNNACGT
++
+IIIIIIIIIIII
+@read_duplicate_sequence_a instrument:demo:lane1
+CCCCAAAAGGGGTTTT
++
+;<=>?@ABCDEFGHIJ
+@read_duplicate_sequence_b instrument:demo:lane1
+CCCCAAAAGGGGTTTT
++
+HHHHHHHHHHHHHHHH

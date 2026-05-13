@@ -1,0 +1,8 @@
+@HD	VN:1.6	SO:coordinate
+@SQ	SN:chr1	LN:64
+@SQ	SN:chr2	LN:32
+read_good_full_length	0	chr1	1	60	16M	*	0	0	ACGTACGTACGTACGT	IIIIIIIIIIIIIIII
+read_low_mapq	0	chr1	12	10	14M	*	0	0	GATTACAGATTACA	IIIIIIIIIIIIII
+read_reverse_chr2	16	chr2	5	42	12M	*	0	0	TTTTCCCCAAAA	HHHHHHHHHHHH
+read_soft_clipped	0	chr1	30	50	8M2S	*	0	0	ACGTACGTNN	IIIIIIII!!
+read_unmapped	4	*	0	0	*	*	0	0	NNNNACGT	!!!!!!!!

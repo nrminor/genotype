@@ -13,6 +13,7 @@ import "./seqops-ext";
 
 export { writeParquet, serializeToParquet, type ParquetWriteOptions } from "./writer";
 export { readParquet, readParquetStream, type ParquetReadOptions, type ParquetRow } from "./reader";
+export { fromParquet, type ParquetSequenceReadOptions } from "./seqops-ext";
 export { ParquetWriteError, ParquetReadError } from "./errors";
 export { initParquetWasm, ParquetWasmInitError } from "./wasm-init";
 export { PARQUET_VERSION } from "./version";

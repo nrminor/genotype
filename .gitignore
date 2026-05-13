@@ -104,7 +104,16 @@
 # === EXAMPLES & DOCUMENTATION ===
 # Usage examples
 !/examples/
+!/examples/README.md
+!/examples/tsconfig.json
 !/examples/*.ts
+!/examples/data/
+!/examples/data/*.fasta
+!/examples/data/*.fastq
+!/examples/data/*.gtf
+!/examples/data/*.sam
+!/examples/output/
+!/examples/output/.gitkeep
 
 # === TESTS ===
 # Test files organized by module

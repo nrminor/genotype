@@ -1,0 +1,7 @@
+chr1	GENCODE	gene	1	64	.	+	.	gene_id "GENE0001"; gene_name "BRCA1_DEMO"; gene_type "protein_coding";
+chr1	GENCODE	transcript	1	64	.	+	.	gene_id "GENE0001"; transcript_id "TX0001"; gene_name "BRCA1_DEMO"; gene_type "protein_coding"; transcript_type "protein_coding";
+chr1	GENCODE	exon	1	20	.	+	.	gene_id "GENE0001"; transcript_id "TX0001"; exon_number "1"; gene_type "protein_coding";
+chr1	GENCODE	exon	45	64	.	+	.	gene_id "GENE0001"; transcript_id "TX0001"; exon_number "2"; gene_type "protein_coding";
+chr2	GENCODE	gene	5	28	.	-	.	gene_id "GENE0002"; gene_name "MALAT1_DEMO"; gene_type "lncRNA";
+chr2	GENCODE	transcript	5	28	.	-	.	gene_id "GENE0002"; transcript_id "TX0002"; gene_name "MALAT1_DEMO"; gene_type "lncRNA"; transcript_type "lncRNA";
+chr2	GENCODE	exon	5	28	.	-	.	gene_id "GENE0002"; transcript_id "TX0002"; exon_number "1"; gene_type "lncRNA";

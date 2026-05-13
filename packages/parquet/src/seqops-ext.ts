@@ -69,12 +69,13 @@ declare module "@genotype/core/seqops" {
 }
 
 /**
- * Static method: read a Parquet file as a SeqOps pipeline.
+ * Read a Parquet file as a SeqOps pipeline.
  *
- * Expects the parquet file to have at minimum 'id' and 'sequence' columns.
- * If 'quality' is present, sequences are treated as FASTQ.
+ * Expects the parquet file to have at minimum 'id' and 'sequence' columns. If
+ * 'quality' is present, rows are converted to FASTQ records; otherwise they are
+ * converted to FASTA records.
  */
-(SeqOps as unknown as Record<string, unknown>).fromParquet = function (
+export function fromParquet(
   path: string,
   options?: ParquetSequenceReadOptions
 ): SeqOps<AbstractSequence> {
@@ -89,7 +90,9 @@ declare module "@genotype/core/seqops" {
   }
 
   return new SeqOps(parquetSequences());
-};
+}
+
+(SeqOps as unknown as Record<string, unknown>).fromParquet = fromParquet;
 
 /**
  * Instance method: write sequences to a Parquet file via toTabular().

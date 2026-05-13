@@ -25,7 +25,7 @@ the following "pipeline", mirroring a Unix pipeline of operations from the excel
 TypeScript like so:
 
 ```typescript
-import { seqops } from "genotype";
+import { seqops } from "@genotype/core";
 
 const results = await seqops(genomeSequences)
   .grep({ pattern: /^chr\d+/, target: "id" }) // Find chromosome sequences
@@ -94,13 +94,17 @@ bun add @nrminor/genotype
 
 ## Real-World Examples
 
+For runnable scripts, see [`examples/`](examples/). Those examples are kept as
+standalone Bun programs with small synthetic fixtures so they can double as both
+documentation and smoke tests for real workflows.
+
 ### Quality Control Pipeline
 
 **Problem**: You've received Illumina sequencing data from a collaborator. As
 always, it needs quality control before analysis.
 
 ```typescript
-import { seqops, FastqParser } from "genotype";
+import { seqops, FastqParser } from "@genotype/core";
 
 // Parse FASTQ with quality encoding specification (or automatic detection)
 const parser = new FastqParser({
@@ -147,7 +151,7 @@ QC Report:
 using PCR primers, with support for long reads and biological validation.
 
 ```typescript
-import { FastqParser, primer, seqops } from "genotype";
+import { FastqParser, primer, seqops } from "@genotype/core";
 
 // Define primers with compile-time validation and IUPAC support
 const forwardPrimer = primer.literal("TCGTCGGCAGCGTCAGATGTGTATAAGAGACAG"); // Nextera adapter

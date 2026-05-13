@@ -1,9 +1,8 @@
 /**
  * FASTQ Format Module
  *
- * Parsing and writing of FASTQ sequence data, backed by the Rust
- * noodles-fastq engine for correctness and performance. Includes
- * paired-end read support.
+ * Parsing and writing of FASTQ sequence data, including per-base quality
+ * strings, quality encoding metadata, and paired-end read support.
  */
 
 export { PairSyncError } from "@genotype/core/errors";

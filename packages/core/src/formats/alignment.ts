@@ -1,20 +1,16 @@
 /**
- * BAM/SAM alignment parser backed by noodles via the native addon.
+ * BAM/SAM alignment parser.
  *
  * Treats BAM and SAM as input formats that produce AlignmentRecord
  * objects — the same way FASTAParser and FASTQParser produce
  * FastaSequence and FastqSequence objects. Format detection is
  * automatic (BGZF magic bytes for BAM, text otherwise for SAM).
  *
- * The parser delegates all binary parsing, BGZF decompression, and
- * format handling to the Rust noodles reader. The TypeScript side
- * unpacks batched results into AlignmentRecord objects that conform
- * to AbstractSequence and flow through the operations pipeline.
- *
- * The alignment reader is managed as an Effect scoped resource via
- * acquireRelease. When consumed through the AsyncIterable interface,
- * the reader's close() finalizer runs automatically when the consumer
- * stops iterating — whether by exhaustion, early break, or error.
+ * Each yielded record preserves the read name, decoded sequence, quality string,
+ * flag, reference name, 1-based position, mapping quality, and CIGAR string.
+ * AlignmentRecord also conforms to AbstractSequence, so mapped reads can flow
+ * through the same SeqOps pipelines as FASTA and FASTQ records when that makes
+ * sense.
  */
 
 import { Effect, Option, Stream } from "effect";
@@ -92,8 +88,9 @@ function acquireReaderFromBytes(
 /**
  * Parser for BAM and SAM alignment files.
  *
- * Requires the native addon — BAM/SAM parsing is not available in
- * pure TypeScript mode. Format detection is automatic.
+ * Reads BAM or SAM alignment records as typed AlignmentRecord objects. Format
+ * detection is automatic. BAM/SAM parsing currently requires an available native
+ * or WASM backend.
  *
  * @example Basic usage
  * ```typescript

@@ -1,14 +1,14 @@
 /**
- * FASTQ format parser backed by noodles via the native/wasm engine.
+ * FASTQ format parser.
  *
- * Treats FASTQ as an input format that produces FastqSequence objects.
- * All parsing — including multi-line sequences, quality score extraction,
- * and gzip decompression — is delegated to the Rust noodles reader.
- * The TypeScript side unpacks batched results into FastqSequence objects.
+ * Treats FASTQ as a stream of sequence records with per-base quality strings.
+ * The parser accepts files, strings, or byte streams and yields FastqSequence
+ * objects that can be consumed directly or passed into SeqOps pipelines.
  *
- * Quality encoding detection, validation, paired-end support, and the
- * writer remain in TypeScript — they operate on parsed records, not
- * the parsing itself.
+ * Quality encoding can be specified explicitly or detected from the first batch
+ * of records. The parser preserves IDs, descriptions, sequence bases, quality
+ * strings, and quality encoding so downstream filtering, trimming, binning, and
+ * paired-read workflows can operate on the same typed record shape.
  */
 
 import { Effect, Option, Stream } from "effect";
@@ -106,9 +106,9 @@ function acquireFastqReaderFromBytes(
 /**
  * Parser for FASTQ sequence files.
  *
- * Delegates all parsing to the Rust noodles-fastq reader, which handles
- * multi-line sequences, quality score extraction, and gzip-compressed
- * input transparently.
+ * Reads FASTQ records from files, strings, or streams and yields typed
+ * FastqSequence objects. Multi-line records and gzip-compressed files are
+ * handled transparently, and quality encoding may be provided or auto-detected.
  *
  * @example Basic usage
  * ```typescript
@@ -178,7 +178,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
 
   /**
    * Parse multi-line FASTQ from a string (legacy compatibility).
-   * Now delegates to the same noodles-backed parser as parseString.
+   * Uses the same record shape and quality encoding behavior as parseString.
    */
   parseMultiLineString(data: string): FastqSequence[] {
     const results: FastqSequence[] = [];
@@ -218,7 +218,7 @@ export class FastqParser extends AbstractParser<FastqSequence, FastqParserOption
 
 /**
  * Fast-path FASTQ parser for simple 4-line format (legacy export).
- * Now just a wrapper around the noodles-backed parser.
+ * Prefer FastqParser directly for new code.
  */
 export async function* parseFastPath(
   lines: string[],

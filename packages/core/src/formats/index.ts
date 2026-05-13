@@ -15,7 +15,7 @@
  * ```
  */
 
-// Alignment format exports (noodles-backed BAM/SAM parser)
+// Alignment format exports
 export { AlignmentParser } from "./alignment";
 // BED format exports
 export {

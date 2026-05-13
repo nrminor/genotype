@@ -1,14 +1,13 @@
 /**
- * FASTA format parser backed by noodles via the native/wasm engine.
+ * FASTA format parser.
  *
- * Treats FASTA as an input format that produces FastaSequence objects.
- * All parsing — including multi-line sequence handling and gzip
- * decompression — is delegated to the Rust noodles reader. The
- * TypeScript side unpacks batched results into FastaSequence objects.
+ * Treats FASTA as a stream of named biological sequences. The parser accepts
+ * files, strings, or byte streams and yields FastaSequence objects that can be
+ * consumed directly or passed into SeqOps pipelines.
  *
- * The reader is managed as an Effect scoped resource via acquireRelease.
- * Stream.paginate drives the batch-to-record loop, and
- * toAsyncIterableEffect bridges back to AsyncIterable at the public API.
+ * Multi-line records and gzip-compressed files are handled transparently. Each
+ * yielded record preserves the sequence ID, optional description, sequence
+ * content, and cached length for downstream operations.
  */
 
 import { Effect, Option, Stream } from "effect";
@@ -84,8 +83,9 @@ function acquireFastaReaderFromBytes(
 /**
  * Parser for FASTA sequence files.
  *
- * Delegates all parsing to the Rust noodles-fasta reader, which handles
- * multi-line sequences and gzip-compressed input transparently.
+ * Reads FASTA records from files, strings, or streams and yields typed
+ * FastaSequence objects. Multi-line records and gzip-compressed files are
+ * handled transparently.
  *
  * @example Basic usage
  * ```typescript

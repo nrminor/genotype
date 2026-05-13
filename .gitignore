@@ -187,6 +187,7 @@
 # === CONSUMER E2E CONTRACT TESTS ===
 !/tests/
 !/tests/consumer-e2e/
+!/tests/consumer-e2e/README.md
 !/tests/consumer-e2e/template/
 !/tests/consumer-e2e/template/*.json
 !/tests/consumer-e2e/template/*.ts

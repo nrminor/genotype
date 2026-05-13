@@ -9,8 +9,8 @@
  * - Performance characteristics
  */
 
-import { describe, expect, test } from "vitest";
-import { unlink, writeFile } from "node:fs/promises";
+import { beforeAll, describe, expect, test } from "vitest";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
 import {
   CSVParser,
@@ -26,6 +26,10 @@ import {
   TSVParser,
   TSVWriter,
 } from "@genotype/tabular/dsv";
+
+beforeAll(async () => {
+  await mkdir("test/fixtures", { recursive: true });
+});
 
 describe("DSV Format Module", () => {
   describe("Excel Gene Name Protection", () => {
